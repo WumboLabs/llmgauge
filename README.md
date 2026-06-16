@@ -215,3 +215,4 @@ Create a machine-readable export index:
 
 See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.
 See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, and export-index schema notes.
+See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
