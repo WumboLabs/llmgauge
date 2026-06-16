@@ -1,0 +1,28 @@
+[project]
+name = "llmgauge"
+version = "0.1.0"
+description = "Practical local LLM evaluation on real hardware"
+readme = "README.md"
+authors = [
+    { name = "Kevin Dickinson", email = "kdick518@icloud.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "typer>=0.26.7",
+]
+
+[project.scripts]
+llmgauge = "llmgauge.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.11,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "ruff>=0.15.17",
+]

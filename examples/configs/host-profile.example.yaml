@@ -1,0 +1,10 @@
+schema_version: llmgauge.host_profile.v0
+
+host:
+  label: local-workstation
+  os: Linux
+  gpu: NVIDIA GPU
+  vram_class_gb: 12
+  observed_available_vram_mib: null
+  runtime_preference: llama.cpp CUDA / GGUF
+  preferred_offload: full_gpu_when_practical

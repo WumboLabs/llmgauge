@@ -1,0 +1,14 @@
+schema_version: llmgauge.suite.v0
+suite_id: agent-backend-v1
+suite_version: 0.1.0
+title: Agent Backend Suitability v1
+description: >
+  Agent-backend evaluation suite for local models. Focuses on tool honesty,
+  shell safety, coding/config usefulness, and long-context constraint retention.
+
+defaults:
+  max_tokens: 800
+  temperature: 0.2
+  top_p: 0.95
+
+prompts: []
