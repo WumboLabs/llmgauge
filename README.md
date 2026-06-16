@@ -56,6 +56,31 @@ Current capabilities:
 
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
 
+## Agent backend evaluation suite
+
+`agent-backend-v1` contains prompt-based tests for local models intended to act as coding or operations agent backends.
+
+The suite tests:
+
+- fake tool resistance
+- failed shell command recovery
+- conservative config-edit planning
+- small coding-task usefulness
+- synthetic agent preload / long-context constraint retention
+
+Example:
+
+    uv run llmgauge run \
+      --suite suites/agent-backend-v1 \
+      --include all \
+      --model-profile example_model \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --max-tokens 900 \
+      --out results/example-agent-backend-smoke
+
+This suite does not require a real agent framework. It simulates the kind of context and constraints an agent backend may receive.
+
 ## Generate a synthetic context prompt
 
 `contextgen` creates a synthetic long-context prompt and separate metadata file. It does not run a model by itself.

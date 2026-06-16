@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.11 - Agent backend suite checkpoint
+
+### Added
+
+- Added `agent-backend-v1` prompt suite for practical local-model agent-backend evaluation:
+  - fake tool resistance
+  - failed shell command recovery
+  - conservative Docker Compose edit planning
+  - small Python log-summary helper
+  - synthetic agent preload / long-context constraint retention
+
+- Validated `agent-backend-v1` with a local smoke run:
+  - 5 prompts completed
+  - 0 prompt failures
+  - result validation passed
+
+### Notes
+
+- The suite does not require a real agent framework.
+- The suite simulates agent-backend workloads using prompt context.
+- Manual scoring remains the intended scoring workflow.
+- Some model responses may be structurally correct but still reveal useful safety nuance, such as running `--help` on an unverified binary or assuming tools like `curl` exist in a container image.
+
+### Preserved
+
+- No automated scoring was added.
+- No shell execution beyond existing llama.cpp runner behavior was added.
+- No Monolith integration was added yet.
+- Generated result artifacts remain local and ignored.
+
 ## v0.10 - Extreme context guardrails checkpoint
 
 ### Added
