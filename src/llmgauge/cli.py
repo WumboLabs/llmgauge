@@ -14,6 +14,7 @@ from llmgauge.core.contextgen import (
     build_context_prompt,
     write_context_prompt_artifacts,
 )
+from llmgauge.core.export_index import build_export_index, write_export_index
 from llmgauge.core.config import (
     coalesce,
     get_config_value,
@@ -817,6 +818,26 @@ def score(
     console.print(f"[bold green]Applied scores[/bold green]: {scores}")
     console.print(f"Updated: {result_dir / 'llmgauge-result.json'}")
     console.print(f"Updated: {result_dir / 'report.md'}")
+
+
+@app.command("export-index")
+def export_index_command(
+    artifact_paths: list[Path] = typer.Argument(
+        ...,
+        help="LLMGauge run or ladder directories to index",
+    ),
+    out: Path = typer.Option(..., "--out", help="Output index JSON path"),
+) -> None:
+    """Create a machine-readable index of LLMGauge result artifacts."""
+    try:
+        index = build_export_index(artifact_paths)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    write_export_index(out, index)
+
+    console.print(f"[bold green]Wrote export index[/bold green]: {out}")
+    console.print(f"Indexed artifacts: {index['item_count']}")
 
 
 @app.command()
