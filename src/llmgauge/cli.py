@@ -18,6 +18,7 @@ from llmgauge.core.config import (
 )
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.reports import build_markdown_report
+from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.scoring import (
     apply_scores,
     build_score_template,
@@ -410,6 +411,26 @@ def run(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]Run completed[/bold green]: {out}")
+
+
+@app.command("validate-result")
+def validate_result(
+    result_dir: Path = typer.Argument(..., help="LLMGauge result directory"),
+) -> None:
+    """Validate a LLMGauge result directory."""
+    try:
+        errors = validate_result_dir(result_dir)
+    except Exception as exc:
+        console.print(f"[bold red]Result validation failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if errors:
+        console.print("[bold red]Result validation failed[/bold red]")
+        for error in errors:
+            console.print(f"- {error}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold green]OK[/bold green] {result_dir}")
 
 
 @app.command()

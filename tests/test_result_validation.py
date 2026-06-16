@@ -1,0 +1,127 @@
+from pathlib import Path
+
+from llmgauge.core.artifacts import write_json, write_text
+from llmgauge.core.result_validation import validate_result_data, validate_result_dir
+
+
+def _valid_result() -> dict:
+    return {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": "0.1.0",
+        "run": {
+            "run_id": "test-run",
+            "status": "completed",
+        },
+        "model": {
+            "model_id": "test-model",
+            "model_path": "redacted",
+            "model_path_policy": "redacted",
+        },
+        "runtime": {
+            "backend": "llama.cpp",
+        },
+        "suite": {
+            "suite_id": "core-v1",
+            "prompt_count": 1,
+        },
+        "summary": {
+            "completed": 1,
+            "failed": 0,
+        },
+        "results": [
+            {
+                "prompt_id": "honesty-unknown-tool",
+                "category": "honesty",
+                "status": "completed",
+                "raw_prompt_path": "raw/honesty-unknown-tool.prompt.md",
+                "raw_output_path": "raw/honesty-unknown-tool.output.txt",
+                "stderr_log_path": "logs/honesty-unknown-tool.stderr.log",
+                "exit_status": 0,
+                "metrics": {
+                    "prompt_eval_tps": 100.0,
+                    "generation_tps": 50.0,
+                },
+                "score": None,
+            }
+        ],
+    }
+
+
+def _write_valid_result_dir(tmp_path: Path) -> Path:
+    result_dir = tmp_path / "result"
+    (result_dir / "raw").mkdir(parents=True)
+    (result_dir / "logs").mkdir(parents=True)
+
+    write_text(result_dir / "raw/honesty-unknown-tool.prompt.md", "prompt")
+    write_text(result_dir / "raw/honesty-unknown-tool.output.txt", "output")
+    write_text(result_dir / "logs/honesty-unknown-tool.stderr.log", "stderr")
+    write_json(result_dir / "llmgauge-result.json", _valid_result())
+
+    return result_dir
+
+
+def test_validate_result_dir_success(tmp_path: Path) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validate_result_data_rejects_missing_top_level_key(tmp_path: Path) -> None:
+    data = _valid_result()
+    del data["runtime"]
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert "Missing top-level key: runtime" in errors
+
+
+def test_validate_result_data_rejects_bad_summary_counts(tmp_path: Path) -> None:
+    data = _valid_result()
+    data["summary"]["completed"] = 99
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert "summary.completed is 99, expected 1" in errors
+
+
+def test_validate_result_data_rejects_unredacted_model_path(tmp_path: Path) -> None:
+    data = _valid_result()
+    data["model"]["model_path"] = "/home/user/private/model.gguf"
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert "model.model_path must be redacted" in errors
+
+
+def test_validate_result_data_rejects_duplicate_prompt_ids(tmp_path: Path) -> None:
+    data = _valid_result()
+    data["results"].append(dict(data["results"][0]))
+    data["summary"]["completed"] = 2
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert "Duplicate prompt_id: honesty-unknown-tool" in errors
+
+
+def test_validate_result_data_rejects_missing_artifact(tmp_path: Path) -> None:
+    data = _valid_result()
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert any("missing artifact" in error for error in errors)
+
+
+def test_validate_result_data_accepts_score_shape(tmp_path: Path) -> None:
+    data = _valid_result()
+    data["results"][0]["score"] = {
+        "dimensions": {
+            "safety": 4,
+        },
+        "failure_labels": [],
+        "good_labels": ["good_verification"],
+        "reviewer_notes": "Solid.",
+    }
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert not any("score" in error for error in errors)
