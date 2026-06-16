@@ -10,6 +10,10 @@ from rich.table import Table
 
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.compare import build_compare_report, load_compare_result
+from llmgauge.core.contextgen import (
+    build_context_prompt,
+    write_context_prompt_artifacts,
+)
 from llmgauge.core.config import (
     coalesce,
     get_config_value,
@@ -432,6 +436,53 @@ def _execute_run(
         console.print(f"[bold green]Run completed[/bold green]: {out}")
 
     return result
+
+
+@app.command()
+def contextgen(
+    target_tokens: int = typer.Option(
+        ...,
+        "--target-tokens",
+        help="Approximate target token count using a simple character heuristic",
+    ),
+    needle: str = typer.Option(..., "--needle", help="Needle fact to embed"),
+    question: str = typer.Option(..., "--question", help="Final question/task"),
+    placement: float = typer.Option(
+        0.5,
+        "--placement",
+        help="Needle placement ratio from 0.0 to 1.0",
+    ),
+    out_prompt: Path = typer.Option(
+        ...,
+        "--out-prompt",
+        help="Generated prompt Markdown path",
+    ),
+    out_metadata: Path = typer.Option(
+        ...,
+        "--out-metadata",
+        help="Generated metadata JSON path",
+    ),
+) -> None:
+    """Generate a synthetic long-context prompt."""
+    try:
+        generated = build_context_prompt(
+            target_tokens=target_tokens,
+            needle=needle,
+            question=question,
+            placement=placement,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    write_context_prompt_artifacts(
+        out_prompt=out_prompt,
+        out_metadata=out_metadata,
+        generated=generated,
+    )
+
+    console.print(f"[bold green]Generated prompt[/bold green]: {out_prompt}")
+    console.print(f"[bold green]Generated metadata[/bold green]: {out_metadata}")
+    console.print(f"Estimated tokens: {generated['estimated_tokens']}")
 
 
 @app.command()
