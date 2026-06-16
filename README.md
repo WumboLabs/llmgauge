@@ -179,6 +179,30 @@ Raw model outputs are preserved separately and are not cleaned or filtered.
     uv run ruff format .
     uv run ruff check .
 
+## Installed CLI usage
+
+LLMGauge exposes a `llmgauge` console command.
+
+For local development from this repository, commands may still be run with:
+
+    uv run llmgauge --help
+
+For installed local usage, install the current checkout as a uv tool:
+
+    uv tool install .
+
+Then run LLMGauge directly:
+
+    llmgauge --help
+    llmgauge list-suites
+    llmgauge validate-suite core-v1
+
+The installed CLI includes built-in prompt suites, so `llmgauge list-suites` and
+`llmgauge validate-suite core-v1` work outside the source checkout.
+
+Development examples may continue to use `uv run llmgauge ...` when they are
+intended to run from the repository checkout.
+
 ## Monolith bridge artifacts
 
 LLMGauge is designed to produce portable result artifacts that another local application, such as Monolith, can import without LLMGauge writing directly to that application's database.

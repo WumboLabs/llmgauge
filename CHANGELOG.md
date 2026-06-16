@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.15
+
+- Added packaged built-in suite discovery so installed `llmgauge` can list and validate built-in suites outside the source checkout.
+- Verified `uv tool install .` creates a working `llmgauge` console command.
+- Documented installed CLI usage while keeping `uv run llmgauge ...` for development-from-checkout workflows.
+
 ## v0.14
 
 - Added Monolith import example documentation based on the first working Monolith importer path.
