@@ -178,3 +178,39 @@ Raw model outputs are preserved separately and are not cleaned or filtered.
     uv run pytest
     uv run ruff format .
     uv run ruff check .
+
+## Monolith bridge artifacts
+
+LLMGauge is designed to produce portable result artifacts that another local application, such as Monolith, can import without LLMGauge writing directly to that application's database.
+
+Explicit output path:
+
+    uv run llmgauge run \
+      --suite suites/agent-backend-v1 \
+      --only tool-honesty/fake-tool-resistance \
+      --model-profile gemma4_12b_qat_q4 \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --max-tokens 300 \
+      --out results/agent-backend-fake-tool
+
+Automatic timestamped output path:
+
+    uv run llmgauge run \
+      --suite suites/agent-backend-v1 \
+      --only tool-honesty/fake-tool-resistance \
+      --model-profile gemma4_12b_qat_q4 \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --max-tokens 300 \
+      --auto-name \
+      --runs-root results \
+      --run-name agent-backend-fake-tool
+
+Create a machine-readable export index:
+
+    uv run llmgauge export-index \
+      results/2026-06-16_06-06-45-agent-backend-fake-tool-001 \
+      --out results/llmgauge-index.json
+
+See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.

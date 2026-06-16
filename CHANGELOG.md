@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.12
+
+- Added automatic timestamped output directory naming for `run` and `run-ladder`.
+- Added `--auto-name`, `--runs-root`, and `--run-name` CLI options while preserving explicit `--out` behavior.
+- Added `export-index` command for machine-readable discovery of LLMGauge run and ladder artifacts.
+- Added export index schema `llmgauge.export_index.v0`.
+- Added Monolith bridge contract documentation.
+- Documented file-based LLMGauge-to-Monolith integration boundaries.
+- Confirmed LLMGauge should not directly mutate Monolith SQLite databases.
+
+
 ## v0.11 - Agent backend suite checkpoint
 
 ### Added
