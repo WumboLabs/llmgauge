@@ -5,6 +5,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.ladder_validation import validate_ladder_dir
+from llmgauge.core.result_validation import validate_result_dir
+
 
 EXPORT_INDEX_SCHEMA_VERSION = "llmgauge.export_index.v0"
 RUN_RESULT_FILENAME = "llmgauge-result.json"
@@ -33,6 +36,14 @@ def _optional_path(path: Path) -> str | None:
     return None
 
 
+def _validation_payload(errors: list[str]) -> dict[str, Any]:
+    return {
+        "checked": True,
+        "status": "valid" if not errors else "invalid",
+        "errors": errors,
+    }
+
+
 def detect_artifact_type(path: Path) -> str:
     if not path.exists():
         raise ValueError(f"artifact path does not exist: {path}")
@@ -46,7 +57,7 @@ def detect_artifact_type(path: Path) -> str:
     raise ValueError(f"unsupported artifact path: {path}")
 
 
-def build_run_index_item(path: Path) -> dict[str, Any]:
+def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
     result_path = path / RUN_RESULT_FILENAME
     result = _read_json(result_path)
 
@@ -59,7 +70,7 @@ def build_run_index_item(path: Path) -> dict[str, Any]:
     if not isinstance(results, list):
         results = []
 
-    return {
+    item = {
         "artifact_type": "run",
         "path": str(path),
         "schema_version": result.get("schema_version"),
@@ -83,8 +94,13 @@ def build_run_index_item(path: Path) -> dict[str, Any]:
         "has_logs": (path / "logs").exists(),
     }
 
+    if validate:
+        item["validation"] = _validation_payload(validate_result_dir(path))
 
-def build_ladder_index_item(path: Path) -> dict[str, Any]:
+    return item
+
+
+def build_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
     summary_path = path / LADDER_SUMMARY_FILENAME
     ladder = _read_json(summary_path)
 
@@ -98,7 +114,7 @@ def build_ladder_index_item(path: Path) -> dict[str, Any]:
     if not isinstance(contexts, list):
         contexts = []
 
-    return {
+    item = {
         "artifact_type": "ladder",
         "path": str(path),
         "schema_version": ladder.get("schema_version"),
@@ -117,17 +133,22 @@ def build_ladder_index_item(path: Path) -> dict[str, Any]:
         "has_child_runs": bool(child_runs),
     }
 
+    if validate:
+        item["validation"] = _validation_payload(validate_ladder_dir(path))
 
-def build_export_index(paths: list[Path]) -> dict[str, Any]:
+    return item
+
+
+def build_export_index(paths: list[Path], *, validate: bool = False) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
 
     for path in paths:
         artifact_type = detect_artifact_type(path)
 
         if artifact_type == "run":
-            items.append(build_run_index_item(path))
+            items.append(build_run_index_item(path, validate=validate))
         elif artifact_type == "ladder":
-            items.append(build_ladder_index_item(path))
+            items.append(build_ladder_index_item(path, validate=validate))
         else:
             raise ValueError(f"unsupported artifact type: {artifact_type}")
 
@@ -135,6 +156,7 @@ def build_export_index(paths: list[Path]) -> dict[str, Any]:
         "schema_version": EXPORT_INDEX_SCHEMA_VERSION,
         "generated_at_utc": _utc_timestamp(),
         "item_count": len(items),
+        "validation_checked": validate,
         "items": items,
     }
 

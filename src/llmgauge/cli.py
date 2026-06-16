@@ -848,10 +848,15 @@ def export_index_command(
         help="LLMGauge run or ladder directories to index",
     ),
     out: Path = typer.Option(..., "--out", help="Output index JSON path"),
+    validate: bool = typer.Option(
+        False,
+        "--validate",
+        help="Validate indexed artifacts and include validation status",
+    ),
 ) -> None:
     """Create a machine-readable index of LLMGauge result artifacts."""
     try:
-        index = build_export_index(artifact_paths)
+        index = build_export_index(artifact_paths, validate=validate)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 

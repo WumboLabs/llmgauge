@@ -140,3 +140,89 @@ def test_write_export_index(tmp_path: Path) -> None:
 
     assert out.exists()
     assert "llmgauge.export_index.v0" in out.read_text(encoding="utf-8")
+
+
+def test_build_export_index_can_validate_run(tmp_path: Path) -> None:
+    result_dir = tmp_path / "run-a"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "run-a",
+    "timestamp_utc": "2026-06-16T06:00:00+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "agent-backend-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 0
+  },
+  "summary": {
+    "completed": 0,
+    "failed": 0,
+    "manual_score_total": null,
+    "manual_score_max": null
+  },
+  "results": []
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir], validate=True)
+    item = index["items"][0]
+
+    assert index["validation_checked"] is True
+    assert item["validation"]["checked"] is True
+    assert item["validation"]["status"] == "invalid"
+    assert item["validation"]["errors"]
+
+
+def test_build_export_index_can_validate_ladder(tmp_path: Path) -> None:
+    result_dir = tmp_path / "ladder-a"
+    result_dir.mkdir()
+    (result_dir / "ladder-summary.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.context_ladder.v0",
+  "ladder_id": "ladder-a",
+  "suite_id": "agent-backend-v1",
+  "model_id": "test-model",
+  "include": "all",
+  "only": null,
+  "contexts": [8192],
+  "child_runs": [
+    {
+      "ctx_size": 8192,
+      "status": "failed",
+      "result_dir": "ctx-8192",
+      "completed": null,
+      "failed": null,
+      "error": "intentional test failure"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "completed": 0,
+    "failed": 1
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir], validate=True)
+    item = index["items"][0]
+
+    assert index["validation_checked"] is True
+    assert item["validation"]["checked"] is True
+    assert item["validation"]["status"] == "valid"
+    assert item["validation"]["errors"] == []
