@@ -578,6 +578,11 @@ def run_ladder(
         "--ctx-ladder",
         help="Comma-separated context sizes. Default: 8192,16384,32768",
     ),
+    allow_extreme_context: bool = typer.Option(
+        False,
+        "--allow-extreme-context",
+        help="Allow explicit context ladder values above 65536 up to 262144",
+    ),
     max_tokens: int | None = typer.Option(
         None, "--max-tokens", help="Max generated tokens"
     ),
@@ -589,7 +594,13 @@ def run_ladder(
     out: Path = typer.Option(..., "--out", help="Output ladder directory"),
 ) -> None:
     """Run the same selected prompts across multiple context sizes."""
-    contexts = parse_ctx_ladder(ctx_ladder)
+    try:
+        contexts = parse_ctx_ladder(
+            ctx_ladder,
+            allow_extreme_context=allow_extreme_context,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     prepare_result_dir(out)
 
     child_runs: list[dict[str, Any]] = []
