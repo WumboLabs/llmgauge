@@ -11,3 +11,6 @@ wheels/
 
 # LLMGauge generated results
 results/
+
+# Local/private LLMGauge config
+examples/configs/*.local.yaml

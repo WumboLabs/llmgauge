@@ -9,6 +9,13 @@ from rich.table import Table
 
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.compare import build_compare_report, load_compare_result
+from llmgauge.core.config import (
+    coalesce,
+    get_config_value,
+    load_llmgauge_config,
+    load_model_profiles,
+    resolve_model_profile,
+)
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.scoring import (
@@ -148,24 +155,121 @@ def run(
         "--include",
         help="Prompt category to run, or 'all'. Ignored when --only is set.",
     ),
-    model_id: str = typer.Option(..., "--model-id", help="Model identifier"),
-    model_path: Path = typer.Option(..., "--model-path", help="GGUF model path"),
-    llama_cli: Path = typer.Option(..., "--llama-cli", help="llama-cli path"),
-    ctx: int = typer.Option(8192, "--ctx", help="Context size"),
-    max_tokens: int = typer.Option(800, "--max-tokens", help="Max generated tokens"),
-    temp: float = typer.Option(0.2, "--temp", help="Temperature"),
-    top_p: float = typer.Option(0.95, "--top-p", help="Top-p"),
-    batch: int = typer.Option(256, "--batch", help="Batch size"),
-    ubatch: int = typer.Option(64, "--ubatch", help="Micro-batch size"),
-    gpu_layers: int = typer.Option(999, "--gpu-layers", help="GPU layers"),
+    model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
+    model_profile: str | None = typer.Option(
+        None, "--model-profile", help="Model profile name"
+    ),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="LLMGauge config YAML"
+    ),
+    model_profiles_path: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Model profiles YAML",
+    ),
+    model_path: Path | None = typer.Option(
+        None, "--model-path", help="GGUF model path"
+    ),
+    llama_cli: Path | None = typer.Option(None, "--llama-cli", help="llama-cli path"),
+    ctx: int | None = typer.Option(None, "--ctx", help="Context size"),
+    max_tokens: int | None = typer.Option(
+        None, "--max-tokens", help="Max generated tokens"
+    ),
+    temp: float | None = typer.Option(None, "--temp", help="Temperature"),
+    top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
+    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
+    ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
+    gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
     out: Path = typer.Option(..., "--out", help="Output result directory"),
 ) -> None:
     """Run one or more prompts through llama.cpp."""
-    if not model_path.exists():
-        raise typer.BadParameter(f"Model path does not exist: {model_path}")
+    config_data = load_llmgauge_config(config_path)
+    profiles = load_model_profiles(model_profiles_path)
+    profile = resolve_model_profile(profiles, model_profile)
 
-    if not llama_cli.exists():
-        raise typer.BadParameter(f"llama-cli path does not exist: {llama_cli}")
+    resolved_model_id = coalesce(model_id, model_profile, profile.get("label"))
+    if resolved_model_id is None:
+        raise typer.BadParameter("Provide --model-id or --model-profile")
+
+    resolved_model_path = coalesce(model_path, profile.get("path"))
+    if resolved_model_path is None:
+        raise typer.BadParameter(
+            "Provide --model-path or use --model-profile with a path"
+        )
+    resolved_model_path = Path(resolved_model_path)
+
+    resolved_llama_cli = coalesce(
+        llama_cli,
+        get_config_value(config_data, "runtime.llama_cli"),
+    )
+    if resolved_llama_cli is None:
+        raise typer.BadParameter(
+            "Provide --llama-cli or set runtime.llama_cli in --config"
+        )
+    resolved_llama_cli = Path(resolved_llama_cli)
+
+    resolved_ctx = int(
+        coalesce(
+            ctx,
+            profile.get("ctx_size"),
+            get_config_value(config_data, "defaults.ctx_size"),
+            8192,
+        )
+    )
+    resolved_max_tokens = int(
+        coalesce(
+            max_tokens,
+            profile.get("max_tokens"),
+            get_config_value(config_data, "defaults.max_tokens"),
+            800,
+        )
+    )
+    resolved_temp = float(
+        coalesce(
+            temp,
+            profile.get("temperature"),
+            get_config_value(config_data, "defaults.temperature"),
+            0.2,
+        )
+    )
+    resolved_top_p = float(
+        coalesce(
+            top_p,
+            profile.get("top_p"),
+            get_config_value(config_data, "defaults.top_p"),
+            0.95,
+        )
+    )
+    resolved_batch = int(
+        coalesce(
+            batch,
+            profile.get("batch_size"),
+            get_config_value(config_data, "defaults.batch_size"),
+            256,
+        )
+    )
+    resolved_ubatch = int(
+        coalesce(
+            ubatch,
+            profile.get("ubatch_size"),
+            get_config_value(config_data, "defaults.ubatch_size"),
+            64,
+        )
+    )
+    resolved_gpu_layers = int(
+        coalesce(
+            gpu_layers,
+            profile.get("gpu_layers"),
+            get_config_value(config_data, "defaults.gpu_layers"),
+            999,
+        )
+    )
+
+    if not resolved_model_path.exists():
+        raise typer.BadParameter(f"Model path does not exist: {resolved_model_path}")
+
+    if not resolved_llama_cli.exists():
+        raise typer.BadParameter(f"llama-cli path does not exist: {resolved_llama_cli}")
 
     loaded_suite = load_suite(suite)
     selected_prompts = _select_prompts(loaded_suite, only, include)
@@ -174,15 +278,15 @@ def run(
     prepare_result_dir(out)
 
     config = LlamaCppRunConfig(
-        llama_cli=llama_cli,
-        model_path=model_path,
-        ctx_size=ctx,
-        max_tokens=max_tokens,
-        temperature=temp,
-        top_p=top_p,
-        batch_size=batch,
-        ubatch_size=ubatch,
-        gpu_layers=gpu_layers,
+        llama_cli=resolved_llama_cli,
+        model_path=resolved_model_path,
+        ctx_size=resolved_ctx,
+        max_tokens=resolved_max_tokens,
+        temperature=resolved_temp,
+        top_p=resolved_top_p,
+        batch_size=resolved_batch,
+        ubatch_size=resolved_ubatch,
+        gpu_layers=resolved_gpu_layers,
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -192,7 +296,7 @@ def run(
 
     console.print(
         f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
-        f"with model [bold]{model_id}[/bold]"
+        f"with model [bold]{resolved_model_id}[/bold]"
     )
 
     for index, prompt_meta in enumerate(selected_prompts, start=1):
@@ -211,7 +315,9 @@ def run(
         run_result = run_llama_cpp(config, combined_prompt)
 
         if redacted_command is None:
-            redacted_command = _redacted_command(run_result.command, model_path)
+            redacted_command = _redacted_command(
+                run_result.command, resolved_model_path
+            )
 
         write_text(raw_output_path, run_result.stdout)
         write_text(stderr_log_path, run_result.stderr)
@@ -253,21 +359,30 @@ def run(
             "result_dir": str(out),
         },
         "model": {
-            "model_id": model_id,
+            "model_id": str(resolved_model_id),
+            "model_profile": model_profile,
+            "label": profile.get("label"),
+            "family": profile.get("family"),
+            "role": profile.get("role"),
+            "quant": profile.get("quant"),
             "model_path": "redacted",
             "model_path_policy": "redacted",
         },
         "runtime": {
             "backend": "llama.cpp",
-            "llama_cli": str(llama_cli),
-            "ctx_size": ctx,
-            "max_tokens": max_tokens,
-            "temperature": temp,
-            "top_p": top_p,
-            "batch_size": batch,
-            "ubatch_size": ubatch,
-            "gpu_layers": gpu_layers,
+            "llama_cli": str(resolved_llama_cli),
+            "ctx_size": resolved_ctx,
+            "max_tokens": resolved_max_tokens,
+            "temperature": resolved_temp,
+            "top_p": resolved_top_p,
+            "batch_size": resolved_batch,
+            "ubatch_size": resolved_ubatch,
+            "gpu_layers": resolved_gpu_layers,
             "command": redacted_command or [],
+            "config_path": str(config_path) if config_path else None,
+            "model_profiles_path": str(model_profiles_path)
+            if model_profiles_path
+            else None,
         },
         "suite": {
             "suite_id": loaded_suite["suite_id"],
