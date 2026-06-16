@@ -86,6 +86,22 @@ def _find_prompt(suite: dict, prompt_id: str) -> dict:
     raise typer.BadParameter(f"Prompt ID not found in suite: {prompt_id}")
 
 
+def _select_prompts(suite: dict, only: str | None, include: str) -> list[dict]:
+    prompts = suite.get("prompts", [])
+
+    if only:
+        return [_find_prompt(suite, only)]
+
+    if include == "all":
+        return list(prompts)
+
+    selected = [prompt for prompt in prompts if prompt.get("category") == include]
+    if not selected:
+        raise typer.BadParameter(f"No prompts found for include/category: {include}")
+
+    return selected
+
+
 def _load_system_prompt() -> str:
     path = Path("suites/core-v1/prompts/system-conservative-ops.txt")
     if path.exists():
@@ -98,10 +114,30 @@ def _load_system_prompt() -> str:
     )
 
 
+def _build_combined_prompt(system_prompt: str, prompt_text: str) -> str:
+    return "\n\n".join(
+        [
+            "SYSTEM:",
+            system_prompt,
+            "USER:",
+            prompt_text,
+        ]
+    )
+
+
+def _redacted_command(command: list[str], model_path: Path) -> list[str]:
+    return [arg if arg != str(model_path) else "REDACTED_MODEL_PATH" for arg in command]
+
+
 @app.command()
 def run(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
-    only: str = typer.Option(..., "--only", help="Prompt ID to run"),
+    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    include: str = typer.Option(
+        "all",
+        "--include",
+        help="Prompt category to run, or 'all'. Ignored when --only is set.",
+    ),
     model_id: str = typer.Option(..., "--model-id", help="Model identifier"),
     model_path: Path = typer.Option(..., "--model-path", help="GGUF model path"),
     llama_cli: Path = typer.Option(..., "--llama-cli", help="llama-cli path"),
@@ -114,7 +150,7 @@ def run(
     gpu_layers: int = typer.Option(999, "--gpu-layers", help="GPU layers"),
     out: Path = typer.Option(..., "--out", help="Output result directory"),
 ) -> None:
-    """Run one prompt through llama.cpp."""
+    """Run one or more prompts through llama.cpp."""
     if not model_path.exists():
         raise typer.BadParameter(f"Model path does not exist: {model_path}")
 
@@ -122,27 +158,10 @@ def run(
         raise typer.BadParameter(f"llama-cli path does not exist: {llama_cli}")
 
     loaded_suite = load_suite(suite)
-    prompt_meta = _find_prompt(loaded_suite, only)
-    prompt_path = suite / prompt_meta["file"]
-    prompt_text = prompt_path.read_text(encoding="utf-8").strip()
-
+    selected_prompts = _select_prompts(loaded_suite, only, include)
     system_prompt = _load_system_prompt()
-    combined_prompt = "\n\n".join(
-        [
-            "SYSTEM:",
-            system_prompt,
-            "USER:",
-            prompt_text,
-        ]
-    )
 
     prepare_result_dir(out)
-
-    raw_prompt_path = out / "raw" / f"{only}.prompt.md"
-    raw_output_path = out / "raw" / f"{only}.output.txt"
-    stderr_log_path = out / "logs" / f"{only}.stderr.log"
-
-    write_text(raw_prompt_path, combined_prompt)
 
     config = LlamaCppRunConfig(
         llama_cli=llama_cli,
@@ -156,18 +175,63 @@ def run(
         gpu_layers=gpu_layers,
     )
 
-    console.print(
-        f"Running prompt [bold]{only}[/bold] with model [bold]{model_id}[/bold]"
-    )
-    run_result = run_llama_cpp(config, combined_prompt)
-
-    write_text(raw_output_path, run_result.stdout)
-    write_text(stderr_log_path, run_result.stderr)
-
-    metrics = parse_llama_metrics(run_result.stdout + "\n" + run_result.stderr)
-
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
     run_id = out.name
+    prompt_results: list[dict] = []
+    redacted_command: list[str] | None = None
+
+    console.print(
+        f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
+        f"with model [bold]{model_id}[/bold]"
+    )
+
+    for index, prompt_meta in enumerate(selected_prompts, start=1):
+        prompt_id = prompt_meta["id"]
+        prompt_path = suite / prompt_meta["file"]
+        prompt_text = prompt_path.read_text(encoding="utf-8").strip()
+        combined_prompt = _build_combined_prompt(system_prompt, prompt_text)
+
+        raw_prompt_path = out / "raw" / f"{prompt_id}.prompt.md"
+        raw_output_path = out / "raw" / f"{prompt_id}.output.txt"
+        stderr_log_path = out / "logs" / f"{prompt_id}.stderr.log"
+
+        write_text(raw_prompt_path, combined_prompt)
+
+        console.print(f"[{index}/{len(selected_prompts)}] Running {prompt_id}")
+        run_result = run_llama_cpp(config, combined_prompt)
+
+        if redacted_command is None:
+            redacted_command = _redacted_command(run_result.command, model_path)
+
+        write_text(raw_output_path, run_result.stdout)
+        write_text(stderr_log_path, run_result.stderr)
+
+        metrics = parse_llama_metrics(run_result.stdout + "\n" + run_result.stderr)
+        status = "completed" if run_result.exit_status == 0 else "failed"
+
+        prompt_results.append(
+            {
+                "prompt_id": prompt_id,
+                "title": prompt_meta.get("title", prompt_id),
+                "category": prompt_meta.get("category"),
+                "status": status,
+                "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+                "raw_output_path": str(raw_output_path.relative_to(out)),
+                "stderr_log_path": str(stderr_log_path.relative_to(out)),
+                "metrics": metrics,
+                "score": None,
+                "failure_labels": [],
+                "notes": "",
+                "exit_status": run_result.exit_status,
+                "error": None
+                if run_result.exit_status == 0
+                else "llama-cli exited nonzero",
+            }
+        )
+
+    completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
+    failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
+    run_status = "completed" if failed_count == 0 else "failed"
 
     result = {
         "schema_version": "llmgauge.result.v0",
@@ -175,7 +239,7 @@ def run(
         "run": {
             "run_id": run_id,
             "timestamp_utc": timestamp,
-            "status": "completed" if run_result.exit_status == 0 else "failed",
+            "status": run_status,
             "result_dir": str(out),
         },
         "model": {
@@ -193,39 +257,20 @@ def run(
             "batch_size": batch,
             "ubatch_size": ubatch,
             "gpu_layers": gpu_layers,
-            "command": [
-                arg if arg != str(model_path) else "REDACTED_MODEL_PATH"
-                for arg in run_result.command
-            ],
+            "command": redacted_command or [],
         },
         "suite": {
             "suite_id": loaded_suite["suite_id"],
             "suite_version": str(loaded_suite["suite_version"]),
             "suite_path": str(suite),
-            "prompt_count": 1,
+            "prompt_count": len(prompt_results),
+            "include": include,
+            "only": only,
         },
-        "results": [
-            {
-                "prompt_id": only,
-                "title": prompt_meta.get("title", only),
-                "category": prompt_meta.get("category"),
-                "status": "completed" if run_result.exit_status == 0 else "failed",
-                "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
-                "raw_output_path": str(raw_output_path.relative_to(out)),
-                "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                "metrics": metrics,
-                "score": None,
-                "failure_labels": [],
-                "notes": "",
-                "exit_status": run_result.exit_status,
-                "error": None
-                if run_result.exit_status == 0
-                else "llama-cli exited nonzero",
-            }
-        ],
+        "results": prompt_results,
         "summary": {
-            "completed": 1 if run_result.exit_status == 0 else 0,
-            "failed": 0 if run_result.exit_status == 0 else 1,
+            "completed": completed_count,
+            "failed": failed_count,
             "manual_score_total": None,
             "manual_score_max": None,
             "failure_labels": {},
@@ -235,10 +280,9 @@ def run(
     write_json(out / "llmgauge-result.json", result)
     write_text(out / "report.md", build_markdown_report(result))
 
-    if run_result.exit_status != 0:
-        console.print("[bold red]Run failed[/bold red]")
-        console.print(f"See log: {stderr_log_path}")
-        raise typer.Exit(code=run_result.exit_status)
+    if failed_count:
+        console.print(f"[bold red]Run completed with failures[/bold red]: {out}")
+        raise typer.Exit(code=1)
 
     console.print(f"[bold green]Run completed[/bold green]: {out}")
 
