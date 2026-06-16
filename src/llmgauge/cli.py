@@ -28,6 +28,7 @@ from llmgauge.core.ladder import (
     write_ladder_summary,
 )
 from llmgauge.core.metrics import parse_llama_metrics
+from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.scoring import (
@@ -156,6 +157,29 @@ def _build_combined_prompt(system_prompt: str, prompt_text: str) -> str:
 
 def _redacted_command(command: list[str], model_path: Path) -> list[str]:
     return [arg if arg != str(model_path) else "REDACTED_MODEL_PATH" for arg in command]
+
+
+def _resolve_cli_output_dir(
+    *,
+    out: Path | None,
+    auto_name: bool,
+    runs_root: Path,
+    run_name: str | None,
+    default_run_name: str,
+) -> Path:
+    if out is not None and auto_name:
+        raise typer.BadParameter("Use either --out or --auto-name, not both")
+
+    if out is not None:
+        return out
+
+    if not auto_name:
+        raise typer.BadParameter("Use --out PATH or --auto-name")
+
+    return build_auto_output_dir(
+        runs_root=runs_root,
+        run_name=run_name or default_run_name,
+    )
 
 
 def _resolve_run_options(
@@ -519,7 +543,22 @@ def run(
     batch: int | None = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
-    out: Path = typer.Option(..., "--out", help="Output result directory"),
+    out: Path | None = typer.Option(None, "--out", help="Output result directory"),
+    auto_name: bool = typer.Option(
+        False,
+        "--auto-name",
+        help="Automatically create a timestamped output directory",
+    ),
+    runs_root: Path = typer.Option(
+        Path("results"),
+        "--runs-root",
+        help="Root directory for auto-named runs",
+    ),
+    run_name: str | None = typer.Option(
+        None,
+        "--run-name",
+        help="Name slug for auto-named run directories",
+    ),
 ) -> None:
     """Run one or more prompts through llama.cpp."""
     resolved = _resolve_run_options(
@@ -538,12 +577,20 @@ def run(
         gpu_layers=gpu_layers,
     )
 
+    resolved_out = _resolve_cli_output_dir(
+        out=out,
+        auto_name=auto_name,
+        runs_root=runs_root,
+        run_name=run_name,
+        default_run_name=f"{resolved['model_id']}-{suite.name}",
+    )
+
     _execute_run(
         suite=suite,
         only=only,
         include=include,
         resolved=resolved,
-        out=out,
+        out=resolved_out,
         fail_on_failed_prompts=True,
     )
 
@@ -591,7 +638,22 @@ def run_ladder(
     batch: int | None = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
-    out: Path = typer.Option(..., "--out", help="Output ladder directory"),
+    out: Path | None = typer.Option(None, "--out", help="Output ladder directory"),
+    auto_name: bool = typer.Option(
+        False,
+        "--auto-name",
+        help="Automatically create a timestamped output directory",
+    ),
+    runs_root: Path = typer.Option(
+        Path("results"),
+        "--runs-root",
+        help="Root directory for auto-named ladder runs",
+    ),
+    run_name: str | None = typer.Option(
+        None,
+        "--run-name",
+        help="Name slug for auto-named ladder directories",
+    ),
 ) -> None:
     """Run the same selected prompts across multiple context sizes."""
     try:
@@ -601,19 +663,26 @@ def run_ladder(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    prepare_result_dir(out)
-
     child_runs: list[dict[str, Any]] = []
     loaded_suite = load_suite(suite)
+    resolved_out = _resolve_cli_output_dir(
+        out=out,
+        auto_name=auto_name,
+        runs_root=runs_root,
+        run_name=run_name,
+        default_run_name=f"ladder-{model_id or model_profile or loaded_suite['suite_id']}",
+    )
+
+    prepare_result_dir(resolved_out)
 
     console.print(
-        f"Running context ladder [bold]{out.name}[/bold] across "
+        f"Running context ladder [bold]{resolved_out.name}[/bold] across "
         f"[bold]{len(contexts)}[/bold] context size(s): "
         f"{', '.join(str(ctx) for ctx in contexts)}"
     )
 
     for ctx_size in contexts:
-        child_dir = out / f"ctx-{ctx_size}"
+        child_dir = resolved_out / f"ctx-{ctx_size}"
         try:
             resolved = _resolve_run_options(
                 model_id=model_id,
@@ -666,24 +735,25 @@ def run_ladder(
             console.print(f"[bold red]Context {ctx_size} failed[/bold red]: {exc}")
 
     summary = build_ladder_summary(
-        ladder_id=out.name,
+        ladder_id=resolved_out.name,
         suite_id=loaded_suite["suite_id"],
         include=include,
         only=only,
         model_id=str(model_id or model_profile or "unknown-model"),
         contexts=contexts,
         child_runs=child_runs,
+        allow_extreme_context=allow_extreme_context,
     )
-    write_ladder_summary(out, summary)
-    write_ladder_report(out, summary)
+    write_ladder_summary(resolved_out, summary)
+    write_ladder_report(resolved_out, summary)
 
     if summary["summary"]["failed"]:
         console.print(
-            f"[bold red]Context ladder completed with failures[/bold red]: {out}"
+            f"[bold red]Context ladder completed with failures[/bold red]: {resolved_out}"
         )
         raise typer.Exit(code=1)
 
-    console.print(f"[bold green]Context ladder completed[/bold green]: {out}")
+    console.print(f"[bold green]Context ladder completed[/bold green]: {resolved_out}")
 
 
 @app.command("validate-result")
