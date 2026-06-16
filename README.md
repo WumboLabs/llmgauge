@@ -56,6 +56,20 @@ Current capabilities:
 
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
 
+## Generate a synthetic context prompt
+
+`contextgen` creates a synthetic long-context prompt and separate metadata file. It does not run a model by itself.
+
+    uv run llmgauge contextgen \
+      --target-tokens 8192 \
+      --placement 0.75 \
+      --needle "The deployment codename is Wumbo Finch." \
+      --question "What is the deployment codename?" \
+      --out-prompt tmp/context-prompts/wumbo-finch-8k.md \
+      --out-metadata tmp/context-prompts/wumbo-finch-8k.json
+
+The current token count is an approximation based on a character heuristic. Tokenizer-verified sizing is planned for a later hardening pass.
+
 ## Run a context ladder
 
 Context ladders run the same selected prompt set across explicit context sizes.

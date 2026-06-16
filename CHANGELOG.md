@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.09 - Context prompt generation checkpoint
+
+### Added
+
+- Added synthetic context prompt generator core:
+  - approximate target token generation
+  - needle insertion
+  - final question/task support
+  - configurable needle placement ratio
+  - prompt and metadata artifact writing
+
+- Added `contextgen` CLI workflow:
+  - `llmgauge contextgen`
+  - writes generated prompt Markdown
+  - writes metadata JSON without embedding the full prompt text
+
+- Added suite strategy documentation:
+  - `core-v1` for generic practical local LLM evaluation
+  - `context-v1` for generated/context-retention tests
+  - `agent-backend-v1` for agent-backend suitability
+  - `wumbolabs-smoke-v1` for local WumboLabs smoke tests
+
+### Preserved
+
+- Generated context prompts are not run automatically.
+- Generated scratch artifacts remain local.
+- Existing suite and runner behavior remains unchanged.
+
 ## v0.08 - Context ladder checkpoint
 
 ### Added
