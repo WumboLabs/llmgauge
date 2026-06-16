@@ -214,3 +214,4 @@ Create a machine-readable export index:
       --out results/llmgauge-index.json
 
 See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.
+See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, and export-index schema notes.

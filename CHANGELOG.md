@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.13
+
+- Added `validate-ladder` command for context ladder artifact validation.
+- Added ladder validation tests and real-artifact smoke validation.
+- Added optional `export-index --validate` metadata for run and ladder artifacts.
+- Added artifact schema documentation for result, ladder, and export-index files.
+
 ## v0.12
 
 - Added automatic timestamped output directory naming for `run` and `run-ladder`.
