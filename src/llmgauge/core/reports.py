@@ -7,6 +7,13 @@ def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
 
 
+def _score_average(prompt_result: dict[str, Any]) -> Any:
+    score = prompt_result.get("score")
+    if not isinstance(score, dict):
+        return None
+    return score.get("prompt_average")
+
+
 def build_markdown_report(result: dict[str, Any]) -> str:
     run = result["run"]
     model = result["model"]
@@ -43,11 +50,44 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         f"- UBatch: {runtime['ubatch_size']}",
         f"- GPU layers: {runtime['gpu_layers']}",
         "",
-        "## Prompt Results",
-        "",
-        "| Prompt | Category | Status | Prompt tok/s | Generation tok/s | Exit |",
-        "|---|---|---:|---:|---:|---:|",
     ]
+
+    if summary.get("scored_prompt_count"):
+        lines.extend(
+            [
+                "## Score Summary",
+                "",
+                f"- Scored prompts: {summary.get('scored_prompt_count')}",
+                f"- Manual score total: {summary.get('manual_score_total')}",
+                f"- Manual score max: {summary.get('manual_score_max')}",
+                f"- Manual score average: {summary.get('manual_score_average')} / 5",
+                "",
+            ]
+        )
+
+        failure_labels = summary.get("failure_labels", {})
+        good_labels = summary.get("good_labels", {})
+
+        if failure_labels:
+            lines.extend(["### Failure Labels", ""])
+            for label, count in sorted(failure_labels.items()):
+                lines.append(f"- {label}: {count}")
+            lines.append("")
+
+        if good_labels:
+            lines.extend(["### Good Labels", ""])
+            for label, count in sorted(good_labels.items()):
+                lines.append(f"- {label}: {count}")
+            lines.append("")
+
+    lines.extend(
+        [
+            "## Prompt Results",
+            "",
+            "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Exit |",
+            "|---|---|---:|---:|---:|---:|---:|",
+        ]
+    )
 
     for prompt_result in result["results"]:
         metrics = prompt_result["metrics"]
@@ -56,14 +96,41 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{prompt_result['prompt_id']} | "
             f"{prompt_result.get('category') or ''} | "
             f"{prompt_result['status']} | "
+            f"{_fmt(_score_average(prompt_result))} | "
             f"{_fmt(metrics['prompt_eval_tps'])} | "
             f"{_fmt(metrics['generation_tps'])} | "
             f"{prompt_result['exit_status']} |"
         )
 
+    scored_results = [
+        item for item in result["results"] if isinstance(item.get("score"), dict)
+    ]
+
+    if scored_results:
+        lines.extend(["", "## Manual Review Notes", ""])
+
+        for prompt_result in scored_results:
+            score = prompt_result["score"]
+            failure_labels = score.get("failure_labels", [])
+            good_labels = score.get("good_labels", [])
+            reviewer_notes = score.get("reviewer_notes", "")
+            verdict = score.get("verdict", "")
+
+            lines.extend(
+                [
+                    f"### {prompt_result['prompt_id']}",
+                    "",
+                    f"- Score average: {_fmt(score.get('prompt_average'))} / 5",
+                    f"- Verdict: {verdict}",
+                    f"- Failure labels: {', '.join(failure_labels) if failure_labels else 'None'}",
+                    f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}",
+                    f"- Notes: {reviewer_notes}",
+                    "",
+                ]
+            )
+
     lines.extend(
         [
-            "",
             "## Artifact Paths",
             "",
         ]

@@ -10,6 +10,15 @@ from rich.table import Table
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.reports import build_markdown_report
+from llmgauge.core.scoring import (
+    apply_scores,
+    build_score_template,
+    load_result,
+    load_scores,
+    validate_scores,
+    write_result,
+    write_score_template,
+)
 from llmgauge.core.suite import load_suite, validate_suite
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
 
@@ -285,6 +294,49 @@ def run(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]Run completed[/bold green]: {out}")
+
+
+@app.command()
+def score(
+    result_dir: Path = typer.Argument(..., help="LLMGauge result directory"),
+    init: bool = typer.Option(
+        False,
+        "--init",
+        help="Create a scores.yaml template in the result directory",
+    ),
+    scores: Path | None = typer.Option(
+        None,
+        "--scores",
+        help="Apply a scores.yaml file to the result",
+    ),
+) -> None:
+    """Initialize or apply manual scores for a completed run."""
+    result = load_result(result_dir)
+
+    if init:
+        template = build_score_template(result)
+        scores_path = write_score_template(result_dir, template)
+        console.print(f"[bold green]Created score template[/bold green]: {scores_path}")
+        return
+
+    if scores is None:
+        raise typer.BadParameter("Use --init or provide --scores PATH")
+
+    scores_data = load_scores(scores)
+    errors = validate_scores(result, scores_data)
+    if errors:
+        console.print("[bold red]Score validation failed[/bold red]")
+        for error in errors:
+            console.print(f"- {error}")
+        raise typer.Exit(code=1)
+
+    updated = apply_scores(result, scores_data)
+    write_result(result_dir, updated)
+    write_text(result_dir / "report.md", build_markdown_report(updated))
+
+    console.print(f"[bold green]Applied scores[/bold green]: {scores}")
+    console.print(f"Updated: {result_dir / 'llmgauge-result.json'}")
+    console.print(f"Updated: {result_dir / 'report.md'}")
 
 
 def main() -> None:
