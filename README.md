@@ -1,0 +1,106 @@
+# LLMGauge
+
+Practical local LLM evaluation on real hardware.
+
+LLMGauge is a local-first CLI for running practical prompt suites against local GGUF models through llama.cpp. It is designed for real workstation testing, constrained VRAM, reproducible local runs, preserved raw outputs, manual scoring, and clear model comparison.
+
+It is not a synthetic benchmark leaderboard, not an automatic judge system, and not a model downloader.
+
+## Current status
+
+Development checkpoint: v0.07
+
+Current capabilities:
+
+- Validate prompt suites.
+- Run one prompt, one category, or a full suite.
+- Capture raw prompt, raw output, stderr logs, runtime metadata, and speed metrics.
+- Generate Markdown reports.
+- Create and apply manual score templates.
+- Compare two or more result directories.
+- Use local YAML config and model profiles.
+- Validate result directory integrity.
+
+## Install for development
+
+    uv sync
+    uv run llmgauge --help
+
+## Validate suites
+
+    uv run llmgauge validate-suite suites/core-v1
+
+## Run a suite with explicit paths
+
+    uv run llmgauge run \
+      --suite suites/core-v1 \
+      --include all \
+      --model-id example-model \
+      --model-path /path/to/model.gguf \
+      --llama-cli /path/to/llama-cli \
+      --ctx 8192 \
+      --max-tokens 800 \
+      --temp 0.2 \
+      --gpu-layers 999 \
+      --out results/example-run
+
+## Run with config and model profiles
+
+    uv run llmgauge run \
+      --suite suites/core-v1 \
+      --include honesty \
+      --model-profile example_model \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --out results/example-profile-run
+
+Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
+
+## Validate a result directory
+
+    uv run llmgauge validate-result results/example-run
+
+## Create and apply manual scores
+
+    uv run llmgauge score results/example-run --init
+
+    uv run llmgauge score \
+      results/example-run \
+      --scores results/example-run/scores.yaml
+
+Manual scoring uses a 0-5 scale across practical evaluation dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
+
+## Compare runs
+
+    uv run llmgauge compare \
+      results/example-run-a \
+      results/example-run-b \
+      --out results/compare.md
+
+Comparison reports summarize runtime settings, prompt scores, prompt eval speed, generation speed, and label counts. They do not declare a universal winner.
+
+## Result artifacts
+
+Each run writes a result directory containing:
+
+    llmgauge-result.json
+    report.md
+    raw/<prompt_id>.prompt.md
+    raw/<prompt_id>.output.txt
+    logs/<prompt_id>.stderr.log
+
+Raw model outputs are preserved separately and are not cleaned or filtered.
+
+## Privacy and safety posture
+
+- Model paths are redacted in stored result JSON.
+- Raw prompts and outputs are preserved for review.
+- LLMGauge does not download models by default.
+- LLMGauge does not modify GPU drivers, CUDA, kernel settings, firewall rules, or system packages.
+- Local config files are intended to stay private.
+
+## Development checks
+
+    uv run pytest
+    uv run ruff format .
+    uv run ruff check .
