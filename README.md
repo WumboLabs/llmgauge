@@ -56,6 +56,22 @@ Current capabilities:
 
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
 
+## Run a context ladder
+
+Context ladders run the same selected prompt set across explicit context sizes.
+
+    uv run llmgauge run-ladder \
+      --suite suites/core-v1 \
+      --include honesty \
+      --model-profile example_model \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --ctx-ladder 8192,16384,32768 \
+      --max-tokens 400 \
+      --out results/example-ladder
+
+The default ladder is `8192,16384,32768`. v0.08 caps context ladders at `65536`; larger context testing is reserved for a later explicit extreme-context workflow.
+
 ## Validate a result directory
 
     uv run llmgauge validate-result results/example-run

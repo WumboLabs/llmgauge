@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.08 - Context ladder checkpoint
+
+### Added
+
+- Added context ladder core artifacts:
+  - context ladder parsing
+  - default ladder of `8192,16384,32768`
+  - conservative max context cap of `65536`
+  - `ladder-summary.json`
+  - `ladder-report.md`
+
+- Added `run-ladder` workflow:
+  - `llmgauge run-ladder`
+  - runs the same selected prompt set across multiple context sizes
+  - creates one child result directory per context
+  - preserves failures instead of hiding or auto-skipping them
+  - validates child result directories with existing `validate-result`
+
+### Preserved
+
+- Normal `llmgauge run` behavior remains unchanged.
+- 64k context is allowed only when explicitly included in `--ctx-ladder`.
+- Contexts above 64k remain reserved for a future explicit extreme-context workflow.
+- No automatic KV-cache tuning, quantization changes, GPU setting changes, or CPU fallback.
+
 ## v0.07 - Result validation checkpoint
 
 Current development checkpoint for LLMGauge.
