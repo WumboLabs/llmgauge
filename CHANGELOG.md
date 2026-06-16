@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14
+
+- Added Monolith import example documentation based on the first working Monolith importer path.
+- Documented run, ladder, and export-index import workflow.
+- Documented Monolith importer routes, environment variable expectations, and database ownership boundary.
+
 ## v0.13
 
 - Added `validate-ladder` command for context ladder artifact validation.
