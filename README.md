@@ -86,6 +86,25 @@ Context ladders run the same selected prompt set across explicit context sizes.
 
 The default ladder is `8192,16384,32768`. v0.08 caps context ladders at `65536`; larger context testing is reserved for a later explicit extreme-context workflow.
 
+## Extreme context guardrails
+
+Normal context ladder runs are capped at `65536` tokens.
+
+Context values above `65536` require explicit operator opt-in:
+
+    uv run llmgauge run-ladder \
+      --suite suites/core-v1 \
+      --include honesty \
+      --model-profile example_model \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --ctx-ladder 8192,65536,131072 \
+      --allow-extreme-context \
+      --max-tokens 400 \
+      --out results/example-extreme-ladder
+
+Extreme context mode is capped at `262144` tokens in v0.10. LLMGauge does not auto-tune KV cache, quantization, GPU settings, or CPU fallback.
+
 ## Validate a result directory
 
     uv run llmgauge validate-result results/example-run

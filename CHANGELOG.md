@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.10 - Extreme context guardrails checkpoint
+
+### Added
+
+- Added explicit extreme-context guardrails for context ladders:
+  - normal context ladder max remains `65536`
+  - extreme context max is `262144`
+  - values above `65536` require explicit opt-in
+  - `run-ladder` now supports `--allow-extreme-context`
+
+- Added ladder metadata for context policy:
+  - normal max context
+  - extreme max context
+  - whether extreme context was allowed
+  - whether the ladder contains extreme context values
+  - explicit opt-in requirement marker
+
+- Updated ladder reports with context policy notes.
+
+### Preserved
+
+- Default context ladder remains `8192,16384,32768`.
+- Normal runs and normal ladders remain unchanged.
+- No automatic KV-cache tuning was added.
+- No automatic quantization changes were added.
+- No CPU fallback behavior was added.
+- Extreme context mode only permits execution when the operator explicitly requests it.
+
 ## v0.09 - Context prompt generation checkpoint
 
 ### Added
