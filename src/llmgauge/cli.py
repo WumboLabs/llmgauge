@@ -28,6 +28,7 @@ from llmgauge.core.ladder import (
     write_ladder_report,
     write_ladder_summary,
 )
+from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
@@ -755,6 +756,26 @@ def run_ladder(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]Context ladder completed[/bold green]: {resolved_out}")
+
+
+@app.command("validate-ladder")
+def validate_ladder(
+    ladder_dir: Path = typer.Argument(..., help="LLMGauge ladder result directory"),
+) -> None:
+    """Validate a LLMGauge context ladder directory."""
+    try:
+        errors = validate_ladder_dir(ladder_dir)
+    except Exception as exc:
+        console.print(f"[bold red]Ladder validation failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if errors:
+        console.print("[bold red]Ladder validation failed[/bold red]")
+        for error in errors:
+            console.print(f"- {error}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold green]OK[/bold green] {ladder_dir}")
 
 
 @app.command("validate-result")
