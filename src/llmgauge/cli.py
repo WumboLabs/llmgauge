@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
+from llmgauge.core.compare import build_compare_report, load_compare_result
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.scoring import (
@@ -337,6 +338,25 @@ def score(
     console.print(f"[bold green]Applied scores[/bold green]: {scores}")
     console.print(f"Updated: {result_dir / 'llmgauge-result.json'}")
     console.print(f"Updated: {result_dir / 'report.md'}")
+
+
+@app.command()
+def compare(
+    result_dirs: list[Path] = typer.Argument(..., help="Result directories to compare"),
+    out: Path = typer.Option(..., "--out", help="Markdown comparison report path"),
+) -> None:
+    """Compare two or more LLMGauge result directories."""
+    if len(result_dirs) < 2:
+        raise typer.BadParameter("Compare requires at least two result directories")
+
+    results = []
+    for result_dir in result_dirs:
+        results.append(load_compare_result(result_dir))
+
+    report = build_compare_report(results)
+    write_text(out, report)
+
+    console.print(f"[bold green]Wrote comparison report[/bold green]: {out}")
 
 
 def main() -> None:
