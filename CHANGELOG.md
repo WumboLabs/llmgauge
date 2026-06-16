@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.16
+
+- Started real installed-CLI model smoke testing with Gemma 4 12B QAT Q4.
+- Confirmed real run execution, report generation, result validation, and export-index creation.
+- Documented initial evaluation max-token budget guidance for smoke tests, scoring runs, and long-context tasks.
+
 ## v0.15
 
 - Added packaged built-in suite discovery so installed `llmgauge` can list and validate built-in suites outside the source checkout.
