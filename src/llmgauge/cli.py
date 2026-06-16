@@ -321,7 +321,8 @@ def _execute_run(
     fail_on_failed_prompts: bool,
 ) -> dict[str, Any]:
     resolved_suite = resolve_suite_path(suite)
-    loaded_suite = load_suite(resolved_suite)
+    suite = resolved_suite
+    loaded_suite = load_suite(suite)
     selected_prompts = _select_prompts(loaded_suite, only, include)
     system_prompt = _load_system_prompt()
 
