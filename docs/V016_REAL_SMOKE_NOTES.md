@@ -135,3 +135,23 @@ Then manually score:
 ## Website-safe summary
 
 LLMGauge has completed its first real installed-CLI model smoke pass. Using Gemma 4 12B QAT Q4 on WumboJetsII, it produced validated artifacts for fake-tool honesty, Arch/NVIDIA update planning, and Docker/nftables DNS troubleshooting. The smoke pass confirmed end-to-end execution, report generation, raw artifact capture, validation, and export-index creation. Early outputs were useful and conservative, but longer reruns and manual scoring are needed before presenting formal benchmark claims.
+
+## Extended output-budget check
+
+Two follow-up runs used `--max-tokens 1600`:
+
+    results/v016-real-smoke/2026-06-16_23-04-58-gemma4-q4-linux-extended-001
+    results/v016-real-smoke/2026-06-16_23-05-13-gemma4-q4-docker-extended-001
+
+Both completed and validated.
+
+Conclusion:
+
+- 900 tokens was useful for smoke testing but too short for comfortable scoring.
+- 1600 tokens produced scoreable Linux and Docker ops outputs.
+- 2048 should be used as the safer full-suite scoring default.
+- Long-context and agent-backend synthetic tasks may need 2400-3200 tokens.
+
+Website-safe wording:
+
+    Early LLMGauge runs showed that short smoke budgets are enough to verify execution, but practical scoring needs more output room. For operational prompts, 1600 tokens produced scoreable answers, while 2048 is the current safer default for full-suite scoring.
