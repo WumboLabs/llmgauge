@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -15,6 +16,12 @@ from llmgauge.core.config import (
     load_llmgauge_config,
     load_model_profiles,
     resolve_model_profile,
+)
+from llmgauge.core.ladder import (
+    build_ladder_summary,
+    parse_ctx_ladder,
+    write_ladder_report,
+    write_ladder_summary,
 )
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.reports import build_markdown_report
@@ -147,43 +154,22 @@ def _redacted_command(command: list[str], model_path: Path) -> list[str]:
     return [arg if arg != str(model_path) else "REDACTED_MODEL_PATH" for arg in command]
 
 
-@app.command()
-def run(
-    suite: Path = typer.Option(..., "--suite", help="Suite directory"),
-    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
-    include: str = typer.Option(
-        "all",
-        "--include",
-        help="Prompt category to run, or 'all'. Ignored when --only is set.",
-    ),
-    model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
-    model_profile: str | None = typer.Option(
-        None, "--model-profile", help="Model profile name"
-    ),
-    config_path: Path | None = typer.Option(
-        None, "--config", help="LLMGauge config YAML"
-    ),
-    model_profiles_path: Path | None = typer.Option(
-        None,
-        "--model-profiles",
-        help="Model profiles YAML",
-    ),
-    model_path: Path | None = typer.Option(
-        None, "--model-path", help="GGUF model path"
-    ),
-    llama_cli: Path | None = typer.Option(None, "--llama-cli", help="llama-cli path"),
-    ctx: int | None = typer.Option(None, "--ctx", help="Context size"),
-    max_tokens: int | None = typer.Option(
-        None, "--max-tokens", help="Max generated tokens"
-    ),
-    temp: float | None = typer.Option(None, "--temp", help="Temperature"),
-    top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
-    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
-    ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
-    gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
-    out: Path = typer.Option(..., "--out", help="Output result directory"),
-) -> None:
-    """Run one or more prompts through llama.cpp."""
+def _resolve_run_options(
+    *,
+    model_id: str | None,
+    model_profile: str | None,
+    config_path: Path | None,
+    model_profiles_path: Path | None,
+    model_path: Path | None,
+    llama_cli: Path | None,
+    ctx: int | None,
+    max_tokens: int | None,
+    temp: float | None,
+    top_p: float | None,
+    batch: int | None,
+    ubatch: int | None,
+    gpu_layers: int | None,
+) -> dict[str, Any]:
     config_data = load_llmgauge_config(config_path)
     profiles = load_model_profiles(model_profiles_path)
     profile = resolve_model_profile(profiles, model_profile)
@@ -272,6 +258,33 @@ def run(
     if not resolved_llama_cli.exists():
         raise typer.BadParameter(f"llama-cli path does not exist: {resolved_llama_cli}")
 
+    return {
+        "model_id": str(resolved_model_id),
+        "model_profile": model_profile,
+        "profile": profile,
+        "config_path": config_path,
+        "model_profiles_path": model_profiles_path,
+        "model_path": resolved_model_path,
+        "llama_cli": resolved_llama_cli,
+        "ctx": resolved_ctx,
+        "max_tokens": resolved_max_tokens,
+        "temp": resolved_temp,
+        "top_p": resolved_top_p,
+        "batch": resolved_batch,
+        "ubatch": resolved_ubatch,
+        "gpu_layers": resolved_gpu_layers,
+    }
+
+
+def _execute_run(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    resolved: dict[str, Any],
+    out: Path,
+    fail_on_failed_prompts: bool,
+) -> dict[str, Any]:
     loaded_suite = load_suite(suite)
     selected_prompts = _select_prompts(loaded_suite, only, include)
     system_prompt = _load_system_prompt()
@@ -279,15 +292,15 @@ def run(
     prepare_result_dir(out)
 
     config = LlamaCppRunConfig(
-        llama_cli=resolved_llama_cli,
-        model_path=resolved_model_path,
-        ctx_size=resolved_ctx,
-        max_tokens=resolved_max_tokens,
-        temperature=resolved_temp,
-        top_p=resolved_top_p,
-        batch_size=resolved_batch,
-        ubatch_size=resolved_ubatch,
-        gpu_layers=resolved_gpu_layers,
+        llama_cli=resolved["llama_cli"],
+        model_path=resolved["model_path"],
+        ctx_size=resolved["ctx"],
+        max_tokens=resolved["max_tokens"],
+        temperature=resolved["temp"],
+        top_p=resolved["top_p"],
+        batch_size=resolved["batch"],
+        ubatch_size=resolved["ubatch"],
+        gpu_layers=resolved["gpu_layers"],
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -297,7 +310,8 @@ def run(
 
     console.print(
         f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
-        f"with model [bold]{resolved_model_id}[/bold]"
+        f"with model [bold]{resolved['model_id']}[/bold] "
+        f"at ctx [bold]{resolved['ctx']}[/bold]"
     )
 
     for index, prompt_meta in enumerate(selected_prompts, start=1):
@@ -317,7 +331,8 @@ def run(
 
         if redacted_command is None:
             redacted_command = _redacted_command(
-                run_result.command, resolved_model_path
+                run_result.command,
+                resolved["model_path"],
             )
 
         write_text(raw_output_path, run_result.stdout)
@@ -349,6 +364,7 @@ def run(
     completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
     failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
     run_status = "completed" if failed_count == 0 else "failed"
+    profile = resolved["profile"]
 
     result = {
         "schema_version": "llmgauge.result.v0",
@@ -360,8 +376,8 @@ def run(
             "result_dir": str(out),
         },
         "model": {
-            "model_id": str(resolved_model_id),
-            "model_profile": model_profile,
+            "model_id": resolved["model_id"],
+            "model_profile": resolved["model_profile"],
             "label": profile.get("label"),
             "family": profile.get("family"),
             "role": profile.get("role"),
@@ -371,18 +387,20 @@ def run(
         },
         "runtime": {
             "backend": "llama.cpp",
-            "llama_cli": str(resolved_llama_cli),
-            "ctx_size": resolved_ctx,
-            "max_tokens": resolved_max_tokens,
-            "temperature": resolved_temp,
-            "top_p": resolved_top_p,
-            "batch_size": resolved_batch,
-            "ubatch_size": resolved_ubatch,
-            "gpu_layers": resolved_gpu_layers,
+            "llama_cli": str(resolved["llama_cli"]),
+            "ctx_size": resolved["ctx"],
+            "max_tokens": resolved["max_tokens"],
+            "temperature": resolved["temp"],
+            "top_p": resolved["top_p"],
+            "batch_size": resolved["batch"],
+            "ubatch_size": resolved["ubatch"],
+            "gpu_layers": resolved["gpu_layers"],
             "command": redacted_command or [],
-            "config_path": str(config_path) if config_path else None,
-            "model_profiles_path": str(model_profiles_path)
-            if model_profiles_path
+            "config_path": str(resolved["config_path"])
+            if resolved["config_path"]
+            else None,
+            "model_profiles_path": str(resolved["model_profiles_path"])
+            if resolved["model_profiles_path"]
             else None,
         },
         "suite": {
@@ -408,9 +426,202 @@ def run(
 
     if failed_count:
         console.print(f"[bold red]Run completed with failures[/bold red]: {out}")
+        if fail_on_failed_prompts:
+            raise typer.Exit(code=1)
+    else:
+        console.print(f"[bold green]Run completed[/bold green]: {out}")
+
+    return result
+
+
+@app.command()
+def run(
+    suite: Path = typer.Option(..., "--suite", help="Suite directory"),
+    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    include: str = typer.Option(
+        "all",
+        "--include",
+        help="Prompt category to run, or 'all'. Ignored when --only is set.",
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
+    model_profile: str | None = typer.Option(
+        None, "--model-profile", help="Model profile name"
+    ),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="LLMGauge config YAML"
+    ),
+    model_profiles_path: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Model profiles YAML",
+    ),
+    model_path: Path | None = typer.Option(
+        None, "--model-path", help="GGUF model path"
+    ),
+    llama_cli: Path | None = typer.Option(None, "--llama-cli", help="llama-cli path"),
+    ctx: int | None = typer.Option(None, "--ctx", help="Context size"),
+    max_tokens: int | None = typer.Option(
+        None, "--max-tokens", help="Max generated tokens"
+    ),
+    temp: float | None = typer.Option(None, "--temp", help="Temperature"),
+    top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
+    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
+    ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
+    gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    out: Path = typer.Option(..., "--out", help="Output result directory"),
+) -> None:
+    """Run one or more prompts through llama.cpp."""
+    resolved = _resolve_run_options(
+        model_id=model_id,
+        model_profile=model_profile,
+        config_path=config_path,
+        model_profiles_path=model_profiles_path,
+        model_path=model_path,
+        llama_cli=llama_cli,
+        ctx=ctx,
+        max_tokens=max_tokens,
+        temp=temp,
+        top_p=top_p,
+        batch=batch,
+        ubatch=ubatch,
+        gpu_layers=gpu_layers,
+    )
+
+    _execute_run(
+        suite=suite,
+        only=only,
+        include=include,
+        resolved=resolved,
+        out=out,
+        fail_on_failed_prompts=True,
+    )
+
+
+@app.command("run-ladder")
+def run_ladder(
+    suite: Path = typer.Option(..., "--suite", help="Suite directory"),
+    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    include: str = typer.Option(
+        "all",
+        "--include",
+        help="Prompt category to run, or 'all'. Ignored when --only is set.",
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
+    model_profile: str | None = typer.Option(
+        None, "--model-profile", help="Model profile name"
+    ),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="LLMGauge config YAML"
+    ),
+    model_profiles_path: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Model profiles YAML",
+    ),
+    model_path: Path | None = typer.Option(
+        None, "--model-path", help="GGUF model path"
+    ),
+    llama_cli: Path | None = typer.Option(None, "--llama-cli", help="llama-cli path"),
+    ctx_ladder: str | None = typer.Option(
+        None,
+        "--ctx-ladder",
+        help="Comma-separated context sizes. Default: 8192,16384,32768",
+    ),
+    max_tokens: int | None = typer.Option(
+        None, "--max-tokens", help="Max generated tokens"
+    ),
+    temp: float | None = typer.Option(None, "--temp", help="Temperature"),
+    top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
+    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
+    ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
+    gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    out: Path = typer.Option(..., "--out", help="Output ladder directory"),
+) -> None:
+    """Run the same selected prompts across multiple context sizes."""
+    contexts = parse_ctx_ladder(ctx_ladder)
+    prepare_result_dir(out)
+
+    child_runs: list[dict[str, Any]] = []
+    loaded_suite = load_suite(suite)
+
+    console.print(
+        f"Running context ladder [bold]{out.name}[/bold] across "
+        f"[bold]{len(contexts)}[/bold] context size(s): "
+        f"{', '.join(str(ctx) for ctx in contexts)}"
+    )
+
+    for ctx_size in contexts:
+        child_dir = out / f"ctx-{ctx_size}"
+        try:
+            resolved = _resolve_run_options(
+                model_id=model_id,
+                model_profile=model_profile,
+                config_path=config_path,
+                model_profiles_path=model_profiles_path,
+                model_path=model_path,
+                llama_cli=llama_cli,
+                ctx=ctx_size,
+                max_tokens=max_tokens,
+                temp=temp,
+                top_p=top_p,
+                batch=batch,
+                ubatch=ubatch,
+                gpu_layers=gpu_layers,
+            )
+
+            result = _execute_run(
+                suite=suite,
+                only=only,
+                include=include,
+                resolved=resolved,
+                out=child_dir,
+                fail_on_failed_prompts=False,
+            )
+
+            child_runs.append(
+                {
+                    "ctx_size": ctx_size,
+                    "status": result["run"]["status"],
+                    "result_dir": str(child_dir),
+                    "completed": result["summary"]["completed"],
+                    "failed": result["summary"]["failed"],
+                    "error": None
+                    if result["run"]["status"] == "completed"
+                    else "one or more prompts failed",
+                }
+            )
+        except Exception as exc:
+            child_runs.append(
+                {
+                    "ctx_size": ctx_size,
+                    "status": "failed",
+                    "result_dir": str(child_dir),
+                    "completed": None,
+                    "failed": None,
+                    "error": str(exc),
+                }
+            )
+            console.print(f"[bold red]Context {ctx_size} failed[/bold red]: {exc}")
+
+    summary = build_ladder_summary(
+        ladder_id=out.name,
+        suite_id=loaded_suite["suite_id"],
+        include=include,
+        only=only,
+        model_id=str(model_id or model_profile or "unknown-model"),
+        contexts=contexts,
+        child_runs=child_runs,
+    )
+    write_ladder_summary(out, summary)
+    write_ladder_report(out, summary)
+
+    if summary["summary"]["failed"]:
+        console.print(
+            f"[bold red]Context ladder completed with failures[/bold red]: {out}"
+        )
         raise typer.Exit(code=1)
 
-    console.print(f"[bold green]Run completed[/bold green]: {out}")
+    console.print(f"[bold green]Context ladder completed[/bold green]: {out}")
 
 
 @app.command("validate-result")
