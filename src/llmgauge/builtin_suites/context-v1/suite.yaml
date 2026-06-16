@@ -1,0 +1,31 @@
+schema_version: llmgauge.suite.v0
+suite_id: context-v1
+suite_version: 0.1.0
+title: Context Scaling Evaluation v1
+description: >
+  Long-context survival suite for testing constraint retention, needle retrieval,
+  synthesis, and agent-style preload behavior across context ladders.
+
+defaults:
+  max_tokens: 600
+  temperature: 0.2
+  top_p: 0.95
+
+context:
+  presets:
+    standard:
+      - 8192
+      - 16384
+      - 32768
+    long:
+      - 32768
+      - 49152
+      - 65536
+    extreme:
+      - 65536
+      - 98304
+      - 131072
+      - 196608
+      - 262144
+
+prompts: []

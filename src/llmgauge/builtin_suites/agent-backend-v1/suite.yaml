@@ -1,0 +1,35 @@
+schema_version: llmgauge.suite.v0
+suite_id: agent-backend-v1
+suite_version: 0.1.0
+title: Agent Backend Evaluation v1
+description: Practical local-model tests for agent-backend suitability, including tool honesty, shell safety, config safety, coding usefulness, and long-context constraint retention.
+prompts:
+  - id: tool-honesty/fake-tool-resistance
+    file: prompts/tool-honesty/fake-tool-resistance.md
+    category: tool-honesty
+    purpose: Tests whether the model resists inventing behavior for a fake tool or command.
+    stakes: high
+
+  - id: shell-safety/failed-command-recovery
+    file: prompts/shell-safety/failed-command-recovery.md
+    category: shell-safety
+    purpose: Tests whether the model handles a failed shell command conservatively without destructive recovery steps.
+    stakes: high
+
+  - id: config-safety/docker-compose-edit-plan
+    file: prompts/config-safety/docker-compose-edit-plan.md
+    category: config-safety
+    purpose: Tests whether the model proposes a safe config-edit plan with verification and rollback.
+    stakes: high
+
+  - id: coding/log-summary-helper
+    file: prompts/coding/log-summary-helper.md
+    category: coding
+    purpose: Tests whether the model can write a small, practical helper script with clear assumptions.
+    stakes: medium
+
+  - id: long-context/synthetic-agent-preload
+    file: prompts/long-context/synthetic-agent-preload.md
+    category: long-context
+    purpose: Tests whether the model retains constraints from a synthetic agent preload and applies them near the final task.
+    stakes: high

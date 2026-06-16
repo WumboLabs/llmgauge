@@ -43,6 +43,7 @@ from llmgauge.core.scoring import (
     write_score_template,
 )
 from llmgauge.core.suite import load_suite, validate_suite
+from llmgauge.core.suite_paths import resolve_suite_path, resolve_suites_dir
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
 
 app = typer.Typer(
@@ -64,16 +65,19 @@ def doctor() -> None:
 
     table.add_row("Python package", "ok", "LLMGauge import works")
     table.add_row("Runner", "available", "llama.cpp runner module installed")
-    table.add_row("Suites", "manual", "Run: llmgauge validate-suite suites/core-v1")
+    table.add_row("Suites", "available", "Run: llmgauge list-suites")
 
     console.print(table)
 
 
 @app.command("list-suites")
-def list_suites(suites_dir: Path = typer.Argument(Path("suites"))) -> None:
+def list_suites(suites_dir: Path | None = typer.Argument(None)) -> None:
     """List available prompt suites."""
-    if not suites_dir.exists():
-        raise typer.BadParameter(f"Suites directory does not exist: {suites_dir}")
+    resolved_suites_dir = resolve_suites_dir(suites_dir)
+    if not resolved_suites_dir.exists():
+        raise typer.BadParameter(
+            f"Suites directory does not exist: {resolved_suites_dir}"
+        )
 
     table = Table(title="Available Suites")
     table.add_column("Suite ID")
@@ -81,7 +85,7 @@ def list_suites(suites_dir: Path = typer.Argument(Path("suites"))) -> None:
     table.add_column("Title")
     table.add_column("Prompts")
 
-    for suite_file in sorted(suites_dir.glob("*/suite.yaml")):
+    for suite_file in sorted(resolved_suites_dir.glob("*/suite.yaml")):
         suite = load_suite(suite_file.parent)
         table.add_row(
             suite["suite_id"],
@@ -96,7 +100,8 @@ def list_suites(suites_dir: Path = typer.Argument(Path("suites"))) -> None:
 @app.command("validate-suite")
 def validate_suite_command(suite_dir: Path = typer.Argument(...)) -> None:
     """Validate a prompt suite."""
-    errors = validate_suite(suite_dir)
+    resolved_suite_dir = resolve_suite_path(suite_dir)
+    errors = validate_suite(resolved_suite_dir)
 
     if errors:
         console.print("[bold red]Suite validation failed[/bold red]")
@@ -104,7 +109,7 @@ def validate_suite_command(suite_dir: Path = typer.Argument(...)) -> None:
             console.print(f"- {error}")
         raise typer.Exit(code=1)
 
-    suite = load_suite(suite_dir)
+    suite = load_suite(resolved_suite_dir)
     console.print(
         f"[bold green]OK[/bold green] {suite['suite_id']} "
         f"({len(suite.get('prompts', []))} prompts)"
@@ -135,7 +140,7 @@ def _select_prompts(suite: dict, only: str | None, include: str) -> list[dict]:
 
 
 def _load_system_prompt() -> str:
-    path = Path("suites/core-v1/prompts/system-conservative-ops.txt")
+    path = resolve_suite_path(Path("core-v1")) / "prompts/system-conservative-ops.txt"
     if path.exists():
         return path.read_text(encoding="utf-8").strip()
 
@@ -315,7 +320,8 @@ def _execute_run(
     out: Path,
     fail_on_failed_prompts: bool,
 ) -> dict[str, Any]:
-    loaded_suite = load_suite(suite)
+    resolved_suite = resolve_suite_path(suite)
+    loaded_suite = load_suite(resolved_suite)
     selected_prompts = _select_prompts(loaded_suite, only, include)
     system_prompt = _load_system_prompt()
 
@@ -436,7 +442,7 @@ def _execute_run(
         "suite": {
             "suite_id": loaded_suite["suite_id"],
             "suite_version": str(loaded_suite["suite_version"]),
-            "suite_path": str(suite),
+            "suite_path": str(resolved_suite),
             "prompt_count": len(prompt_results),
             "include": include,
             "only": only,
@@ -666,7 +672,8 @@ def run_ladder(
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     child_runs: list[dict[str, Any]] = []
-    loaded_suite = load_suite(suite)
+    resolved_suite = resolve_suite_path(suite)
+    loaded_suite = load_suite(resolved_suite)
     resolved_out = _resolve_cli_output_dir(
         out=out,
         auto_name=auto_name,
