@@ -14,3 +14,6 @@ results/
 
 # Local/private LLMGauge config
 examples/configs/*.local.yaml
+
+# Local generated scratch artifacts
+tmp/
