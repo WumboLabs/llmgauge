@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.17 - Unreleased
+
+- Improved scored comparison reports with manual score totals, prompt verdicts, overall trust, and prompt-level failure labels.
+- Added scored comparison summary tables showing score totals, average score, scored prompt counts, label counts, lowest prompt, and highest prompt.
+- Added scored comparison documentation.
+
 ## v0.16
 
 - Started real installed-CLI model smoke testing with Gemma 4 12B QAT Q4.

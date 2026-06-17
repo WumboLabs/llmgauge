@@ -8,7 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Development checkpoint: v0.07
+Current stable tag: v0.16
+
+Current development line: v0.17
 
 Current capabilities:
 
@@ -17,7 +19,7 @@ Current capabilities:
 - Capture raw prompt, raw output, stderr logs, runtime metadata, and speed metrics.
 - Generate Markdown reports.
 - Create and apply manual score templates.
-- Compare two or more result directories.
+- Compare two or more result directories, including scored comparison summaries.
 - Use local YAML config and model profiles.
 - Validate result directory integrity.
 
@@ -151,7 +153,7 @@ Manual scoring uses a 0-5 scale across practical evaluation dimensions such as t
       results/example-run-b \
       --out results/compare.md
 
-Comparison reports summarize runtime settings, prompt scores, prompt eval speed, generation speed, and label counts. They do not declare a universal winner.
+Comparison reports summarize runtime settings, score totals, prompt scores, prompt verdicts, overall trust, prompt-level failure labels, prompt eval speed, generation speed, and label counts. They do not declare a universal winner.
 
 ## Result artifacts
 
@@ -241,3 +243,4 @@ See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and comp
 See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, and export-index schema notes.
 See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
+See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
