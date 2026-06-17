@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.19
+
+- Added read-only NVIDIA VRAM capture through `nvidia-smi`.
+- Added prompt-level VRAM summaries with peak usage, total VRAM, headroom, initial usage, final usage, GPU index, GPU name, and sample count.
+- Added raw VRAM sample artifacts under each run directory.
+- Wired VRAM polling into llama.cpp execution without making `nvidia-smi` availability fatal.
+- Added VRAM metrics to run reports.
+- Added VRAM metrics to comparison reports.
+- Documented VRAM capture behavior, schema, display fields, and limitations.
+
 ## v0.18
 
 - Added deterministic baseline-check support for completed run artifacts.

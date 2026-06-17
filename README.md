@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.18
+Current stable tag: v0.19
 
-Current development line: v0.19
+Current development line: v0.20
 
 Current capabilities:
 
@@ -23,6 +23,7 @@ Current capabilities:
 - Use local YAML config and model profiles.
 - Validate result directory integrity.
 - Run deterministic baseline checks against completed result artifacts.
+- Capture and report prompt-level NVIDIA VRAM usage during local runs.
 
 ## Install for development
 
