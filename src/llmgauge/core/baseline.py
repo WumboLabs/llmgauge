@@ -143,3 +143,92 @@ def check_output_against_baseline(
         "suggested_good_labels": sorted(set(suggested_good_labels)),
         "suggested_failure_labels": sorted(set(suggested_failure_labels)),
     }
+
+
+def baseline_path_for_prompt(suite_dir: Path, prompt_id: str) -> Path:
+    safe_prompt_id = prompt_id.replace("/", "__")
+    return suite_dir / "baselines" / f"{safe_prompt_id}.yaml"
+
+
+def load_suite_baselines(suite_dir: Path) -> dict[str, dict[str, Any]]:
+    baselines_dir = suite_dir / "baselines"
+    if not baselines_dir.exists():
+        return {}
+
+    baselines: dict[str, dict[str, Any]] = {}
+    for baseline_file in sorted(baselines_dir.glob("*.yaml")):
+        baseline = load_baseline(baseline_file)
+        prompt_id = baseline.get("prompt_id")
+        if isinstance(prompt_id, str) and prompt_id:
+            baselines[prompt_id] = baseline
+
+    return baselines
+
+
+def output_text_for_prompt_result(
+    result_dir: Path, prompt_result: dict[str, Any]
+) -> str:
+    output_path = prompt_result.get("output_path")
+    if not isinstance(output_path, str) or not output_path:
+        return ""
+
+    path = result_dir / output_path
+    if not path.exists():
+        return ""
+
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def check_result_against_baselines(
+    *,
+    result_dir: Path,
+    suite_dir: Path,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    baselines = load_suite_baselines(suite_dir)
+    checks: list[dict[str, Any]] = []
+
+    for prompt_result in result.get("results", []):
+        prompt_id = prompt_result.get("prompt_id")
+        if not isinstance(prompt_id, str) or not prompt_id:
+            continue
+
+        baseline = baselines.get(prompt_id)
+        if baseline is None:
+            checks.append(
+                {
+                    "prompt_id": prompt_id,
+                    "status": "missing_baseline",
+                    "errors": [],
+                    "missing_required": [],
+                    "forbidden_present": [],
+                    "hard_failures": [],
+                    "suggested_good_labels": [],
+                    "suggested_failure_labels": ["missing_baseline"],
+                }
+            )
+            continue
+
+        output_text = output_text_for_prompt_result(result_dir, prompt_result)
+        checks.append(
+            check_output_against_baseline(
+                prompt_id=prompt_id,
+                output_text=output_text,
+                baseline=baseline,
+            )
+        )
+
+    status_counts: dict[str, int] = {}
+    for check in checks:
+        status = str(check.get("status", "unknown"))
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    return {
+        "schema_version": "llmgauge.baseline_check.v0",
+        "run_id": result.get("run", {}).get("run_id"),
+        "suite_id": result.get("suite", {}).get("suite_id"),
+        "result_dir": str(result_dir),
+        "suite_dir": str(suite_dir),
+        "status_counts": status_counts,
+        "checks": checks,
+    }
