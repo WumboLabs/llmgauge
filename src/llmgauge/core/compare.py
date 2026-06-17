@@ -19,11 +19,46 @@ def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
 
 
-def _score_average(prompt_result: dict[str, Any]) -> Any:
+def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
     score = prompt_result.get("score")
-    if not isinstance(score, dict):
+    return score if isinstance(score, dict) else {}
+
+
+def _score_average(prompt_result: dict[str, Any]) -> Any:
+    return _score_dict(prompt_result).get("prompt_average")
+
+
+def _score_dimension(prompt_result: dict[str, Any], dimension: str) -> Any:
+    dimensions = _score_dict(prompt_result).get("dimensions", {})
+    if not isinstance(dimensions, dict):
         return None
-    return score.get("prompt_average")
+    return dimensions.get(dimension)
+
+
+def _score_failure_labels(prompt_result: dict[str, Any]) -> list[str]:
+    labels = _score_dict(prompt_result).get("failure_labels", [])
+    return labels if isinstance(labels, list) else []
+
+
+def _score_total_fraction(result: dict[str, Any]) -> str:
+    summary = result.get("summary", {})
+    total = summary.get("manual_score_total")
+    maximum = summary.get("manual_score_max")
+    if total is None or maximum is None:
+        return "None"
+    return f"{total}/{maximum}"
+
+
+def _prompt_verdict_cell(prompt_result: dict[str, Any]) -> str:
+    score = _score_dict(prompt_result)
+    if not score:
+        return "None"
+
+    verdict = _fmt(score.get("verdict") or None)
+    trust = _fmt(_score_dimension(prompt_result, "overall_trust"))
+    labels = _score_failure_labels(prompt_result)
+    failures = ", ".join(labels) if labels else "None"
+    return f"verdict={verdict}; trust={trust}; failures={failures}"
 
 
 def _result_label(result: dict[str, Any]) -> str:
@@ -60,8 +95,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
         "",
         "## Runs",
         "",
-        "| Run | Model | Suite | Status | Completed | Failed | Scored | Avg score |",
-        "|---|---|---|---:|---:|---:|---:|---:|",
+        "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|",
     ]
 
     for result in results:
@@ -79,6 +114,7 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             f"{summary.get('completed')} | "
             f"{summary.get('failed')} | "
             f"{summary.get('scored_prompt_count')} | "
+            f"{_score_total_fraction(result)} | "
             f"{summary.get('manual_score_average')} |"
         )
 
@@ -131,6 +167,25 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             prompt_result = prompt_lookup.get(prompt_id)
             row.append(
                 _fmt(_score_average(prompt_result)) if prompt_result else "missing"
+            )
+        lines.append("| " + " | ".join(row) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Prompt Verdicts",
+            "",
+        ]
+    )
+
+    lines.extend([header, separator])
+
+    for prompt_id in prompt_ids:
+        row = [prompt_id]
+        for prompt_lookup in prompt_maps:
+            prompt_result = prompt_lookup.get(prompt_id)
+            row.append(
+                _prompt_verdict_cell(prompt_result) if prompt_result else "missing"
             )
         lines.append("| " + " | ".join(row) + " |")
 

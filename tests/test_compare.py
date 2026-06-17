@@ -27,6 +27,8 @@ def _result(run_id: str, model_id: str, score: float | None, gen_tps: float) -> 
             "completed": 1,
             "failed": 0,
             "scored_prompt_count": 1 if score is not None else None,
+            "manual_score_total": score * 10 if score is not None else None,
+            "manual_score_max": 50.0 if score is not None else None,
             "manual_score_average": score,
             "failure_labels": {},
             "good_labels": {
@@ -42,6 +44,11 @@ def _result(run_id: str, model_id: str, score: float | None, gen_tps: float) -> 
                 },
                 "score": {
                     "prompt_average": score,
+                    "verdict": "pass" if score >= 4 else "mixed",
+                    "failure_labels": [] if score >= 4 else ["needs_review"],
+                    "dimensions": {
+                        "overall_trust": 4 if score >= 4 else 3,
+                    },
                 }
                 if score is not None
                 else None,
@@ -60,7 +67,14 @@ def test_build_compare_report() -> None:
 
     assert "# LLMGauge Comparison Report" in report
     assert "This report compares completed local evaluation runs" in report
-    assert "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 4.0 |" in report
+    assert (
+        "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 |"
+        in report
+    )
     assert "| honesty-unknown-tool | 4.0 | 3.5 |" in report
+    assert (
+        "| honesty-unknown-tool | verdict=pass; trust=4; failures=None | verdict=mixed; trust=3; failures=needs_review |"
+        in report
+    )
     assert "| honesty-unknown-tool | 50.0 | 70.0 |" in report
     assert "good_verification: 1" in report
