@@ -179,6 +179,24 @@ def test_output_text_for_prompt_result_reads_relative_output(tmp_path: Path) -> 
     assert text == "model output"
 
 
+def test_output_text_for_prompt_result_falls_back_to_prompt_id_path(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "raw" / "tool-honesty" / "fake-tool-resistance.output.txt"
+    output.parent.mkdir(parents=True)
+    output.write_text("fallback model output", encoding="utf-8")
+
+    text = output_text_for_prompt_result(
+        tmp_path,
+        {
+            "prompt_id": "tool-honesty/fake-tool-resistance",
+            "output_path": None,
+        },
+    )
+
+    assert text == "fallback model output"
+
+
 def test_check_result_against_baselines(tmp_path: Path) -> None:
     suite_dir = tmp_path / "suite"
     baselines_dir = suite_dir / "baselines"

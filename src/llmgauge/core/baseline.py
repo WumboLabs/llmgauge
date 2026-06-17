@@ -168,15 +168,24 @@ def load_suite_baselines(suite_dir: Path) -> dict[str, dict[str, Any]]:
 def output_text_for_prompt_result(
     result_dir: Path, prompt_result: dict[str, Any]
 ) -> str:
+    candidates: list[Path] = []
+
     output_path = prompt_result.get("output_path")
-    if not isinstance(output_path, str) or not output_path:
-        return ""
+    if isinstance(output_path, str) and output_path:
+        candidates.append(result_dir / output_path)
 
-    path = result_dir / output_path
-    if not path.exists():
-        return ""
+    prompt_id = prompt_result.get("prompt_id")
+    if isinstance(prompt_id, str) and prompt_id:
+        candidates.append(result_dir / "raw" / f"{prompt_id}.output.txt")
+        candidates.append(
+            result_dir / "raw" / f"{prompt_id.replace('/', '__')}.output.txt"
+        )
 
-    return path.read_text(encoding="utf-8", errors="replace")
+    for path in candidates:
+        if path.exists():
+            return path.read_text(encoding="utf-8", errors="replace")
+
+    return ""
 
 
 def check_result_against_baselines(
