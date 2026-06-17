@@ -14,6 +14,35 @@ def _score_average(prompt_result: dict[str, Any]) -> Any:
     return score.get("prompt_average")
 
 
+def _fmt_optional_mib(value: Any) -> str:
+    return "-" if value is None else str(value)
+
+
+def _vram_peak_used_mib(prompt_result: dict[str, Any]) -> int | None:
+    vram = prompt_result.get("vram")
+    if not isinstance(vram, dict) or not vram.get("available"):
+        return None
+
+    peak_used_mib = vram.get("peak_used_mib")
+    if not isinstance(peak_used_mib, int):
+        return None
+
+    return peak_used_mib
+
+
+def _vram_headroom_mib(prompt_result: dict[str, Any]) -> int | None:
+    vram = prompt_result.get("vram")
+    if not isinstance(vram, dict) or not vram.get("available"):
+        return None
+
+    peak_used_mib = vram.get("peak_used_mib")
+    peak_total_mib = vram.get("peak_total_mib")
+    if not isinstance(peak_used_mib, int) or not isinstance(peak_total_mib, int):
+        return None
+
+    return peak_total_mib - peak_used_mib
+
+
 def build_markdown_report(result: dict[str, Any]) -> str:
     run = result["run"]
     model = result["model"]
@@ -84,8 +113,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         [
             "## Prompt Results",
             "",
-            "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Exit |",
-            "|---|---|---:|---:|---:|---:|---:|",
+            "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
 
@@ -99,6 +128,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{_fmt(_score_average(prompt_result))} | "
             f"{_fmt(metrics['prompt_eval_tps'])} | "
             f"{_fmt(metrics['generation_tps'])} | "
+            f"{_fmt_optional_mib(_vram_peak_used_mib(prompt_result))} | "
+            f"{_fmt_optional_mib(_vram_headroom_mib(prompt_result))} | "
             f"{prompt_result['exit_status']} |"
         )
 
@@ -144,9 +175,13 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 f"- Raw prompt: `{prompt_result['raw_prompt_path']}`",
                 f"- Raw output: `{prompt_result['raw_output_path']}`",
                 f"- Stderr log: `{prompt_result['stderr_log_path']}`",
-                "",
             ]
         )
+
+        if prompt_result.get("vram_samples_path"):
+            lines.append(f"- VRAM samples: `{prompt_result['vram_samples_path']}`")
+
+        lines.append("")
 
     lines.extend(
         [

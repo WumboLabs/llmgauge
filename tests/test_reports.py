@@ -45,6 +45,12 @@ def test_build_markdown_report_multiple_prompts() -> None:
                     "prompt_eval_tps": 100.0,
                     "generation_tps": 50.0,
                 },
+                "vram": {
+                    "available": True,
+                    "peak_used_mib": 7535,
+                    "peak_total_mib": 12227,
+                },
+                "vram_samples_path": "vram/one.samples.json",
             },
             {
                 "prompt_id": "two",
@@ -66,11 +72,15 @@ def test_build_markdown_report_multiple_prompts() -> None:
 
     assert "# LLMGauge Report: test-run" in report
     assert (
-        "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Exit |"
+        "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
         in report
     )
-    assert "| one | honesty | completed | None | 100.0 | 50.0 | 0 |" in report
-    assert "| two | docker | completed | None | None | None | 0 |" in report
+    assert (
+        "| one | honesty | completed | None | 100.0 | 50.0 | 7535 | 4692 | 0 |"
+        in report
+    )
+    assert "| two | docker | completed | None | None | None | - | - | 0 |" in report
+    assert "- VRAM samples: `vram/one.samples.json`" in report
 
 
 def test_build_markdown_report_with_scores() -> None:
@@ -141,7 +151,7 @@ def test_build_markdown_report_with_scores() -> None:
     assert "## Score Summary" in report
     assert "- Manual score average: 3.6 / 5" in report
     assert (
-        "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | 0 |"
+        "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | - | - | 0 |"
         in report
     )
     assert "## Manual Review Notes" in report
