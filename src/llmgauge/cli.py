@@ -10,6 +10,7 @@ from rich.table import Table
 
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.baseline import check_result_against_baselines
+from llmgauge.core.batch_validation import validate_batch_dir
 from llmgauge.core.batch import (
     build_batch_summary,
     load_batch_manifest,
@@ -967,6 +968,26 @@ def run_batch(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]Model batch completed[/bold green]: {out}")
+
+
+@app.command("validate-batch")
+def validate_batch(
+    batch_dir: Path = typer.Argument(..., help="LLMGauge model batch directory"),
+) -> None:
+    """Validate a LLMGauge model batch directory."""
+    try:
+        errors = validate_batch_dir(batch_dir)
+    except Exception as exc:
+        console.print(f"[bold red]Batch validation failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if errors:
+        console.print("[bold red]Batch validation failed[/bold red]")
+        for error in errors:
+            console.print(f"- {error}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold green]OK[/bold green] {batch_dir}")
 
 
 @app.command("validate-ladder")
