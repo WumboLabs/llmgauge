@@ -84,6 +84,32 @@ def _label_counts(result: dict[str, Any], key: str) -> dict[str, int]:
     return value if isinstance(value, dict) else {}
 
 
+def _label_total(result: dict[str, Any], key: str) -> int:
+    return sum(_label_counts(result, key).values())
+
+
+def _scored_prompt_averages(result: dict[str, Any]) -> list[tuple[str, float]]:
+    scores: list[tuple[str, float]] = []
+    for prompt_result in result.get("results", []):
+        average = _score_average(prompt_result)
+        if isinstance(average, int | float):
+            scores.append((prompt_result["prompt_id"], float(average)))
+    return scores
+
+
+def _prompt_score_extreme(result: dict[str, Any], *, highest: bool) -> str:
+    scores = _scored_prompt_averages(result)
+    if not scores:
+        return "None"
+
+    prompt_id, average = (
+        max(scores, key=lambda item: item[1])
+        if highest
+        else min(scores, key=lambda item: item[1])
+    )
+    return f"{prompt_id} ({average:g})"
+
+
 def build_compare_report(results: list[dict[str, Any]]) -> str:
     if len(results) < 2:
         raise ValueError("Need at least two result directories to compare")
@@ -116,6 +142,30 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             f"{summary.get('scored_prompt_count')} | "
             f"{_score_total_fraction(result)} | "
             f"{summary.get('manual_score_average')} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Score Summary",
+            "",
+            "| Run | Score total | Avg score | Scored prompts | Failure labels | Good labels | Lowest prompt | Highest prompt |",
+            "|---|---:|---:|---:|---:|---:|---|---|",
+        ]
+    )
+
+    for result in results:
+        summary = result.get("summary", {})
+        lines.append(
+            "| "
+            f"{_result_label(result)} | "
+            f"{_score_total_fraction(result)} | "
+            f"{summary.get('manual_score_average')} | "
+            f"{summary.get('scored_prompt_count')} | "
+            f"{_label_total(result, 'failure_labels')} | "
+            f"{_label_total(result, 'good_labels')} | "
+            f"{_prompt_score_extreme(result, highest=False)} | "
+            f"{_prompt_score_extreme(result, highest=True)} |"
         )
 
     lines.extend(

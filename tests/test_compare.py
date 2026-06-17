@@ -71,6 +71,11 @@ def test_build_compare_report() -> None:
         "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 |"
         in report
     )
+    assert "## Score Summary" in report
+    assert (
+        "| model-a (run-a) | 40.0/50.0 | 4.0 | 1 | 0 | 1 | honesty-unknown-tool (4) | honesty-unknown-tool (4) |"
+        in report
+    )
     assert "| honesty-unknown-tool | 4.0 | 3.5 |" in report
     assert (
         "| honesty-unknown-tool | verdict=pass; trust=4; failures=None | verdict=mixed; trust=3; failures=needs_review |"
