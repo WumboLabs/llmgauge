@@ -56,3 +56,9 @@ def test_resolve_model_profile() -> None:
 
 def test_load_llmgauge_config_none() -> None:
     assert load_llmgauge_config(None) == {}
+
+
+def test_get_config_value_vram_threshold() -> None:
+    config = {"vram": {"min_headroom_warn_mib": 1000}}
+
+    assert get_config_value(config, "vram.min_headroom_warn_mib") == 1000

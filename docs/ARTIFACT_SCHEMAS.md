@@ -295,6 +295,37 @@ Purpose:
 - Preserve whether explicit extreme-context opt-in was used.
 - Help importers and reviewers distinguish ordinary 64k-and-under ladders from extreme context experiments.
 
+## VRAM guardrails
+
+Prompt results may include warning-only VRAM guardrail metadata.
+
+Schema:
+
+    llmgauge.vram.guardrails.v0
+
+Expected fields:
+
+    schema_version
+    status
+    min_headroom_warn_mib
+    observed_headroom_mib
+    warnings
+
+Supported `status` values:
+
+    ok
+    warning
+
+Current warning labels:
+
+    vram_headroom_below_warning_threshold
+
+Guardrails are informational in this schema version. They do not change prompt status, run status, validation status, or exit behavior.
+
+If no threshold is configured, or VRAM is unavailable, prompt results may use:
+
+    "vram_guardrails": null
+
 ## Export index
 
 An export index is a discovery artifact, not a source-of-truth result.

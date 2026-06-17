@@ -167,6 +167,58 @@ def _redacted_command(command: list[str], model_path: Path) -> list[str]:
     return [arg if arg != str(model_path) else "REDACTED_MODEL_PATH" for arg in command]
 
 
+def _optional_nonnegative_int(value: Any, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+
+    resolved = int(value)
+    if resolved < 0:
+        raise typer.BadParameter(f"{field_name} must be non-negative")
+
+    return resolved
+
+
+def _vram_headroom_mib(vram_summary: dict[str, Any] | None) -> int | None:
+    if not isinstance(vram_summary, dict) or not vram_summary.get("available"):
+        return None
+
+    peak_used_mib = vram_summary.get("peak_used_mib")
+    peak_total_mib = vram_summary.get("peak_total_mib")
+
+    if not isinstance(peak_used_mib, int) or not isinstance(peak_total_mib, int):
+        return None
+
+    return peak_total_mib - peak_used_mib
+
+
+def _build_vram_guardrails(
+    vram_summary: dict[str, Any] | None,
+    *,
+    min_headroom_warn_mib: int | None,
+) -> dict[str, Any] | None:
+    if min_headroom_warn_mib is None:
+        return None
+
+    observed_headroom_mib = _vram_headroom_mib(vram_summary)
+    if observed_headroom_mib is None:
+        return None
+
+    warnings = []
+    status = "ok"
+
+    if observed_headroom_mib < min_headroom_warn_mib:
+        status = "warning"
+        warnings.append("vram_headroom_below_warning_threshold")
+
+    return {
+        "schema_version": "llmgauge.vram.guardrails.v0",
+        "status": status,
+        "min_headroom_warn_mib": min_headroom_warn_mib,
+        "observed_headroom_mib": observed_headroom_mib,
+        "warnings": warnings,
+    }
+
+
 def _resolve_cli_output_dir(
     *,
     out: Path | None,
@@ -287,6 +339,10 @@ def _resolve_run_options(
             999,
         )
     )
+    resolved_vram_min_headroom_warn_mib = _optional_nonnegative_int(
+        get_config_value(config_data, "vram.min_headroom_warn_mib"),
+        field_name="vram.min_headroom_warn_mib",
+    )
 
     if not resolved_model_path.exists():
         raise typer.BadParameter(f"Model path does not exist: {resolved_model_path}")
@@ -309,6 +365,7 @@ def _resolve_run_options(
         "batch": resolved_batch,
         "ubatch": resolved_ubatch,
         "gpu_layers": resolved_gpu_layers,
+        "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
     }
 
 
@@ -395,6 +452,10 @@ def _execute_run(
 
         metrics = parse_llama_metrics(run_result.stdout + "\n" + run_result.stderr)
         status = "completed" if run_result.exit_status == 0 else "failed"
+        vram_guardrails = _build_vram_guardrails(
+            vram_summary,
+            min_headroom_warn_mib=resolved["vram_min_headroom_warn_mib"],
+        )
 
         prompt_results.append(
             {
@@ -410,6 +471,7 @@ def _execute_run(
                 "vram_samples_path": str(vram_samples_path.relative_to(out))
                 if vram_samples_path is not None
                 else None,
+                "vram_guardrails": vram_guardrails,
                 "score": None,
                 "failure_labels": [],
                 "notes": "",
@@ -454,6 +516,7 @@ def _execute_run(
             "batch_size": resolved["batch"],
             "ubatch_size": resolved["ubatch"],
             "gpu_layers": resolved["gpu_layers"],
+            "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
             "command": redacted_command or [],
             "config_path": str(resolved["config_path"])
             if resolved["config_path"]

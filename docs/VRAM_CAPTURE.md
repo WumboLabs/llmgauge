@@ -107,6 +107,37 @@ Comparison reports include:
 
 Older artifacts without VRAM data remain readable and display `-`.
 
+## Guardrails
+
+LLMGauge can record warning-only VRAM guardrail metadata when configured.
+
+Example config:
+
+    vram:
+      min_headroom_warn_mib: 1000
+
+This does not fail the run. It records whether observed prompt-level VRAM headroom is below the configured warning threshold.
+
+Prompt result field:
+
+    "vram_guardrails": {
+      "schema_version": "llmgauge.vram.guardrails.v0",
+      "status": "ok",
+      "min_headroom_warn_mib": 1000,
+      "observed_headroom_mib": 4692,
+      "warnings": []
+    }
+
+If observed headroom is below the threshold, status becomes:
+
+    warning
+
+and warnings includes:
+
+    vram_headroom_below_warning_threshold
+
+If no threshold is configured, or VRAM is unavailable, `vram_guardrails` may be null.
+
 ## Known limitations
 
 Current VRAM capture is intentionally simple.
