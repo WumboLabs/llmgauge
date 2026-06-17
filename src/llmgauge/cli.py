@@ -1077,7 +1077,7 @@ def score(
 def export_index_command(
     artifact_paths: list[Path] = typer.Argument(
         ...,
-        help="LLMGauge run or ladder directories to index",
+        help="LLMGauge run, ladder, or batch directories to index",
     ),
     out: Path = typer.Option(..., "--out", help="Output index JSON path"),
     validate: bool = typer.Option(

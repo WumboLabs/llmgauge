@@ -300,3 +300,132 @@ def test_build_export_index_can_validate_ladder(tmp_path: Path) -> None:
     assert item["validation"]["checked"] is True
     assert item["validation"]["status"] == "valid"
     assert item["validation"]["errors"] == []
+
+
+def test_detect_artifact_type_batch(tmp_path: Path) -> None:
+    result_dir = tmp_path / "batch-a"
+    result_dir.mkdir()
+    (result_dir / "batch-summary.json").write_text("{}", encoding="utf-8")
+
+    assert detect_artifact_type(result_dir) == "batch"
+
+
+def test_build_export_index_for_batch(tmp_path: Path) -> None:
+    result_dir = tmp_path / "batch-a"
+    result_dir.mkdir()
+    (result_dir / "batch-report.md").write_text("# Batch\n", encoding="utf-8")
+    (result_dir / "batch-summary.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.batch_summary.v0",
+  "batch_id": "batch-a",
+  "manifest_path": "tmp/batch-a.yaml",
+  "suite_id": "agent-backend-v1",
+  "suite_path": "suites/agent-backend-v1",
+  "include": "all",
+  "only": "tool-honesty/fake-tool-resistance",
+  "max_tokens": 300,
+  "models": ["model-a", "model-b"],
+  "execution": {
+    "mode": "sequential",
+    "model_reference_policy": "manifest model entries are model profile names only",
+    "parallelism": "disabled"
+  },
+  "child_runs": [
+    {
+      "model_profile": "model-a",
+      "model_id": "model-a",
+      "status": "completed",
+      "result_dir": "model-01-model-a",
+      "completed": 1,
+      "failed": 0,
+      "error": null
+    },
+    {
+      "model_profile": "model-b",
+      "model_id": null,
+      "status": "failed",
+      "result_dir": "model-02-model-b",
+      "completed": null,
+      "failed": null,
+      "error": "intentional test failure"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "completed": 1,
+    "failed": 1
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["artifact_type"] == "batch"
+    assert item["batch_id"] == "batch-a"
+    assert item["suite_id"] == "agent-backend-v1"
+    assert item["models"] == ["model-a", "model-b"]
+    assert item["model_count"] == 2
+    assert item["child_run_count"] == 2
+    assert item["completed"] == 1
+    assert item["failed"] == 1
+    assert item["total"] == 2
+    assert item["has_child_runs"] is True
+    assert item["has_completed_child_runs"] is True
+    assert item["has_failed_child_runs"] is True
+    assert item["batch_report"] == str(result_dir / "batch-report.md")
+
+
+def test_build_export_index_can_validate_batch(tmp_path: Path) -> None:
+    result_dir = tmp_path / "batch-a"
+    result_dir.mkdir()
+    (result_dir / "batch-summary.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.batch_summary.v0",
+  "batch_id": "batch-a",
+  "manifest_path": "tmp/batch-a.yaml",
+  "suite_id": "agent-backend-v1",
+  "suite_path": "suites/agent-backend-v1",
+  "include": "all",
+  "only": null,
+  "max_tokens": 300,
+  "models": ["missing-model"],
+  "execution": {
+    "mode": "sequential",
+    "model_reference_policy": "manifest model entries are model profile names only",
+    "parallelism": "disabled"
+  },
+  "child_runs": [
+    {
+      "model_profile": "missing-model",
+      "model_id": null,
+      "status": "failed",
+      "result_dir": "model-01-missing-model",
+      "completed": null,
+      "failed": null,
+      "error": "intentional test failure"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "completed": 0,
+    "failed": 1
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir], validate=True)
+    item = index["items"][0]
+
+    assert index["validation_checked"] is True
+    assert item["validation"]["checked"] is True
+    assert item["validation"]["status"] == "valid"
+    assert item["validation"]["errors"] == []

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.batch_validation import validate_batch_dir
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.result_validation import validate_result_dir
 
@@ -12,8 +13,10 @@ from llmgauge.core.result_validation import validate_result_dir
 EXPORT_INDEX_SCHEMA_VERSION = "llmgauge.export_index.v0"
 RUN_RESULT_FILENAME = "llmgauge-result.json"
 LADDER_SUMMARY_FILENAME = "ladder-summary.json"
+BATCH_SUMMARY_FILENAME = "batch-summary.json"
 RUN_REPORT_FILENAME = "report.md"
 LADDER_REPORT_FILENAME = "ladder-report.md"
+BATCH_REPORT_FILENAME = "batch-report.md"
 
 
 def _utc_timestamp() -> str:
@@ -93,6 +96,9 @@ def detect_artifact_type(path: Path) -> str:
 
     if path.is_dir() and (path / LADDER_SUMMARY_FILENAME).exists():
         return "ladder"
+
+    if path.is_dir() and (path / BATCH_SUMMARY_FILENAME).exists():
+        return "batch"
 
     raise ValueError(f"unsupported artifact path: {path}")
 
@@ -180,6 +186,61 @@ def build_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, 
     return item
 
 
+def build_batch_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
+    summary_path = path / BATCH_SUMMARY_FILENAME
+    batch = _read_json(summary_path)
+
+    summary = batch.get("summary", {})
+    child_runs = batch.get("child_runs", [])
+    models = batch.get("models", [])
+
+    if not isinstance(child_runs, list):
+        child_runs = []
+
+    if not isinstance(models, list):
+        models = []
+
+    completed_child_runs = [
+        child
+        for child in child_runs
+        if isinstance(child, dict) and child.get("status") == "completed"
+    ]
+    failed_child_runs = [
+        child
+        for child in child_runs
+        if isinstance(child, dict) and child.get("status") == "failed"
+    ]
+
+    item = {
+        "artifact_type": "batch",
+        "path": str(path),
+        "schema_version": batch.get("schema_version"),
+        "batch_summary": str(summary_path),
+        "batch_report": _optional_path(path / BATCH_REPORT_FILENAME),
+        "batch_id": batch.get("batch_id") or path.name,
+        "manifest_path": batch.get("manifest_path"),
+        "suite_id": batch.get("suite_id"),
+        "suite_path": batch.get("suite_path"),
+        "include": batch.get("include"),
+        "only": batch.get("only"),
+        "max_tokens": batch.get("max_tokens"),
+        "models": models,
+        "model_count": len(models),
+        "child_run_count": len(child_runs),
+        "completed": summary.get("completed"),
+        "failed": summary.get("failed"),
+        "total": summary.get("total"),
+        "has_child_runs": bool(child_runs),
+        "has_completed_child_runs": bool(completed_child_runs),
+        "has_failed_child_runs": bool(failed_child_runs),
+    }
+
+    if validate:
+        item["validation"] = _validation_payload(validate_batch_dir(path))
+
+    return item
+
+
 def build_export_index(paths: list[Path], *, validate: bool = False) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
 
@@ -190,6 +251,8 @@ def build_export_index(paths: list[Path], *, validate: bool = False) -> dict[str
             items.append(build_run_index_item(path, validate=validate))
         elif artifact_type == "ladder":
             items.append(build_ladder_index_item(path, validate=validate))
+        elif artifact_type == "batch":
+            items.append(build_batch_index_item(path, validate=validate))
         else:
             raise ValueError(f"unsupported artifact type: {artifact_type}")
 
