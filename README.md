@@ -249,3 +249,4 @@ See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpre
 ## Documentation
 
 - [Baseline checks](docs/BASELINE_CHECKS.md)
+- [VRAM capture](docs/VRAM_CAPTURE.md)
