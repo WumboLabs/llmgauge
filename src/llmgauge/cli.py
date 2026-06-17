@@ -376,6 +376,23 @@ def _execute_run(
         write_text(raw_output_path, run_result.stdout)
         write_text(stderr_log_path, run_result.stderr)
 
+        vram_samples = getattr(run_result, "vram_samples", [])
+        vram_summary = getattr(run_result, "vram_summary", None)
+
+        vram_samples_path = None
+        if vram_samples:
+            vram_samples_path = (
+                out / "vram" / f"{prompt_id.replace('/', '__')}.samples.json"
+            )
+            write_json(
+                vram_samples_path,
+                {
+                    "schema_version": "llmgauge.vram.samples.v0",
+                    "prompt_id": prompt_id,
+                    "samples": vram_samples,
+                },
+            )
+
         metrics = parse_llama_metrics(run_result.stdout + "\n" + run_result.stderr)
         status = "completed" if run_result.exit_status == 0 else "failed"
 
@@ -389,6 +406,10 @@ def _execute_run(
                 "raw_output_path": str(raw_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
                 "metrics": metrics,
+                "vram": vram_summary,
+                "vram_samples_path": str(vram_samples_path.relative_to(out))
+                if vram_samples_path is not None
+                else None,
                 "score": None,
                 "failure_labels": [],
                 "notes": "",
