@@ -44,6 +44,46 @@ def _validation_payload(errors: list[str]) -> dict[str, Any]:
     }
 
 
+def _int_or_none(value: Any) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+def _run_vram_metadata(path: Path, results: list[Any]) -> dict[str, Any]:
+    vram_prompt_count = 0
+    peak_values: list[int] = []
+    headroom_values: list[int] = []
+    vram_sample_artifact_count = 0
+
+    for prompt_result in results:
+        if not isinstance(prompt_result, dict):
+            continue
+
+        vram = prompt_result.get("vram")
+        if isinstance(vram, dict) and vram.get("available"):
+            vram_prompt_count += 1
+
+            peak_used_mib = _int_or_none(vram.get("peak_used_mib"))
+            peak_total_mib = _int_or_none(vram.get("peak_total_mib"))
+
+            if peak_used_mib is not None:
+                peak_values.append(peak_used_mib)
+
+            if peak_used_mib is not None and peak_total_mib is not None:
+                headroom_values.append(peak_total_mib - peak_used_mib)
+
+        samples_path = prompt_result.get("vram_samples_path")
+        if isinstance(samples_path, str) and (path / samples_path).exists():
+            vram_sample_artifact_count += 1
+
+    return {
+        "vram_available": vram_prompt_count > 0,
+        "peak_vram_mib": max(peak_values) if peak_values else None,
+        "min_vram_headroom_mib": min(headroom_values) if headroom_values else None,
+        "vram_prompt_count": vram_prompt_count,
+        "vram_sample_artifact_count": vram_sample_artifact_count,
+    }
+
+
 def detect_artifact_type(path: Path) -> str:
     if not path.exists():
         raise ValueError(f"artifact path does not exist: {path}")
@@ -92,6 +132,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "manual_score_max": summary.get("manual_score_max"),
         "has_raw_artifacts": (path / "raw").exists(),
         "has_logs": (path / "logs").exists(),
+        **_run_vram_metadata(path, results),
     }
 
     if validate:

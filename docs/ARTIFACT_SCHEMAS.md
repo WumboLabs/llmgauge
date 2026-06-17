@@ -357,7 +357,30 @@ Expected fields:
     manual_score_max
     has_raw_artifacts
     has_logs
+    vram_available
+    peak_vram_mib
+    min_vram_headroom_mib
+    vram_prompt_count
+    vram_sample_artifact_count
     validation
+
+`vram_available` is true when at least one prompt result has available VRAM summary data.
+
+`peak_vram_mib` is the highest prompt-level peak VRAM usage found in the run, or null.
+
+`min_vram_headroom_mib` is the lowest prompt-level VRAM headroom found in the run, or null.
+
+`vram_prompt_count` is the number of prompt results with available VRAM summary data.
+
+`vram_sample_artifact_count` is the number of referenced VRAM sample artifact files that exist on disk.
+
+Older run artifacts without VRAM data should use:
+
+    "vram_available": false
+    "peak_vram_mib": null
+    "min_vram_headroom_mib": null
+    "vram_prompt_count": 0
+    "vram_sample_artifact_count": 0
 
 `validation` appears only when export-index is run with validation enabled.
 

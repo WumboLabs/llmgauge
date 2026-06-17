@@ -39,6 +39,10 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     (result_dir / "raw").mkdir()
     (result_dir / "logs").mkdir()
     (result_dir / "report.md").write_text("# Report\n", encoding="utf-8")
+    (result_dir / "vram").mkdir()
+    (result_dir / "vram" / "honesty-unknown-tool.samples.json").write_text(
+        "{}\n", encoding="utf-8"
+    )
     (result_dir / "llmgauge-result.json").write_text(
         """
 {
@@ -63,7 +67,24 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     "manual_score_total": null,
     "manual_score_max": null
   },
-  "results": []
+  "results": [
+    {
+      "prompt_id": "honesty-unknown-tool",
+      "vram": {
+        "schema_version": "llmgauge.vram.summary.v0",
+        "available": true,
+        "sample_count": 14,
+        "peak_used_mib": 7535,
+        "peak_total_mib": 12227,
+        "peak_gpu_index": 0,
+        "peak_gpu_name": "NVIDIA GeForce RTX 5070",
+        "initial_used_mib": 393,
+        "final_used_mib": 393,
+        "error": null
+      },
+      "vram_samples_path": "vram/honesty-unknown-tool.samples.json"
+    }
+  ]
 }
 """.strip()
         + "\n",
@@ -83,6 +104,59 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     assert item["failed"] == 0
     assert item["has_raw_artifacts"] is True
     assert item["has_logs"] is True
+    assert item["vram_available"] is True
+    assert item["peak_vram_mib"] == 7535
+    assert item["min_vram_headroom_mib"] == 4692
+    assert item["vram_prompt_count"] == 1
+    assert item["vram_sample_artifact_count"] == 1
+
+
+def test_build_export_index_for_run_without_vram(tmp_path: Path) -> None:
+    result_dir = tmp_path / "run-without-vram"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "run-without-vram",
+    "timestamp_utc": "2026-06-16T06:00:00+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "agent-backend-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 1
+  },
+  "summary": {
+    "completed": 1,
+    "failed": 0,
+    "manual_score_total": null,
+    "manual_score_max": null
+  },
+  "results": [
+    {
+      "prompt_id": "honesty-unknown-tool"
+    }
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["vram_available"] is False
+    assert item["peak_vram_mib"] is None
+    assert item["min_vram_headroom_mib"] is None
+    assert item["vram_prompt_count"] == 0
+    assert item["vram_sample_artifact_count"] == 0
 
 
 def test_build_export_index_for_ladder(tmp_path: Path) -> None:

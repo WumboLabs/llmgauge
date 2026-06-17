@@ -98,6 +98,18 @@ The export index is a discovery artifact. It helps Monolith find and classify LL
 
 It is not a database replacement.
 
+Run items may include flattened VRAM metadata:
+
+    vram_available
+    peak_vram_mib
+    min_vram_headroom_mib
+    vram_prompt_count
+    vram_sample_artifact_count
+
+Monolith may index these fields for browsing and filtering, but the source of truth remains the original `llmgauge-result.json` and any referenced files under `vram/`.
+
+Older artifacts without VRAM data should be treated as unavailable rather than invalid.
+
 ### Comparison report
 
 A comparison report is currently Markdown-first.

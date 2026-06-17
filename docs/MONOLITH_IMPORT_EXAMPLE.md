@@ -103,6 +103,16 @@ Each item should contain:
       "errors": []
     }
 
+Run items may also contain flattened VRAM metadata:
+
+    "vram_available": true,
+    "peak_vram_mib": 7535,
+    "min_vram_headroom_mib": 4692,
+    "vram_prompt_count": 1,
+    "vram_sample_artifact_count": 1
+
+These fields are for discovery, browsing, and filtering. Monolith should keep the original result artifact path and treat `llmgauge-result.json` as the source of truth.
+
 ## Import into Monolith
 
 From the Monolith repository:
