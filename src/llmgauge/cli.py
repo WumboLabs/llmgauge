@@ -883,6 +883,16 @@ def baseline_check_command(
         "--suite",
         help="Prompt suite directory or built-in suite ID",
     ),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Optional JSON baseline-check report path",
+    ),
+    fail_on_mixed: bool = typer.Option(
+        False,
+        "--fail-on-mixed",
+        help="Exit non-zero when any baseline check is mixed",
+    ),
 ) -> None:
     """Check a completed run against suite baseline files."""
     resolved_suite_dir = resolve_suite_path(suite_dir)
@@ -913,7 +923,14 @@ def baseline_check_command(
     console.print(table)
     console.print(f"Status counts: {report['status_counts']}")
 
+    if out is not None:
+        write_json(out, report)
+        console.print(f"Wrote baseline-check report: {out}")
+
     failing_statuses = {"fail", "invalid_baseline", "wrong_prompt"}
+    if fail_on_mixed:
+        failing_statuses.add("mixed")
+
     if any(check.get("status") in failing_statuses for check in report["checks"]):
         raise typer.Exit(code=1)
 

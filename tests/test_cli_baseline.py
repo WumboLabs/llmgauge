@@ -72,6 +72,8 @@ def test_baseline_check_command_passes(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    report_path = tmp_path / "baseline-check.json"
+
     result = runner.invoke(
         app,
         [
@@ -79,6 +81,8 @@ def test_baseline_check_command_passes(tmp_path: Path) -> None:
             str(result_dir),
             "--suite",
             str(suite_dir),
+            "--out",
+            str(report_path),
         ],
     )
 
@@ -86,3 +90,5 @@ def test_baseline_check_command_passes(tmp_path: Path) -> None:
     assert "LLMGauge Baseline Check" in result.output
     assert "honesty-unknown-tool" in result.output
     assert "pass" in result.output
+    assert "Wrote baseline-check report" in result.output
+    assert report_path.exists()
