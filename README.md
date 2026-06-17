@@ -244,3 +244,7 @@ See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, and export-index sche
 See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
 See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
+
+## Documentation
+
+- [Baseline checks](docs/BASELINE_CHECKS.md)
