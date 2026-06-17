@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
+from llmgauge.core.baseline import check_result_against_baselines
 from llmgauge.core.compare import build_compare_report, load_compare_result
 from llmgauge.core.contextgen import (
     build_context_prompt,
@@ -872,6 +873,49 @@ def export_index_command(
 
     console.print(f"[bold green]Wrote export index[/bold green]: {out}")
     console.print(f"Indexed artifacts: {index['item_count']}")
+
+
+@app.command("baseline-check")
+def baseline_check_command(
+    result_dir: Path = typer.Argument(...),
+    suite_dir: Path = typer.Option(
+        ...,
+        "--suite",
+        help="Prompt suite directory or built-in suite ID",
+    ),
+) -> None:
+    """Check a completed run against suite baseline files."""
+    resolved_suite_dir = resolve_suite_path(suite_dir)
+    result = load_result(result_dir)
+
+    report = check_result_against_baselines(
+        result_dir=result_dir,
+        suite_dir=resolved_suite_dir,
+        result=result,
+    )
+
+    table = Table(title="LLMGauge Baseline Check")
+    table.add_column("Prompt")
+    table.add_column("Status")
+    table.add_column("Missing")
+    table.add_column("Forbidden")
+    table.add_column("Hard Failures")
+
+    for check in report["checks"]:
+        table.add_row(
+            str(check.get("prompt_id", "")),
+            str(check.get("status", "")),
+            str(len(check.get("missing_required", []))),
+            str(len(check.get("forbidden_present", []))),
+            str(len(check.get("hard_failures", []))),
+        )
+
+    console.print(table)
+    console.print(f"Status counts: {report['status_counts']}")
+
+    failing_statuses = {"fail", "invalid_baseline", "wrong_prompt"}
+    if any(check.get("status") in failing_statuses for check in report["checks"]):
+        raise typer.Exit(code=1)
 
 
 @app.command()
