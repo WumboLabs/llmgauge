@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.18
+
+- Added deterministic baseline-check support for completed run artifacts.
+- Added baseline JSON report output with `--out`.
+- Added optional mixed-status failure mode with `--fail-on-mixed`.
+- Added initial real prompt baselines for fake-tool resistance and niche factual honesty.
+- Fixed baseline raw-output path fallback for result artifacts without explicit output paths.
+- Documented baseline-check usage, schema, statuses, and current limitations.
+
 ## v0.17
 
 - Improved scored comparison reports with manual score totals, prompt verdicts, overall trust, and prompt-level failure labels.

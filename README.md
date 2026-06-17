@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.17
+Current stable tag: v0.18
 
-Current development line: v0.18
+Current development line: v0.19
 
 Current capabilities:
 
@@ -22,6 +22,7 @@ Current capabilities:
 - Compare two or more result directories, including scored comparison summaries.
 - Use local YAML config and model profiles.
 - Validate result directory integrity.
+- Run deterministic baseline checks against completed result artifacts.
 
 ## Install for development
 
