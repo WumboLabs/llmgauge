@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.17 - Unreleased
+## v0.17
 
 - Improved scored comparison reports with manual score totals, prompt verdicts, overall trust, and prompt-level failure labels.
 - Added scored comparison summary tables showing score totals, average score, scored prompt counts, label counts, lowest prompt, and highest prompt.
