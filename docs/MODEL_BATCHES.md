@@ -172,15 +172,21 @@ Each completed child run is still a normal LLMGauge result directory and can als
 
 ## Export index status
 
-Initial model batch support does not add export-index support.
+Model batch directories can be included in an export index:
 
-For now, export individual completed child run directories when a machine-readable index is needed. Batch-level export-index support can be added later after the batch artifact shape has settled.
+    uv run llmgauge export-index \
+      results/gemma4-agent-smoke \
+      --validate \
+      --out results/gemma4-agent-smoke-index.json
+
+Batch export-index items use `artifact_type: "batch"` and include batch-level metadata such as batch id, suite id, model list, child run count, completed count, failed count, and validation status when `--validate` is used.
+
+Batch export-index support does not automatically expand or duplicate every child run. Pass child run directories explicitly when child-level run items are also needed.
 
 ## Current limitations
 
 - No parallel execution.
 - No retry logic.
 - No per-model override fields in the manifest.
-- No batch-level export-index support yet.
 - No automatic comparison report generation from a batch.
 - No automatic scoring.

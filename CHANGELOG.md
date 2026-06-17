@@ -11,6 +11,8 @@
 - Documented model batch behavior, schemas, safety posture, and current limitations.
 - Added `validate-batch` for parent batch artifact validation.
 - Batch validation checks summary counts, model order, failed-child error preservation, and completed child result directories.
+- Added batch artifact support to `export-index` using `artifact_type: batch`.
+- Batch export-index items include batch id, suite id, model list, child run counts, completion counts, failure counts, and validation status.
 
 ## v0.19
 

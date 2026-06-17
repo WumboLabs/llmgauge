@@ -29,12 +29,14 @@ Monolith currently supports importing:
 
 - a single LLMGauge run directory
 - a LLMGauge context ladder directory
+- a LLMGauge model batch directory
 - a LLMGauge export index JSON file containing one or more artifact references
 
 Supported schema versions:
 
 - `llmgauge.result.v0`
 - `llmgauge.context_ladder.v0`
+- `llmgauge.batch_summary.v0`
 - `llmgauge.export_index.v0`
 
 ## Generate a single run artifact

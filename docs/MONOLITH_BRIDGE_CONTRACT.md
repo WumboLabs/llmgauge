@@ -84,6 +84,17 @@ Each child `ctx-*` directory is a normal single run result directory.
 
 Monolith may consume `ladder-summary.json` as the primary machine-readable artifact and use child result directories for detail views.
 
+### Model batch directory
+
+A model batch directory may contain:
+
+    batch-summary.json
+    batch-report.md
+    model-01-<profile-name>/
+    model-02-<profile-name>/
+
+Monolith may consume `batch-summary.json` as the primary machine-readable artifact and use child result directories for detail views.
+
 ### Export index
 
 An export index may contain:
@@ -187,6 +198,7 @@ Known schemas:
 
 - `llmgauge.result.v0`
 - `llmgauge.context_ladder.v0`
+- `llmgauge.batch_summary.v0`
 - `llmgauge.context_prompt.v0`
 - `llmgauge.suite.v0`
 - `llmgauge.export_index.v0`

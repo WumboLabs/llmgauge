@@ -250,6 +250,8 @@ intended to run from the repository checkout.
 
 LLMGauge is designed to produce portable result artifacts that another local application, such as Monolith, can import without LLMGauge writing directly to that application's database.
 
+`export-index` can index run, context ladder, and model batch directories.
+
 Explicit output path:
 
     uv run llmgauge run \

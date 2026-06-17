@@ -444,9 +444,13 @@ Validation checks the parent `batch-summary.json`, summary counts, child status 
 
 ### Export status
 
-Initial batch support is not yet included in `llmgauge.export_index.v0`.
+Batch directories are included in `llmgauge.export_index.v0`.
 
-Importers that need machine-readable discovery should index completed child run directories directly until batch-level export indexing is added.
+Batch export-index items use:
+
+    artifact_type: batch
+
+Batch export-index support indexes the parent batch artifact. It does not automatically expand every child run into separate run items. Importers that need child-level detail should follow `child_runs[*].result_dir` from `batch-summary.json` or index child run directories explicitly.
 
 ## VRAM guardrails
 
@@ -517,6 +521,7 @@ Supported `artifact_type` values:
 
     run
     ladder
+    batch
 
 ## Export index item: run
 
@@ -567,6 +572,46 @@ Older run artifacts without VRAM data should use:
     "vram_sample_artifact_count": 0
 
 `validation` appears only when export-index is run with validation enabled.
+
+## Export index item: batch
+
+Expected fields:
+
+    artifact_type
+    path
+    schema_version
+    batch_summary
+    batch_report
+    batch_id
+    manifest_path
+    suite_id
+    suite_path
+    include
+    only
+    max_tokens
+    models
+    model_count
+    child_run_count
+    completed
+    failed
+    total
+    has_child_runs
+    has_completed_child_runs
+    has_failed_child_runs
+
+Expected `artifact_type`:
+
+    batch
+
+Notes:
+
+- `batch_summary` points to `batch-summary.json`.
+- `batch_report` points to `batch-report.md` when present.
+- `models` preserves manifest model profile order.
+- `child_run_count` is the number of entries in `child_runs`.
+- `completed`, `failed`, and `total` come from the parent batch summary.
+- `has_failed_child_runs` may be true while validation still passes, because preserved child failures are valid batch state.
+- Batch export-index items summarize the parent batch artifact and do not automatically duplicate child run metadata.
 
 ## Export index item: ladder
 
@@ -623,6 +668,10 @@ Validate a run directory:
 Validate a ladder directory:
 
     uv run llmgauge validate-ladder <ladder-dir>
+
+Validate a batch directory:
+
+    uv run llmgauge validate-batch <batch-dir>
 
 Create an index without validation:
 
