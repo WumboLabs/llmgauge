@@ -434,6 +434,14 @@ Rules:
 - `completed` should equal the number of completed child runs.
 - `failed` should equal the number of failed child runs.
 
+### Validation
+
+Batch directories can be validated with:
+
+    uv run llmgauge validate-batch <batch-dir>
+
+Validation checks the parent `batch-summary.json`, summary counts, child status values, model order, failed-child error preservation, and completed child result directories.
+
 ### Export status
 
 Initial batch support is not yet included in `llmgauge.export_index.v0`.

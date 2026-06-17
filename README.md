@@ -163,9 +163,19 @@ Context values above `65536` require explicit operator opt-in:
 
 Extreme context mode is capped at `262144` tokens in v0.10. LLMGauge does not auto-tune KV cache, quantization, GPU settings, or CPU fallback.
 
-## Validate a result directory
+## Validate result artifacts
+
+Validate a single run directory:
 
     uv run llmgauge validate-result results/example-run
+
+Validate a context ladder directory:
+
+    uv run llmgauge validate-ladder results/example-ladder
+
+Validate a model batch directory:
+
+    uv run llmgauge validate-batch results/example-batch
 
 ## Create and apply manual scores
 

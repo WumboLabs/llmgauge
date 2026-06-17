@@ -160,11 +160,15 @@ Supported child status values:
 
 ## Validation
 
-Each completed child run is a normal LLMGauge result directory and can be validated with:
+Validate the parent batch directory with:
+
+    uv run llmgauge validate-batch results/gemma4-agent-smoke
+
+`validate-batch` checks the parent `batch-summary.json`, verifies summary counts, verifies child run statuses, confirms failed children preserve error text, and validates each completed child run with the normal result validator.
+
+Each completed child run is still a normal LLMGauge result directory and can also be validated directly with:
 
     uv run llmgauge validate-result results/gemma4-agent-smoke/model-01-gemma4-12b-qat-q4
-
-There is no dedicated `validate-batch` command yet.
 
 ## Export index status
 
@@ -177,7 +181,6 @@ For now, export individual completed child run directories when a machine-readab
 - No parallel execution.
 - No retry logic.
 - No per-model override fields in the manifest.
-- No dedicated `validate-batch` command.
 - No batch-level export-index support yet.
 - No automatic comparison report generation from a batch.
 - No automatic scoring.

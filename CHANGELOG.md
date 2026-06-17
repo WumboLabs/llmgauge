@@ -9,6 +9,8 @@
 - Preserved per-model failures instead of hiding or skipping failed child runs.
 - Kept batch model references limited to existing model profile names rather than arbitrary model paths.
 - Documented model batch behavior, schemas, safety posture, and current limitations.
+- Added `validate-batch` for parent batch artifact validation.
+- Batch validation checks summary counts, model order, failed-child error preservation, and completed child result directories.
 
 ## v0.19
 
