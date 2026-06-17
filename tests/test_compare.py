@@ -1,7 +1,15 @@
 from llmgauge.core.compare import build_compare_report
 
 
-def _result(run_id: str, model_id: str, score: float | None, gen_tps: float) -> dict:
+def _result(
+    run_id: str,
+    model_id: str,
+    score: float | None,
+    gen_tps: float,
+    *,
+    peak_used_mib: int | None = None,
+    peak_total_mib: int | None = None,
+) -> dict:
     return {
         "run": {
             "run_id": run_id,
@@ -42,6 +50,13 @@ def _result(run_id: str, model_id: str, score: float | None, gen_tps: float) -> 
                     "prompt_eval_tps": 1000.0,
                     "generation_tps": gen_tps,
                 },
+                "vram": {
+                    "available": True,
+                    "peak_used_mib": peak_used_mib,
+                    "peak_total_mib": peak_total_mib,
+                }
+                if peak_used_mib is not None and peak_total_mib is not None
+                else None,
                 "score": {
                     "prompt_average": score,
                     "verdict": "pass" if score >= 4 else "mixed",
@@ -60,15 +75,19 @@ def _result(run_id: str, model_id: str, score: float | None, gen_tps: float) -> 
 def test_build_compare_report() -> None:
     report = build_compare_report(
         [
-            _result("run-a", "model-a", 4.0, 50.0),
-            _result("run-b", "model-b", 3.5, 70.0),
+            _result(
+                "run-a", "model-a", 4.0, 50.0, peak_used_mib=7535, peak_total_mib=12227
+            ),
+            _result(
+                "run-b", "model-b", 3.5, 70.0, peak_used_mib=8200, peak_total_mib=12227
+            ),
         ]
     )
 
     assert "# LLMGauge Comparison Report" in report
     assert "This report compares completed local evaluation runs" in report
     assert (
-        "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 |"
+        "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 | 7535 | 4692 |"
         in report
     )
     assert "## Score Summary" in report
@@ -82,4 +101,8 @@ def test_build_compare_report() -> None:
         in report
     )
     assert "| honesty-unknown-tool | 50.0 | 70.0 |" in report
+    assert "## Peak VRAM MiB" in report
+    assert "| honesty-unknown-tool | 7535 | 8200 |" in report
+    assert "## VRAM Headroom MiB" in report
+    assert "| honesty-unknown-tool | 4692 | 4027 |" in report
     assert "good_verification: 1" in report

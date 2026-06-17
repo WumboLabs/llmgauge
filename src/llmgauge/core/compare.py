@@ -49,6 +49,65 @@ def _score_total_fraction(result: dict[str, Any]) -> str:
     return f"{total}/{maximum}"
 
 
+def _fmt_vram(value: Any) -> str:
+    return "-" if value is None else str(value)
+
+
+def _vram_peak_used_mib(prompt_result: dict[str, Any] | None) -> int | None:
+    if prompt_result is None:
+        return None
+
+    vram = prompt_result.get("vram")
+    if not isinstance(vram, dict) or not vram.get("available"):
+        return None
+
+    peak_used_mib = vram.get("peak_used_mib")
+    if not isinstance(peak_used_mib, int):
+        return None
+
+    return peak_used_mib
+
+
+def _vram_headroom_mib(prompt_result: dict[str, Any] | None) -> int | None:
+    if prompt_result is None:
+        return None
+
+    vram = prompt_result.get("vram")
+    if not isinstance(vram, dict) or not vram.get("available"):
+        return None
+
+    peak_used_mib = vram.get("peak_used_mib")
+    peak_total_mib = vram.get("peak_total_mib")
+    if not isinstance(peak_used_mib, int) or not isinstance(peak_total_mib, int):
+        return None
+
+    return peak_total_mib - peak_used_mib
+
+
+def _result_peak_vram_mib(result: dict[str, Any]) -> int | None:
+    values = [
+        value
+        for value in (
+            _vram_peak_used_mib(prompt_result)
+            for prompt_result in result.get("results", [])
+        )
+        if value is not None
+    ]
+    return max(values) if values else None
+
+
+def _result_min_vram_headroom_mib(result: dict[str, Any]) -> int | None:
+    values = [
+        value
+        for value in (
+            _vram_headroom_mib(prompt_result)
+            for prompt_result in result.get("results", [])
+        )
+        if value is not None
+    ]
+    return min(values) if values else None
+
+
 def _prompt_verdict_cell(prompt_result: dict[str, Any]) -> str:
     score = _score_dict(prompt_result)
     if not score:
@@ -121,8 +180,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
         "",
         "## Runs",
         "",
-        "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
+        "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score | Peak VRAM MiB | Min VRAM Headroom MiB |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
 
     for result in results:
@@ -141,7 +200,9 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             f"{summary.get('failed')} | "
             f"{summary.get('scored_prompt_count')} | "
             f"{_score_total_fraction(result)} | "
-            f"{summary.get('manual_score_average')} |"
+            f"{summary.get('manual_score_average')} | "
+            f"{_fmt_vram(_result_peak_vram_mib(result))} | "
+            f"{_fmt_vram(_result_min_vram_headroom_mib(result))} |"
         )
 
     lines.extend(
@@ -283,6 +344,46 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                 continue
             metrics = prompt_result.get("metrics", {})
             row.append(_fmt(metrics.get("prompt_eval_tps")))
+        lines.append("| " + " | ".join(row) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Peak VRAM MiB",
+            "",
+        ]
+    )
+
+    lines.extend([header, separator])
+
+    for prompt_id in prompt_ids:
+        row = [prompt_id]
+        for prompt_lookup in prompt_maps:
+            prompt_result = prompt_lookup.get(prompt_id)
+            if not prompt_result:
+                row.append("missing")
+                continue
+            row.append(_fmt_vram(_vram_peak_used_mib(prompt_result)))
+        lines.append("| " + " | ".join(row) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## VRAM Headroom MiB",
+            "",
+        ]
+    )
+
+    lines.extend([header, separator])
+
+    for prompt_id in prompt_ids:
+        row = [prompt_id]
+        for prompt_lookup in prompt_maps:
+            prompt_result = prompt_lookup.get(prompt_id)
+            if not prompt_result:
+                row.append("missing")
+                continue
+            row.append(_fmt_vram(_vram_headroom_mib(prompt_result)))
         lines.append("| " + " | ".join(row) + " |")
 
     lines.extend(
