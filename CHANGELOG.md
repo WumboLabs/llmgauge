@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.20
+
+- Added manifest-driven sequential model batch runs with `run-batch`.
+- Added batch manifest schema `llmgauge.batch_manifest.v0`.
+- Added batch summary schema `llmgauge.batch_summary.v0`.
+- Added parent `batch-summary.json` and `batch-report.md` artifacts.
+- Preserved per-model failures instead of hiding or skipping failed child runs.
+- Kept batch model references limited to existing model profile names rather than arbitrary model paths.
+- Documented model batch behavior, schemas, safety posture, and current limitations.
+
 ## v0.19
 
 - Added read-only NVIDIA VRAM capture through `nvidia-smi`.

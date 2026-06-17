@@ -295,6 +295,151 @@ Purpose:
 - Preserve whether explicit extreme-context opt-in was used.
 - Help importers and reviewers distinguish ordinary 64k-and-under ladders from extreme context experiments.
 
+## Model batch directory
+
+A model batch directory contains:
+
+    batch-summary.json
+    batch-report.md
+    model-01-<profile-name>/
+    model-02-<profile-name>/
+
+Each `model-*` child directory should be a normal single run directory with its own `llmgauge-result.json` when that model run reached execution.
+
+Required machine-readable file:
+
+    batch-summary.json
+
+Human-readable file:
+
+    batch-report.md
+
+## Schema: llmgauge.batch_manifest.v0
+
+Batch manifests are input files, not result artifacts, but their schema is part of the file-based workflow.
+
+Expected `schema_version`:
+
+    llmgauge.batch_manifest.v0
+
+Expected fields:
+
+    schema_version
+    batch_id
+    suite
+    include
+    only
+    max_tokens
+    models
+
+Rules:
+
+- `batch_id` is optional and defaults to the manifest file stem.
+- `suite` is required.
+- `include` defaults to `all`.
+- `only` is optional.
+- `max_tokens` is optional and must be a positive integer when set.
+- `models` is required and must be a non-empty list of unique model profile names.
+- Batch manifests do not accept arbitrary model paths.
+
+## Schema: llmgauge.batch_summary.v0
+
+Primary file:
+
+    batch-summary.json
+
+Top-level expected keys:
+
+    schema_version
+    batch_id
+    manifest_path
+    suite_id
+    suite_path
+    include
+    only
+    max_tokens
+    models
+    execution
+    summary
+    child_runs
+
+Expected `schema_version`:
+
+    llmgauge.batch_summary.v0
+
+### execution
+
+Expected fields:
+
+    mode
+    model_reference_policy
+    parallelism
+
+Current values:
+
+    mode: sequential
+    model_reference_policy: manifest model entries are model profile names only
+    parallelism: disabled
+
+Purpose:
+
+- Preserve that the batch was run sequentially.
+- Preserve that model references came from profile names rather than arbitrary model paths.
+- Preserve that parallel execution was not used.
+
+### models
+
+`models` is an ordered list of model profile names from the manifest.
+
+The order should match `child_runs[*].model_profile`.
+
+### child_runs
+
+`child_runs` is an ordered list of child result summaries.
+
+Expected fields:
+
+    model_profile
+    model_id
+    status
+    result_dir
+    completed
+    failed
+    error
+
+Expected `status` values:
+
+    completed
+    failed
+
+Rules:
+
+- Completed child runs should point to valid single run directories.
+- Failed child runs should preserve error text.
+- A failure can occur before a child run directory is written, such as when a model file path is missing.
+- `result_dir` may be local-machine specific.
+- Importers should preserve source path and validation status.
+
+### summary
+
+Expected fields:
+
+    total
+    completed
+    failed
+
+Rules:
+
+- `total` should equal the number of child runs.
+- `completed` should equal the number of completed child runs.
+- `failed` should equal the number of failed child runs.
+
+### Export status
+
+Initial batch support is not yet included in `llmgauge.export_index.v0`.
+
+Importers that need machine-readable discovery should index completed child run directories directly until batch-level export indexing is added.
+
 ## VRAM guardrails
 
 Prompt results may include warning-only VRAM guardrail metadata.

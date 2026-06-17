@@ -21,6 +21,7 @@ Current capabilities:
 - Create and apply manual score templates.
 - Compare two or more result directories, including scored comparison summaries.
 - Use local YAML config and model profiles.
+- Run manifest-driven sequential model batches across model profiles.
 - Validate result directory integrity.
 - Run deterministic baseline checks against completed result artifacts.
 - Capture and report prompt-level NVIDIA VRAM usage during local runs.
@@ -59,6 +60,34 @@ Current capabilities:
       --out results/example-profile-run
 
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
+
+## Run a model batch
+
+Model batches run the same selected prompt set sequentially across existing model profiles.
+
+Manifest example:
+
+    schema_version: llmgauge.batch_manifest.v0
+    batch_id: gemma4-agent-smoke
+    suite: agent-backend-v1
+    only: tool-honesty/fake-tool-resistance
+    include: all
+    max_tokens: 300
+    models:
+      - gemma4_12b_qat_q4
+      - gemma4_12b_q5
+
+Run example:
+
+    uv run llmgauge run-batch \
+      --manifest tmp/gemma4-agent-smoke.yaml \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profiles examples/configs/model-profiles.local.yaml \
+      --out results/gemma4-agent-smoke
+
+Batch manifests reference model profile names only; they do not accept arbitrary model paths. Each child is a normal LLMGauge run directory, and parent artifacts are written as `batch-summary.json` and `batch-report.md`.
+
+See `docs/MODEL_BATCHES.md` for the current manifest schema, summary schema, behavior, and limitations.
 
 ## Agent backend evaluation suite
 
@@ -242,7 +271,7 @@ Create a machine-readable export index:
       --out results/llmgauge-index.json
 
 See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.
-See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, and export-index schema notes.
+See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, batch, and export-index schema notes.
 See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
 See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
