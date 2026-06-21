@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.25 - Unreleased
+
+- Added `llmgauge score --check` to validate score files without mutating result artifacts.
+- Documented score-file validation workflow before applying manual scores.
+
 ## v0.24 - 2026-06-20
 
 - Added comparison report interpretation notes.

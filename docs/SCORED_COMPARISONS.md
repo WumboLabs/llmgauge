@@ -107,6 +107,13 @@ Manual score templates are created with:
 
     uv run llmgauge score RESULT_DIR --init
 
+Score files can be validated before applying them:
+
+    uv run llmgauge score RESULT_DIR --scores RESULT_DIR/scores.yaml --check
+
+Check mode validates the score file and exits without rewriting `llmgauge-result.json`,
+`report.md`, or `scores.yaml`.
+
 The generated `scores.yaml` uses schema version `llmgauge.scores.v0` and the
 default rubric metadata:
 

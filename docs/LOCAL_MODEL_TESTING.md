@@ -298,7 +298,11 @@ For serious scoring runs, generate a template first:
 
     uv run llmgauge score "$OUT_DIR" --init
 
-Edit `scores.yaml` manually, then apply it:
+Edit `scores.yaml` manually, then validate it without mutating result artifacts:
+
+    uv run llmgauge score "$OUT_DIR" --scores "$OUT_DIR/scores.yaml" --check
+
+Then apply it:
 
     uv run llmgauge score "$OUT_DIR" --scores "$OUT_DIR/scores.yaml"
 

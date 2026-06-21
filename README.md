@@ -187,11 +187,18 @@ Validate a model batch directory:
 
     uv run llmgauge score \
       results/example-run \
+      --scores results/example-run/scores.yaml \
+      --check
+
+    uv run llmgauge score \
+      results/example-run \
       --scores results/example-run/scores.yaml
 
 Manual scoring uses a 0-5 scale across practical evaluation dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
 
 Generated score templates include rubric metadata, allowed verdicts, failure labels, good labels, reviewer notes, and a short `score_rationale` field. Scores are human review metadata; they are not automatic LLM judgments.
+
+Use `--check` with `--scores` to validate a score file before applying it. Check mode does not rewrite result artifacts.
 
 See `docs/SCORING_RUBRICS.md` for the default manual rubric, safety/local-ops guidance, agent-backend scoring notes, and label vocabulary.
 
