@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.22 - Unreleased
+## v0.22 - 2026-06-20
 
 - Hardened manual score schema constants and validation.
 - Added rubric metadata to generated score templates and applied prompt scores.
