@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.23 - 2026-06-20
+
+- Added manual scoring rubric guidance for default, safety/local-ops, and agent-backend review.
+- Documented a reusable failure/good label vocabulary for scored runs.
+- Linked rubric guidance from README and scoring workflow docs.
+
 ## v0.22 - 2026-06-20
 
 - Hardened manual score schema constants and validation.

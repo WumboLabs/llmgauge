@@ -138,3 +138,5 @@ example:
 Scores remain manual/local-context judgments. They should be interpreted alongside
 raw output, cleaned output, runtime settings, VRAM behavior, and the actual task
 stakes.
+
+For scoring dimensions, safety guidance, agent-backend review notes, and label vocabulary, see `docs/SCORING_RUBRICS.md`.
