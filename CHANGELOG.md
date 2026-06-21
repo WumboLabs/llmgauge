@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.21 - Unreleased
+## v0.21
 
 - Added cleaned output preview artifacts under `cleaned/`.
 - Preserved raw model stdout unchanged under `raw/`.
