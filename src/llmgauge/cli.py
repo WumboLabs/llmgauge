@@ -1047,8 +1047,19 @@ def score(
         "--scores",
         help="Apply a scores.yaml file to the result",
     ),
+    check: bool = typer.Option(
+        False,
+        "--check",
+        help="Validate a scores.yaml file without modifying result artifacts",
+    ),
 ) -> None:
     """Initialize or apply manual scores for a completed run."""
+    if check and init:
+        raise typer.BadParameter("--check cannot be used with --init")
+
+    if check and scores is None:
+        raise typer.BadParameter("--check requires --scores PATH")
+
     result = load_result(result_dir)
 
     if init:
@@ -1067,6 +1078,10 @@ def score(
         for error in errors:
             console.print(f"- {error}")
         raise typer.Exit(code=1)
+
+    if check:
+        console.print(f"[bold green]Score validation passed[/bold green]: {scores}")
+        return
 
     updated = apply_scores(result, scores_data)
     write_result(result_dir, updated)
