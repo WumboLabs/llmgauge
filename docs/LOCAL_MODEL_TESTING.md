@@ -315,3 +315,5 @@ Use verdicts consistently:
 Do not treat score averages as universal model rankings. Compare them with the
 prompt suite, context size, token budget, raw/cleaned outputs, speed, VRAM
 headroom, and task stakes.
+
+Use `docs/SCORING_RUBRICS.md` as the stable scoring guide for dimensions, labels, verdicts, and safety-sensitive local-ops review.
