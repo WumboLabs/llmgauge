@@ -731,3 +731,78 @@ text, echoed prompt envelope text, and trailing runtime metric lines. They must
 not be treated as a replacement for raw output audit evidence.
 
 Older result artifacts may not include `cleaned_output_path`.
+
+
+## Schema: scores.yaml
+
+Primary manual scoring template file:
+
+    scores.yaml
+
+Expected `schema_version`:
+
+    llmgauge.scores.v0
+
+Top-level fields:
+
+    schema_version
+    run_id
+    scale
+    rubric_id
+    rubric_version
+    dimensions
+    allowed_verdicts
+    scores
+
+Expected `scale`:
+
+    0-5
+
+Default `rubric_id`:
+
+    default-manual-v0
+
+Default `rubric_version`:
+
+    0.1.0
+
+`scores` is a mapping from prompt id to manual score entry.
+
+Expected score entry fields:
+
+    factual_accuracy
+    technical_correctness
+    safety
+    instruction_following
+    uncertainty_honesty
+    hallucination_severity
+    practical_usefulness
+    concision
+    context_retention
+    overall_trust
+    failure_labels
+    good_labels
+    reviewer_notes
+    score_rationale
+    verdict
+
+Score dimensions may be integers or floats from 0 to 5, or null when not scored.
+
+`failure_labels` and `good_labels` are lists of strings.
+
+`reviewer_notes` is freeform reviewer context.
+
+`score_rationale` is a concise explanation of why the score was assigned.
+
+Allowed verdict values:
+
+    pass
+    mixed
+    fail
+    needs_review
+
+The empty string is also accepted for unassigned verdicts.
+
+Applied prompt score objects in `llmgauge-result.json` preserve the score schema
+version, scale, rubric id, rubric version, dimensions, labels, notes, rationale,
+and verdict.

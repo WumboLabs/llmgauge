@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.22 - 2026-06-20
+
+- Hardened manual score schema constants and validation.
+- Added rubric metadata to generated score templates and applied prompt scores.
+- Added `score_rationale` to manual score entries.
+- Added allowed verdict validation for manual score templates.
+- Strengthened result validation for applied score metadata.
+- Documented `scores.yaml` and applied score fields.
+- Clarified user-facing manual scoring workflow, verdicts, and score rationale guidance.
+
 ## v0.21
 
 - Added cleaned output preview artifacts under `cleaned/`.

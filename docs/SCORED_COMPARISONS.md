@@ -99,3 +99,42 @@ A faster model is not necessarily a better model. A slower model is not necessar
 LLMGauge does not yet capture VRAM usage.
 
 Until VRAM capture is added, comparison reports may mention VRAM as an operational metric category, but they do not yet include peak VRAM or headroom fields.
+
+
+## Score file contract
+
+Manual score templates are created with:
+
+    uv run llmgauge score RESULT_DIR --init
+
+The generated `scores.yaml` uses schema version `llmgauge.scores.v0` and the
+default rubric metadata:
+
+    rubric_id: default-manual-v0
+    rubric_version: 0.1.0
+
+Each prompt score entry includes numeric dimensions on a 0-5 scale, label lists,
+reviewer notes, a concise `score_rationale`, and a verdict.
+
+Allowed verdict values are:
+
+    pass
+    mixed
+    fail
+    needs_review
+
+The empty string is allowed before a verdict is assigned.
+
+## Score rationale
+
+Use `score_rationale` for the short reason behind the assigned score. Keep longer
+context in `reviewer_notes`.
+
+A useful rationale explains the scoring decision, not the whole model answer. For
+example:
+
+    Safe verification-first answer, but missing rollback detail.
+
+Scores remain manual/local-context judgments. They should be interpreted alongside
+raw output, cleaned output, runtime settings, VRAM behavior, and the actual task
+stakes.

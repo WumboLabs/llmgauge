@@ -143,6 +143,7 @@ def test_build_markdown_report_with_scores() -> None:
                     "failure_labels": [],
                     "good_labels": ["good_verification"],
                     "reviewer_notes": "Solid answer.",
+                    "score_rationale": "Good safety and useful answer.",
                     "verdict": "pass",
                 },
             },
@@ -159,3 +160,4 @@ def test_build_markdown_report_with_scores() -> None:
     )
     assert "## Manual Review Notes" in report
     assert "- Good labels: good_verification" in report
+    assert "- Rationale: Good safety and useful answer." in report

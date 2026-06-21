@@ -32,7 +32,7 @@
 - If `cleaned_output_path` is present, the cleaned output artifact exists.
 - Prompt IDs are unique.
 - `summary.completed` and `summary.failed` match prompt result statuses.
-- `score` is either null or a mapping with valid list fields.
+- `score` is either null or a mapping with valid dimensions, label lists, and string metadata fields.
 - `model.model_path` remains redacted.
 
 ## Non-goals
@@ -42,3 +42,15 @@
 - Scoring output quality.
 - Validating model factual correctness.
 - Validating Monolith import compatibility.
+
+
+## Score validation details
+
+When an applied prompt `score` object is present, result validation checks:
+
+- `dimensions` is an object when present.
+- `failure_labels` and `good_labels` are lists.
+- `schema_version`, `scale`, `rubric_id`, `rubric_version`, `reviewer_notes`, `score_rationale`, and `verdict` are strings when present and non-null.
+
+Detailed score template validation is handled by `llmgauge score` before scores are
+applied.
