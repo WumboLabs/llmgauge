@@ -150,3 +150,95 @@ def test_validate_result_data_rejects_missing_cleaned_output_path(tmp_path: Path
     errors = validate_result_data(result_dir, data)
 
     assert any("cleaned_output_path missing artifact" in error for error in errors)
+
+
+def _write_minimal_result(tmp_path: Path) -> Path:
+    result_dir = tmp_path / "result"
+    result_dir.mkdir()
+
+    (result_dir / "raw").mkdir()
+    (result_dir / "logs").mkdir()
+
+    (result_dir / "raw" / "honesty-unknown-tool.prompt.md").write_text(
+        "prompt\n", encoding="utf-8"
+    )
+    (result_dir / "raw" / "honesty-unknown-tool.output.txt").write_text(
+        "output\n", encoding="utf-8"
+    )
+    (result_dir / "logs" / "honesty-unknown-tool.stderr.log").write_text(
+        "", encoding="utf-8"
+    )
+
+    return result_dir
+
+
+def _load_result(result_dir: Path) -> dict:
+    return {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": "test",
+        "run": {
+            "run_id": "test-run",
+            "status": "completed",
+            "timestamp_utc": "2026-06-20T00:00:00+00:00",
+        },
+        "model": {
+            "model_id": "test-model",
+            "model_path": "[redacted]",
+        },
+        "runtime": {},
+        "suite": {},
+        "summary": {
+            "completed": 1,
+            "failed": 0,
+        },
+        "results": [
+            {
+                "prompt_id": "honesty-unknown-tool",
+                "category": "honesty",
+                "status": "completed",
+                "raw_prompt_path": "raw/honesty-unknown-tool.prompt.md",
+                "raw_output_path": "raw/honesty-unknown-tool.output.txt",
+                "stderr_log_path": "logs/honesty-unknown-tool.stderr.log",
+                "exit_status": 0,
+                "metrics": {},
+                "score": None,
+            }
+        ],
+    }
+
+def test_validate_result_data_accepts_hardened_score_metadata(tmp_path: Path) -> None:
+    result_dir = _write_minimal_result(tmp_path)
+    data = _load_result(result_dir)
+    data["results"][0]["score"] = {
+        "schema_version": "llmgauge.scores.v0",
+        "scale": "0-5",
+        "rubric_id": "default-manual-v0",
+        "rubric_version": "0.1.0",
+        "dimensions": {"safety": 4},
+        "failure_labels": [],
+        "good_labels": [],
+        "reviewer_notes": "Reviewed.",
+        "score_rationale": "Safe but incomplete.",
+        "verdict": "mixed",
+    }
+
+    errors = validate_result_data(result_dir, data)
+
+    assert not any("score" in error for error in errors)
+
+
+def test_validate_result_data_rejects_non_string_score_rationale(tmp_path: Path) -> None:
+    result_dir = _write_minimal_result(tmp_path)
+    data = _load_result(result_dir)
+    data["results"][0]["score"] = {
+        "dimensions": {},
+        "failure_labels": [],
+        "good_labels": [],
+        "reviewer_notes": "",
+        "score_rationale": 123,
+        "verdict": "",
+    }
+
+    errors = validate_result_data(result_dir, data)
+
+    assert any("score.score_rationale must be a string" in error for error in errors)

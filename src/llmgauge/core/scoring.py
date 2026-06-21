@@ -7,6 +7,9 @@ from typing import Any
 import yaml
 
 
+SCORE_SCHEMA_VERSION = "llmgauge.scores.v0"
+SCORE_SCALE = "0-5"
+
 SCORE_DIMENSIONS = [
     "factual_accuracy",
     "technical_correctness",
@@ -18,6 +21,14 @@ SCORE_DIMENSIONS = [
     "concision",
     "context_retention",
     "overall_trust",
+]
+
+ALLOWED_VERDICTS = [
+    "",
+    "pass",
+    "mixed",
+    "fail",
+    "needs_review",
 ]
 
 
@@ -56,13 +67,18 @@ def build_score_template(result: dict[str, Any]) -> dict[str, Any]:
             "failure_labels": [],
             "good_labels": [],
             "reviewer_notes": "",
+            "score_rationale": "",
             "verdict": "",
         }
 
     return {
-        "schema_version": "llmgauge.scores.v0",
+        "schema_version": SCORE_SCHEMA_VERSION,
         "run_id": result["run"]["run_id"],
-        "scale": "0-5",
+        "scale": SCORE_SCALE,
+        "rubric_id": "default-manual-v0",
+        "rubric_version": "0.1.0",
+        "dimensions": SCORE_DIMENSIONS,
+        "allowed_verdicts": ALLOWED_VERDICTS,
         "scores": scores,
     }
 
@@ -103,8 +119,8 @@ def _validate_score_value(prompt_id: str, field: str, value: Any) -> str | None:
 def validate_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
-    if scores_data.get("schema_version") != "llmgauge.scores.v0":
-        errors.append("scores.yaml schema_version must be llmgauge.scores.v0")
+    if scores_data.get("schema_version") != SCORE_SCHEMA_VERSION:
+        errors.append(f"scores.yaml schema_version must be {SCORE_SCHEMA_VERSION}")
 
     expected_run_id = result["run"]["run_id"]
     found_run_id = scores_data.get("run_id")
@@ -143,6 +159,26 @@ def validate_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> list
             labels = score_entry.get(label_field, [])
             if not isinstance(labels, list):
                 errors.append(f"{prompt_id}.{label_field} must be a list")
+                continue
+
+            for label in labels:
+                if not isinstance(label, str):
+                    errors.append(f"{prompt_id}.{label_field} entries must be strings")
+
+        reviewer_notes = score_entry.get("reviewer_notes", "")
+        if not isinstance(reviewer_notes, str):
+            errors.append(f"{prompt_id}.reviewer_notes must be a string")
+
+        score_rationale = score_entry.get("score_rationale", "")
+        if not isinstance(score_rationale, str):
+            errors.append(f"{prompt_id}.score_rationale must be a string")
+
+        verdict = score_entry.get("verdict", "")
+        if not isinstance(verdict, str):
+            errors.append(f"{prompt_id}.verdict must be a string")
+        elif verdict not in ALLOWED_VERDICTS:
+            allowed = ", ".join(repr(item) for item in ALLOWED_VERDICTS)
+            errors.append(f"{prompt_id}.verdict must be one of: {allowed}")
 
     return errors
 
@@ -189,7 +225,10 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             good_label_counts[label] = good_label_counts.get(label, 0) + 1
 
         prompt_result["score"] = {
-            "scale": "0-5",
+            "schema_version": SCORE_SCHEMA_VERSION,
+            "scale": SCORE_SCALE,
+            "rubric_id": scores_data.get("rubric_id"),
+            "rubric_version": scores_data.get("rubric_version"),
             "dimensions": dimension_scores,
             "prompt_total": prompt_total,
             "prompt_max": prompt_max,
@@ -197,6 +236,7 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             "failure_labels": failure_labels,
             "good_labels": good_labels,
             "reviewer_notes": score_entry.get("reviewer_notes", ""),
+            "score_rationale": score_entry.get("score_rationale", ""),
             "verdict": score_entry.get("verdict", ""),
         }
 

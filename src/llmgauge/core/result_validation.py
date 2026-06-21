@@ -87,9 +87,18 @@ def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
         if not isinstance(labels, list):
             errors.append(f"{prompt_id}.score.{label_field} must be a list")
 
-    notes = score.get("reviewer_notes", "")
-    if notes is not None and not isinstance(notes, str):
-        errors.append(f"{prompt_id}.score.reviewer_notes must be a string")
+    for string_field in [
+        "schema_version",
+        "scale",
+        "rubric_id",
+        "rubric_version",
+        "reviewer_notes",
+        "score_rationale",
+        "verdict",
+    ]:
+        value = score.get(string_field, "")
+        if value is not None and not isinstance(value, str):
+            errors.append(f"{prompt_id}.score.{string_field} must be a string")
 
 
 def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:

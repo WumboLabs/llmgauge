@@ -40,3 +40,26 @@ make manual review easier by removing obvious llama.cpp terminal wrapper text,
 prompt echo, and trailing runtime metric lines where possible.
 
 Raw output remains the audit source of truth.
+
+
+## Applied manual scores
+
+Prompt results may include an applied `score` object.
+
+Expected applied score fields:
+
+- `schema_version`
+- `scale`
+- `rubric_id`
+- `rubric_version`
+- `dimensions`
+- `prompt_total`
+- `prompt_max`
+- `prompt_average`
+- `failure_labels`
+- `good_labels`
+- `reviewer_notes`
+- `score_rationale`
+- `verdict`
+
+Manual scores are human review metadata. They are separate from runtime metrics.

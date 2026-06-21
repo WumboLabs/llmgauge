@@ -145,6 +145,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             failure_labels = score.get("failure_labels", [])
             good_labels = score.get("good_labels", [])
             reviewer_notes = score.get("reviewer_notes", "")
+            score_rationale = score.get("score_rationale", "")
             verdict = score.get("verdict", "")
 
             lines.extend(
@@ -155,6 +156,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                     f"- Verdict: {verdict}",
                     f"- Failure labels: {', '.join(failure_labels) if failure_labels else 'None'}",
                     f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}",
+                    f"- Rationale: {score_rationale}",
                     f"- Notes: {reviewer_notes}",
                     "",
                 ]
