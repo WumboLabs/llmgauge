@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.24 - 2026-06-20
+
+- Added comparison report interpretation notes.
+- Added quality-signal and performance-signal summaries to comparison reports.
+- Updated scored comparison documentation for VRAM-aware reports and safer interpretation.
+
 ## v0.23 - 2026-06-20
 
 - Added manual scoring rubric guidance for default, safety/local-ops, and agent-backend review.

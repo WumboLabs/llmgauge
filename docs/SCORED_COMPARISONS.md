@@ -28,6 +28,8 @@ For installed CLI usage:
 
 ## What the report includes
 
+A scored comparison report includes interpretation notes, quality signals, performance signals, and detailed prompt-level tables.
+
 A scored comparison report includes:
 
 - run metadata
@@ -94,11 +96,9 @@ These are operational metrics. They are not quality scores.
 
 A faster model is not necessarily a better model. A slower model is not necessarily worse. Speed should be interpreted alongside score, failure labels, context size, quantization, and hardware limits.
 
-## Current limitation
+## VRAM metrics
 
-LLMGauge does not yet capture VRAM usage.
-
-Until VRAM capture is added, comparison reports may mention VRAM as an operational metric category, but they do not yet include peak VRAM or headroom fields.
+When VRAM sampling is available in the source runs, comparison reports include peak VRAM usage and minimum VRAM headroom. Older runs or runs without VRAM sampling may show missing VRAM values.
 
 
 ## Score file contract
@@ -140,3 +140,15 @@ raw output, cleaned output, runtime settings, VRAM behavior, and the actual task
 stakes.
 
 For scoring dimensions, safety guidance, agent-backend review notes, and label vocabulary, see `docs/SCORING_RUBRICS.md`.
+
+
+## Interpretation guidance
+
+Comparison reports are decision aids.
+
+Prefer same-suite comparisons. Treat manual scores, verdicts, failure labels,
+speed, VRAM, and raw/cleaned artifacts as separate signals.
+
+Do not select a model only because it has the highest average score. A model with
+slightly lower average score may be the better operational choice if it is safer,
+more honest about uncertainty, or has more predictable failure modes.

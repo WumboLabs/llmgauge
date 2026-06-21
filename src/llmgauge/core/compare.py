@@ -169,6 +169,46 @@ def _prompt_score_extreme(result: dict[str, Any], *, highest: bool) -> str:
     return f"{prompt_id} ({average:g})"
 
 
+def _result_average_generation_tps(result: dict[str, Any]) -> float | None:
+    values = [
+        metrics.get("generation_tps")
+        for prompt_result in result.get("results", [])
+        if isinstance((metrics := prompt_result.get("metrics", {})), dict)
+        and isinstance(metrics.get("generation_tps"), int | float)
+    ]
+    if not values:
+        return None
+    return round(float(sum(values)) / len(values), 2)
+
+
+def _result_average_prompt_eval_tps(result: dict[str, Any]) -> float | None:
+    values = [
+        metrics.get("prompt_eval_tps")
+        for prompt_result in result.get("results", [])
+        if isinstance((metrics := prompt_result.get("metrics", {})), dict)
+        and isinstance(metrics.get("prompt_eval_tps"), int | float)
+    ]
+    if not values:
+        return None
+    return round(float(sum(values)) / len(values), 2)
+
+
+def _result_verdict_counts(result: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for prompt_result in result.get("results", []):
+        verdict = _score_dict(prompt_result).get("verdict")
+        if not verdict:
+            continue
+        counts[str(verdict)] = counts.get(str(verdict), 0) + 1
+    return counts
+
+
+def _fmt_counts(counts: dict[str, int]) -> str:
+    if not counts:
+        return "None"
+    return ", ".join(f"{key}: {value}" for key, value in sorted(counts.items()))
+
+
 def build_compare_report(results: list[dict[str, Any]]) -> str:
     if len(results) < 2:
         raise ValueError("Need at least two result directories to compare")
@@ -177,6 +217,14 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
         "# LLMGauge Comparison Report",
         "",
         "This report compares completed local evaluation runs. It does not declare a universal winner.",
+        "",
+        "## Interpretation Notes",
+        "",
+        "- Compare runs from the same suite when possible.",
+        "- Manual score averages are review aids, not universal model rankings.",
+        "- Failure labels and low-trust prompts matter more than small average-score differences.",
+        "- Speed and VRAM are operational metrics; they do not measure answer quality.",
+        "- Inspect raw and cleaned artifacts before making model-selection decisions.",
         "",
         "## Runs",
         "",
@@ -227,6 +275,48 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             f"{_label_total(result, 'good_labels')} | "
             f"{_prompt_score_extreme(result, highest=False)} | "
             f"{_prompt_score_extreme(result, highest=True)} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Quality Signals",
+            "",
+            "| Run | Avg score | Verdict counts | Failure label count | Good label count | Lowest prompt |",
+            "|---|---:|---|---:|---:|---|",
+        ]
+    )
+
+    for result in results:
+        summary = result.get("summary", {})
+        lines.append(
+            "| "
+            f"{_result_label(result)} | "
+            f"{summary.get('manual_score_average')} | "
+            f"{_fmt_counts(_result_verdict_counts(result))} | "
+            f"{_label_total(result, 'failure_labels')} | "
+            f"{_label_total(result, 'good_labels')} | "
+            f"{_prompt_score_extreme(result, highest=False)} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Performance Signals",
+            "",
+            "| Run | Avg generation tok/s | Avg prompt-eval tok/s | Peak VRAM MiB | Min VRAM Headroom MiB |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+
+    for result in results:
+        lines.append(
+            "| "
+            f"{_result_label(result)} | "
+            f"{_fmt_vram(_result_average_generation_tps(result))} | "
+            f"{_fmt_vram(_result_average_prompt_eval_tps(result))} | "
+            f"{_fmt_vram(_result_peak_vram_mib(result))} | "
+            f"{_fmt_vram(_result_min_vram_headroom_mib(result))} |"
         )
 
     lines.extend(

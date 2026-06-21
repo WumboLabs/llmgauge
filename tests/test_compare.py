@@ -86,6 +86,8 @@ def test_build_compare_report() -> None:
 
     assert "# LLMGauge Comparison Report" in report
     assert "This report compares completed local evaluation runs" in report
+    assert "## Interpretation Notes" in report
+    assert "Manual score averages are review aids, not universal model rankings." in report
     assert (
         "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 | 7535 | 4692 |"
         in report
@@ -95,6 +97,10 @@ def test_build_compare_report() -> None:
         "| model-a (run-a) | 40.0/50.0 | 4.0 | 1 | 0 | 1 | honesty-unknown-tool (4) | honesty-unknown-tool (4) |"
         in report
     )
+    assert "## Quality Signals" in report
+    assert "| model-b (run-b) | 3.5 | mixed: 1 | 0 | 1 | honesty-unknown-tool (3.5) |" in report
+    assert "## Performance Signals" in report
+    assert "| model-a (run-a) | 50.0 | 1000.0 | 7535 | 4692 |" in report
     assert "| honesty-unknown-tool | 4.0 | 3.5 |" in report
     assert (
         "| honesty-unknown-tool | verdict=pass; trust=4; failures=None | verdict=mixed; trust=3; failures=needs_review |"
