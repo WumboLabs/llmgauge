@@ -9,6 +9,7 @@ These schemas are intentionally conservative and file-based. They are not databa
 - Artifacts should be readable without Monolith.
 - Monolith may import artifacts, but LLMGauge does not write to Monolith databases.
 - Raw prompt, output, and log files remain audit evidence.
+- Cleaned outputs are derived review artifacts and do not replace raw outputs.
 - JSON schemas should evolve additively where possible.
 - Importers should check `schema_version` before trusting a file.
 - Relative artifact paths inside result JSON are relative to the result directory.
@@ -21,6 +22,7 @@ A normal run directory contains:
     llmgauge-result.json
     report.md
     raw/
+    cleaned/
     logs/
 
 Required machine-readable file:
@@ -149,6 +151,7 @@ Expected prompt result fields:
     status
     raw_prompt_path
     raw_output_path
+    cleaned_output_path
     stderr_log_path
     metrics
     score
@@ -164,7 +167,7 @@ Expected `status` values:
 
 Path policy:
 
-- `raw_prompt_path`, `raw_output_path`, and `stderr_log_path` are relative to the result directory.
+- `raw_prompt_path`, `raw_output_path`, `cleaned_output_path`, and `stderr_log_path` are relative to the result directory.
 - Importers should resolve these paths from the containing result directory.
 
 ### summary
@@ -545,6 +548,7 @@ Expected fields:
     manual_score_total
     manual_score_max
     has_raw_artifacts
+    has_cleaned_artifacts
     has_logs
     vram_available
     peak_vram_mib
@@ -552,6 +556,12 @@ Expected fields:
     vram_prompt_count
     vram_sample_artifact_count
     validation
+
+`has_raw_artifacts` is true when a `raw/` directory exists.
+
+`has_cleaned_artifacts` is true when a `cleaned/` directory exists.
+
+`has_logs` is true when a `logs/` directory exists.
 
 `vram_available` is true when at least one prompt result has available VRAM summary data.
 
@@ -710,3 +720,14 @@ Known schemas:
     llmgauge.export_index.v0
 
 Future changes should prefer additive fields over breaking changes.
+
+
+## Cleaned output policy
+
+Cleaned output files live under `cleaned/` and are generated from raw model stdout.
+
+They are review conveniences. They may remove obvious llama.cpp terminal wrapper
+text, echoed prompt envelope text, and trailing runtime metric lines. They must
+not be treated as a replacement for raw output audit evidence.
+
+Older result artifacts may not include `cleaned_output_path`.

@@ -38,6 +38,7 @@ from llmgauge.core.ladder import (
 )
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.metrics import parse_llama_metrics
+from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir, slugify_run_name
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_dir
@@ -424,6 +425,7 @@ def _execute_run(
 
         raw_prompt_path = out / "raw" / f"{prompt_id}.prompt.md"
         raw_output_path = out / "raw" / f"{prompt_id}.output.txt"
+        cleaned_output_path = out / "cleaned" / f"{prompt_id}.output.txt"
         stderr_log_path = out / "logs" / f"{prompt_id}.stderr.log"
 
         write_text(raw_prompt_path, combined_prompt)
@@ -438,6 +440,7 @@ def _execute_run(
             )
 
         write_text(raw_output_path, run_result.stdout)
+        write_text(cleaned_output_path, clean_llama_output(run_result.stdout))
         write_text(stderr_log_path, run_result.stderr)
 
         vram_samples = getattr(run_result, "vram_samples", [])
@@ -472,6 +475,7 @@ def _execute_run(
                 "status": status,
                 "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
                 "raw_output_path": str(raw_output_path.relative_to(out)),
+                "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
                 "metrics": metrics,
                 "vram": vram_summary,

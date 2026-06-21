@@ -39,6 +39,7 @@ def test_build_markdown_report_multiple_prompts() -> None:
                 "status": "completed",
                 "raw_prompt_path": "raw/one.prompt.md",
                 "raw_output_path": "raw/one.output.txt",
+                "cleaned_output_path": "cleaned/one.output.txt",
                 "stderr_log_path": "logs/one.stderr.log",
                 "exit_status": 0,
                 "metrics": {
@@ -80,6 +81,8 @@ def test_build_markdown_report_multiple_prompts() -> None:
         in report
     )
     assert "| two | docker | completed | None | None | None | - | - | 0 |" in report
+    assert "- Cleaned output: `cleaned/one.output.txt`" in report
+    assert "- Cleaned output: not available" in report
     assert "- VRAM samples: `vram/one.samples.json`" in report
 
 

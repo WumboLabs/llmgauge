@@ -8,15 +8,15 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.20
+Current stable tag: v0.21
 
-Current development line: v0.20.1
+Current development line: v0.22
 
 Current capabilities:
 
 - Validate prompt suites.
 - Run one prompt, one category, or a full suite.
-- Capture raw prompt, raw output, stderr logs, runtime metadata, and speed metrics.
+- Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
 - Generate Markdown reports.
 - Create and apply manual score templates.
 - Compare two or more result directories, including scored comparison summaries.
@@ -208,14 +208,17 @@ Each run writes a result directory containing:
     report.md
     raw/<prompt_id>.prompt.md
     raw/<prompt_id>.output.txt
+    cleaned/<prompt_id>.output.txt
     logs/<prompt_id>.stderr.log
 
 Raw model outputs are preserved separately and are not cleaned or filtered.
+Cleaned outputs are derived review artifacts that remove obvious llama.cpp terminal
+wrapper text where possible. They do not replace raw outputs as audit evidence.
 
 ## Privacy and safety posture
 
 - Model paths are redacted in stored result JSON.
-- Raw prompts and outputs are preserved for review.
+- Raw prompts and outputs are preserved for audit; cleaned outputs are generated for easier review.
 - LLMGauge does not download models by default.
 - LLMGauge does not modify GPU drivers, CUDA, kernel settings, firewall rules, or system packages.
 - Local config files are intended to stay private.

@@ -18,7 +18,7 @@ The workflow is intentionally incremental:
 3. run a small 8k honesty smoke test
 4. validate the artifact
 5. export an index
-6. inspect raw output
+6. inspect cleaned output first, then raw output when needed
 7. expand to a full suite
 8. run a context ladder
 9. attempt 64k only when headroom is sufficient
@@ -119,14 +119,21 @@ After a successful run:
 
     sed -n '1,160p' "$OUT_DIR/report.md"
 
-    find "$OUT_DIR/raw" \
+    find "$OUT_DIR/cleaned" \
       -type f \
       -name '*.output.txt' \
       -print \
       -exec sed -n '1,260p' {} \;
 
-Structural validation does not prove semantic quality. Always inspect the model
-answer before expanding the test.
+    find "$OUT_DIR/raw" \
+      -type f \
+      -name '*.output.txt' \
+      -print \
+      -exec sed -n '1,120p' {} \;
+
+Structural validation does not prove semantic quality. Inspect the cleaned output
+first for readability, then use raw output when auditing exact llama.cpp stdout,
+prompt echo, or runtime wrapper behavior.
 
 ## Phase 3: full 8k agent-backend suite
 
@@ -147,11 +154,13 @@ If the smoke test is acceptable:
 
     uv run llmgauge validate-result "$OUT_DIR"
 
-Review at least the weaker safety-sensitive prompts:
+Review at least the weaker safety-sensitive prompts using cleaned output first:
 
-    sed -n '1,300p' "$OUT_DIR/raw/shell-safety/failed-command-recovery.output.txt"
-    sed -n '1,360p' "$OUT_DIR/raw/config-safety/docker-compose-edit-plan.output.txt"
-    sed -n '1,360p' "$OUT_DIR/raw/long-context/synthetic-agent-preload.output.txt"
+    sed -n '1,300p' "$OUT_DIR/cleaned/shell-safety/failed-command-recovery.output.txt"
+    sed -n '1,360p' "$OUT_DIR/cleaned/config-safety/docker-compose-edit-plan.output.txt"
+    sed -n '1,360p' "$OUT_DIR/cleaned/long-context/synthetic-agent-preload.output.txt"
+
+Use the matching `raw/` artifacts when exact stdout preservation matters.
 
 ## Phase 4: context ladder
 

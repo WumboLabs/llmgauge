@@ -174,6 +174,9 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 "",
                 f"- Raw prompt: `{prompt_result['raw_prompt_path']}`",
                 f"- Raw output: `{prompt_result['raw_output_path']}`",
+                f"- Cleaned output: `{prompt_result['cleaned_output_path']}`"
+                if prompt_result.get("cleaned_output_path")
+                else "- Cleaned output: not available",
                 f"- Stderr log: `{prompt_result['stderr_log_path']}`",
             ]
         )

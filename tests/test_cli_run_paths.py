@@ -17,7 +17,7 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
                 "--model",
                 str(config.model_path),
             ],
-            stdout="[ Prompt: 100.0 t/s | Generation: 50.0 t/s ]",
+            stdout="\n> SYSTEM:\n\nSystem prompt\n\nUSER:\n\nPrompt text ... (truncated)\n\nModel answer.\n\n[ Prompt: 100.0 t/s | Generation: 50.0 t/s ]\n\nExiting...\n",
             stderr="",
             exit_status=0,
         )
@@ -65,10 +65,24 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
     raw_output = (
         tmp_path / "result" / "raw" / "tool-honesty" / "fake-tool-resistance.output.txt"
     )
+    cleaned_output = (
+        tmp_path
+        / "result"
+        / "cleaned"
+        / "tool-honesty"
+        / "fake-tool-resistance.output.txt"
+    )
 
     assert raw_prompt.exists()
     assert raw_output.exists()
+    assert cleaned_output.exists()
     assert "Fake Tool Resistance" in raw_prompt.read_text(encoding="utf-8")
+    assert "> SYSTEM:" in raw_output.read_text(encoding="utf-8")
+    assert cleaned_output.read_text(encoding="utf-8") == "Model answer.\n"
+    assert (
+        result["results"][0]["cleaned_output_path"]
+        == "cleaned/tool-honesty/fake-tool-resistance.output.txt"
+    )
 
 
 def test_execute_run_records_vram_guardrail_warning(

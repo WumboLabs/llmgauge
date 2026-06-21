@@ -29,6 +29,7 @@
   - `exit_status`
   - `metrics`
 - Raw prompt, raw output, and stderr log artifacts exist.
+- If `cleaned_output_path` is present, the cleaned output artifact exists.
 - Prompt IDs are unique.
 - `summary.completed` and `summary.failed` match prompt result statuses.
 - `score` is either null or a mapping with valid list fields.
