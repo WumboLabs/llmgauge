@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.19
+Current stable tag: v0.20
 
-Current development line: v0.20
+Current development line: v0.20.1
 
 Current capabilities:
 
@@ -89,6 +89,8 @@ Batch manifests reference model profile names only; they do not accept arbitrary
 
 See `docs/MODEL_BATCHES.md` for the current manifest schema, summary schema, behavior, and limitations.
 
+See `docs/LOCAL_MODEL_TESTING.md` for the conservative local GGUF model testing workflow.
+
 ## Agent backend evaluation suite
 
 `agent-backend-v1` contains prompt-based tests for local models intended to act as coding or operations agent backends.
@@ -109,7 +111,9 @@ Example:
       --model-profile example_model \
       --config examples/configs/llmgauge.local.yaml \
       --model-profiles examples/configs/model-profiles.local.yaml \
+      --ctx 8192 \
       --max-tokens 900 \
+      --temp 0.2 \
       --out results/example-agent-backend-smoke
 
 This suite does not require a real agent framework. It simulates the kind of context and constraints an agent backend may receive.
@@ -142,7 +146,7 @@ Context ladders run the same selected prompt set across explicit context sizes.
       --max-tokens 400 \
       --out results/example-ladder
 
-The default ladder is `8192,16384,32768`. v0.08 caps context ladders at `65536`; larger context testing is reserved for a later explicit extreme-context workflow.
+The default ladder is `8192,16384,32768`. Normal context ladder runs are capped at `65536`; larger context testing requires the explicit `--allow-extreme-context` operator opt-in described below.
 
 ## Extreme context guardrails
 
@@ -290,5 +294,6 @@ See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpre
 
 ## Documentation
 
+- [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
 - [Baseline checks](docs/BASELINE_CHECKS.md)
 - [VRAM capture](docs/VRAM_CAPTURE.md)

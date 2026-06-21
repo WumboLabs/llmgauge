@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.20.1 - Unreleased
+
+- Added a conservative local GGUF model testing workflow document.
+- Documented the standard run, validate, export-index, and inspect sequence.
+- Documented correct LLMGauge CLI flags for local runs: `--ctx` and `--temp`.
+- Added an interactive shell caution to avoid `set -e` / errexit-style modes during manual tmux test sessions.
+- Updated README status from v0.19/v0.20 to v0.20/v0.20.1.
+
 ## v0.20
 
 - Added manifest-driven sequential model batch runs with `run-batch`.
