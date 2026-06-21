@@ -191,6 +191,8 @@ Validate a model batch directory:
 
 Manual scoring uses a 0-5 scale across practical evaluation dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
 
+Generated score templates include rubric metadata, allowed verdicts, failure labels, good labels, reviewer notes, and a short `score_rationale` field. Scores are human review metadata; they are not automatic LLM judgments.
+
 ## Compare runs
 
     uv run llmgauge compare \

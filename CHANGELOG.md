@@ -8,6 +8,7 @@
 - Added allowed verdict validation for manual score templates.
 - Strengthened result validation for applied score metadata.
 - Documented `scores.yaml` and applied score fields.
+- Clarified user-facing manual scoring workflow, verdicts, and score rationale guidance.
 
 ## v0.21
 

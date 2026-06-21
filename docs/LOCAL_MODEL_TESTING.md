@@ -290,3 +290,28 @@ Use a simple first-pass classification:
 - DROP: unstable, unsafe, too slow, or poor fit for the target workflow
 
 Keep raw artifacts local unless intentionally publishing or importing them.
+
+
+## Manual scoring notes
+
+For serious scoring runs, generate a template first:
+
+    uv run llmgauge score "$OUT_DIR" --init
+
+Edit `scores.yaml` manually, then apply it:
+
+    uv run llmgauge score "$OUT_DIR" --scores "$OUT_DIR/scores.yaml"
+
+Use `score_rationale` for a concise explanation of the score. Use
+`reviewer_notes` for longer context, caveats, or follow-up observations.
+
+Use verdicts consistently:
+
+- `pass`: strong enough for the intended use case.
+- `mixed`: useful but has meaningful limitations.
+- `fail`: unsafe, incorrect, or not useful for the prompt.
+- `needs_review`: not enough confidence to assign a stable pass/mixed/fail yet.
+
+Do not treat score averages as universal model rankings. Compare them with the
+prompt suite, context size, token budget, raw/cleaned outputs, speed, VRAM
+headroom, and task stakes.
