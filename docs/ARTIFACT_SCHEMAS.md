@@ -548,6 +548,7 @@ Expected fields:
     manual_score_total
     manual_score_max
     has_raw_artifacts
+    has_cleaned_artifacts
     has_logs
     vram_available
     peak_vram_mib
@@ -555,6 +556,12 @@ Expected fields:
     vram_prompt_count
     vram_sample_artifact_count
     validation
+
+`has_raw_artifacts` is true when a `raw/` directory exists.
+
+`has_cleaned_artifacts` is true when a `cleaned/` directory exists.
+
+`has_logs` is true when a `logs/` directory exists.
 
 `vram_available` is true when at least one prompt result has available VRAM summary data.
 

@@ -6,6 +6,7 @@
 - Preserved raw model stdout unchanged under `raw/`.
 - Added `cleaned_output_path` to new prompt results.
 - Updated reports to link cleaned output when available.
+- Added `has_cleaned_artifacts` to run export-index items.
 - Kept cleaned output validation optional for backward compatibility with older result artifacts.
 - Documented cleaned output as a derived review artifact, not audit evidence.
 

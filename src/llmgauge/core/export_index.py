@@ -137,6 +137,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "manual_score_total": summary.get("manual_score_total"),
         "manual_score_max": summary.get("manual_score_max"),
         "has_raw_artifacts": (path / "raw").exists(),
+        "has_cleaned_artifacts": (path / "cleaned").exists(),
         "has_logs": (path / "logs").exists(),
         **_run_vram_metadata(path, results),
     }

@@ -37,6 +37,7 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     result_dir = tmp_path / "run-a"
     result_dir.mkdir()
     (result_dir / "raw").mkdir()
+    (result_dir / "cleaned").mkdir()
     (result_dir / "logs").mkdir()
     (result_dir / "report.md").write_text("# Report\n", encoding="utf-8")
     (result_dir / "vram").mkdir()
@@ -103,6 +104,7 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     assert item["completed"] == 1
     assert item["failed"] == 0
     assert item["has_raw_artifacts"] is True
+    assert item["has_cleaned_artifacts"] is True
     assert item["has_logs"] is True
     assert item["vram_available"] is True
     assert item["peak_vram_mib"] == 7535
@@ -152,6 +154,9 @@ def test_build_export_index_for_run_without_vram(tmp_path: Path) -> None:
     index = build_export_index([result_dir])
     item = index["items"][0]
 
+    assert item["has_raw_artifacts"] is False
+    assert item["has_cleaned_artifacts"] is False
+    assert item["has_logs"] is False
     assert item["vram_available"] is False
     assert item["peak_vram_mib"] is None
     assert item["min_vram_headroom_mib"] is None
