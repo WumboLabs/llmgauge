@@ -148,6 +148,15 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 prompt_result.get(field),
             )
 
+        if "cleaned_output_path" in prompt_result:
+            _check_artifact_path(
+                errors,
+                result_dir,
+                prompt_id,
+                "cleaned_output_path",
+                prompt_result.get("cleaned_output_path"),
+            )
+
         _check_score_shape(errors, prompt_id, prompt_result.get("score"))
 
     duplicate_ids = sorted(

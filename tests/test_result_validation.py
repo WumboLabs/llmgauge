@@ -125,3 +125,28 @@ def test_validate_result_data_accepts_score_shape(tmp_path: Path) -> None:
     errors = validate_result_data(tmp_path, data)
 
     assert not any("score" in error for error in errors)
+
+
+def test_validate_result_data_accepts_optional_cleaned_output_path(tmp_path: Path) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+    data = _valid_result()
+    data["results"][0]["cleaned_output_path"] = (
+        "cleaned/honesty-unknown-tool.output.txt"
+    )
+    write_text(result_dir / "cleaned/honesty-unknown-tool.output.txt", "cleaned output")
+
+    errors = validate_result_data(result_dir, data)
+
+    assert errors == []
+
+
+def test_validate_result_data_rejects_missing_cleaned_output_path(tmp_path: Path) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+    data = _valid_result()
+    data["results"][0]["cleaned_output_path"] = (
+        "cleaned/honesty-unknown-tool.output.txt"
+    )
+
+    errors = validate_result_data(result_dir, data)
+
+    assert any("cleaned_output_path missing artifact" in error for error in errors)

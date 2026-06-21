@@ -9,6 +9,7 @@ These schemas are intentionally conservative and file-based. They are not databa
 - Artifacts should be readable without Monolith.
 - Monolith may import artifacts, but LLMGauge does not write to Monolith databases.
 - Raw prompt, output, and log files remain audit evidence.
+- Cleaned outputs are derived review artifacts and do not replace raw outputs.
 - JSON schemas should evolve additively where possible.
 - Importers should check `schema_version` before trusting a file.
 - Relative artifact paths inside result JSON are relative to the result directory.
@@ -21,6 +22,7 @@ A normal run directory contains:
     llmgauge-result.json
     report.md
     raw/
+    cleaned/
     logs/
 
 Required machine-readable file:
@@ -149,6 +151,7 @@ Expected prompt result fields:
     status
     raw_prompt_path
     raw_output_path
+    cleaned_output_path
     stderr_log_path
     metrics
     score
@@ -164,7 +167,7 @@ Expected `status` values:
 
 Path policy:
 
-- `raw_prompt_path`, `raw_output_path`, and `stderr_log_path` are relative to the result directory.
+- `raw_prompt_path`, `raw_output_path`, `cleaned_output_path`, and `stderr_log_path` are relative to the result directory.
 - Importers should resolve these paths from the containing result directory.
 
 ### summary
@@ -710,3 +713,14 @@ Known schemas:
     llmgauge.export_index.v0
 
 Future changes should prefer additive fields over breaking changes.
+
+
+## Cleaned output policy
+
+Cleaned output files live under `cleaned/` and are generated from raw model stdout.
+
+They are review conveniences. They may remove obvious llama.cpp terminal wrapper
+text, echoed prompt envelope text, and trailing runtime metric lines. They must
+not be treated as a replacement for raw output audit evidence.
+
+Older result artifacts may not include `cleaned_output_path`.
