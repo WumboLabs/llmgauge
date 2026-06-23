@@ -1058,6 +1058,100 @@ def run(
     )
 
 
+def _print_ladder_preflight(
+    *,
+    suite: Path,
+    loaded_suite: dict[str, Any],
+    only: str | None,
+    include: str,
+    resolved: dict[str, Any],
+    contexts: list[int],
+    allow_extreme_context: bool,
+    out: Path | None,
+    auto_name: bool,
+    runs_root: Path,
+    run_name: str | None,
+    default_run_name: str,
+) -> None:
+    selected_prompts = _select_prompts(loaded_suite, only, include)
+
+    if out is not None:
+        output_plan = str(out)
+
+        def child_output_plan(ctx: int) -> str:
+            return str(out / f"ctx-{ctx}")
+
+    elif auto_name:
+        ladder_name = run_name or default_run_name
+        output_plan = f"auto-name under {runs_root} with ladder name {ladder_name}"
+
+        def child_output_plan(ctx: int) -> str:
+            return f"<auto ladder dir>/ctx-{ctx}"
+
+    else:
+        output_plan = (
+            "not required for --dry-run; real ladder runs require --out or --auto-name"
+        )
+
+        def child_output_plan(ctx: int) -> str:
+            return "not required for --dry-run"
+
+    selection = f"only={only}" if only else f"include={include}"
+
+    table = Table(title="LLMGauge Run Ladder Dry Run")
+    table.add_column("Field", no_wrap=True)
+    table.add_column("Value")
+
+    table.add_row("Suite", str(loaded_suite.get("suite_id", suite)))
+    table.add_row("Suite path", str(suite))
+    table.add_row("Selection", selection)
+    table.add_row("Prompt count", str(len(selected_prompts)))
+    table.add_row("Model ID", str(resolved["model_id"]))
+    table.add_row("Model profile", str(resolved["model_profile"]))
+    table.add_row("Config", str(resolved["config_path"]))
+    table.add_row("Model profiles", str(resolved["model_profiles_path"]))
+    table.add_row("Model path", str(resolved["model_path"]))
+    table.add_row("llama-cli", str(resolved["llama_cli"]))
+    table.add_row("Context ladder", ", ".join(str(ctx) for ctx in contexts))
+    table.add_row("Max tokens", str(resolved["max_tokens"]))
+    table.add_row("Temperature", str(resolved["temp"]))
+    table.add_row("Top-p", str(resolved["top_p"]))
+    table.add_row("Batch", str(resolved["batch"]))
+    table.add_row("UBatch", str(resolved["ubatch"]))
+    table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Extreme context opt-in", str(allow_extreme_context))
+    table.add_row("Output plan", output_plan)
+
+    console.print(table)
+
+    context_table = Table(title="Planned Context Runs")
+    context_table.add_column("Context", no_wrap=True)
+    context_table.add_column("Child output plan")
+
+    for ctx in contexts:
+        context_table.add_row(str(ctx), child_output_plan(ctx))
+
+    console.print(context_table)
+
+    prompt_table = Table(title="Selected Prompts")
+    prompt_table.add_column("Prompt", no_wrap=True)
+    prompt_table.add_column("Category", no_wrap=True)
+    prompt_table.add_column("Title")
+
+    for prompt in selected_prompts:
+        prompt_table.add_row(
+            str(prompt.get("id", "")),
+            str(prompt.get("category", "")),
+            str(prompt.get("title", prompt.get("id", ""))),
+        )
+
+    console.print(prompt_table)
+    console.print(
+        "[bold green]Ladder dry run complete[/bold green]: llama.cpp was not "
+        "launched and no ladder or result directories were created."
+    )
+
+
 @app.command("run-ladder")
 def run_ladder(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
@@ -1117,6 +1211,11 @@ def run_ladder(
         "--run-name",
         help="Name slug for auto-named ladder directories",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Resolve and print the ladder run plan without launching llama.cpp",
+    ),
 ) -> None:
     """Run the same selected prompts across multiple context sizes."""
     try:
@@ -1129,12 +1228,46 @@ def run_ladder(
     child_runs: list[dict[str, Any]] = []
     resolved_suite = resolve_suite_path(suite)
     loaded_suite = load_suite(resolved_suite)
+    default_run_name = f"ladder-{model_id or model_profile or loaded_suite['suite_id']}"
+
+    if dry_run:
+        resolved = _resolve_run_options(
+            model_id=model_id,
+            model_profile=model_profile,
+            config_path=config_path,
+            model_profiles_path=model_profiles_path,
+            model_path=model_path,
+            llama_cli=llama_cli,
+            ctx=contexts[0],
+            max_tokens=max_tokens,
+            temp=temp,
+            top_p=top_p,
+            batch=batch,
+            ubatch=ubatch,
+            gpu_layers=gpu_layers,
+        )
+        _print_ladder_preflight(
+            suite=resolved_suite,
+            loaded_suite=loaded_suite,
+            only=only,
+            include=include,
+            resolved=resolved,
+            contexts=contexts,
+            allow_extreme_context=allow_extreme_context,
+            out=out,
+            auto_name=auto_name,
+            runs_root=runs_root,
+            run_name=run_name,
+            default_run_name=default_run_name,
+        )
+        return
+
     resolved_out = _resolve_cli_output_dir(
         out=out,
         auto_name=auto_name,
         runs_root=runs_root,
         run_name=run_name,
-        default_run_name=f"ladder-{model_id or model_profile or loaded_suite['suite_id']}",
+        default_run_name=default_run_name,
     )
 
     prepare_result_dir(resolved_out)

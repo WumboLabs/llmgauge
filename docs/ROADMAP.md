@@ -33,7 +33,15 @@ Potential work:
 - improve error messages for missing model profile, missing model path, and missing llama-cli
 - keep direct explicit flags supported
 
-### v0.32: Fit Ladder foundation
+### v0.32: run-ladder preflight
+
+Goals:
+
+- make multi-context ladder execution inspectable before GPU work
+- preview parsed context ladders, selected prompt count, model/profile resolution, and child output plans
+- avoid creating ladder/result directories in dry-run mode
+
+### v0.33: Fit Ladder foundation
 
 Potential work:
 

@@ -411,3 +411,70 @@ models:
 
     assert result.exit_code != 0
     assert "Use --out PATH or --auto-name" in result.output
+
+
+def test_run_ladder_dry_run_resolves_without_output_dir(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  ctx_size: 8192
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+    def fake_execute_run(**kwargs):
+        raise AssertionError("ladder dry-run must not execute child runs")
+
+    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run-ladder",
+            "--suite",
+            "core-v1",
+            "--include",
+            "honesty",
+            "--model-profile",
+            "example_model",
+            "--ctx-ladder",
+            "8192,12288",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "LLMGauge Run Ladder Dry Run" in result.output
+    assert "Ladder dry run complete" in result.output
+    assert "example_model" in result.output
+    assert "8192" in result.output
+    assert "12288" in result.output
+    assert "honesty-unknown-tool" in result.output
+    assert not Path("results").exists()
