@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.30 - Unreleased
+
+- Added `llmgauge init-config` to create ignored local config files from example templates.
+- Added `llmgauge list-model-profiles` to inspect configured model profiles and model path status.
+- Updated `llmgauge doctor` to auto-detect local config and model profile files when present.
+- Added model-profile onboarding and first-run command polish roadmap.
+- Updated Quickstart for the shorter first-run setup flow.
+
 ## v0.29 - 2026-06-23
 
 - Expanded `llmgauge doctor` to check config, llama-cli, model profiles, selected model file paths, built-in suites, and optional NVIDIA telemetry.

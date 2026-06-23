@@ -65,6 +65,15 @@ app = typer.Typer(
 
 console = Console()
 
+DEFAULT_LOCAL_CONFIG = Path("examples/configs/llmgauge.local.yaml")
+DEFAULT_LOCAL_MODEL_PROFILES = Path("examples/configs/model-profiles.local.yaml")
+EXAMPLE_CONFIG = Path("examples/configs/llmgauge.example.yaml")
+EXAMPLE_MODEL_PROFILES = Path("examples/configs/model-profiles.example.yaml")
+
+
+def _default_existing_path(path: Path) -> Path | None:
+    return path if path.exists() else None
+
 
 @app.command()
 def doctor(
@@ -121,12 +130,16 @@ def doctor(
         add_row("Built-in suites", "fail", str(exc))
 
     config_data: dict[str, Any] = {}
-    if config is None:
+    config_path = config or _default_existing_path(DEFAULT_LOCAL_CONFIG)
+    if config_path is None:
         add_row("Config", "warn", "No --config provided; run checks are limited")
     else:
         try:
-            config_data = load_llmgauge_config(config)
-            add_row("Config", "ok", f"Loaded {config}")
+            config_data = load_llmgauge_config(config_path)
+            if config is None:
+                add_row("Config", "ok", f"Auto-detected {config_path}")
+            else:
+                add_row("Config", "ok", f"Loaded {config_path}")
         except Exception as exc:
             add_row("Config", "fail", str(exc))
 
@@ -152,7 +165,10 @@ def doctor(
             add_row("llama-cli", "ok", str(resolved_llama_cli))
 
     profiles: dict[str, Any] = {}
-    if model_profiles is None:
+    model_profiles_path = model_profiles or _default_existing_path(
+        DEFAULT_LOCAL_MODEL_PROFILES
+    )
+    if model_profiles_path is None:
         add_row(
             "Model profiles",
             "warn",
@@ -160,12 +176,19 @@ def doctor(
         )
     else:
         try:
-            profiles = load_model_profiles(model_profiles)
-            add_row(
-                "Model profiles",
-                "ok",
-                f"Loaded {len(profiles)} profile(s) from {model_profiles}",
-            )
+            profiles = load_model_profiles(model_profiles_path)
+            if model_profiles is None:
+                add_row(
+                    "Model profiles",
+                    "ok",
+                    f"Auto-detected {len(profiles)} profile(s) from {model_profiles_path}",
+                )
+            else:
+                add_row(
+                    "Model profiles",
+                    "ok",
+                    f"Loaded {len(profiles)} profile(s) from {model_profiles_path}",
+                )
         except Exception as exc:
             add_row("Model profiles", "fail", str(exc))
 
@@ -257,6 +280,110 @@ def validate_suite_command(suite_dir: Path = typer.Argument(...)) -> None:
         f"[bold green]OK[/bold green] {suite['suite_id']} "
         f"({len(suite.get('prompts', []))} prompts)"
     )
+
+
+@app.command("init-config")
+def init_config(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite existing local config files",
+    ),
+) -> None:
+    """Create ignored local config files from example templates."""
+    targets = [
+        (EXAMPLE_CONFIG, DEFAULT_LOCAL_CONFIG),
+        (EXAMPLE_MODEL_PROFILES, DEFAULT_LOCAL_MODEL_PROFILES),
+    ]
+
+    table = Table(title="Initialize Local Config")
+    table.add_column("File")
+    table.add_column("Status")
+    table.add_column("Notes")
+
+    for source, target in targets:
+        if not source.exists():
+            table.add_row(str(target), "fail", f"Example template missing: {source}")
+            console.print(table)
+            raise typer.Exit(code=1)
+
+        if target.exists() and not force:
+            table.add_row(str(target), "skipped", "Already exists; use --force to overwrite")
+            continue
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        table.add_row(str(target), "created" if not force else "written", f"Copied from {source}")
+
+    console.print(table)
+    console.print(
+        "Edit the local YAML files with your llama-cli path and GGUF model paths."
+    )
+
+
+@app.command("list-model-profiles")
+def list_model_profiles(
+    model_profiles: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Model profiles YAML to list; defaults to examples/configs/model-profiles.local.yaml when present",
+    ),
+) -> None:
+    """List configured model profiles and model path status."""
+    model_profiles_path = model_profiles or _default_existing_path(
+        DEFAULT_LOCAL_MODEL_PROFILES
+    )
+    if model_profiles_path is None:
+        raise typer.BadParameter(
+            "Provide --model-profiles or run llmgauge init-config first"
+        )
+
+    if not model_profiles_path.exists():
+        raise typer.BadParameter(
+            f"Model profiles file does not exist: {model_profiles_path}"
+        )
+
+    try:
+        profiles = load_model_profiles(model_profiles_path)
+    except Exception as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    console.print(f"Model profiles file: {model_profiles_path}")
+
+    table = Table(title="Model Profiles")
+    table.add_column("Profile", no_wrap=True)
+    table.add_column("Label")
+    table.add_column("Family")
+    table.add_column("Role")
+    table.add_column("Quant")
+    table.add_column("Path Status", no_wrap=True)
+
+    if not profiles:
+        console.print("[yellow]No model profiles found[/yellow]")
+        return
+
+    for name, profile in sorted(profiles.items()):
+        if not isinstance(profile, dict):
+            table.add_row(name, "", "", "", "", "invalid-profile")
+            continue
+
+        raw_path = profile.get("path")
+        if isinstance(raw_path, str) and raw_path:
+            model_path = Path(raw_path)
+            path_status = "ok" if model_path.exists() else "missing-file"
+        else:
+            path_status = "missing-path"
+
+        table.add_row(
+            name,
+            str(profile.get("label", "")),
+            str(profile.get("family", "")),
+            str(profile.get("role", "")),
+            str(profile.get("quant", "")),
+            path_status,
+        )
+
+    console.print(table)
 
 
 def _find_prompt(suite: dict, prompt_id: str) -> dict:

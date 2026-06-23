@@ -8,13 +8,15 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.28
+Current stable tag: v0.29
 
-Current development line: v0.29
+Current development line: v0.30
 
 Current capabilities:
 
 - Check local setup readiness with `doctor`.
+- Initialize ignored local config files with `init-config`.
+- List configured model profiles with `list-model-profiles`.
 - Validate prompt suites.
 - Run one prompt, one category, or a full suite.
 - Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
@@ -318,6 +320,7 @@ See `docs/FIT_LADDER.md` for the planned adaptive-fit design.
 ## Documentation
 
 - [Quickstart](docs/QUICKSTART.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
 - [Evaluation tiers](docs/EVALUATION_TIERS.md)
 - [Scoring rubrics](docs/SCORING_RUBRICS.md)
