@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.32 - Unreleased
+## v0.32 - 2026-06-23
 
 - Added `llmgauge run-ladder --dry-run` to resolve and print multi-context ladder plans without launching llama.cpp or creating artifacts.
 
