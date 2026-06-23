@@ -269,6 +269,9 @@ intended to run from the repository checkout.
 LLMGauge is designed to produce portable result artifacts that another local application, such as Monolith, can import without LLMGauge writing directly to that application's database.
 
 `export-index` can index run, context ladder, and model batch directories.
+For scored runs, export indexes include report-ready scoring metadata such as
+score status, scored prompt count, manual score average, verdict counts, label
+counts, and rubric metadata.
 
 Explicit output path:
 
