@@ -1,0 +1,93 @@
+# Fit Ladder / Adaptive Fit
+
+Fit Ladder is a planned LLMGauge feature for finding a working local runtime configuration when a requested model/context setting fails, especially due to out-of-memory conditions.
+
+This feature is not enabled by default and should not silently change a normal run.
+
+## Goal
+
+Answer a practical local-hardware question:
+
+    What is the largest useful configuration this model can run on this machine?
+
+Example:
+
+    requested ctx=65536
+    attempt ctx=65536 -> OOM
+    retry ctx=32768
+    attempt ctx=32768 -> completed
+
+The final report must clearly say:
+
+    requested 65536
+    65536 failed with OOM
+    selected working context 32768
+
+## Design rules
+
+Fit Ladder should be:
+
+- opt-in
+- bounded
+- explicit
+- reproducible
+- artifact-preserving
+- honest about failed attempts
+
+It must not hide the original failure.
+
+## Default fallback order
+
+The conservative fallback order should be:
+
+1. lower context size
+2. lower batch / ubatch if configured
+3. reduce GPU layers only with explicit opt-in
+
+GPU-layer reduction changes performance characteristics substantially, so it should not be part of the default fallback policy.
+
+## User-visible progress
+
+When an OOM or fit failure is detected, LLMGauge should print a clear status message such as:
+
+    OOM detected at ctx=65536; retrying at ctx=32768
+
+or:
+
+    Fit attempt failed at ctx=32768 batch=256 ubatch=64; retrying with ctx=16384
+
+## Attempt artifacts
+
+Each attempt should preserve enough information for review:
+
+- attempted context size
+- batch and ubatch
+- GPU layers
+- status
+- exit code
+- failure classification
+- stderr excerpt
+- VRAM samples when available
+- child result directory when a normal result artifact exists
+
+## Summary artifact
+
+A future Fit Ladder run should produce a parent summary containing:
+
+- requested settings
+- retry policy
+- attempt ladder
+- selected working settings
+- final status
+- failed attempts
+- completed attempt if any
+- whether OOM was detected
+- whether fallback changed context, batch, ubatch, or GPU layers
+
+## Claim boundary
+
+A completed Fit Ladder result may say that a model fits under the selected fallback settings on the tested hardware/runtime.
+
+It should not claim that the originally requested settings worked if they failed.
+
+It should not compare quality across attempts unless equivalent prompts, scoring, and review were performed.

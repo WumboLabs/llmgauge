@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.29 - Unreleased
+
+- Expanded `llmgauge doctor` to check config, llama-cli, model profiles, selected model file paths, built-in suites, and optional NVIDIA telemetry.
+- Added a clean quickstart for first-run setup, validation, scoring, and export-index workflow.
+- Documented the planned Fit Ladder / adaptive-fit design for explicit OOM-aware fallback testing.
+- Updated README status and public documentation links.
+
 ## v0.28 - 2026-06-23
 
 - Added scored interpretation summaries to run reports.

@@ -8,12 +8,13 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.21
+Current stable tag: v0.28
 
-Current development line: v0.22
+Current development line: v0.29
 
 Current capabilities:
 
+- Check local setup readiness with `doctor`.
 - Validate prompt suites.
 - Run one prompt, one category, or a full suite.
 - Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
@@ -311,9 +312,16 @@ See `docs/PRACTICAL_EVAL_V1.md` for the Tier 2 prompt quality standard.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
 See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
 See `docs/PUBLIC_REPORTING.md` for public-report claim boundaries and required evidence.
+See `docs/QUICKSTART.md` for a clean first-run workflow.
+See `docs/FIT_LADDER.md` for the planned adaptive-fit design.
 
 ## Documentation
 
+- [Quickstart](docs/QUICKSTART.md)
 - [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
+- [Evaluation tiers](docs/EVALUATION_TIERS.md)
+- [Scoring rubrics](docs/SCORING_RUBRICS.md)
+- [Public reporting guidance](docs/PUBLIC_REPORTING.md)
+- [Fit Ladder planned design](docs/FIT_LADDER.md)
 - [Baseline checks](docs/BASELINE_CHECKS.md)
 - [VRAM capture](docs/VRAM_CAPTURE.md)
