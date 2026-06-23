@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.26 - Unreleased
+
+- Added evaluation tier documentation to define what LLMGauge results can and cannot claim.
+
 ## v0.25 - 2026-06-21
 
 - Added `llmgauge score --check` to validate score files without mutating result artifacts.

@@ -93,6 +93,8 @@ Design constraints:
 
 ## Current state
 
+`core-v1` should be interpreted as Tier 1 practical smoke evidence, not a definitive recommendation suite. See `docs/EVALUATION_TIERS.md` for the claim boundaries for each tier.
+
 `core-v1` currently contains a mix of generic practical tests and a small amount of local flavor.
 
 Known local-flavor prompts:

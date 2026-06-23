@@ -298,6 +298,8 @@ For serious scoring runs, generate a template first:
 
     uv run llmgauge score "$OUT_DIR" --init
 
+Before interpreting results, classify the evidence tier. See `docs/EVALUATION_TIERS.md`. Current small practical suites should be treated as Tier 1 smoke evidence unless a suite explicitly declares a stronger evaluation tier.
+
 Edit `scores.yaml` manually, then validate it without mutating result artifacts:
 
     uv run llmgauge score "$OUT_DIR" --scores "$OUT_DIR/scores.yaml" --check

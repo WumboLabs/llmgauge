@@ -303,6 +303,7 @@ Create a machine-readable export index:
 See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.
 See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, batch, and export-index schema notes.
 See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
+See `docs/EVALUATION_TIERS.md` for what LLMGauge results can and cannot claim.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
 See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
 
