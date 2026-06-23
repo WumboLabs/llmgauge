@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.29
+Current stable tag: v0.30
 
-Current development line: v0.30
+Current development line: v0.31
 
 Current capabilities:
 
@@ -19,6 +19,7 @@ Current capabilities:
 - List configured model profiles with `list-model-profiles`.
 - Validate prompt suites.
 - Run one prompt, one category, or a full suite.
+- Preview run plans without launching llama.cpp using `run --dry-run`.
 - Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
 - Generate Markdown reports.
 - Create and apply manual score templates.

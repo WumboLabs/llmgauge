@@ -643,6 +643,80 @@ def _resolve_run_options(
     }
 
 
+def _print_run_preflight(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    resolved: dict[str, Any],
+    out: Path | None,
+    auto_name: bool,
+    runs_root: Path,
+    run_name: str | None,
+) -> None:
+    resolved_suite = resolve_suite_path(suite)
+    loaded_suite = load_suite(resolved_suite)
+    selected_prompts = _select_prompts(loaded_suite, only, include)
+
+    if out is not None:
+        output_plan = str(out)
+    elif auto_name:
+        default_run_name = f"{resolved['model_id']}-{suite.name}"
+        output_plan = (
+            f"auto-name under {runs_root} "
+            f"with run name {run_name or default_run_name}"
+        )
+    else:
+        output_plan = (
+            "not required for --dry-run; real runs require --out or --auto-name"
+        )
+
+    selection = f"only={only}" if only else f"include={include}"
+
+    table = Table(title="LLMGauge Run Dry Run")
+    table.add_column("Field", no_wrap=True)
+    table.add_column("Value")
+
+    table.add_row("Suite", str(loaded_suite.get("suite_id", suite)))
+    table.add_row("Suite path", str(resolved_suite))
+    table.add_row("Selection", selection)
+    table.add_row("Prompt count", str(len(selected_prompts)))
+    table.add_row("Model ID", str(resolved["model_id"]))
+    table.add_row("Model profile", str(resolved["model_profile"]))
+    table.add_row("Config", str(resolved["config_path"]))
+    table.add_row("Model profiles", str(resolved["model_profiles_path"]))
+    table.add_row("Model path", str(resolved["model_path"]))
+    table.add_row("llama-cli", str(resolved["llama_cli"]))
+    table.add_row("Context", str(resolved["ctx"]))
+    table.add_row("Max tokens", str(resolved["max_tokens"]))
+    table.add_row("Temperature", str(resolved["temp"]))
+    table.add_row("Top-p", str(resolved["top_p"]))
+    table.add_row("Batch", str(resolved["batch"]))
+    table.add_row("UBatch", str(resolved["ubatch"]))
+    table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Output plan", output_plan)
+
+    console.print(table)
+
+    prompt_table = Table(title="Selected Prompts")
+    prompt_table.add_column("Prompt", no_wrap=True)
+    prompt_table.add_column("Category", no_wrap=True)
+    prompt_table.add_column("Title")
+
+    for prompt in selected_prompts:
+        prompt_table.add_row(
+            str(prompt.get("id", "")),
+            str(prompt.get("category", "")),
+            str(prompt.get("title", prompt.get("id", ""))),
+        )
+
+    console.print(prompt_table)
+    console.print(
+        "[bold green]Dry run complete[/bold green]: llama.cpp was not "
+        "launched and no result directory was created."
+    )
+
+
 def _execute_run(
     *,
     suite: Path,
@@ -930,6 +1004,11 @@ def run(
         "--run-name",
         help="Name slug for auto-named run directories",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Resolve and print the run plan without launching llama.cpp",
+    ),
 ) -> None:
     """Run one or more prompts through llama.cpp."""
     resolved = _resolve_run_options(
@@ -947,6 +1026,19 @@ def run(
         ubatch=ubatch,
         gpu_layers=gpu_layers,
     )
+
+    if dry_run:
+        _print_run_preflight(
+            suite=suite,
+            only=only,
+            include=include,
+            resolved=resolved,
+            out=out,
+            auto_name=auto_name,
+            runs_root=runs_root,
+            run_name=run_name,
+        )
+        return
 
     resolved_out = _resolve_cli_output_dir(
         out=out,

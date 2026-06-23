@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31 - Unreleased
+
+- Added `llmgauge run --dry-run` to resolve and print run plans without launching llama.cpp or creating result artifacts.
+
 ## v0.30 - 2026-06-23
 
 - Added `llmgauge init-config` to create ignored local config files from example templates.

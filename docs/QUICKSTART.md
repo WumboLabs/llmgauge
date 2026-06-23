@@ -86,7 +86,22 @@ Validate a suite:
 
     uv run llmgauge validate-suite core-v1
 
-## 7. Run one prompt
+## 7. Preview one prompt
+
+Before launching llama.cpp, inspect the resolved run plan:
+
+    uv run llmgauge run \
+      --suite core-v1 \
+      --include honesty \
+      --model-profile example_model \
+      --ctx 8192 \
+      --max-tokens 800 \
+      --temp 0.2 \
+      --dry-run
+
+Dry-run mode resolves config, model profiles, model paths, runtime settings, and selected prompt count. It does not launch llama.cpp and does not create a result directory.
+
+## 8. Run one prompt
 
 Start with one prompt before running a full suite.
 
@@ -103,7 +118,7 @@ When `examples/configs/llmgauge.local.yaml` and `examples/configs/model-profiles
       --runs-root results \
       --run-name quickstart-honesty
 
-## 8. Validate the result
+## 9. Validate the result
 
 After the run completes, validate the generated result directory:
 
@@ -119,7 +134,7 @@ Inspect:
 
 Raw model outputs are preserved for audit. Cleaned outputs are derived review artifacts.
 
-## 9. Optional manual scoring
+## 10. Optional manual scoring
 
 Initialize a score file:
 
@@ -146,7 +161,7 @@ Validate again:
 
     uv run llmgauge validate-result results/<generated-run-directory>
 
-## 10. Export an index
+## 11. Export an index
 
 Create a machine-readable index for reports, comparisons, or import workflows:
 

@@ -1,7 +1,11 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from typer.testing import CliRunner
+
 import llmgauge.cli as cli
+
+runner = CliRunner()
 
 
 def test_execute_run_resolves_builtin_suite_prompt_paths(
@@ -293,3 +297,117 @@ def test_run_batch_uses_manifest_model_profiles(
     assert report_path.exists()
     assert "gemma4_12b_qat_q4" in report_path.read_text(encoding="utf-8")
     assert "gemma4_12b_q5" in report_path.read_text(encoding="utf-8")
+
+
+def test_run_dry_run_resolves_without_output_dir(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  ctx_size: 8192
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+    def fake_run_llama_cpp(config, prompt):
+        raise AssertionError("dry-run must not launch llama.cpp")
+
+    monkeypatch.setattr(cli, "run_llama_cpp", fake_run_llama_cpp)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "core-v1",
+            "--include",
+            "honesty",
+            "--model-profile",
+            "example_model",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "LLMGauge Run Dry Run" in result.output
+    assert "Dry run complete" in result.output
+    assert "example_model" in result.output
+    assert "honesty-unknown-tool" in result.output
+    assert not Path("results").exists()
+
+
+def test_run_without_output_still_requires_output_when_not_dry_run(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "core-v1",
+            "--include",
+            "honesty",
+            "--model-profile",
+            "example_model",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Use --out PATH or --auto-name" in result.output
