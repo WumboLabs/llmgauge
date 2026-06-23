@@ -88,14 +88,14 @@ Validate a suite:
 
 ## 7. Run one prompt
 
-Start with one prompt before running a full suite:
+Start with one prompt before running a full suite.
+
+When `examples/configs/llmgauge.local.yaml` and `examples/configs/model-profiles.local.yaml` exist, LLMGauge auto-detects them. Explicit `--config` and `--model-profiles` still override the defaults.
 
     uv run llmgauge run \
       --suite core-v1 \
       --include honesty \
       --model-profile example_model \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \

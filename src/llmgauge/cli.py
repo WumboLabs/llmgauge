@@ -527,8 +527,13 @@ def _resolve_run_options(
     ubatch: int | None,
     gpu_layers: int | None,
 ) -> dict[str, Any]:
-    config_data = load_llmgauge_config(config_path)
-    profiles = load_model_profiles(model_profiles_path)
+    resolved_config_path = config_path or _default_existing_path(DEFAULT_LOCAL_CONFIG)
+    resolved_model_profiles_path = model_profiles_path or _default_existing_path(
+        DEFAULT_LOCAL_MODEL_PROFILES
+    )
+
+    config_data = load_llmgauge_config(resolved_config_path)
+    profiles = load_model_profiles(resolved_model_profiles_path)
     profile = resolve_model_profile(profiles, model_profile)
 
     resolved_model_id = coalesce(model_id, model_profile, profile.get("label"))
@@ -623,8 +628,8 @@ def _resolve_run_options(
         "model_id": str(resolved_model_id),
         "model_profile": model_profile,
         "profile": profile,
-        "config_path": config_path,
-        "model_profiles_path": model_profiles_path,
+        "config_path": resolved_config_path,
+        "model_profiles_path": resolved_model_profiles_path,
         "model_path": resolved_model_path,
         "llama_cli": resolved_llama_cli,
         "ctx": resolved_ctx,

@@ -5,6 +5,7 @@
 - Added `llmgauge init-config` to create ignored local config files from example templates.
 - Added `llmgauge list-model-profiles` to inspect configured model profiles and model path status.
 - Updated `llmgauge doctor` to auto-detect local config and model profile files when present.
+- Updated run option resolution to auto-detect local config and model profile files when explicit paths are omitted.
 - Added model-profile onboarding and first-run command polish roadmap.
 - Updated Quickstart for the shorter first-run setup flow.
 
