@@ -13,6 +13,7 @@ def test_builtin_suites_dir_contains_core_suite() -> None:
     assert suites_dir.exists()
     assert (suites_dir / "core-v1" / "suite.yaml").exists()
     assert (suites_dir / "agent-backend-v1" / "suite.yaml").exists()
+    assert (suites_dir / "wumbolabs-practical-v1" / "suite.yaml").exists()
 
 
 def test_resolve_suites_dir_falls_back_to_builtins_outside_repo(

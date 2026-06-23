@@ -22,3 +22,15 @@ def test_context_v1_suite_loads() -> None:
 def test_agent_backend_v1_suite_loads() -> None:
     suite = load_suite(Path("suites/agent-backend-v1"))
     assert suite["suite_id"] == "agent-backend-v1"
+
+def test_wumbolabs_practical_v1_suite_loads() -> None:
+    suite = load_suite(Path("suites/wumbolabs-practical-v1"))
+    assert suite["suite_id"] == "wumbolabs-practical-v1"
+    assert suite["evaluation_tier"] == 2
+    assert len(suite["prompts"]) == 10
+
+
+def test_wumbolabs_practical_v1_suite_validates() -> None:
+    errors = validate_suite(Path("suites/wumbolabs-practical-v1"))
+    assert errors == []
+

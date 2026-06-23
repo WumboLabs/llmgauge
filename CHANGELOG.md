@@ -4,6 +4,7 @@
 
 - Added evaluation tier documentation to define what LLMGauge results can and cannot claim.
 - Added Practical Eval v1 publication-grade prompt quality and scoring guidance.
+- Added the initial WumboLabs Practical Eval v1 seed suite with 10 prompts.
 
 ## v0.25 - 2026-06-21
 
