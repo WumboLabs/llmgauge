@@ -51,6 +51,61 @@ def _int_or_none(value: Any) -> int | None:
     return value if isinstance(value, int) else None
 
 
+def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[str, Any]:
+    scored_prompt_count = summary.get("scored_prompt_count")
+    if not isinstance(scored_prompt_count, int):
+        scored_prompt_count = sum(
+            1
+            for prompt_result in results
+            if isinstance(prompt_result, dict)
+            and isinstance(prompt_result.get("score"), dict)
+        )
+
+    prompt_count = len(results)
+    if scored_prompt_count == 0:
+        scoring_status = "unscored"
+    elif scored_prompt_count < prompt_count:
+        scoring_status = "partially_scored"
+    else:
+        scoring_status = "scored"
+
+    verdict_counts: dict[str, int] = {}
+    rubric_id = None
+    rubric_version = None
+    score_schema_version = None
+
+    for prompt_result in results:
+        if not isinstance(prompt_result, dict):
+            continue
+
+        score = prompt_result.get("score")
+        if not isinstance(score, dict):
+            continue
+
+        if rubric_id is None:
+            rubric_id = score.get("rubric_id")
+        if rubric_version is None:
+            rubric_version = score.get("rubric_version")
+        if score_schema_version is None:
+            score_schema_version = score.get("schema_version")
+
+        verdict = score.get("verdict")
+        if isinstance(verdict, str) and verdict:
+            verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+
+    return {
+        "scoring_status": scoring_status,
+        "scored_prompt_count": scored_prompt_count,
+        "manual_score_average": summary.get("manual_score_average"),
+        "failure_labels": summary.get("failure_labels") or {},
+        "good_labels": summary.get("good_labels") or {},
+        "verdict_counts": verdict_counts,
+        "rubric_id": rubric_id,
+        "rubric_version": rubric_version,
+        "score_schema_version": score_schema_version,
+    }
+
+
 def _run_vram_metadata(path: Path, results: list[Any]) -> dict[str, Any]:
     vram_prompt_count = 0
     peak_values: list[int] = []
@@ -136,6 +191,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "failed": summary.get("failed"),
         "manual_score_total": summary.get("manual_score_total"),
         "manual_score_max": summary.get("manual_score_max"),
+        **_run_scoring_metadata(summary, results),
         "has_raw_artifacts": (path / "raw").exists(),
         "has_cleaned_artifacts": (path / "cleaned").exists(),
         "has_logs": (path / "logs").exists(),

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27 - Unreleased
+
+- Added public-proof scoring metadata to run items in `export-index`.
+- Added `scoring_status`, `scored_prompt_count`, `manual_score_average`, aggregate score labels, verdict counts, and rubric metadata to exported run indexes.
+- Documented additive export-index scoring fields for report-generation and importer workflows.
+
 ## v0.26 - 2026-06-23
 
 - Added evaluation tier documentation to define what LLMGauge results can and cannot claim.

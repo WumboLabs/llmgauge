@@ -434,3 +434,199 @@ def test_build_export_index_can_validate_batch(tmp_path: Path) -> None:
     assert item["validation"]["checked"] is True
     assert item["validation"]["status"] == "valid"
     assert item["validation"]["errors"] == []
+
+
+def test_build_export_index_includes_scored_run_public_proof_metadata(
+    tmp_path: Path,
+) -> None:
+    result_dir = tmp_path / "scored-run"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "scored-run",
+    "timestamp_utc": "2026-06-23T02:25:51+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "wumbolabs-practical-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 2
+  },
+  "summary": {
+    "completed": 2,
+    "failed": 0,
+    "manual_score_total": 62.0,
+    "manual_score_max": 80.0,
+    "manual_score_average": 3.88,
+    "scored_prompt_count": 2,
+    "failure_labels": {
+      "ignored_constraint": 1
+    },
+    "good_labels": {
+      "strong_format_control": 1
+    }
+  },
+  "results": [
+    {
+      "prompt_id": "prompt-a",
+      "score": {
+        "schema_version": "llmgauge.scores.v0",
+        "rubric_id": "wumbolabs-practical-v1",
+        "rubric_version": "0.1.0",
+        "verdict": "pass",
+        "prompt_average": 4.5,
+        "failure_labels": [],
+        "good_labels": ["strong_format_control"],
+        "dimensions": {}
+      }
+    },
+    {
+      "prompt_id": "prompt-b",
+      "score": {
+        "schema_version": "llmgauge.scores.v0",
+        "rubric_id": "wumbolabs-practical-v1",
+        "rubric_version": "0.1.0",
+        "verdict": "mixed",
+        "prompt_average": 3.25,
+        "failure_labels": ["ignored_constraint"],
+        "good_labels": [],
+        "dimensions": {}
+      }
+    }
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scoring_status"] == "scored"
+    assert item["scored_prompt_count"] == 2
+    assert item["manual_score_average"] == 3.88
+    assert item["failure_labels"] == {"ignored_constraint": 1}
+    assert item["good_labels"] == {"strong_format_control": 1}
+    assert item["verdict_counts"] == {"pass": 1, "mixed": 1}
+    assert item["rubric_id"] == "wumbolabs-practical-v1"
+    assert item["rubric_version"] == "0.1.0"
+    assert item["score_schema_version"] == "llmgauge.scores.v0"
+
+
+def test_build_export_index_marks_partially_scored_run(tmp_path: Path) -> None:
+    result_dir = tmp_path / "partially-scored-run"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "partially-scored-run",
+    "timestamp_utc": "2026-06-23T02:25:51+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "wumbolabs-practical-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 2
+  },
+  "summary": {
+    "completed": 2,
+    "failed": 0,
+    "manual_score_total": 20.0,
+    "manual_score_max": 40.0
+  },
+  "results": [
+    {
+      "prompt_id": "prompt-a",
+      "score": {
+        "schema_version": "llmgauge.scores.v0",
+        "rubric_id": "wumbolabs-practical-v1",
+        "rubric_version": "0.1.0",
+        "verdict": "fail",
+        "prompt_average": 2.0,
+        "failure_labels": [],
+        "good_labels": [],
+        "dimensions": {}
+      }
+    },
+    {
+      "prompt_id": "prompt-b",
+      "score": null
+    }
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scoring_status"] == "partially_scored"
+    assert item["scored_prompt_count"] == 1
+    assert item["verdict_counts"] == {"fail": 1}
+
+
+def test_build_export_index_marks_unscored_run(tmp_path: Path) -> None:
+    result_dir = tmp_path / "unscored-run"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "unscored-run",
+    "timestamp_utc": "2026-06-23T02:25:51+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "wumbolabs-practical-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 1
+  },
+  "summary": {
+    "completed": 1,
+    "failed": 0,
+    "manual_score_total": null,
+    "manual_score_max": null
+  },
+  "results": [
+    {
+      "prompt_id": "prompt-a",
+      "score": null
+    }
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scoring_status"] == "unscored"
+    assert item["scored_prompt_count"] == 0
+    assert item["manual_score_average"] is None
+    assert item["failure_labels"] == {}
+    assert item["good_labels"] == {}
+    assert item["verdict_counts"] == {}
+    assert item["rubric_id"] is None

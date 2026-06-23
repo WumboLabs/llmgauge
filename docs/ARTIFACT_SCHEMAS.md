@@ -178,12 +178,27 @@ Expected fields:
     failed
     manual_score_total
     manual_score_max
+    manual_score_average
+    scoring_status
+    scored_prompt_count
     failure_labels
+    good_labels
+    verdict_counts
+    rubric_id
+    rubric_version
+    score_schema_version
 
 Notes:
 
 - `completed` and `failed` should match prompt result statuses.
 - Manual score fields may be null until scoring is applied.
+- `scoring_status` is one of `unscored`, `partially_scored`, or `scored`.
+- `scored_prompt_count` records how many prompt results contain applied score objects.
+- `manual_score_average` is a human-review summary on the configured score scale.
+- `failure_labels` and `good_labels` are aggregate label-count mappings from applied scores.
+- `verdict_counts` summarizes non-empty prompt verdicts from applied score objects.
+- `rubric_id`, `rubric_version`, and `score_schema_version` are copied from applied prompt scores when present.
+- These fields are public-proof metadata for report generation and importers. They are not automated judgments.
 
 ## Context ladder directory
 
