@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.27 - Unreleased
+## v0.27 - 2026-06-23
 
 - Added public-proof scoring metadata to run items in `export-index`.
 - Added `scoring_status`, `scored_prompt_count`, `manual_score_average`, aggregate score labels, verdict counts, and rubric metadata to exported run indexes.
