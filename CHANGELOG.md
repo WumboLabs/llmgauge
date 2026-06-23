@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.28 - Unreleased
+## v0.28 - 2026-06-23
 
 - Added scored interpretation summaries to run reports.
 - Added public reporting guidance for evidence, claim boundaries, and report structure.
