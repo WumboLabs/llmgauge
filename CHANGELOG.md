@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.33 - Unreleased
+## v0.33 - 2026-06-23
 
 - Added Fit Ladder foundation helpers for context fallback planning, attempt records, OOM/process-killed/runtime failure classification, and fit-ladder summaries.
 - Kept Fit Ladder execution opt-in and deferred the retry execution loop to a later release.
