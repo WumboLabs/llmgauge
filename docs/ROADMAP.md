@@ -43,10 +43,19 @@ Goals:
 
 ### v0.33: Fit Ladder foundation
 
+Goals:
+
+- add context-first fallback planning helpers
+- classify OOM, process-killed, and generic runtime failures
+- define attempt records and fit-ladder summary structures
+- keep execution opt-in and avoid silent fallback in normal commands
+
+### v0.34: Fit Ladder execution loop
+
 Potential work:
 
-- implement opt-in fit-ladder attempt planning
-- classify OOM and fit failures
+- add an explicit fit-ladder command or option
+- execute planned attempts in bounded order
 - preserve failed attempt artifacts
 - print retry status such as `OOM detected at ctx=65536; retrying at ctx=32768`
 - lower context first, then batch/ubatch if configured

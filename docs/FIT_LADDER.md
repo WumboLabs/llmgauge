@@ -91,3 +91,14 @@ A completed Fit Ladder result may say that a model fits under the selected fallb
 It should not claim that the originally requested settings worked if they failed.
 
 It should not compare quality across attempts unless equivalent prompts, scoring, and review were performed.
+
+## v0.33 foundation
+
+The initial implementation layer defines helper logic only:
+
+- context-first fallback attempt planning
+- fit-attempt records
+- OOM, process-killed, and generic runtime failure classification
+- parent fit-ladder summary structures
+
+This foundation does not yet execute retries. Normal `run` and `run-ladder` behavior must remain unchanged unless a future Fit Ladder command or option is explicitly invoked.

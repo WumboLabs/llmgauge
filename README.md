@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.31
+Current stable tag: v0.32
 
-Current development line: v0.32
+Current development line: v0.33
 
 Current capabilities:
 
