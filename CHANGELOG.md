@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.31 - Unreleased
+## v0.31 - 2026-06-23
 
 - Added `llmgauge run --dry-run` to resolve and print run plans without launching llama.cpp or creating result artifacts.
 
