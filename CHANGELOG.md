@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.29 - Unreleased
+## v0.29 - 2026-06-23
 
 - Expanded `llmgauge doctor` to check config, llama-cli, model profiles, selected model file paths, built-in suites, and optional NVIDIA telemetry.
 - Added a clean quickstart for first-run setup, validation, scoring, and export-index workflow.
