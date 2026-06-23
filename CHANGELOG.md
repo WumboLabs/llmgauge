@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.26 - Unreleased
+## v0.26 - 2026-06-23
 
 - Added evaluation tier documentation to define what LLMGauge results can and cannot claim.
 - Added Practical Eval v1 publication-grade prompt quality and scoring guidance.
