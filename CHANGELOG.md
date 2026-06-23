@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.30 - Unreleased
+## v0.30 - 2026-06-23
 
 - Added `llmgauge init-config` to create ignored local config files from example templates.
 - Added `llmgauge list-model-profiles` to inspect configured model profiles and model path status.
