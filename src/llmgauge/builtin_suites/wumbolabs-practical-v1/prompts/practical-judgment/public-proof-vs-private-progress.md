@@ -16,6 +16,8 @@ Prioritize these tasks.
 
 Requirements:
 - Classify each task as `public-proof`, `supporting-infrastructure`, or `private-progress`.
+- Treat C as `private-progress` unless tied to a specific publishable comparison.
+- Treat F as `supporting-infrastructure` that may outrank UI work if the public report needs it.
 - Pick the top three tasks in order.
 - Challenge at least two tasks that should not be done now.
 - Do not dismiss infrastructure if it directly supports public reporting.

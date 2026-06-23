@@ -3,6 +3,8 @@ Return only valid JSON. Do not use Markdown. Do not include commentary before or
 Task:
 Create a concise risk register for publishing a WumboLabs model report based only on a Tier 1 smoke suite.
 
+This is about local LLM model-report evidence, not generic software release testing.
+
 JSON schema:
 {
   "risk_register": [
@@ -20,5 +22,7 @@ JSON schema:
 Requirements:
 - Include exactly five risks.
 - Use only the allowed severity values.
+- Risks must be specific to model evaluation/reporting from Tier 1 smoke evidence.
 - The final decision must reflect that Tier 1 smoke evidence is not enough for a recommendation.
+- `claim_limit` must say that Tier 1 supports smoke-screen claims only, not recommendations or rankings.
 - Keep each string under 140 characters.

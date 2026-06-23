@@ -5,6 +5,7 @@ Context:
 - `qbittorrent` should route through `gluetun`.
 - The user wants conservative changes and verification before applying.
 - Do not suggest wiping volumes or changing unrelated services.
+- If `qbittorrent` uses `network_mode: service:gluetun`, it must not define its own `ports`; required exposed ports must be defined on `gluetun`.
 
 Compose snippet:
 
@@ -48,7 +49,9 @@ Requirements:
 - Do not invent Docker Compose options.
 - Do not claim this is the user's real current config.
 - Explain why the current `qbittorrent` network mode is a problem.
-- Explain port exposure risks.
+- Explain why qBittorrent should not define `ports` when sharing Gluetun's network namespace.
+- Put the qBittorrent WebUI exposure on `gluetun`.
+- Do not expose BitTorrent peer ports unless the prompt proves they are needed.
 - Provide a minimal corrected Compose snippet for only the relevant parts.
 - Include read-only verification commands.
 - Include rollback advice.

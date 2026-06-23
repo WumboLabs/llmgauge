@@ -42,12 +42,7 @@ The result JSON shape for this task is:
         "observed_headroom_mib": 3802,
         "warnings": []
       },
-      "score": {
-        "verdict": "pass",
-        "prompt_average": 4.5,
-        "failure_labels": [],
-        "good_labels": ["verification_first", "safe_stepwise_plan"]
-      }
+      "score": null
     }
   ]
 }
@@ -59,6 +54,9 @@ Requirements:
 - Accept the result JSON path as the first CLI argument.
 - Handle missing optional fields by printing `unknown`.
 - Do not crash if `results` is empty.
+- Do not crash if `score` is null.
+- Compute average generation tokens/sec using only results where `metrics.generation_tps` is numeric.
+- Compute average prompt-eval tokens/sec using only results where `metrics.prompt_eval_tps` is numeric.
 - Print:
   - run id
   - model id
@@ -68,7 +66,7 @@ Requirements:
   - average prompt-eval tokens/sec across prompt results where present
   - peak VRAM max from `vram.peak_used_mib` where present
   - minimum VRAM headroom from `vram_guardrails.observed_headroom_mib` where present
-  - per-prompt verdict rows
+  - per-prompt verdict rows, using `unknown` when score/verdict is missing
 - Prefer nested `metrics`, `vram`, and `vram_guardrails` values.
 - Treat `metrics.peak_vram_mib` and `metrics.vram_headroom_mib` as legacy/null fields unless populated.
 - Do not use third-party dependencies.
