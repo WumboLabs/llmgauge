@@ -322,4 +322,21 @@ Do not treat score averages as universal model rankings. Compare them with the
 prompt suite, context size, token budget, raw/cleaned outputs, speed, VRAM
 headroom, and task stakes.
 
+After applying scores, export a validated index for public-proof or importer workflows:
+
+    uv run llmgauge export-index \
+      "$OUT_DIR" \
+      --validate \
+      --out "tmp/${MODEL_PROFILE}-scored-index.json"
+
+For scored runs, `export-index` includes report-ready scoring metadata such as
+`scoring_status`, `scored_prompt_count`, `manual_score_average`, aggregate
+failure/good labels, verdict counts, and rubric metadata. These fields help a
+website, report script, or importer summarize score state without opening every
+prompt result.
+
+The export index is still metadata. Public claims should continue to cite the
+validated run, score file, report, and relevant cleaned/raw outputs when making
+specific quality claims.
+
 Use `docs/SCORING_RUBRICS.md` as the stable scoring guide for dimensions, labels, verdicts, and safety-sensitive local-ops review.
