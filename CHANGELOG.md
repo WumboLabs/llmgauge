@@ -5,6 +5,16 @@
 - Added evaluation tier documentation to define what LLMGauge results can and cannot claim.
 - Added Practical Eval v1 publication-grade prompt quality and scoring guidance.
 - Added the initial WumboLabs Practical Eval v1 seed suite with 10 prompts.
+- Added suite-aware manual score templates that use suite-defined dimensions when available.
+- Added manual score label validation against the selected rubric or suite vocabulary.
+- Tightened the WumboLabs Practical Eval v1 seed prompts after shakedown review.
+- Validated the v0.26 Practical Eval v1 workflow with a local Mellum2 Instruct shakedown run:
+  - 10/10 prompts completed
+  - result validation passed
+  - suite-aware scoring passed
+  - scored report generated successfully
+  - manual score average: 3.59 / 5
+- Clarified that Practical Eval v1 is still a seed suite and should not be treated as a finished public benchmark.
 
 ## v0.25 - 2026-06-21
 
