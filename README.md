@@ -310,6 +310,7 @@ See `docs/EVALUATION_TIERS.md` for what LLMGauge results can and cannot claim.
 See `docs/PRACTICAL_EVAL_V1.md` for the Tier 2 prompt quality standard.
 See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
 See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
+See `docs/PUBLIC_REPORTING.md` for public-report claim boundaries and required evidence.
 
 ## Documentation
 

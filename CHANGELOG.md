@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.28 - Unreleased
+
+- Added scored interpretation summaries to run reports.
+- Added public reporting guidance for evidence, claim boundaries, and report structure.
+
 ## v0.27 - 2026-06-23
 
 - Added public-proof scoring metadata to run items in `export-index`.
