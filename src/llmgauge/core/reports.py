@@ -7,11 +7,87 @@ def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
 
 
-def _score_average(prompt_result: dict[str, Any]) -> Any:
+def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
     score = prompt_result.get("score")
-    if not isinstance(score, dict):
-        return None
-    return score.get("prompt_average")
+    return score if isinstance(score, dict) else {}
+
+
+def _score_average(prompt_result: dict[str, Any]) -> Any:
+    return _score_dict(prompt_result).get("prompt_average")
+
+
+def _scored_results(result: dict[str, Any]) -> list[dict[str, Any]]:
+    return [item for item in result["results"] if isinstance(item.get("score"), dict)]
+
+
+def _scoring_status(result: dict[str, Any]) -> str:
+    summary = result["summary"]
+    scored_prompt_count = summary.get("scored_prompt_count")
+
+    if not isinstance(scored_prompt_count, int):
+        scored_prompt_count = len(_scored_results(result))
+
+    prompt_count = len(result["results"])
+
+    if scored_prompt_count == 0:
+        return "unscored"
+    if scored_prompt_count < prompt_count:
+        return "partially_scored"
+    return "scored"
+
+
+def _verdict_counts(scored_results: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+
+    for prompt_result in scored_results:
+        verdict = _score_dict(prompt_result).get("verdict")
+        if isinstance(verdict, str) and verdict:
+            counts[verdict] = counts.get(verdict, 0) + 1
+
+    return counts
+
+
+def _fmt_counts(counts: dict[str, int]) -> str:
+    if not counts:
+        return "None"
+
+    return ", ".join(f"{label}: {count}" for label, count in sorted(counts.items()))
+
+
+def _top_label_counts(labels: dict[str, Any], *, limit: int = 3) -> str:
+    numeric_labels = [
+        (label, count)
+        for label, count in labels.items()
+        if isinstance(label, str) and isinstance(count, int)
+    ]
+
+    if not numeric_labels:
+        return "None"
+
+    top = sorted(numeric_labels, key=lambda item: (-item[1], item[0]))[:limit]
+    return ", ".join(f"{label}: {count}" for label, count in top)
+
+
+def _prompt_score_extreme(
+    scored_results: list[dict[str, Any]],
+    *,
+    highest: bool,
+) -> str:
+    prompt_scores: list[tuple[str, float]] = []
+
+    for prompt_result in scored_results:
+        average = _score_average(prompt_result)
+        if isinstance(average, int | float):
+            prompt_scores.append((prompt_result["prompt_id"], float(average)))
+
+    if not prompt_scores:
+        return "None"
+
+    prompt_id, score = (max if highest else min)(
+        prompt_scores,
+        key=lambda item: item[1],
+    )
+    return f"{prompt_id} ({score:g} / 5)"
 
 
 def _fmt_optional_mib(value: Any) -> str:
@@ -109,6 +185,22 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 lines.append(f"- {label}: {count}")
             lines.append("")
 
+        scored_results = _scored_results(result)
+        lines.extend(
+            [
+                "## Scored Interpretation",
+                "",
+                f"- Scoring status: {_scoring_status(result)}",
+                f"- Verdict counts: {_fmt_counts(_verdict_counts(scored_results))}",
+                f"- Highest scored prompt: {_prompt_score_extreme(scored_results, highest=True)}",
+                f"- Lowest scored prompt: {_prompt_score_extreme(scored_results, highest=False)}",
+                f"- Most common failure labels: {_top_label_counts(failure_labels)}",
+                f"- Most common good labels: {_top_label_counts(good_labels)}",
+                "- Claim boundary: manual scores are review metadata from this run, not universal model rankings or recommendations.",
+                "",
+            ]
+        )
+
     lines.extend(
         [
             "## Prompt Results",
@@ -133,9 +225,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{prompt_result['exit_status']} |"
         )
 
-    scored_results = [
-        item for item in result["results"] if isinstance(item.get("score"), dict)
-    ]
+    scored_results = _scored_results(result)
 
     if scored_results:
         lines.extend(["", "## Manual Review Notes", ""])

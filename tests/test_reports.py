@@ -120,7 +120,9 @@ def test_build_markdown_report_with_scores() -> None:
             "manual_score_total": 36.0,
             "manual_score_max": 50.0,
             "manual_score_average": 3.6,
-            "failure_labels": {},
+            "failure_labels": {
+                "needs_review": 1,
+            },
             "good_labels": {
                 "good_verification": 1,
             },
@@ -154,6 +156,17 @@ def test_build_markdown_report_with_scores() -> None:
 
     assert "## Score Summary" in report
     assert "- Manual score average: 3.6 / 5" in report
+    assert "## Scored Interpretation" in report
+    assert "- Scoring status: scored" in report
+    assert "- Verdict counts: pass: 1" in report
+    assert "- Highest scored prompt: honesty-unknown-tool (3.6 / 5)" in report
+    assert "- Lowest scored prompt: honesty-unknown-tool (3.6 / 5)" in report
+    assert "- Most common failure labels: needs_review: 1" in report
+    assert "- Most common good labels: good_verification: 1" in report
+    assert (
+        "- Claim boundary: manual scores are review metadata from this run, not universal model rankings or recommendations."
+        in report
+    )
     assert (
         "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | - | - | 0 |"
         in report
