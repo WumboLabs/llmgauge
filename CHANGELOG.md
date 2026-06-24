@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.34 - Unreleased
+
+- Added explicit `llmgauge fit-ladder` execution for opt-in context fallback attempts.
+- Added `llmgauge fit-ladder --dry-run` to preview requested context and fallback attempt order without launching llama.cpp.
+- Fit Ladder now writes `fit-ladder-summary.json` and stops at the first completed attempt while preserving failed attempt directories.
+
 ## v0.33 - 2026-06-23
 
 - Added Fit Ladder foundation helpers for context fallback planning, attempt records, OOM/process-killed/runtime failure classification, and fit-ladder summaries.

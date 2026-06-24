@@ -8,9 +8,9 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 ## Current status
 
-Current stable tag: v0.32
+Current stable tag: v0.33
 
-Current development line: v0.33
+Current development line: v0.34
 
 Current capabilities:
 
@@ -21,6 +21,7 @@ Current capabilities:
 - Run one prompt, one category, or a full suite.
 - Preview run plans without launching llama.cpp using `run --dry-run`.
 - Preview ladder plans without launching llama.cpp using `run-ladder --dry-run`.
+- Run explicit context fallback attempts with `fit-ladder`.
 - Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
 - Generate Markdown reports.
 - Create and apply manual score templates.

@@ -39,6 +39,11 @@ from llmgauge.core.ladder import (
     write_ladder_summary,
 )
 from llmgauge.core.ladder_validation import validate_ladder_dir
+from llmgauge.core.fit_ladder import (
+    build_fit_attempt_plan,
+    build_fit_attempt_record,
+    build_fit_ladder_summary,
+)
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir, slugify_run_name
@@ -1151,6 +1156,384 @@ def _print_ladder_preflight(
         "launched and no ladder or result directories were created."
     )
 
+
+def _read_attempt_artifact(result_dir: Path, relative_path: Any) -> str:
+    if not isinstance(relative_path, str) or not relative_path:
+        return ""
+
+    path = result_dir / relative_path
+    if not path.exists():
+        return ""
+
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _build_fit_attempt_record_from_result(
+    *,
+    attempt: dict[str, Any],
+    result: dict[str, Any],
+    result_dir: Path,
+) -> dict[str, Any]:
+    prompt_results = result.get("results", [])
+    if not isinstance(prompt_results, list):
+        prompt_results = []
+
+    failed_prompt = next(
+        (
+            prompt
+            for prompt in prompt_results
+            if isinstance(prompt, dict) and prompt.get("status") == "failed"
+        ),
+        None,
+    )
+
+    first_prompt = next(
+        (prompt for prompt in prompt_results if isinstance(prompt, dict)),
+        None,
+    )
+    source_prompt = failed_prompt or first_prompt or {}
+
+    run = result.get("run", {})
+    run_status = run.get("status") if isinstance(run, dict) else None
+
+    if failed_prompt is None and run_status == "completed":
+        exit_status = 0
+    else:
+        raw_exit_status = source_prompt.get("exit_status")
+        exit_status = raw_exit_status if isinstance(raw_exit_status, int) else 1
+
+    stdout = _read_attempt_artifact(result_dir, source_prompt.get("raw_output_path"))
+    stderr = _read_attempt_artifact(result_dir, source_prompt.get("stderr_log_path"))
+
+    if not stderr and source_prompt.get("error"):
+        stderr = str(source_prompt["error"])
+
+    vram_summary = source_prompt.get("vram")
+    if not isinstance(vram_summary, dict):
+        vram_summary = None
+
+    return build_fit_attempt_record(
+        attempt_id=str(attempt["attempt_id"]),
+        ctx_size=int(attempt["ctx_size"]),
+        batch_size=int(attempt["batch_size"]),
+        ubatch_size=int(attempt["ubatch_size"]),
+        gpu_layers=int(attempt["gpu_layers"]),
+        exit_status=exit_status,
+        stdout=stdout,
+        stderr=stderr,
+        result_dir=str(result_dir),
+        vram_summary=vram_summary,
+    )
+
+
+def _print_fit_ladder_preflight(
+    *,
+    suite: Path,
+    loaded_suite: dict[str, Any],
+    only: str | None,
+    include: str,
+    resolved: dict[str, Any],
+    attempts: list[dict[str, Any]],
+    out: Path | None,
+    auto_name: bool,
+    runs_root: Path,
+    run_name: str | None,
+    default_run_name: str,
+) -> None:
+    selected_prompts = _select_prompts(loaded_suite, only, include)
+
+    if out is not None:
+        output_plan = str(out)
+    elif auto_name:
+        output_plan = (
+            f"auto-name under {runs_root} with fit-ladder name "
+            f"{run_name or default_run_name}"
+        )
+    else:
+        output_plan = (
+            "not required for --dry-run; real fit-ladder runs require --out or --auto-name"
+        )
+
+    selection = f"only={only}" if only else f"include={include}"
+
+    table = Table(title="LLMGauge Fit Ladder Dry Run")
+    table.add_column("Field", no_wrap=True)
+    table.add_column("Value")
+
+    table.add_row("Suite", str(loaded_suite.get("suite_id", suite)))
+    table.add_row("Suite path", str(suite))
+    table.add_row("Selection", selection)
+    table.add_row("Prompt count", str(len(selected_prompts)))
+    table.add_row("Model ID", str(resolved["model_id"]))
+    table.add_row("Model profile", str(resolved["model_profile"]))
+    table.add_row("Config", str(resolved["config_path"]))
+    table.add_row("Model profiles", str(resolved["model_profiles_path"]))
+    table.add_row("Model path", str(resolved["model_path"]))
+    table.add_row("llama-cli", str(resolved["llama_cli"]))
+    table.add_row("Max tokens", str(resolved["max_tokens"]))
+    table.add_row("Temperature", str(resolved["temp"]))
+    table.add_row("Top-p", str(resolved["top_p"]))
+    table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Output plan", output_plan)
+
+    console.print(table)
+
+    attempt_table = Table(title="Planned Fit Attempts")
+    attempt_table.add_column("Attempt", no_wrap=True)
+    attempt_table.add_column("Context", no_wrap=True)
+    attempt_table.add_column("Batch", no_wrap=True)
+    attempt_table.add_column("UBatch", no_wrap=True)
+    attempt_table.add_column("Fallback axes")
+
+    for attempt in attempts:
+        attempt_table.add_row(
+            str(attempt["attempt_id"]),
+            str(attempt["ctx_size"]),
+            str(attempt["batch_size"]),
+            str(attempt["ubatch_size"]),
+            ", ".join(attempt["fallback_axes"]) or "none",
+        )
+
+    console.print(attempt_table)
+    console.print(
+        "[bold green]Fit ladder dry run complete[/bold green]: llama.cpp was not "
+        "launched and no fit-ladder directories were created."
+    )
+
+
+@app.command("fit-ladder")
+def fit_ladder(
+    suite: Path = typer.Option(..., "--suite", help="Suite directory"),
+    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    include: str = typer.Option(
+        "all",
+        "--include",
+        help="Prompt category to run, or 'all'. Ignored when --only is set.",
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
+    model_profile: str | None = typer.Option(
+        None, "--model-profile", help="Model profile name"
+    ),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="LLMGauge config YAML"
+    ),
+    model_profiles_path: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Model profiles YAML",
+    ),
+    model_path: Path | None = typer.Option(
+        None, "--model-path", help="GGUF model path"
+    ),
+    llama_cli: Path | None = typer.Option(None, "--llama-cli", help="llama-cli path"),
+    ctx: int | None = typer.Option(None, "--ctx", help="Requested context size"),
+    fallback_contexts: str | None = typer.Option(
+        None,
+        "--fallback-contexts",
+        help="Comma-separated fallback context sizes. Default: 8192,16384,32768",
+    ),
+    allow_extreme_context: bool = typer.Option(
+        False,
+        "--allow-extreme-context",
+        help="Allow fallback context values above 65536 up to 262144",
+    ),
+    max_tokens: int | None = typer.Option(
+        None, "--max-tokens", help="Max generated tokens"
+    ),
+    temp: float | None = typer.Option(None, "--temp", help="Temperature"),
+    top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
+    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
+    ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
+    gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    out: Path | None = typer.Option(None, "--out", help="Output fit-ladder directory"),
+    auto_name: bool = typer.Option(
+        False,
+        "--auto-name",
+        help="Automatically create a timestamped output directory",
+    ),
+    runs_root: Path = typer.Option(
+        Path("results"),
+        "--runs-root",
+        help="Root directory for auto-named fit-ladder runs",
+    ),
+    run_name: str | None = typer.Option(
+        None,
+        "--run-name",
+        help="Name slug for auto-named fit-ladder directories",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Resolve and print the fit-ladder plan without launching llama.cpp",
+    ),
+) -> None:
+    """Run explicit context fallback attempts until one fits or all fail."""
+    resolved_suite = resolve_suite_path(suite)
+    loaded_suite = load_suite(resolved_suite)
+
+    base_resolved = _resolve_run_options(
+        model_id=model_id,
+        model_profile=model_profile,
+        config_path=config_path,
+        model_profiles_path=model_profiles_path,
+        model_path=model_path,
+        llama_cli=llama_cli,
+        ctx=ctx,
+        max_tokens=max_tokens,
+        temp=temp,
+        top_p=top_p,
+        batch=batch,
+        ubatch=ubatch,
+        gpu_layers=gpu_layers,
+    )
+
+    try:
+        fallback_values = parse_ctx_ladder(
+            fallback_contexts,
+            allow_extreme_context=allow_extreme_context,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    attempts = build_fit_attempt_plan(
+        requested_ctx=base_resolved["ctx"],
+        fallback_contexts=fallback_values,
+        batch_size=base_resolved["batch"],
+        ubatch_size=base_resolved["ubatch"],
+        gpu_layers=base_resolved["gpu_layers"],
+    )
+    default_run_name = f"fit-{base_resolved['model_id']}-{suite.name}"
+
+    if dry_run:
+        _print_fit_ladder_preflight(
+            suite=resolved_suite,
+            loaded_suite=loaded_suite,
+            only=only,
+            include=include,
+            resolved=base_resolved,
+            attempts=attempts,
+            out=out,
+            auto_name=auto_name,
+            runs_root=runs_root,
+            run_name=run_name,
+            default_run_name=default_run_name,
+        )
+        return
+
+    resolved_out = _resolve_cli_output_dir(
+        out=out,
+        auto_name=auto_name,
+        runs_root=runs_root,
+        run_name=run_name,
+        default_run_name=default_run_name,
+    )
+    resolved_out.mkdir(parents=True, exist_ok=True)
+
+    console.print(
+        f"Running fit ladder [bold]{resolved_out.name}[/bold] with "
+        f"[bold]{len(attempts)}[/bold] planned attempt(s)"
+    )
+
+    attempt_records: list[dict[str, Any]] = []
+
+    for index, attempt in enumerate(attempts):
+        attempt_id = str(attempt["attempt_id"])
+        ctx_size = int(attempt["ctx_size"])
+        attempt_dir = resolved_out / f"{attempt_id}-ctx-{ctx_size}"
+
+        console.print(
+            f"[{index + 1}/{len(attempts)}] Fit attempt "
+            f"[bold]{attempt_id}[/bold] at ctx [bold]{ctx_size}[/bold]"
+        )
+
+        attempt_resolved = dict(base_resolved)
+        attempt_resolved["ctx"] = ctx_size
+        attempt_resolved["batch"] = int(attempt["batch_size"])
+        attempt_resolved["ubatch"] = int(attempt["ubatch_size"])
+        attempt_resolved["gpu_layers"] = int(attempt["gpu_layers"])
+
+        try:
+            result = _execute_run(
+                suite=suite,
+                only=only,
+                include=include,
+                resolved=attempt_resolved,
+                out=attempt_dir,
+                fail_on_failed_prompts=False,
+            )
+            record = _build_fit_attempt_record_from_result(
+                attempt=attempt,
+                result=result,
+                result_dir=attempt_dir,
+            )
+        except Exception as exc:
+            record = build_fit_attempt_record(
+                attempt_id=attempt_id,
+                ctx_size=ctx_size,
+                batch_size=int(attempt["batch_size"]),
+                ubatch_size=int(attempt["ubatch_size"]),
+                gpu_layers=int(attempt["gpu_layers"]),
+                exit_status=1,
+                stderr=str(exc),
+                result_dir=str(attempt_dir),
+            )
+            console.print(f"[bold red]Fit attempt failed[/bold red]: {exc}")
+
+        attempt_records.append(record)
+
+        if record["status"] == "completed":
+            console.print(
+                f"[bold green]Fit ladder selected ctx={ctx_size}[/bold green]"
+            )
+            break
+
+        has_next_attempt = index + 1 < len(attempts)
+        if record["retryable"] and has_next_attempt:
+            next_ctx = attempts[index + 1]["ctx_size"]
+            console.print(
+                f"[bold yellow]{record['failure_class']} detected at ctx={ctx_size}; "
+                f"retrying at ctx={next_ctx}[/bold yellow]"
+            )
+            continue
+
+        if not record["retryable"]:
+            console.print(
+                f"[bold red]Non-retryable fit failure at ctx={ctx_size}[/bold red]: "
+                f"{record['failure_reason']}"
+            )
+        break
+
+    summary = build_fit_ladder_summary(
+        fit_ladder_id=resolved_out.name,
+        requested_settings={
+            "suite_id": loaded_suite["suite_id"],
+            "include": include,
+            "only": only,
+            "model_id": base_resolved["model_id"],
+            "model_profile": base_resolved["model_profile"],
+            "ctx_size": base_resolved["ctx"],
+            "batch_size": base_resolved["batch"],
+            "ubatch_size": base_resolved["ubatch"],
+            "gpu_layers": base_resolved["gpu_layers"],
+            "max_tokens": base_resolved["max_tokens"],
+            "temperature": base_resolved["temp"],
+            "top_p": base_resolved["top_p"],
+        },
+        retry_policy={
+            "fallback_order": ["context"],
+            "fallback_contexts": fallback_values,
+            "stop_on_first_completed": True,
+            "gpu_layer_fallback": "explicit-only",
+        },
+        attempts=attempt_records,
+    )
+    write_json(resolved_out / "fit-ladder-summary.json", summary)
+
+    if summary["final_status"] == "failed":
+        console.print(f"[bold red]Fit ladder failed[/bold red]: {resolved_out}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold green]Fit ladder completed[/bold green]: {resolved_out}")
 
 @app.command("run-ladder")
 def run_ladder(

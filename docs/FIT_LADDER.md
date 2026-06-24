@@ -102,3 +102,26 @@ The initial implementation layer defines helper logic only:
 - parent fit-ladder summary structures
 
 This foundation does not yet execute retries. Normal `run` and `run-ladder` behavior must remain unchanged unless a future Fit Ladder command or option is explicitly invoked.
+
+## v0.34 execution loop
+
+The initial execution loop is explicit and context-only:
+
+    uv run llmgauge fit-ladder \
+      --suite core-v1 \
+      --include honesty \
+      --model-profile example_model \
+      --ctx 65536 \
+      --fallback-contexts 8192,32768 \
+      --out results/example-fit-ladder
+
+Behavior:
+
+- requested context is attempted first
+- lower fallback contexts are attempted from largest to smallest
+- retry continues only for retryable fit failures such as OOM or process-killed failures
+- non-retryable runtime errors stop the ladder
+- execution stops at the first completed attempt
+- failed attempt directories are preserved
+- parent summary is written to `fit-ladder-summary.json`
+- GPU-layer fallback remains explicit-only and is not automatically applied
