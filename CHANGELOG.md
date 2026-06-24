@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.34 - Unreleased
+## v0.34 - 2026-06-23
 
 - Added explicit `llmgauge fit-ladder` execution for opt-in context fallback attempts.
 - Added `llmgauge fit-ladder --dry-run` to preview requested context and fallback attempt order without launching llama.cpp.
