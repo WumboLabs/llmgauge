@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.35 - Unreleased
+
+- Added Fit Ladder artifact validation with `validate-fit-ladder`.
+- Added Fit Ladder artifact detection and metadata to `export-index`.
+- Added `fit-ladder-report.md` generation for Fit Ladder runs.
+
 ## v0.34 - 2026-06-23
 
 - Added explicit `llmgauge fit-ladder` execution for opt-in context fallback attempts.

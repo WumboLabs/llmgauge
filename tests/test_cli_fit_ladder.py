@@ -149,6 +149,7 @@ def test_fit_ladder_executes_until_first_completed(
 
     summary_path = out / "fit-ladder-summary.json"
     assert summary_path.exists()
+    assert (out / "fit-ladder-report.md").exists()
 
     summary_text = summary_path.read_text(encoding="utf-8")
     assert '"final_status": "completed_with_fallback"' in summary_text
@@ -219,3 +220,4 @@ def test_fit_ladder_stops_on_nonretryable_failure(
     assert len(calls) == 1
     assert "Non-retryable fit failure" in result.output
     assert (out / "fit-ladder-summary.json").exists()
+    assert (out / "fit-ladder-report.md").exists()

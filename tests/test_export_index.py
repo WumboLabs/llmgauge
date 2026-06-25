@@ -25,6 +25,16 @@ def test_detect_artifact_type_ladder(tmp_path: Path) -> None:
     assert detect_artifact_type(result_dir) == "ladder"
 
 
+
+
+def test_detect_artifact_type_fit_ladder(tmp_path: Path) -> None:
+    result_dir = tmp_path / "fit-a"
+    result_dir.mkdir()
+    (result_dir / "fit-ladder-summary.json").write_text("{}", encoding="utf-8")
+
+    assert detect_artifact_type(result_dir) == "fit_ladder"
+
+
 def test_detect_artifact_type_rejects_unknown(tmp_path: Path) -> None:
     result_dir = tmp_path / "unknown"
     result_dir.mkdir()
@@ -203,6 +213,75 @@ def test_build_export_index_for_ladder(tmp_path: Path) -> None:
     assert item["child_run_count"] == 2
     assert item["completed"] == 2
     assert item["failed"] == 0
+
+
+
+
+def test_build_export_index_for_fit_ladder(tmp_path: Path) -> None:
+    result_dir = tmp_path / "fit-a"
+    result_dir.mkdir()
+    (result_dir / "fit-ladder-report.md").write_text("# Fit Ladder\n", encoding="utf-8")
+    (result_dir / "fit-ladder-summary.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.fit_ladder.v0",
+  "fit_ladder_id": "fit-a",
+  "requested_settings": {
+    "suite_id": "core-v1",
+    "include": "honesty",
+    "only": null,
+    "model_id": "test-model",
+    "model_profile": "test-profile",
+    "ctx_size": 65536,
+    "batch_size": 256,
+    "ubatch_size": 64,
+    "gpu_layers": 999
+  },
+  "retry_policy": {
+    "fallback_order": ["context"],
+    "fallback_contexts": [8192, 32768],
+    "stop_on_first_completed": true,
+    "gpu_layer_fallback": "explicit-only"
+  },
+  "selected_working_settings": {
+    "ctx_size": 32768,
+    "batch_size": 256,
+    "ubatch_size": 64,
+    "gpu_layers": 999,
+    "attempt_id": "attempt-02"
+  },
+  "final_status": "completed_with_fallback",
+  "summary": {
+    "attempted": 2,
+    "completed": 1,
+    "failed": 1,
+    "oom_detected": true,
+    "fallback_changed_context": true
+  },
+  "attempts": [
+    {"attempt_id": "attempt-01", "status": "failed", "ctx_size": 65536},
+    {"attempt_id": "attempt-02", "status": "completed", "ctx_size": 32768}
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["artifact_type"] == "fit_ladder"
+    assert item["fit_ladder_id"] == "fit-a"
+    assert item["suite_id"] == "core-v1"
+    assert item["model_id"] == "test-model"
+    assert item["requested_ctx"] == 65536
+    assert item["selected_ctx"] == 32768
+    assert item["attempt_count"] == 2
+    assert item["completed"] == 1
+    assert item["failed"] == 1
+    assert item["oom_detected"] is True
+    assert item["fit_ladder_report"] == str(result_dir / "fit-ladder-report.md")
 
 
 def test_write_export_index(tmp_path: Path) -> None:

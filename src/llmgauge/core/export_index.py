@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from llmgauge.core.batch_validation import validate_batch_dir
+from llmgauge.core.fit_ladder_validation import validate_fit_ladder_dir
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.result_validation import validate_result_dir
 
@@ -13,9 +14,11 @@ from llmgauge.core.result_validation import validate_result_dir
 EXPORT_INDEX_SCHEMA_VERSION = "llmgauge.export_index.v0"
 RUN_RESULT_FILENAME = "llmgauge-result.json"
 LADDER_SUMMARY_FILENAME = "ladder-summary.json"
+FIT_LADDER_SUMMARY_FILENAME = "fit-ladder-summary.json"
 BATCH_SUMMARY_FILENAME = "batch-summary.json"
 RUN_REPORT_FILENAME = "report.md"
 LADDER_REPORT_FILENAME = "ladder-report.md"
+FIT_LADDER_REPORT_FILENAME = "fit-ladder-report.md"
 BATCH_REPORT_FILENAME = "batch-report.md"
 
 
@@ -152,6 +155,9 @@ def detect_artifact_type(path: Path) -> str:
     if path.is_dir() and (path / LADDER_SUMMARY_FILENAME).exists():
         return "ladder"
 
+    if path.is_dir() and (path / FIT_LADDER_SUMMARY_FILENAME).exists():
+        return "fit_ladder"
+
     if path.is_dir() and (path / BATCH_SUMMARY_FILENAME).exists():
         return "batch"
 
@@ -243,6 +249,69 @@ def build_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, 
     return item
 
 
+def build_fit_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
+    summary_path = path / FIT_LADDER_SUMMARY_FILENAME
+    fit_ladder = _read_json(summary_path)
+
+    summary = fit_ladder.get("summary", {})
+    requested = fit_ladder.get("requested_settings", {})
+    selected = fit_ladder.get("selected_working_settings")
+    retry_policy = fit_ladder.get("retry_policy", {})
+    attempts = fit_ladder.get("attempts", [])
+
+    if not isinstance(summary, dict):
+        summary = {}
+    if not isinstance(requested, dict):
+        requested = {}
+    if not isinstance(selected, dict):
+        selected = None
+    if not isinstance(retry_policy, dict):
+        retry_policy = {}
+    if not isinstance(attempts, list):
+        attempts = []
+
+    completed_attempts = [
+        attempt
+        for attempt in attempts
+        if isinstance(attempt, dict) and attempt.get("status") == "completed"
+    ]
+    failed_attempts = [
+        attempt
+        for attempt in attempts
+        if isinstance(attempt, dict) and attempt.get("status") == "failed"
+    ]
+
+    item = {
+        "artifact_type": "fit_ladder",
+        "path": str(path),
+        "schema_version": fit_ladder.get("schema_version"),
+        "fit_ladder_summary": str(summary_path),
+        "fit_ladder_report": _optional_path(path / FIT_LADDER_REPORT_FILENAME),
+        "fit_ladder_id": fit_ladder.get("fit_ladder_id") or path.name,
+        "final_status": fit_ladder.get("final_status"),
+        "suite_id": requested.get("suite_id"),
+        "model_id": requested.get("model_id"),
+        "model_profile": requested.get("model_profile"),
+        "requested_ctx": requested.get("ctx_size"),
+        "selected_ctx": selected.get("ctx_size") if selected else None,
+        "fallback_contexts": retry_policy.get("fallback_contexts"),
+        "attempt_count": len(attempts),
+        "completed": summary.get("completed"),
+        "failed": summary.get("failed"),
+        "attempted": summary.get("attempted"),
+        "oom_detected": summary.get("oom_detected"),
+        "fallback_changed_context": summary.get("fallback_changed_context"),
+        "has_attempts": bool(attempts),
+        "has_completed_attempt": bool(completed_attempts),
+        "has_failed_attempts": bool(failed_attempts),
+    }
+
+    if validate:
+        item["validation"] = _validation_payload(validate_fit_ladder_dir(path))
+
+    return item
+
+
 def build_batch_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
     summary_path = path / BATCH_SUMMARY_FILENAME
     batch = _read_json(summary_path)
@@ -308,6 +377,8 @@ def build_export_index(paths: list[Path], *, validate: bool = False) -> dict[str
             items.append(build_run_index_item(path, validate=validate))
         elif artifact_type == "ladder":
             items.append(build_ladder_index_item(path, validate=validate))
+        elif artifact_type == "fit_ladder":
+            items.append(build_fit_ladder_index_item(path, validate=validate))
         elif artifact_type == "batch":
             items.append(build_batch_index_item(path, validate=validate))
         else:

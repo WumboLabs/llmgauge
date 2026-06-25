@@ -125,3 +125,14 @@ Behavior:
 - failed attempt directories are preserved
 - parent summary is written to `fit-ladder-summary.json`
 - GPU-layer fallback remains explicit-only and is not automatically applied
+
+## v0.35 artifact polish
+
+Fit Ladder artifacts are first-class review artifacts:
+
+- `fit-ladder-summary.json` stores requested settings, retry policy, selected working settings, and attempts.
+- `fit-ladder-report.md` provides a human-readable summary.
+- `validate-fit-ladder` validates summary shape, attempt records, counts, selected working settings, and completed child result artifacts.
+- `export-index` detects Fit Ladder directories and records fit-specific metadata.
+
+Fit Ladder reports preserve the core claim boundary: the selected fallback settings may be reported as working on the tested hardware/runtime, but failed requested settings must not be described as successful.

@@ -4,7 +4,9 @@ from llmgauge.core.fit_ladder import (
     build_context_fallback_plan,
     build_fit_attempt_plan,
     build_fit_attempt_record,
+    build_fit_ladder_report,
     build_fit_ladder_summary,
+    write_fit_ladder_report,
     classify_fit_failure,
 )
 
@@ -167,3 +169,84 @@ def test_build_fit_ladder_summary_records_total_failure() -> None:
     assert summary["final_status"] == "failed"
     assert summary["selected_working_settings"] is None
     assert summary["summary"]["completed"] == 0
+
+
+def test_build_fit_ladder_report() -> None:
+    attempts = [
+        build_fit_attempt_record(
+            attempt_id="attempt-01",
+            ctx_size=65536,
+            batch_size=256,
+            ubatch_size=64,
+            gpu_layers=999,
+            exit_status=1,
+            stderr="CUDA error: out of memory",
+            result_dir="attempt-01-ctx-65536",
+        ),
+        build_fit_attempt_record(
+            attempt_id="attempt-02",
+            ctx_size=32768,
+            batch_size=256,
+            ubatch_size=64,
+            gpu_layers=999,
+            exit_status=0,
+            stdout="ok",
+            result_dir="attempt-02-ctx-32768",
+        ),
+    ]
+    summary = build_fit_ladder_summary(
+        fit_ladder_id="fit-test",
+        requested_settings={
+            "suite_id": "core-v1",
+            "include": "honesty",
+            "only": None,
+            "model_id": "test-model",
+            "model_profile": "test-profile",
+            "ctx_size": 65536,
+            "batch_size": 256,
+            "ubatch_size": 64,
+            "gpu_layers": 999,
+            "max_tokens": 100,
+            "temperature": 0.2,
+            "top_p": 0.95,
+        },
+        retry_policy={
+            "fallback_order": ["context"],
+            "fallback_contexts": [8192, 32768],
+            "stop_on_first_completed": True,
+            "gpu_layer_fallback": "explicit-only",
+        },
+        attempts=attempts,
+    )
+
+    report = build_fit_ladder_report(summary)
+
+    assert "# LLMGauge Fit Ladder: fit-test" in report
+    assert "- Final status: completed_with_fallback" in report
+    assert "- Requested context: 65536" in report
+    assert "- Context: 32768" in report
+    assert "| attempt-01 | 65536 | failed | oom | True | 1 |" in report
+    assert "It must not claim the originally requested settings worked" in report
+
+
+def test_write_fit_ladder_report(tmp_path) -> None:
+    summary = build_fit_ladder_summary(
+        fit_ladder_id="fit-test",
+        requested_settings={"ctx_size": 32768},
+        retry_policy={"fallback_order": ["context"]},
+        attempts=[
+            build_fit_attempt_record(
+                attempt_id="attempt-01",
+                ctx_size=32768,
+                batch_size=256,
+                ubatch_size=64,
+                gpu_layers=999,
+                exit_status=0,
+            )
+        ],
+    )
+
+    path = write_fit_ladder_report(tmp_path, summary)
+
+    assert path.exists()
+    assert "# LLMGauge Fit Ladder: fit-test" in path.read_text(encoding="utf-8")

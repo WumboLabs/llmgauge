@@ -63,6 +63,15 @@ Potential work:
 
 See `docs/FIT_LADDER.md`.
 
+### v0.35: Fit Ladder artifact polish
+
+Goals:
+
+- validate Fit Ladder artifact directories
+- index Fit Ladder artifacts through export-index
+- write human-readable Fit Ladder reports
+- preserve conservative claim boundaries around requested vs selected settings
+
 ## Later milestones
 
 - comparison/report workflow polish

@@ -38,11 +38,13 @@ from llmgauge.core.ladder import (
     write_ladder_report,
     write_ladder_summary,
 )
+from llmgauge.core.fit_ladder_validation import validate_fit_ladder_dir
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.fit_ladder import (
     build_fit_attempt_plan,
     build_fit_attempt_record,
     build_fit_ladder_summary,
+    write_fit_ladder_report,
 )
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
@@ -1528,6 +1530,7 @@ def fit_ladder(
         attempts=attempt_records,
     )
     write_json(resolved_out / "fit-ladder-summary.json", summary)
+    write_fit_ladder_report(resolved_out, summary)
 
     if summary["final_status"] == "failed":
         console.print(f"[bold red]Fit ladder failed[/bold red]: {resolved_out}")
@@ -1866,6 +1869,22 @@ def validate_batch(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]OK[/bold green] {batch_dir}")
+
+
+@app.command("validate-fit-ladder")
+def validate_fit_ladder(
+    fit_ladder_dir: Path = typer.Argument(..., help="Fit Ladder artifact directory"),
+) -> None:
+    """Validate a Fit Ladder artifact directory."""
+    errors = validate_fit_ladder_dir(fit_ladder_dir)
+
+    if errors:
+        console.print("[bold red]Invalid fit-ladder artifact[/bold red]")
+        for error in errors:
+            console.print(f"- {error}")
+        raise typer.Exit(code=1)
+
+    console.print("[bold green]Fit Ladder artifact is valid[/bold green]")
 
 
 @app.command("validate-ladder")
