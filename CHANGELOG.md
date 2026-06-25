@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.35 - Unreleased
+## v0.35 - 2026-06-24
 
 - Added Fit Ladder artifact validation with `validate-fit-ladder`.
 - Added Fit Ladder artifact detection and metadata to `export-index`.
