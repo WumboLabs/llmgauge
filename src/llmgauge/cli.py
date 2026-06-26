@@ -1530,13 +1530,15 @@ def fit_ladder(
         attempts=attempt_records,
     )
     write_json(resolved_out / "fit-ladder-summary.json", summary)
-    write_fit_ladder_report(resolved_out, summary)
+    report_path = write_fit_ladder_report(resolved_out, summary)
 
     if summary["final_status"] == "failed":
         console.print(f"[bold red]Fit ladder failed[/bold red]: {resolved_out}")
+        console.print(f"Fit ladder report: {report_path}")
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]Fit ladder completed[/bold green]: {resolved_out}")
+    console.print(f"Fit ladder report: {report_path}")
 
 @app.command("run-ladder")
 def run_ladder(

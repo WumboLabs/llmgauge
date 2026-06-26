@@ -229,6 +229,58 @@ def test_build_fit_ladder_report() -> None:
     assert "It must not claim the originally requested settings worked" in report
 
 
+def test_build_fit_ladder_report_renders_empty_fields_and_vram_summary() -> None:
+    attempt = build_fit_attempt_record(
+        attempt_id="attempt-01",
+        ctx_size=8192,
+        batch_size=256,
+        ubatch_size=64,
+        gpu_layers=999,
+        exit_status=0,
+        vram_summary={
+            "available": True,
+            "error": None,
+            "peak_gpu_name": "NVIDIA Test GPU",
+            "peak_used_mib": 7000,
+            "peak_total_mib": 12000,
+            "sample_count": 5,
+        },
+    )
+    summary = build_fit_ladder_summary(
+        fit_ladder_id="fit-test",
+        requested_settings={
+            "suite_id": "core-v1",
+            "include": "honesty",
+            "only": None,
+            "model_id": "test-model",
+            "model_profile": None,
+            "ctx_size": 8192,
+            "batch_size": 256,
+            "ubatch_size": 64,
+            "gpu_layers": 999,
+            "max_tokens": 100,
+            "temperature": 0.2,
+            "top_p": 0.95,
+        },
+        retry_policy={
+            "fallback_order": ["context"],
+            "fallback_contexts": [4096],
+            "stop_on_first_completed": True,
+            "gpu_layer_fallback": "explicit-only",
+        },
+        attempts=[attempt],
+    )
+
+    report = build_fit_ladder_report(summary)
+
+    assert "- Only: —" in report
+    assert "- Model profile: —" in report
+    assert "| attempt-01 | 8192 | completed | — | False | 0 |" in report
+    assert "## VRAM Summary" in report
+    assert "| attempt-01 | NVIDIA Test GPU | 7000 | 12000 | 5000 | 5 |" in report
+    assert "| None |" not in report
+
+
 def test_write_fit_ladder_report(tmp_path) -> None:
     summary = build_fit_ladder_summary(
         fit_ladder_id="fit-test",
