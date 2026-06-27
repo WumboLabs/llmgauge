@@ -126,6 +126,20 @@ Behavior:
 - parent summary is written to `fit-ladder-summary.json`
 - GPU-layer fallback remains explicit-only and is not automatically applied
 
+## v0.36 report polish
+
+v0.36 improves the human-facing Fit Ladder report without changing Fit Ladder
+execution behavior:
+
+- `llmgauge fit-ladder` prints the generated `fit-ladder-report.md` path after
+  completed or failed runs.
+- Empty report fields render as `—` instead of `None`.
+- `fit-ladder-report.md` includes a VRAM summary table when attempt-level VRAM
+  data is available.
+
+Fit Ladder remains explicit and opt-in. GPU-layer fallback remains
+explicit-only.
+
 ## v0.35 artifact polish
 
 Fit Ladder artifacts are first-class review artifacts:

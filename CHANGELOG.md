@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.36 - Unreleased
+
+- Polished Fit Ladder report output by rendering empty report fields as `—` instead of `None`.
+- Added a VRAM summary table to `fit-ladder-report.md` when attempt-level VRAM data is available.
+- `llmgauge fit-ladder` now prints the generated `fit-ladder-report.md` path after completed or failed runs.
+
 ## v0.35 - 2026-06-24
 
 - Added Fit Ladder artifact validation with `validate-fit-ladder`.
