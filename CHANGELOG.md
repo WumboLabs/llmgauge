@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.36 - Unreleased
+## v0.36 - 2026-06-26
 
 - Polished Fit Ladder report output by rendering empty report fields as `—` instead of `None`.
 - Added a VRAM summary table to `fit-ladder-report.md` when attempt-level VRAM data is available.
