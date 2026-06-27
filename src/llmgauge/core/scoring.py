@@ -62,6 +62,41 @@ ALLOWED_VERDICTS = [
 ]
 
 
+def describe_score_artifact_mismatch(result_dir: Path) -> str | None:
+    """Return a friendly score-target error for non-run artifact directories."""
+
+    if (result_dir / "llmgauge-result.json").exists():
+        return None
+
+    known_parent_artifacts = [
+        (
+            "fit-ladder-summary.json",
+            "Fit Ladder parent",
+            "Use score on a child attempt result directory, not the Fit Ladder parent.",
+        ),
+        (
+            "ladder-summary.json",
+            "context ladder parent",
+            "Use score on a child run result directory, not the ladder parent.",
+        ),
+        (
+            "batch-summary.json",
+            "batch parent",
+            "Use score on a child run result directory, not the batch parent.",
+        ),
+    ]
+
+    for filename, artifact_name, guidance in known_parent_artifacts:
+        if (result_dir / filename).exists():
+            return (
+                "This path does not look like a single-run result artifact. "
+                "Expected: llmgauge-result.json. "
+                f"Found: {filename} ({artifact_name}). {guidance}"
+            )
+
+    return None
+
+
 def load_result(result_dir: Path) -> dict[str, Any]:
     result_path = result_dir / "llmgauge-result.json"
     if not result_path.exists():

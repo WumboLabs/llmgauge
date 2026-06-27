@@ -54,6 +54,7 @@ from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.scoring import (
     apply_scores,
     build_score_template,
+    describe_score_artifact_mismatch,
     load_result,
     load_scores,
     validate_scores,
@@ -1954,6 +1955,10 @@ def score(
 
     if check and scores is None:
         raise typer.BadParameter("--check requires --scores PATH")
+
+    mismatch = describe_score_artifact_mismatch(result_dir)
+    if mismatch:
+        raise typer.BadParameter(mismatch)
 
     result = load_result(result_dir)
 
