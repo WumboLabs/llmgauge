@@ -10,7 +10,7 @@ It is not a synthetic benchmark leaderboard, not an automatic judge system, and 
 
 Current stable tag: v0.34
 
-Current development line: v0.35
+Current development line: v0.36
 
 Current capabilities:
 

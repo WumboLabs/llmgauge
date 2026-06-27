@@ -146,6 +146,7 @@ def test_fit_ladder_executes_until_first_completed(
     assert result.exit_code == 0, result.output
     assert [call["resolved"]["ctx"] for call in calls] == [65536, 32768]
     assert "oom detected at ctx=65536; retrying at ctx=32768" in result.output.lower()
+    assert "Fit ladder report:" in result.output
 
     summary_path = out / "fit-ladder-summary.json"
     assert summary_path.exists()
@@ -219,5 +220,6 @@ def test_fit_ladder_stops_on_nonretryable_failure(
     assert result.exit_code == 1
     assert len(calls) == 1
     assert "Non-retryable fit failure" in result.output
+    assert "Fit ladder report:" in result.output
     assert (out / "fit-ladder-summary.json").exists()
     assert (out / "fit-ladder-report.md").exists()

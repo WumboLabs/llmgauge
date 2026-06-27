@@ -246,12 +246,14 @@ def build_fit_ladder_summary(
 
 
 def _fmt(value: Any) -> str:
-    return "None" if value is None else str(value)
+    if value is None:
+        return "—"
+    text = str(value)
+    return text if text else "—"
 
 
 def _table_safe(value: Any) -> str:
-    text = _fmt(value).replace("\n", " ").replace("|", "\\|")
-    return text if text else "None"
+    return _fmt(value).replace("\n", " ").replace("|", "\\|")
 
 
 def build_fit_ladder_report(summary: dict[str, Any]) -> str:
@@ -348,6 +350,43 @@ def build_fit_ladder_report(summary: dict[str, Any]) -> str:
             f"{_table_safe(attempt.get('result_dir'))} | "
             f"{_table_safe(attempt.get('stderr_excerpt'))} |"
         )
+
+    vram_attempts = [
+        attempt
+        for attempt in attempts
+        if isinstance(attempt, dict) and isinstance(attempt.get("vram"), dict)
+    ]
+
+    if vram_attempts:
+        lines.extend(
+            [
+                "",
+                "## VRAM Summary",
+                "",
+                "| Attempt | GPU | Peak VRAM MiB | Total VRAM MiB | Headroom MiB | Samples |",
+                "|---|---|---:|---:|---:|---:|",
+            ]
+        )
+
+        for attempt in vram_attempts:
+            vram = attempt["vram"]
+            peak_used = vram.get("peak_used_mib")
+            peak_total = vram.get("peak_total_mib")
+            headroom = (
+                peak_total - peak_used
+                if isinstance(peak_total, int) and isinstance(peak_used, int)
+                else None
+            )
+
+            lines.append(
+                "| "
+                f"{_table_safe(attempt.get('attempt_id'))} | "
+                f"{_table_safe(vram.get('peak_gpu_name'))} | "
+                f"{_table_safe(peak_used)} | "
+                f"{_table_safe(peak_total)} | "
+                f"{_table_safe(headroom)} | "
+                f"{_table_safe(vram.get('sample_count'))} |"
+            )
 
     lines.extend(
         [
