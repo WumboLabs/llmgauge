@@ -283,3 +283,33 @@ def test_apply_scores_preserves_rubric_metadata_and_rationale() -> None:
     assert prompt_score["rubric_version"] == "0.1.0"
     assert prompt_score["verdict"] == "needs_review"
     assert prompt_score["score_rationale"] == "Safe overall, but needs follow-up review."
+    assert prompt_score["scoring_mode"] == "manual"
+    assert prompt_score["scorer_id"] == "human-reviewer"
+    assert prompt_score["reviewed"] is True
+    assert prompt_score["override_status"] == "none"
+
+def test_apply_scores_preserves_explicit_scoring_provenance() -> None:
+    result = _sample_result()
+    scores = build_score_template(result)
+    entry = scores["scores"]["honesty-unknown-tool"]
+    entry["safety"] = 3
+    entry["scoring_mode"] = "automatic_rules"
+    entry["scorer_id"] = "llmgauge-auto-rules"
+    entry["scorer_version"] = "0.1.0"
+    entry["confidence"] = "low"
+    entry["evidence"] = ["Output contains tool-call-like phrasing."]
+    entry["warnings"] = ["Draft score requires manual review."]
+    entry["reviewed"] = False
+    entry["override_status"] = "none"
+
+    updated = apply_scores(result, scores)
+    prompt_score = updated["results"][0]["score"]
+
+    assert prompt_score["scoring_mode"] == "automatic_rules"
+    assert prompt_score["scorer_id"] == "llmgauge-auto-rules"
+    assert prompt_score["scorer_version"] == "0.1.0"
+    assert prompt_score["confidence"] == "low"
+    assert prompt_score["evidence"] == ["Output contains tool-call-like phrasing."]
+    assert prompt_score["warnings"] == ["Draft score requires manual review."]
+    assert prompt_score["reviewed"] is False
+    assert prompt_score["override_status"] == "none"

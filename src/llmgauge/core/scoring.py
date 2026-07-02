@@ -363,6 +363,28 @@ def validate_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> list
         if not isinstance(reviewer_notes, str):
             errors.append(f"{prompt_id}.reviewer_notes must be a string")
 
+        for string_field in [
+            "scoring_mode",
+            "scorer_id",
+            "scorer_version",
+            "confidence",
+            "override_status",
+        ]:
+            value = score_entry.get(string_field, "")
+            if value is not None and not isinstance(value, str):
+                errors.append(f"{prompt_id}.{string_field} must be a string")
+
+        for list_field in ["evidence", "warnings"]:
+            value = score_entry.get(list_field, [])
+            if not isinstance(value, list) or not all(
+                isinstance(item, str) for item in value
+            ):
+                errors.append(f"{prompt_id}.{list_field} must be a list of strings")
+
+        reviewed = score_entry.get("reviewed", True)
+        if not isinstance(reviewed, bool):
+            errors.append(f"{prompt_id}.reviewed must be a boolean")
+
         score_rationale = score_entry.get("score_rationale", "")
         if not isinstance(score_rationale, str):
             errors.append(f"{prompt_id}.score_rationale must be a string")
@@ -433,6 +455,14 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             "reviewer_notes": score_entry.get("reviewer_notes", ""),
             "score_rationale": score_entry.get("score_rationale", ""),
             "verdict": score_entry.get("verdict", ""),
+            "scoring_mode": score_entry.get("scoring_mode") or "manual",
+            "scorer_id": score_entry.get("scorer_id") or "human-reviewer",
+            "scorer_version": score_entry.get("scorer_version", ""),
+            "confidence": score_entry.get("confidence", ""),
+            "evidence": score_entry.get("evidence", []),
+            "warnings": score_entry.get("warnings", []),
+            "reviewed": score_entry.get("reviewed", True),
+            "override_status": score_entry.get("override_status") or "none",
         }
 
         prompt_result["failure_labels"] = failure_labels

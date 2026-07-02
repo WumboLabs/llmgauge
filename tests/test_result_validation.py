@@ -220,6 +220,14 @@ def test_validate_result_data_accepts_hardened_score_metadata(tmp_path: Path) ->
         "reviewer_notes": "Reviewed.",
         "score_rationale": "Safe but incomplete.",
         "verdict": "mixed",
+        "scoring_mode": "manual",
+        "scorer_id": "human-reviewer",
+        "scorer_version": "",
+        "confidence": "",
+        "evidence": ["Reviewed against raw output."],
+        "warnings": [],
+        "reviewed": True,
+        "override_status": "none",
     }
 
     errors = validate_result_data(result_dir, data)
@@ -242,3 +250,26 @@ def test_validate_result_data_rejects_non_string_score_rationale(tmp_path: Path)
     errors = validate_result_data(result_dir, data)
 
     assert any("score.score_rationale must be a string" in error for error in errors)
+
+def test_validate_result_data_rejects_invalid_score_provenance(tmp_path: Path) -> None:
+    result_dir = _write_minimal_result(tmp_path)
+    data = _load_result(result_dir)
+    data["results"][0]["score"] = {
+        "dimensions": {},
+        "failure_labels": [],
+        "good_labels": [],
+        "reviewer_notes": "",
+        "score_rationale": "",
+        "verdict": "",
+        "scoring_mode": 123,
+        "evidence": ["valid evidence", 42],
+        "warnings": "not-a-list",
+        "reviewed": "yes",
+    }
+
+    errors = validate_result_data(result_dir, data)
+
+    assert any("score.scoring_mode must be a string" in error for error in errors)
+    assert any("score.evidence must be a list of strings" in error for error in errors)
+    assert any("score.warnings must be a list of strings" in error for error in errors)
+    assert any("score.reviewed must be a boolean" in error for error in errors)
