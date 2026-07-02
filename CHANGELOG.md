@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.41 - Unreleased
+
+- Show scored interpretation and scoring provenance in run reports whenever applied score objects exist, including nonnumeric assisted drafts.
+
 ## v0.40 - 2026-07-02
 
 - Added scoring provenance visibility to generated run reports, including scoring mode counts, reviewed/unreviewed counts, and scorer IDs.

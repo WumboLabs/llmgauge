@@ -22,14 +22,21 @@ def _scored_results(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _scoring_status(result: dict[str, Any]) -> str:
     summary = result["summary"]
+    scored_results = _scored_results(result)
     scored_prompt_count = summary.get("scored_prompt_count")
 
     if not isinstance(scored_prompt_count, int):
-        scored_prompt_count = len(_scored_results(result))
+        scored_prompt_count = sum(
+            1
+            for prompt_result in scored_results
+            if isinstance(_score_average(prompt_result), int | float)
+        )
 
     prompt_count = len(result["results"])
 
     if scored_prompt_count == 0:
+        if scored_results:
+            return "review_metadata_only"
         return "unscored"
     if scored_prompt_count < prompt_count:
         return "partially_scored"
@@ -163,6 +170,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     runtime = result["runtime"]
     suite = result["suite"]
     summary = result["summary"]
+    scored_results = _scored_results(result)
 
     lines = [
         f"# LLMGauge Report: {run['run_id']}",
@@ -195,6 +203,9 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         "",
     ]
 
+    failure_labels = summary.get("failure_labels", {})
+    good_labels = summary.get("good_labels", {})
+
     if summary.get("scored_prompt_count"):
         lines.extend(
             [
@@ -208,9 +219,6 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             ]
         )
 
-        failure_labels = summary.get("failure_labels", {})
-        good_labels = summary.get("good_labels", {})
-
         if failure_labels:
             lines.extend(["### Failure Labels", ""])
             for label, count in sorted(failure_labels.items()):
@@ -223,7 +231,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 lines.append(f"- {label}: {count}")
             lines.append("")
 
-        scored_results = _scored_results(result)
+    if scored_results:
         provenance = _scoring_provenance(scored_results)
         lines.extend(
             [
@@ -278,8 +286,6 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{_fmt_optional_mib(_vram_headroom_mib(prompt_result))} | "
             f"{prompt_result['exit_status']} |"
         )
-
-    scored_results = _scored_results(result)
 
     if scored_results:
         lines.extend(["", "## Manual Review Notes", ""])

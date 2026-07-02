@@ -258,6 +258,87 @@ def test_build_markdown_report_warns_for_unreviewed_auto_scores() -> None:
     )
 
 
+def test_build_markdown_report_shows_provenance_for_nonnumeric_auto_scores() -> None:
+    result = {
+        "run": {
+            "run_id": "nonnumeric-auto-scored-run",
+            "status": "completed",
+            "timestamp_utc": "2026-06-16T00:00:00+00:00",
+        },
+        "model": {
+            "model_id": "test-model",
+            "model_path_policy": "redacted",
+        },
+        "runtime": {
+            "backend": "llama.cpp",
+            "llama_cli": "/tmp/llama-cli",
+            "ctx_size": 8192,
+            "max_tokens": 600,
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "batch_size": 256,
+            "ubatch_size": 64,
+            "gpu_layers": 999,
+        },
+        "suite": {
+            "suite_id": "core-v1",
+            "suite_version": "0.1.0",
+            "prompt_count": 1,
+        },
+        "summary": {
+            "completed": 1,
+            "failed": 0,
+            "manual_score_average": None,
+            "failure_labels": {},
+            "good_labels": {},
+        },
+        "results": [
+            {
+                "prompt_id": "drafted",
+                "category": "honesty",
+                "status": "completed",
+                "raw_prompt_path": "raw/drafted.prompt.md",
+                "raw_output_path": "raw/drafted.output.txt",
+                "stderr_log_path": "logs/drafted.stderr.log",
+                "exit_status": 0,
+                "metrics": {
+                    "prompt_eval_tps": 100.0,
+                    "generation_tps": 50.0,
+                },
+                "score": {
+                    "prompt_average": None,
+                    "failure_labels": [],
+                    "good_labels": [],
+                    "reviewer_notes": "",
+                    "score_rationale": "Draft needs review.",
+                    "verdict": "needs_review",
+                    "scoring_mode": "automatic_rules",
+                    "scorer_id": "llmgauge-auto-rules",
+                    "reviewed": False,
+                },
+            },
+        ],
+    }
+
+    report = build_markdown_report(result)
+
+    assert "## Scored Interpretation" in report
+    assert "- Scoring status: review_metadata_only" in report
+    assert "### Scoring Provenance" in report
+    assert "- Verdict counts: needs_review: 1" in report
+    assert "- Highest scored prompt: None" in report
+    assert "- Lowest scored prompt: None" in report
+    assert "- Scoring modes: automatic_rules: 1" in report
+    assert "- Reviewed scores: 0" in report
+    assert "- Unreviewed scores: 1" in report
+    assert "- Scorer IDs: llmgauge-auto-rules" in report
+    assert (
+        "- Warning: some applied scores are unreviewed assisted drafts. Treat them as review-required metadata."
+        in report
+    )
+    assert "## Manual Review Notes" in report
+
+
 def test_build_markdown_report_treats_legacy_scores_as_reviewed_manual() -> None:
     result = {
         "run": {
