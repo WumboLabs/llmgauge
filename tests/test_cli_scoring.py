@@ -210,6 +210,10 @@ def test_score_auto_draft_writes_auto_scores_without_mutating_artifacts(
 
     assert result.exit_code == 0
     assert "Created auto score draft" in result.output
+    assert "Draft scores are review-required" in result.output
+    compact_output = result.output.replace("\n", "")
+    assert f"llmgauge score {result_dir}" in compact_output
+    assert f"--scores {result_dir / 'auto-scores.yaml'} --check" in compact_output
     assert result_path.read_bytes() == original_result
     assert report_path.read_bytes() == original_report
     assert cleaned_path.read_bytes() == original_cleaned
@@ -219,6 +223,44 @@ def test_score_auto_draft_writes_auto_scores_without_mutating_artifacts(
     assert entry["scorer_id"] == "llmgauge-auto-rules"
     assert entry["reviewed"] is False
     assert entry["verdict"] == "needs_review"
+
+
+def test_score_auto_draft_refuses_existing_auto_scores(tmp_path: Path) -> None:
+    result_dir, _ = _write_score_files(tmp_path)
+    auto_scores_path = result_dir / "auto-scores.yaml"
+    auto_scores_path.write_text("existing draft\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["score", str(result_dir), "--auto-draft"])
+
+    assert result.exit_code != 0
+    assert "auto-scores.yaml already exists" in result.output
+    assert "--force" in result.output
+    assert auto_scores_path.read_text(encoding="utf-8") == "existing draft\n"
+
+
+def test_score_auto_draft_force_overwrites_existing_auto_scores(
+    tmp_path: Path,
+) -> None:
+    result_dir, _ = _write_score_files(tmp_path)
+    auto_scores_path = result_dir / "auto-scores.yaml"
+    auto_scores_path.write_text("existing draft\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["score", str(result_dir), "--auto-draft", "--force"])
+
+    assert result.exit_code == 0
+    assert "Overwrote auto score draft" in result.output
+    assert auto_scores_path.read_text(encoding="utf-8") != "existing draft\n"
+    auto_scores = yaml.safe_load(auto_scores_path.read_text(encoding="utf-8"))
+    assert auto_scores["schema_version"] == "llmgauge.scores.v0"
+
+
+def test_score_force_without_auto_draft_fails_clearly(tmp_path: Path) -> None:
+    result_dir, _ = _write_score_files(tmp_path)
+
+    result = runner.invoke(app, ["score", str(result_dir), "--force"])
+
+    assert result.exit_code != 0
+    assert "--force can only be used with --auto-draft" in result.output
 
 
 def test_score_auto_draft_rejects_incompatible_options(tmp_path: Path) -> None:
