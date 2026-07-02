@@ -73,6 +73,7 @@ def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[s
         scoring_status = "scored"
 
     verdict_counts: dict[str, int] = {}
+    scoring_mode_counts: dict[str, int] = {}
     rubric_id = None
     rubric_version = None
     score_schema_version = None
@@ -92,6 +93,12 @@ def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[s
         if score_schema_version is None:
             score_schema_version = score.get("schema_version")
 
+        scoring_mode = score.get("scoring_mode", "manual")
+        if isinstance(scoring_mode, str) and scoring_mode:
+            scoring_mode_counts[scoring_mode] = (
+                scoring_mode_counts.get(scoring_mode, 0) + 1
+            )
+
         verdict = score.get("verdict")
         if isinstance(verdict, str) and verdict:
             verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
@@ -103,6 +110,7 @@ def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[s
         "failure_labels": summary.get("failure_labels") or {},
         "good_labels": summary.get("good_labels") or {},
         "verdict_counts": verdict_counts,
+        "scoring_mode_counts": scoring_mode_counts,
         "rubric_id": rubric_id,
         "rubric_version": rubric_version,
         "score_schema_version": score_schema_version,
