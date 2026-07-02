@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.38 - Unreleased
+## v0.38 - 2026-06-26
 
 - Added `llmgauge score RESULT_DIR --auto-draft` to create deterministic assisted scoring drafts in `auto-scores.yaml`.
 - Auto score drafts use local rules only, preserve review-required provenance metadata, and do not modify `llmgauge-result.json`, `report.md`, raw outputs, cleaned outputs, or logs.
