@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.40 - Unreleased
+## v0.40 - 2026-07-02
 
 - Added scoring provenance visibility to generated run reports, including scoring mode counts, reviewed/unreviewed counts, and scorer IDs.
 - Added an explicit report warning when applied scores include unreviewed assisted drafts.
