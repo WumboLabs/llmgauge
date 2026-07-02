@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.41 - Unreleased
+## v0.41 - 2026-07-02
 
 - Show scored interpretation and scoring provenance in run reports whenever applied score objects exist, including nonnumeric assisted drafts.
 
