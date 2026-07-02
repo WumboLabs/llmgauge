@@ -800,6 +800,14 @@ Expected score entry fields:
     reviewer_notes
     score_rationale
     verdict
+    scoring_mode
+    scorer_id
+    scorer_version
+    confidence
+    evidence
+    warnings
+    reviewed
+    override_status
 
 Score dimensions may be integers or floats from 0 to 5, or null when not scored.
 
@@ -808,6 +816,13 @@ Score dimensions may be integers or floats from 0 to 5, or null when not scored.
 `reviewer_notes` is freeform reviewer context.
 
 `score_rationale` is a concise explanation of why the score was assigned.
+
+Optional scoring provenance fields are preserved when present. Manual score
+application defaults `scoring_mode` to `manual`, `scorer_id` to
+`human-reviewer`, `reviewed` to true, and `override_status` to `none`.
+`evidence` and `warnings` are lists of strings. These fields are metadata for
+auditability and downstream reporting; they do not turn assisted scores into
+objective truth.
 
 Allowed verdict values:
 
@@ -820,4 +835,4 @@ The empty string is also accepted for unassigned verdicts.
 
 Applied prompt score objects in `llmgauge-result.json` preserve the score schema
 version, scale, rubric id, rubric version, dimensions, labels, notes, rationale,
-and verdict.
+verdict, and scoring provenance metadata when present.

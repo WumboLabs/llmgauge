@@ -95,10 +95,24 @@ def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
         "reviewer_notes",
         "score_rationale",
         "verdict",
+        "scoring_mode",
+        "scorer_id",
+        "scorer_version",
+        "confidence",
+        "override_status",
     ]:
         value = score.get(string_field, "")
         if value is not None and not isinstance(value, str):
             errors.append(f"{prompt_id}.score.{string_field} must be a string")
+
+    for list_field in ["evidence", "warnings"]:
+        value = score.get(list_field, [])
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            errors.append(f"{prompt_id}.score.{list_field} must be a list of strings")
+
+    reviewed = score.get("reviewed")
+    if reviewed is not None and not isinstance(reviewed, bool):
+        errors.append(f"{prompt_id}.score.reviewed must be a boolean")
 
 
 def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:

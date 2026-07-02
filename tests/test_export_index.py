@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -595,6 +596,7 @@ def test_build_export_index_includes_scored_run_public_proof_metadata(
     assert item["failure_labels"] == {"ignored_constraint": 1}
     assert item["good_labels"] == {"strong_format_control": 1}
     assert item["verdict_counts"] == {"pass": 1, "mixed": 1}
+    assert item["scoring_mode_counts"] == {"manual": 2}
     assert item["rubric_id"] == "wumbolabs-practical-v1"
     assert item["rubric_version"] == "0.1.0"
     assert item["score_schema_version"] == "llmgauge.scores.v0"
@@ -658,6 +660,7 @@ def test_build_export_index_marks_partially_scored_run(tmp_path: Path) -> None:
     assert item["scoring_status"] == "partially_scored"
     assert item["scored_prompt_count"] == 1
     assert item["verdict_counts"] == {"fail": 1}
+    assert item["scoring_mode_counts"] == {"manual": 1}
 
 
 def test_build_export_index_marks_unscored_run(tmp_path: Path) -> None:
@@ -708,4 +711,69 @@ def test_build_export_index_marks_unscored_run(tmp_path: Path) -> None:
     assert item["failure_labels"] == {}
     assert item["good_labels"] == {}
     assert item["verdict_counts"] == {}
+    assert item["scoring_mode_counts"] == {}
     assert item["rubric_id"] is None
+
+def test_build_export_index_counts_explicit_scoring_modes(tmp_path: Path) -> None:
+    result_dir = tmp_path / "scored-run"
+    result_dir.mkdir()
+
+    result_data = {
+        "schema_version": "llmgauge.result.v0",
+        "run": {
+            "run_id": "scored-run",
+            "status": "completed",
+            "timestamp_utc": "2026-06-26T00:00:00Z",
+        },
+        "model": {"model_id": "model-a", "model_profile": "profile-a"},
+        "runtime": {},
+        "suite": {
+            "suite_id": "core-v1",
+            "suite_version": "0.1.0",
+            "prompt_count": 2,
+        },
+        "summary": {
+            "prompt_count": 2,
+            "completed": 2,
+            "failed": 0,
+            "scored_prompt_count": 2,
+            "manual_score_average": 4.0,
+            "manual_score_total": 40.0,
+            "manual_score_max": 50.0,
+        },
+        "results": [
+            {
+                "prompt_id": "prompt-a",
+                "status": "completed",
+                "score": {
+                    "schema_version": "llmgauge.scores.v0",
+                    "rubric_id": "default-manual-v0",
+                    "rubric_version": "0.1.0",
+                    "scoring_mode": "manual",
+                    "verdict": "pass",
+                },
+            },
+            {
+                "prompt_id": "prompt-b",
+                "status": "completed",
+                "score": {
+                    "schema_version": "llmgauge.scores.v0",
+                    "rubric_id": "default-manual-v0",
+                    "rubric_version": "0.1.0",
+                    "scoring_mode": "automatic_rules",
+                    "verdict": "needs_review",
+                },
+            },
+        ],
+    }
+
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result_data, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scoring_mode_counts"] == {"manual": 1, "automatic_rules": 1}
+    assert item["verdict_counts"] == {"pass": 1, "needs_review": 1}

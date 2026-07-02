@@ -63,3 +63,9 @@ Expected applied score fields:
 - `verdict`
 
 Manual scores are human review metadata. They are separate from runtime metrics.
+
+Applied score objects may also include scoring provenance fields such as
+`scoring_mode`, `scorer_id`, `scorer_version`, `confidence`, `evidence`,
+`warnings`, `reviewed`, and `override_status`. These fields are preserved for
+auditability and downstream reporting. They do not make automatic or assisted
+scores authoritative without review.

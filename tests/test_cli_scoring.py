@@ -170,3 +170,41 @@ def test_score_check_rejects_unknown_labels(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "contains unknown label" in result.output
     assert "valid_json" in result.output
+
+def test_score_rejects_fit_ladder_parent_with_friendly_error(tmp_path: Path) -> None:
+    result_dir = tmp_path / "fit-ladder"
+    result_dir.mkdir()
+    (result_dir / "fit-ladder-summary.json").write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["score", str(result_dir), "--init"])
+
+    assert result.exit_code != 0
+    assert "single-run result artifact" in result.output
+    assert "fit-ladder-summary.json" in result.output
+    assert "child attempt result directory" in result.output
+
+
+def test_score_rejects_ladder_parent_with_friendly_error(tmp_path: Path) -> None:
+    result_dir = tmp_path / "ladder"
+    result_dir.mkdir()
+    (result_dir / "ladder-summary.json").write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["score", str(result_dir), "--init"])
+
+    assert result.exit_code != 0
+    assert "single-run result artifact" in result.output
+    assert "ladder-summary.json" in result.output
+    assert "child run result directory" in result.output
+
+
+def test_score_rejects_batch_parent_with_friendly_error(tmp_path: Path) -> None:
+    result_dir = tmp_path / "batch"
+    result_dir.mkdir()
+    (result_dir / "batch-summary.json").write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["score", str(result_dir), "--init"])
+
+    assert result.exit_code != 0
+    assert "single-run result artifact" in result.output
+    assert "batch-summary.json" in result.output
+    assert "child run result directory" in result.output

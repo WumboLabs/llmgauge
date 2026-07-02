@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.37 - Unreleased
+
+- Improved `llmgauge score` errors when a ladder, Fit Ladder, or batch parent artifact is passed instead of a single-run result directory.
+- Added scoring provenance metadata preservation for applied score objects, including scoring mode, scorer identity, confidence, evidence, warnings, review status, and override status.
+- Added `scoring_mode_counts` to run items in `export-index` so manual and assisted scoring metadata can be distinguished in downstream reports.
+
 ## v0.36 - 2026-06-26
 
 - Polished Fit Ladder report output by rendering empty report fields as `—` instead of `None`.
