@@ -209,7 +209,7 @@ Manual scoring uses a 0-5 scale across practical evaluation dimensions such as t
 
 Generated score templates include rubric metadata, allowed verdicts, failure labels, good labels, reviewer notes, and a short `score_rationale` field. Scores are human review metadata; they are not automatic LLM judgments.
 
-`--auto-draft` writes `auto-scores.yaml` using local rules only. It does not call an LLM judge, use the network, or rewrite result artifacts; review and apply it through the normal `--scores ... --check` workflow.
+`--auto-draft` writes `auto-scores.yaml` using local rules only. It does not call an LLM judge, use the network, or rewrite result artifacts; review and apply it through the normal `--scores ... --check` workflow. Existing drafts are preserved unless `--force` is supplied.
 
 Use `--check` with `--scores` to validate a score file before applying it. Check mode does not rewrite result artifacts.
 

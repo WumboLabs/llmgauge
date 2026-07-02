@@ -484,8 +484,19 @@ def build_auto_score_draft(result: dict[str, Any]) -> dict[str, Any]:
     return draft
 
 
-def write_auto_score_draft(result_dir: Path, draft: dict[str, Any]) -> Path:
+def write_auto_score_draft(
+    result_dir: Path,
+    draft: dict[str, Any],
+    *,
+    overwrite: bool = False,
+) -> Path:
     scores_path = result_dir / "auto-scores.yaml"
+    if scores_path.exists() and not overwrite:
+        raise ValueError(
+            f"auto-scores.yaml already exists: {scores_path}. "
+            "Use --force with --auto-draft to overwrite it."
+        )
+
     scores_path.write_text(
         yaml.safe_dump(draft, sort_keys=False, allow_unicode=True),
         encoding="utf-8",

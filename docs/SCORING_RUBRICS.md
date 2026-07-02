@@ -11,7 +11,8 @@ Use this document as the practical rubric guide for filling out `scores.yaml`.
 `llmgauge score RESULT_DIR --auto-draft` creates `auto-scores.yaml` from
 deterministic local rules. It is a triage aid, not an automatic judge, and it
 does not call an LLM, use the network, download models, or rewrite result
-artifacts.
+artifacts. Existing auto drafts are not overwritten unless `--force` is supplied
+with `--auto-draft`.
 
 Auto drafts preserve the normal score-file schema and mark each entry with:
 

@@ -1955,6 +1955,11 @@ def score(
         "--auto-draft",
         help="Create an auto-scores.yaml draft using deterministic local rules",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite an existing auto-scores.yaml when used with --auto-draft",
+    ),
 ) -> None:
     """Initialize or apply manual scores for a completed run."""
     if check and init:
@@ -1969,6 +1974,9 @@ def score(
     if auto_draft and check:
         raise typer.BadParameter("--auto-draft cannot be used with --check")
 
+    if force and not auto_draft:
+        raise typer.BadParameter("--force can only be used with --auto-draft")
+
     if check and scores is None:
         raise typer.BadParameter("--check requires --scores PATH")
 
@@ -1982,8 +1990,18 @@ def score(
         if isinstance(result.get("run"), dict):
             result["run"]["result_dir"] = str(result_dir)
         draft = build_auto_score_draft(result)
-        scores_path = write_auto_score_draft(result_dir, draft)
-        console.print(f"[bold green]Created auto score draft[/bold green]: {scores_path}")
+        try:
+            scores_path = write_auto_score_draft(result_dir, draft, overwrite=force)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+        action = "Overwrote" if force else "Created"
+        console.print(f"[bold green]{action} auto score draft[/bold green]: {scores_path}")
+        console.print("Draft scores are review-required before applying.")
+        console.print(
+            "Validate next: "
+            f"llmgauge score {result_dir} --scores {scores_path} --check"
+        )
         return
 
     if init:
