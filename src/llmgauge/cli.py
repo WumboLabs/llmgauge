@@ -53,11 +53,13 @@ from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.scoring import (
     apply_scores,
+    build_auto_score_draft,
     build_score_template,
     describe_score_artifact_mismatch,
     load_result,
     load_scores,
     validate_scores,
+    write_auto_score_draft,
     write_result,
     write_score_template,
 )
@@ -1948,10 +1950,24 @@ def score(
         "--check",
         help="Validate a scores.yaml file without modifying result artifacts",
     ),
+    auto_draft: bool = typer.Option(
+        False,
+        "--auto-draft",
+        help="Create an auto-scores.yaml draft using deterministic local rules",
+    ),
 ) -> None:
     """Initialize or apply manual scores for a completed run."""
     if check and init:
         raise typer.BadParameter("--check cannot be used with --init")
+
+    if auto_draft and init:
+        raise typer.BadParameter("--auto-draft cannot be used with --init")
+
+    if auto_draft and scores is not None:
+        raise typer.BadParameter("--auto-draft cannot be used with --scores")
+
+    if auto_draft and check:
+        raise typer.BadParameter("--auto-draft cannot be used with --check")
 
     if check and scores is None:
         raise typer.BadParameter("--check requires --scores PATH")
@@ -1961,6 +1977,14 @@ def score(
         raise typer.BadParameter(mismatch)
 
     result = load_result(result_dir)
+
+    if auto_draft:
+        if isinstance(result.get("run"), dict):
+            result["run"]["result_dir"] = str(result_dir)
+        draft = build_auto_score_draft(result)
+        scores_path = write_auto_score_draft(result_dir, draft)
+        console.print(f"[bold green]Created auto score draft[/bold green]: {scores_path}")
+        return
 
     if init:
         template = build_score_template(result)

@@ -201,9 +201,15 @@ Validate a model batch directory:
       results/example-run \
       --scores results/example-run/scores.yaml
 
+Optionally create a deterministic assisted draft for review:
+
+    uv run llmgauge score results/example-run --auto-draft
+
 Manual scoring uses a 0-5 scale across practical evaluation dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
 
 Generated score templates include rubric metadata, allowed verdicts, failure labels, good labels, reviewer notes, and a short `score_rationale` field. Scores are human review metadata; they are not automatic LLM judgments.
+
+`--auto-draft` writes `auto-scores.yaml` using local rules only. It does not call an LLM judge, use the network, or rewrite result artifacts; review and apply it through the normal `--scores ... --check` workflow.
 
 Use `--check` with `--scores` to validate a score file before applying it. Check mode does not rewrite result artifacts.
 
