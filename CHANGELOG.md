@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.38 - Unreleased
+
+- Added `llmgauge score RESULT_DIR --auto-draft` to create deterministic assisted scoring drafts in `auto-scores.yaml`.
+- Auto score drafts use local rules only, preserve review-required provenance metadata, and do not modify `llmgauge-result.json`, `report.md`, raw outputs, cleaned outputs, or logs.
+- Kept assisted scoring inside the existing explicit apply workflow: validate with `--scores auto-scores.yaml --check`, then apply with `--scores auto-scores.yaml` after review.
+
 ## v0.37 - 2026-06-26
 
 - Improved `llmgauge score` errors when a ladder, Fit Ladder, or batch parent artifact is passed instead of a single-run result directory.

@@ -6,6 +6,28 @@ treated as universal model rankings.
 
 Use this document as the practical rubric guide for filling out `scores.yaml`.
 
+## Assisted scoring drafts
+
+`llmgauge score RESULT_DIR --auto-draft` creates `auto-scores.yaml` from
+deterministic local rules. It is a triage aid, not an automatic judge, and it
+does not call an LLM, use the network, download models, or rewrite result
+artifacts.
+
+Auto drafts preserve the normal score-file schema and mark each entry with:
+
+    scoring_mode: automatic_rules
+    scorer_id: llmgauge-auto-rules
+    reviewed: false
+    override_status: none
+
+Review `auto-scores.yaml` before applying it. The explicit workflow remains:
+
+    uv run llmgauge score RESULT_DIR --scores RESULT_DIR/auto-scores.yaml --check
+    uv run llmgauge score RESULT_DIR --scores RESULT_DIR/auto-scores.yaml
+
+The rules intentionally prefer labels, warnings, and evidence over broad numeric
+scores. Treat every draft verdict and score as review-required metadata.
+
 ## Default rubric
 
 The default manual rubric is:
