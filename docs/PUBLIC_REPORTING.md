@@ -16,6 +16,7 @@ A public model report should state:
 - temperature and top-p
 - validation status
 - scoring status
+- scoring provenance and review status
 - scored prompt count
 - manual score average
 - verdict counts
@@ -37,6 +38,11 @@ Public claims should be backed by validated artifacts:
 ## Claim boundaries
 
 Manual scores are review metadata. They are not automatic judgments and are not universal model rankings.
+
+Generated reports surface scoring provenance, including scoring mode and
+reviewed/unreviewed counts. If assisted draft scores were applied before review,
+treat the report warning as a claim boundary and finish manual review before
+using those scores in public conclusions.
 
 A public report may say that a model performed well or poorly on a specific suite under a specific hardware/runtime configuration.
 

@@ -54,6 +54,44 @@ def _fmt_counts(counts: dict[str, int]) -> str:
     return ", ".join(f"{label}: {count}" for label, count in sorted(counts.items()))
 
 
+def _scoring_provenance(
+    scored_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    mode_counts: dict[str, int] = {}
+    reviewed_count = 0
+    unreviewed_count = 0
+    scorer_ids: set[str] = set()
+
+    for prompt_result in scored_results:
+        score = _score_dict(prompt_result)
+
+        scoring_mode = score.get("scoring_mode")
+        if not isinstance(scoring_mode, str) or not scoring_mode:
+            scoring_mode = "manual"
+        mode_counts[scoring_mode] = mode_counts.get(scoring_mode, 0) + 1
+
+        reviewed = score.get("reviewed", True)
+        if reviewed is False:
+            unreviewed_count += 1
+        else:
+            reviewed_count += 1
+
+        scorer_id = score.get("scorer_id")
+        if isinstance(scorer_id, str) and scorer_id:
+            scorer_ids.add(scorer_id)
+
+    return {
+        "mode_counts": mode_counts,
+        "reviewed_count": reviewed_count,
+        "unreviewed_count": unreviewed_count,
+        "scorer_ids": sorted(scorer_ids),
+    }
+
+
+def _fmt_scorer_ids(scorer_ids: list[str]) -> str:
+    return ", ".join(scorer_ids) if scorer_ids else "None"
+
+
 def _top_label_counts(labels: dict[str, Any], *, limit: int = 3) -> str:
     numeric_labels = [
         (label, count)
@@ -186,6 +224,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             lines.append("")
 
         scored_results = _scored_results(result)
+        provenance = _scoring_provenance(scored_results)
         lines.extend(
             [
                 "## Scored Interpretation",
@@ -196,10 +235,25 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 f"- Lowest scored prompt: {_prompt_score_extreme(scored_results, highest=False)}",
                 f"- Most common failure labels: {_top_label_counts(failure_labels)}",
                 f"- Most common good labels: {_top_label_counts(good_labels)}",
-                "- Claim boundary: manual scores are review metadata from this run, not universal model rankings or recommendations.",
+                "- Claim boundary: scores summarize this run under the configured rubric; they are not universal model rankings or recommendations.",
+                "",
+                "### Scoring Provenance",
+                "",
+                f"- Scoring modes: {_fmt_counts(provenance['mode_counts'])}",
+                f"- Reviewed scores: {provenance['reviewed_count']}",
+                f"- Unreviewed scores: {provenance['unreviewed_count']}",
+                f"- Scorer IDs: {_fmt_scorer_ids(provenance['scorer_ids'])}",
                 "",
             ]
         )
+
+        if provenance["unreviewed_count"]:
+            lines.extend(
+                [
+                    "- Warning: some applied scores are unreviewed assisted drafts. Treat them as review-required metadata.",
+                    "",
+                ]
+            )
 
     lines.extend(
         [
