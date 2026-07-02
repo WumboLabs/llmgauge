@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.39 - Unreleased
+## v0.39 - 2026-06-26
 
 - Added overwrite protection for `llmgauge score --auto-draft`; existing `auto-scores.yaml` files are preserved unless `--force` is supplied.
 - Improved auto-draft command output with review-required guidance and the next validation command.
