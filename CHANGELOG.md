@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.40 - Unreleased
+
+- Added scoring provenance visibility to generated run reports, including scoring mode counts, reviewed/unreviewed counts, and scorer IDs.
+- Added an explicit report warning when applied scores include unreviewed assisted drafts.
+
 ## v0.39 - 2026-06-26
 
 - Added overwrite protection for `llmgauge score --auto-draft`; existing `auto-scores.yaml` files are preserved unless `--force` is supplied.
