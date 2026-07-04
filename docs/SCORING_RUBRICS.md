@@ -47,6 +47,13 @@ The score scale is 0-5:
 
 Null means the dimension was not scored.
 
+## Review-metadata-only scores
+
+A score file can validate and apply even when all numeric dimension values are
+left blank. In that case, LLMGauge preserves labels, verdicts, rationale, and
+provenance as review metadata, and generated reports show
+`review_metadata_only` until numeric dimensions are filled.
+
 ## Core dimensions
 
 ### factual_accuracy
