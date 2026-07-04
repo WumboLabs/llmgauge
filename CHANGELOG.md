@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.42 - Unreleased
+## v0.42 - 2026-07-03
 
 - Improved run model-selection guidance when a configured model profile name is accidentally passed with `--model-id`.
 - Clarified `--only` help text as the exact prompt ID selector.
