@@ -498,6 +498,42 @@ def _build_vram_guardrails(
     }
 
 
+def _metadata_only_score_prompt_count(scores_data: dict[str, Any]) -> int:
+    dimensions = scores_data.get("dimensions")
+    scores = scores_data.get("scores")
+
+    if not isinstance(dimensions, list) or not isinstance(scores, dict):
+        return 0
+
+    count = 0
+    for score_entry in scores.values():
+        if not isinstance(score_entry, dict):
+            continue
+
+        numeric_values = [
+            score_entry.get(dimension)
+            for dimension in dimensions
+            if isinstance(score_entry.get(dimension), int | float)
+        ]
+        if not numeric_values:
+            count += 1
+
+    return count
+
+
+def _print_metadata_only_score_warning(count: int) -> None:
+    if count == 0:
+        return
+
+    noun = "entry has" if count == 1 else "entries have"
+    console.print(
+        "[yellow]Warning[/yellow]: "
+        f"{count} prompt score {noun} review metadata but no numeric dimension "
+        "values. The result will report review_metadata_only until numeric "
+        "dimensions are filled."
+    )
+
+
 def _resolve_cli_output_dir(
     *,
     out: Path | None,
@@ -552,6 +588,15 @@ def _resolve_run_options(
 
     resolved_model_path = coalesce(model_path, profile.get("path"))
     if resolved_model_path is None:
+        if (
+            model_id is not None
+            and model_profile is None
+            and isinstance(profiles.get(model_id), dict)
+        ):
+            raise typer.BadParameter(
+                f"Model profile {model_id!r} was provided with --model-id. "
+                f"Use --model-profile {model_id} to load its configured path."
+            )
         raise typer.BadParameter(
             "Provide --model-path or use --model-profile with a path"
         )
@@ -967,7 +1012,11 @@ def contextgen(
 @app.command()
 def run(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
-    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Exact prompt ID to run, for example honesty/unknown-package",
+    ),
     include: str = typer.Option(
         "all",
         "--include",
@@ -1309,7 +1358,11 @@ def _print_fit_ladder_preflight(
 @app.command("fit-ladder")
 def fit_ladder(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
-    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Exact prompt ID to run, for example honesty/unknown-package",
+    ),
     include: str = typer.Option(
         "all",
         "--include",
@@ -1546,7 +1599,11 @@ def fit_ladder(
 @app.command("run-ladder")
 def run_ladder(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
-    only: str | None = typer.Option(None, "--only", help="Prompt ID to run"),
+    only: str | None = typer.Option(
+        None,
+        "--only",
+        help="Exact prompt ID to run, for example honesty/unknown-package",
+    ),
     include: str = typer.Option(
         "all",
         "--include",
@@ -2021,10 +2078,14 @@ def score(
             console.print(f"- {error}")
         raise typer.Exit(code=1)
 
+    metadata_only_count = _metadata_only_score_prompt_count(scores_data)
+
     if check:
         console.print(f"[bold green]Score validation passed[/bold green]: {scores}")
+        _print_metadata_only_score_warning(metadata_only_count)
         return
 
+    _print_metadata_only_score_warning(metadata_only_count)
     updated = apply_scores(result, scores_data)
     write_result(result_dir, updated)
     write_text(result_dir / "report.md", build_markdown_report(updated))

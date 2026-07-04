@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.42 - Unreleased
+
+- Improved run model-selection guidance when a configured model profile name is accidentally passed with `--model-id`.
+- Clarified `--only` help text as the exact prompt ID selector.
+- Added a warning when score files validate or apply as review metadata without numeric dimension values.
+
 ## v0.41 - 2026-07-02
 
 - Show scored interpretation and scoring provenance in run reports whenever applied score objects exist, including nonnumeric assisted drafts.

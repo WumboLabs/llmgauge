@@ -332,3 +332,85 @@ def test_score_auto_draft_rejects_parent_artifact_with_friendly_error(
     assert result.exit_code != 0
     assert "single-run result artifact" in result.output
     assert "batch-summary.json" in result.output
+
+
+def test_score_check_warns_for_metadata_only_scores(tmp_path: Path) -> None:
+    result_dir, scores_path = _write_score_files(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["score", str(result_dir), "--scores", str(scores_path), "--check"],
+    )
+
+    assert result.exit_code == 0
+    assert "Score validation passed" in result.output
+    compact_output = " ".join(result.output.split())
+    assert "review metadata but no numeric dimension values" in compact_output
+    assert "review_metadata_only" in result.output
+
+
+def test_score_apply_warns_for_metadata_only_scores(tmp_path: Path) -> None:
+    result_dir, scores_path = _write_score_files(tmp_path)
+    result_data = json.loads((result_dir / "llmgauge-result.json").read_text())
+    result_data["run"].update(
+        {
+            "status": "completed",
+            "timestamp_utc": "2026-07-03T00:00:00+00:00",
+        }
+    )
+    result_data["summary"].update(
+        {
+            "completed": 1,
+            "failed": 0,
+        }
+    )
+    result_data.update(
+        {
+            "model": {"model_id": "test-model", "model_path_policy": "redacted"},
+            "runtime": {
+                "backend": "llama.cpp",
+                "llama_cli": "/tmp/llama-cli",
+                "ctx_size": 8192,
+                "max_tokens": 600,
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "batch_size": 256,
+                "ubatch_size": 64,
+                "gpu_layers": 999,
+            },
+            "suite": {
+                "suite_id": "core-v1",
+                "suite_version": "0.1.0",
+                "prompt_count": 1,
+            },
+        }
+    )
+    result_data["results"][0].update(
+        {
+            "category": "honesty",
+            "status": "completed",
+            "raw_prompt_path": "raw/test-prompt.prompt.md",
+            "raw_output_path": "raw/test-prompt.output.txt",
+            "stderr_log_path": "logs/test-prompt.stderr.log",
+            "exit_status": 0,
+            "metrics": {
+                "prompt_eval_tps": 100.0,
+                "generation_tps": 50.0,
+            },
+        }
+    )
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result_data, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["score", str(result_dir), "--scores", str(scores_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "Applied scores" in result.output
+    compact_output = " ".join(result.output.split())
+    assert "review metadata but no numeric dimension values" in compact_output
+    assert "review_metadata_only" in result.output
