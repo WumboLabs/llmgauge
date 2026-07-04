@@ -92,4 +92,3 @@ Goals:
   - avoid bundling the rename with feature work or release-critical fixes
 - Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
 - If `--model-profile-file` is added, keep `--model-profiles` as a compatibility alias for at least one release cycle and document the transition clearly.
-
