@@ -120,18 +120,30 @@ Design constraints:
 
 Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
 
-## Active v0.43 runtime metadata trust work
+## Completed v0.43 runtime metadata trust work
 
-Current focus: make runtime settings that affect reproducibility visible in artifacts and reports.
+v0.43 made runtime settings that affect reproducibility visible in artifacts and reports.
 
-Initial v0.43 scope:
+Completed scope:
 
-- add explicit `--flash-attn auto|on|off`
-- allow `flash_attn` in model profiles and default config
-- store `runtime.flash_attn` in result JSON
-- show Flash attention in run reports and comparison reports
-- add explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
-- keep power-limit and deeper GPU telemetry capture for a later, separate slice
+- added explicit `--flash-attn auto|on|off`
+- allowed `flash_attn` in model profiles and default config
+- stored `runtime.flash_attn` in result JSON
+- showed Flash attention in run reports and comparison reports
+- added explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
+- kept power-limit and deeper GPU telemetry capture for a later, separate slice
+
+## Active v0.44 public-understandable documentation work
+
+Current focus: make the repository understandable to a technically curious public user without requiring prior project context.
+
+Initial v0.44 scope:
+
+- refresh README as a concise public front door
+- make the source-checkout workflow explicit with `uv run llmgauge ...`
+- keep installed CLI usage separate from development/source-checkout usage
+- clarify the first-run path in Quickstart
+- keep public install/package polish for a later release
 
 ## Future user-friendly installation and onboarding
 
