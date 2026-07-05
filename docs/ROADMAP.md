@@ -4,73 +4,173 @@ This roadmap is conservative and may change as real local testing exposes fricti
 
 ## Current direction
 
-LLMGauge should become a practical, independently usable local LLM evaluation bench before publishing many model findings. Priority is external usability, reproducible workflows, clear artifacts, and honest claim boundaries.
+LLMGauge should become a practical, independently usable local LLM evaluation bench before publishing many model findings.
 
-## Near-term milestones
+Priority is external usability, reproducible workflows, clear artifacts, preserved raw outputs, honest claim boundaries, and public-proof methodology.
 
-### v0.30: first-run command polish and model-profile onboarding
+LLMGauge is not a leaderboard, cloud eval service, model downloader, automatic judge, agent framework, or hardware tuning tool.
+
+## Current release line
+
+- Current stable tag: `v0.46`
+- Current development line: `v0.47`
+- Current development focus: public usability, installation/onboarding polish, reproducibility guardrails, and repository hygiene
+
+## Recently completed
+
+### v0.43: runtime metadata trust work
+
+v0.43 made runtime settings that affect reproducibility visible in artifacts and reports.
+
+Completed scope:
+
+- added explicit `--flash-attn auto|on|off`
+- allowed `flash_attn` in model profiles and default config
+- stored `runtime.flash_attn` in result JSON
+- showed Flash attention in run reports and comparison reports
+- added explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
+- kept power-limit and deeper GPU telemetry capture for a later, separate slice
+
+### v0.44: public-understandable documentation work
+
+v0.44 made the repository more understandable to a technically curious public user without requiring prior project context.
+
+Completed scope:
+
+- refreshed README as a concise public front door
+- made the source-checkout workflow explicit with `uv run llmgauge ...`
+- kept installed CLI usage separate from development/source-checkout usage
+- clarified the first-run path in Quickstart
+- kept public install/package polish for a later release
+
+### v0.46: public docs cleanup and suite/prompt audit
+
+v0.46 folded in the untagged v0.45 public-docs cleanup work and finalized a public-facing suite/prompt audit slice.
+
+Completed scope:
+
+- removed stale historical notes from public docs
+- removed private/internal project-memory notes from the public repository
+- sanitized public docs and bundled prompts so they do not depend on private machine or project context
+- added public suite methodology guidance
+- generalized `wumbolabs-practical-v1` technical-correctness coverage to a distro-agnostic Linux/NVIDIA update-boundary prompt
+- bumped `wumbolabs-practical-v1` to suite version `0.2.0`
+- clarified `agent-backend-v1` and `context-v1` scope
+- synced the source-checkout `suites/` tree with packaged built-in suites
+
+## Active v0.47 development
+
+v0.47 focuses on repository trust, version clarity, and public usability before deeper feature expansion.
+
+Initial completed or active scope:
+
+- package/CLI version metadata
+- `llmgauge version`
+- global `llmgauge --version`
+- run artifact `llmgauge_version` sourced from package metadata
+- suite mirror drift guard test for source-checkout suites vs packaged built-ins
+- roadmap refresh after v0.46
+
+Potential remaining v0.47 scope:
+
+- add `LICENSE`
+- add `CONTRIBUTING.md`
+- add GitHub Actions CI
+- add or update repository metadata guidance
+- clean duplicate `.gitignore` entries if straightforward
+- keep changes small, testable, and release-safe
+
+## Near-term roadmap
+
+### Repository trust and public maintenance
 
 Goals:
 
-- make local setup easier to initialize
-- make configured model profiles easier to inspect
-- reduce first-run confusion around config/profile paths
-- keep behavior explicit and conservative
-
-Planned or active work:
-
-- `llmgauge init-config`
-- `llmgauge list-model-profiles`
-- `llmgauge doctor` local config/profile auto-detection
-- quickstart updates for the shorter first-run path
-
-### v0.31: run command ergonomics
+- make the project easier to verify from a clean checkout
+- make external contribution expectations explicit
+- reduce accidental drift between source-checkout and packaged behavior
+- keep release hygiene clear
 
 Potential work:
 
-- consider default local config/profile discovery for `run`
-- print resolved config/model profile/model path summary before execution
-- improve error messages for missing model profile, missing model path, and missing llama-cli
-- keep direct explicit flags supported
+- add a license file, likely MIT unless project policy changes
+- add contribution guidance for tests, formatting, release gates, and claim boundaries
+- add basic CI with `uv run pytest`, `uv run ruff check .`, and `git diff --check`
+- add issue/PR templates later if external activity warrants it
+- add `SECURITY.md` later if the project surface grows
 
-### v0.32: run-ladder preflight
+### User-friendly installation and onboarding
 
-Goals:
+Goal: make LLMGauge feel like a normal installed CLI tool for users, while preserving the current `uv run` development workflow for contributors.
 
-- make multi-context ladder execution inspectable before GPU work
-- preview parsed context ladders, selected prompt count, model/profile resolution, and child output plans
-- avoid creating ladder/result directories in dry-run mode
+Current development workflow:
 
-### v0.33: Fit Ladder foundation
+- `uv run llmgauge ...`
+- `uv run pytest`
+- `uv run ruff check .`
 
-Goals:
+Target user workflow:
 
-- add context-first fallback planning helpers
-- classify OOM, process-killed, and generic runtime failures
-- define attempt records and fit-ladder summary structures
-- keep execution opt-in and avoid silent fallback in normal commands
+- `llmgauge doctor`
+- `llmgauge init`
+- `llmgauge model add ...`
+- `llmgauge run ...`
+- `llmgauge score ...`
+- `llmgauge compare ...`
 
-### v0.34: Fit Ladder execution loop
+Planned direction:
 
-Potential work:
+1. Installation and usage documentation split
+   - clearly document normal installed CLI usage with `llmgauge ...`
+   - separately document development usage with `uv run llmgauge ...`
+   - explain editable local installs with `uv tool install --editable .`
+   - keep public quickstart examples free of machine-specific local paths
 
-- add an explicit fit-ladder command or option
-- execute planned attempts in bounded order
-- preserve failed attempt artifacts
-- print retry status such as `OOM detected at ctx=65536; retrying at ctx=32768`
-- lower context first, then batch/ubatch if configured
-- keep GPU-layer fallback explicit only
+2. User config discovery
+   - support user-level config under `~/.config/llmgauge/`
+   - keep project-local config discovery for repo/development workflows
+   - prefer explicit CLI paths over discovered config
+   - keep built-in defaults conservative
 
-See `docs/FIT_LADDER.md`.
+3. `llmgauge init`
+   - create initial user config files
+   - configure the llama.cpp binary path
+   - configure default results directory
+   - optionally record default backend/runtime settings
+   - keep the first version conservative and non-magical
 
-### v0.35: Fit Ladder artifact polish
+4. Model onboarding polish
+   - improve `llmgauge model add`
+   - improve `llmgauge model list`
+   - add or improve model update/remove flows if needed
+   - validate missing model paths clearly
+   - preserve the mental model that `--model-profile` selects a configured model and `--model-path` loads an exact GGUF file
 
-Goals:
+5. Suite discovery and built-in suite aliases
+   - add or improve `llmgauge suite list`
+   - allow users to run built-in suites by ID rather than repo-relative paths
+   - keep explicit suite paths supported for custom/local suites
 
-- validate Fit Ladder artifact directories
-- index Fit Ladder artifacts through export-index
-- write human-readable Fit Ladder reports
-- preserve conservative claim boundaries around requested vs selected settings
+6. Smoke-test workflow
+   - add a simple `llmgauge smoke` path
+   - run one short built-in prompt against a configured/default model
+   - validate artifact creation
+   - print the report path and next recommended command
+
+7. Public install polish
+   - support a clean GitHub install path first, such as `uv tool install git+https://github.com/WumboLabs/llmgauge`
+   - consider PyPI later only when packaging, docs, versioning, and bundled suite behavior are stable
+   - do not require network activity for normal runs
+
+### Runtime reproducibility metadata
+
+Goal: preserve comparability when users tune llama.cpp/runtime settings.
+
+Planned direction:
+
+- capture and report runtime settings that affect comparability
+- include fields such as power limit, batch, ubatch, flash-attn mode, llama.cpp build/commit, GPU name, driver version, model path/quant, and runtime profile metadata when available
+- avoid silently mixing tuned daily runs with stock/reference comparison artifacts
 
 ## Later milestones
 
@@ -79,6 +179,9 @@ Goals:
 - expanded Practical Eval v1 prompt set
 - richer installed-CLI validation
 - downstream import polish
+- gradual `cli.py` module split
+- config/profile/suite schema validation polish
+- public artifact sanitization/export mode
 
 ## Future GitHub and branch-name maintenance
 
@@ -102,8 +205,7 @@ LLMGauge and LocalMaxxing solve different problems:
 - LLMGauge focuses on reproducible quality evaluation and reporting.
 - LocalMaxxing focuses on standardized public `llama-bench` performance benchmarking.
 
-A future optional addon could allow LLMGauge to export, or optionally submit,
-LocalMaxxing-compatible benchmark payloads after a standard `llama-bench` run.
+A future optional addon could allow LLMGauge to export, or optionally submit, LocalMaxxing-compatible benchmark payloads after a standard `llama-bench` run.
 
 Possible future commands:
 
@@ -120,114 +222,10 @@ Design constraints:
 
 Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
 
-## Completed v0.43 runtime metadata trust work
-
-v0.43 made runtime settings that affect reproducibility visible in artifacts and reports.
-
-Completed scope:
-
-- added explicit `--flash-attn auto|on|off`
-- allowed `flash_attn` in model profiles and default config
-- stored `runtime.flash_attn` in result JSON
-- showed Flash attention in run reports and comparison reports
-- added explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
-- kept power-limit and deeper GPU telemetry capture for a later, separate slice
-
-## Completed v0.44 public-understandable documentation work
-
-v0.44 made the repository more understandable to a technically curious public user without requiring prior project context.
-
-Completed v0.44 scope:
-
-- refresh README as a concise public front door
-- make the source-checkout workflow explicit with `uv run llmgauge ...`
-- keep installed CLI usage separate from development/source-checkout usage
-- clarify the first-run path in Quickstart
-- keep public install/package polish for a later release
-
-## Active v0.45 public docs cleanup work
-
-Current focus: keep the public repository documentation clean, product-oriented, and free of personal project-memory notes.
-
-Initial v0.45 scope:
-
-- remove stale historical run notes from public docs
-- remove personal/internal project-memory notes from the public repository
-- sanitize public docs and built-in suite prompts so they do not depend on private machine or project context
-- keep personal/internal project memory outside the public repository
-- defer user config discovery until the public docs surface is clean
-
-## Future user-friendly installation and onboarding
-
-Goal: make LLMGauge feel like a normal installed CLI tool for users, while preserving the current `uv run` development workflow for contributors.
-
-Current development workflow:
-
-- `uv run llmgauge ...`
-- `uv run pytest`
-- `uv run ruff check .`
-
-Target user workflow:
-
-- `llmgauge doctor`
-- `llmgauge init`
-- `llmgauge model add ...`
-- `llmgauge run ...`
-- `llmgauge score ...`
-- `llmgauge compare ...`
-
-Planned direction:
-
-1. Runtime reproducibility metadata and reporting
-   - capture and report runtime settings that affect comparability
-   - include fields such as power limit, batch, ubatch, flash-attn mode, llama.cpp build/commit, GPU name, driver version, model path/quant, and runtime profile metadata when available
-   - avoid silently mixing tuned daily runs with stock/reference comparison artifacts
-
-2. Installation and usage documentation split
-   - clearly document normal installed CLI usage with `llmgauge ...`
-   - separately document development usage with `uv run llmgauge ...`
-   - explain editable local installs with `uv tool install --editable .`
-   - add or improve `llmgauge --version` if needed
-
-3. User config discovery
-   - support user-level config under `~/.config/llmgauge/`
-   - keep project-local config discovery for repo/development workflows
-   - prefer explicit CLI paths over discovered config
-   - keep built-in defaults conservative
-
-4. `llmgauge init`
-   - create initial user config files
-   - configure the llama.cpp binary path
-   - configure default results directory
-   - optionally record default backend/runtime settings
-   - keep the first version conservative and non-magical
-
-5. Model onboarding polish
-   - improve `llmgauge model add`
-   - improve `llmgauge model list`
-   - add or improve model update/remove flows if needed
-   - validate missing model paths clearly
-   - preserve the mental model that `--model-profile` selects a configured model and `--model-path` loads an exact GGUF file
-
-6. Suite discovery and built-in suite aliases
-   - add or improve `llmgauge suite list`
-   - allow users to run built-in suites by ID rather than repo-relative paths
-   - keep explicit suite paths supported for custom/local suites
-
-7. Smoke-test workflow
-   - add a simple `llmgauge smoke` path
-   - run one short built-in prompt against a configured/default model
-   - validate artifact creation
-   - print the report path and next recommended command
-
-8. Public install polish
-   - support a clean GitHub install path first, such as `uv tool install git+https://github.com/WumboLabs/llmgauge`
-   - consider PyPI later only when packaging, docs, versioning, and bundled suite behavior are stable
-   - keep public quickstart examples free of machine-specific local paths
-
-Non-goals:
+## Non-goals
 
 - do not remove the `uv run` development workflow
 - do not require network activity for normal runs
 - do not make setup overly magical
 - do not bundle unrelated feature work into installation polish
+- do not turn LLMGauge into a cloud service, downloader, benchmark leaderboard, automatic judge, or hardware tuning tool
