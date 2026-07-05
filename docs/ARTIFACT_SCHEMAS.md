@@ -6,8 +6,8 @@ These schemas are intentionally conservative and file-based. They are not databa
 
 ## Design rules
 
-- Artifacts should be readable without Monolith.
-- Monolith may import artifacts, but LLMGauge does not write to Monolith databases.
+- Artifacts should be readable without any external dashboard or importer.
+- Downstream tools may import artifacts, but LLMGauge does not write to external application databases.
 - Raw prompt, output, and log files remain audit evidence.
 - Cleaned outputs are derived review artifacts and do not replace raw outputs.
 - JSON schemas should evolve additively where possible.
@@ -706,9 +706,9 @@ Create an index with validation metadata:
 
     uv run llmgauge export-index <artifact-dir> --validate --out results/llmgauge-index.json
 
-## Monolith import guidance
+## Downstream import guidance
 
-Monolith should treat LLMGauge artifacts as external source files.
+Downstream importers should treat LLMGauge artifacts as external source files.
 
 Recommended import behavior:
 
@@ -716,15 +716,15 @@ Recommended import behavior:
 2. Check `schema_version`.
 3. Run validation where practical.
 4. Store import timestamp, source path, schema version, artifact type, and validation status.
-5. Store summary metadata in Monolith's database.
+5. Store summary metadata in the downstream application's database or index.
 6. Link back to raw artifacts rather than copying them by default.
-7. Keep old Quant Lab/core-v2/Hermes records readable.
+7. Preserve compatibility with any existing downstream records when applicable.
 
-Monolith should not assume that LLMGauge artifacts are stored inside the Monolith repository or data directory.
+Downstream importers should not assume that LLMGauge artifacts are stored inside a specific repository or application data directory.
 
 ## Compatibility notes
 
-Existing schema versions are still v0-style schemas. They are stable enough for private Monolith import work, but not final public API commitments.
+Existing schema versions are still v0-style schemas. They are useful for local tooling and downstream import experiments, but not final public API commitments.
 
 Known schemas:
 

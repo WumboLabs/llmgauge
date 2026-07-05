@@ -2,7 +2,7 @@
 
 LLMGauge is a standalone local LLM evaluation CLI/tool for practical testing on real hardware.
 
-It grew out of the older Quant Lab workflow used by Monolith, but it must not require Monolith.
+It grew out of earlier local evaluation workflows, but it must remain independently usable.
 
 Core goals:
 
@@ -14,7 +14,7 @@ Core goals:
 - JSON results for machine import
 - manual scoring first
 - context-scaling support
-- Monolith-compatible artifacts later
+- portable artifacts for optional downstream tooling later
 
 Non-goals for the first pass:
 
@@ -23,5 +23,5 @@ Non-goals for the first pass:
 - no driver/CUDA/package/firewall mutation
 - no automatic LLM-based scoring
 - no SQLite dependency
-- no Monolith database migration
-- no renaming legacy Quant Lab internals
+- no external application database migration
+- no migration of unrelated legacy internals

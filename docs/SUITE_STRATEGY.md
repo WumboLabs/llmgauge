@@ -74,15 +74,15 @@ Design constraints:
 
 ### wumbolabs-smoke-v1
 
-Local/personal smoke tests for WumboLabs workflows.
+Local smoke tests for project workflows.
 
 Use for:
 
 - Wumbo-flavored fake command checks
 - Disco Biscuits factual-honesty check
 - homelab-flavored Docker/ZFS/networking checks
-- WumboJetsII local model comparison rituals
-- Monolith integration smoke checks
+- local model comparison workflows
+- downstream integration smoke checks
 
 Design constraints:
 

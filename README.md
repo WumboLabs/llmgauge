@@ -51,9 +51,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.43
+Current stable tag: v0.44
 
-Current development line: v0.44
+Current development line: v0.45
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...`.
 
@@ -239,8 +239,3 @@ Start here:
 - [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
 - [Public reporting guidance](docs/PUBLIC_REPORTING.md)
 - [Roadmap](docs/ROADMAP.md)
-
-Bridge/import docs:
-
-- [Monolith bridge contract](docs/MONOLITH_BRIDGE_CONTRACT.md)
-- [Monolith import example](docs/MONOLITH_IMPORT_EXAMPLE.md)

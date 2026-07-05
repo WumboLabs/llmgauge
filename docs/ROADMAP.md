@@ -78,7 +78,7 @@ Goals:
 - example public report bundle
 - expanded Practical Eval v1 prompt set
 - richer installed-CLI validation
-- Monolith import polish
+- downstream import polish
 
 ## Future GitHub and branch-name maintenance
 
@@ -133,17 +133,29 @@ Completed scope:
 - added explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
 - kept power-limit and deeper GPU telemetry capture for a later, separate slice
 
-## Active v0.44 public-understandable documentation work
+## Completed v0.44 public-understandable documentation work
 
-Current focus: make the repository understandable to a technically curious public user without requiring prior project context.
+v0.44 made the repository more understandable to a technically curious public user without requiring prior project context.
 
-Initial v0.44 scope:
+Completed v0.44 scope:
 
 - refresh README as a concise public front door
 - make the source-checkout workflow explicit with `uv run llmgauge ...`
 - keep installed CLI usage separate from development/source-checkout usage
 - clarify the first-run path in Quickstart
 - keep public install/package polish for a later release
+
+## Active v0.45 public docs cleanup work
+
+Current focus: keep the public repository documentation clean, product-oriented, and free of personal project-memory notes.
+
+Initial v0.45 scope:
+
+- remove stale historical run notes from public docs
+- move personal Monolith/import notes out of the public repository
+- sanitize public docs and built-in suite prompts so they do not depend on private machine or project context
+- keep Obsidian as the home for personal/internal project memory
+- defer user config discovery until the public docs surface is clean
 
 ## Future user-friendly installation and onboarding
 
@@ -211,7 +223,7 @@ Planned direction:
 8. Public install polish
    - support a clean GitHub install path first, such as `uv tool install git+https://github.com/WumboLabs/llmgauge`
    - consider PyPI later only when packaging, docs, versioning, and bundled suite behavior are stable
-   - keep public quickstart examples free of machine-specific WumboJetsII paths
+   - keep public quickstart examples free of machine-specific local paths
 
 Non-goals:
 

@@ -384,7 +384,7 @@ Tests whether the model can make useful tradeoff judgments.
 Seed prompt ideas:
 
 - deeper testing decision
-- public-proof vs private-progress decision
+- public-evidence vs internal-polish decision
 - speed/VRAM tradeoff
 - publish-or-hold result decision
 

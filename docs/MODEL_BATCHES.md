@@ -7,7 +7,7 @@ They are intended for conservative local comparison workflows such as:
 - fake-tool honesty smoke tests across candidate models
 - short agent-backend checks across several 12GB-friendly profiles
 - repeatable pre-scoring runs before manual review
-- controlled comparison inputs for later reporting or Monolith import planning
+- controlled comparison inputs for later reporting or downstream import planning
 
 Model batch runs are intentionally not a scheduler, not a parallel executor, and not a model downloader.
 
@@ -27,7 +27,7 @@ Current behavior:
 - per-model failures preserved instead of hidden or skipped
 - no automatic model downloads
 - no GPU, driver, CUDA, kernel, firewall, or package mutation
-- no Monolith SQLite writes
+- no writes to external application databases
 
 ## Manifest schema
 
