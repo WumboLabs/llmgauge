@@ -239,8 +239,3 @@ Start here:
 - [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
 - [Public reporting guidance](docs/PUBLIC_REPORTING.md)
 - [Roadmap](docs/ROADMAP.md)
-
-Integration docs:
-
-- [Monolith bridge contract](docs/integrations/monolith-bridge-contract.md)
-- [Monolith import example](docs/integrations/monolith-import-example.md)
