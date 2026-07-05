@@ -572,6 +572,7 @@ def _resolve_run_options(
     batch: int | None,
     ubatch: int | None,
     gpu_layers: int | None,
+    flash_attn: str | None = None,
 ) -> dict[str, Any]:
     resolved_config_path = config_path or _default_existing_path(DEFAULT_LOCAL_CONFIG)
     resolved_model_profiles_path = model_profiles_path or _default_existing_path(
@@ -668,6 +669,19 @@ def _resolve_run_options(
             999,
         )
     )
+    raw_flash_attn = coalesce(
+        flash_attn,
+        profile.get("flash_attn"),
+        get_config_value(config_data, "defaults.flash_attn"),
+        "auto",
+    )
+    if isinstance(raw_flash_attn, bool):
+        resolved_flash_attn = "on" if raw_flash_attn else "off"
+    else:
+        resolved_flash_attn = str(raw_flash_attn).lower()
+
+    if resolved_flash_attn not in {"auto", "on", "off"}:
+        raise typer.BadParameter("flash_attn must be one of: auto, on, off")
     resolved_vram_min_headroom_warn_mib = _optional_nonnegative_int(
         get_config_value(config_data, "vram.min_headroom_warn_mib"),
         field_name="vram.min_headroom_warn_mib",
@@ -694,6 +708,7 @@ def _resolve_run_options(
         "batch": resolved_batch,
         "ubatch": resolved_ubatch,
         "gpu_layers": resolved_gpu_layers,
+        "flash_attn": resolved_flash_attn,
         "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
     }
 
@@ -749,6 +764,7 @@ def _print_run_preflight(
     table.add_row("Batch", str(resolved["batch"]))
     table.add_row("UBatch", str(resolved["ubatch"]))
     table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Output plan", output_plan)
 
     console.print(table)
@@ -799,6 +815,7 @@ def _execute_run(
         batch_size=resolved["batch"],
         ubatch_size=resolved["ubatch"],
         gpu_layers=resolved["gpu_layers"],
+        flash_attn=resolved["flash_attn"],
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -922,6 +939,7 @@ def _execute_run(
             "batch_size": resolved["batch"],
             "ubatch_size": resolved["ubatch"],
             "gpu_layers": resolved["gpu_layers"],
+            "flash_attn": resolved["flash_attn"],
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
             "command": redacted_command or [],
             "config_path": str(resolved["config_path"])
@@ -1047,6 +1065,11 @@ def run(
     batch: int | None = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    flash_attn: str | None = typer.Option(
+        None,
+        "--flash-attn",
+        help="Flash attention mode: auto, on, or off",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output result directory"),
     auto_name: bool = typer.Option(
         False,
@@ -1084,6 +1107,7 @@ def run(
         batch=batch,
         ubatch=ubatch,
         gpu_layers=gpu_layers,
+        flash_attn=flash_attn,
     )
 
     if dry_run:
@@ -1178,6 +1202,7 @@ def _print_ladder_preflight(
     table.add_row("Batch", str(resolved["batch"]))
     table.add_row("UBatch", str(resolved["ubatch"]))
     table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Extreme context opt-in", str(allow_extreme_context))
     table.add_row("Output plan", output_plan)
 
@@ -1328,6 +1353,7 @@ def _print_fit_ladder_preflight(
     table.add_row("Temperature", str(resolved["temp"]))
     table.add_row("Top-p", str(resolved["top_p"]))
     table.add_row("GPU layers", str(resolved["gpu_layers"]))
+    table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Output plan", output_plan)
 
     console.print(table)
@@ -1403,6 +1429,11 @@ def fit_ladder(
     batch: int | None = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    flash_attn: str | None = typer.Option(
+        None,
+        "--flash-attn",
+        help="Flash attention mode: auto, on, or off",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output fit-ladder directory"),
     auto_name: bool = typer.Option(
         False,
@@ -1443,6 +1474,7 @@ def fit_ladder(
         batch=batch,
         ubatch=ubatch,
         gpu_layers=gpu_layers,
+        flash_attn=flash_attn,
     )
 
     try:
@@ -1643,6 +1675,11 @@ def run_ladder(
     batch: int | None = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
+    flash_attn: str | None = typer.Option(
+        None,
+        "--flash-attn",
+        help="Flash attention mode: auto, on, or off",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output ladder directory"),
     auto_name: bool = typer.Option(
         False,
@@ -1693,6 +1730,7 @@ def run_ladder(
             batch=batch,
             ubatch=ubatch,
             gpu_layers=gpu_layers,
+            flash_attn=flash_attn,
         )
         _print_ladder_preflight(
             suite=resolved_suite,
@@ -1743,6 +1781,7 @@ def run_ladder(
                 batch=batch,
                 ubatch=ubatch,
                 gpu_layers=gpu_layers,
+                flash_attn=flash_attn,
             )
 
             result = _execute_run(
@@ -1850,6 +1889,7 @@ def run_batch(
                 batch=None,
                 ubatch=None,
                 gpu_layers=None,
+                flash_attn=None,
             )
 
             result = _execute_run(

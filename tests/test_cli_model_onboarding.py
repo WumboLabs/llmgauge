@@ -313,3 +313,138 @@ models:
 
     assert "Model profile 'example_model' was provided with --model-id" in message
     assert "Use --model-profile example_model" in message
+
+
+def test_resolve_run_options_uses_flash_attn_from_profile_and_cli_override(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  flash_attn: off
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+    flash_attn: on
+""",
+        encoding="utf-8",
+    )
+
+    resolved = cli._resolve_run_options(
+        model_id=None,
+        model_profile="example_model",
+        config_path=None,
+        model_profiles_path=None,
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+        batch=None,
+        ubatch=None,
+        gpu_layers=None,
+        flash_attn=None,
+    )
+
+    assert resolved["flash_attn"] == "on"
+
+    overridden = cli._resolve_run_options(
+        model_id=None,
+        model_profile="example_model",
+        config_path=None,
+        model_profiles_path=None,
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+        batch=None,
+        ubatch=None,
+        gpu_layers=None,
+        flash_attn="auto",
+    )
+
+    assert overridden["flash_attn"] == "auto"
+
+
+def test_resolve_run_options_rejects_invalid_flash_attn(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+    try:
+        cli._resolve_run_options(
+            model_id=None,
+            model_profile="example_model",
+            config_path=None,
+            model_profiles_path=None,
+            model_path=None,
+            llama_cli=None,
+            ctx=None,
+            max_tokens=None,
+            temp=None,
+            top_p=None,
+            batch=None,
+            ubatch=None,
+            gpu_layers=None,
+            flash_attn="maybe",
+        )
+    except Exception as exc:
+        message = str(exc)
+    else:
+        message = ""
+
+    assert "flash_attn must be one of: auto, on, off" in message

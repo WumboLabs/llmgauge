@@ -19,6 +19,7 @@ class LlamaCppRunConfig:
     batch_size: int
     ubatch_size: int
     gpu_layers: int
+    flash_attn: str = "auto"
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,8 @@ def build_llama_command(config: LlamaCppRunConfig, prompt: str) -> list[str]:
         str(config.ubatch_size),
         "--n-gpu-layers",
         str(config.gpu_layers),
+        "-fa",
+        config.flash_attn,
         "--reasoning",
         "off",
         "--no-mmproj",

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.43 - Unreleased
+
+- Added explicit `--flash-attn auto|on|off` runtime configuration for llama.cpp runs.
+- Stored `runtime.flash_attn` in result artifacts and surfaced it in run reports and comparison reports.
+- Allowed `flash_attn` to be configured from model profiles or defaults, including YAML boolean-style `on`/`off` values.
+
 ## v0.42 - 2026-07-03
 
 - Improved run model-selection guidance when a configured model profile name is accidentally passed with `--model-id`.

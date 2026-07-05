@@ -120,6 +120,18 @@ Design constraints:
 
 Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
 
+## Active v0.43 runtime metadata trust work
+
+Current focus: make runtime settings that affect reproducibility visible in artifacts and reports.
+
+Initial v0.43 scope:
+
+- add explicit `--flash-attn auto|on|off`
+- allow `flash_attn` in model profiles and default config
+- store `runtime.flash_attn` in result JSON
+- show Flash attention in run reports and comparison reports
+- keep power-limit and deeper GPU telemetry capture for a later, separate slice
+
 ## Future user-friendly installation and onboarding
 
 Goal: make LLMGauge feel like a normal installed CLI tool for users, while preserving the current `uv run` development workflow for contributors.

@@ -324,8 +324,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             "",
             "## Runtime",
             "",
-            "| Run | Backend | Context | Max tokens | Temp | Top-p | Batch | UBatch | GPU layers |",
-            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+            "| Run | Backend | Context | Max tokens | Temp | Top-p | Batch | UBatch | GPU layers | Flash attention |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
         ]
     )
 
@@ -341,7 +341,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             f"{runtime.get('top_p')} | "
             f"{runtime.get('batch_size')} | "
             f"{runtime.get('ubatch_size')} | "
-            f"{runtime.get('gpu_layers')} |"
+            f"{runtime.get('gpu_layers')} | "
+            f"{runtime.get('flash_attn', 'unknown')} |"
         )
 
     lines.extend(
