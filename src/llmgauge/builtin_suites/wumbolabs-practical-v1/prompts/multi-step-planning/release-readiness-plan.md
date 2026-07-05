@@ -1,7 +1,7 @@
 You are reviewing whether a local LLM evaluation CLI is ready to tag a documentation-focused release.
 
 Current state:
-- v0.25 is already released.
+- The previous release is already tagged.
 - The release has added evaluation tier docs.
 - The release has added practical evaluation prompt quality docs.
 - The release has added a seed practical evaluation suite.

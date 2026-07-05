@@ -26,7 +26,7 @@ The workflow is intentionally incremental:
 
 ## CLI option notes
 
-LLMGauge v0.20+ uses these CLI options:
+Current LLMGauge releases use these CLI options:
 
     --ctx
     --temp
