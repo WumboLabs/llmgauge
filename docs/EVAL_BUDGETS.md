@@ -39,7 +39,7 @@ Use this for full scoring runs unless there is a reason to shorten outputs:
 
 Use lower values only for quick smoke tests.
 
-## Evidence from v0.16 smoke testing
+## Evidence from early smoke testing
 
 Model profile:
 
@@ -51,7 +51,7 @@ Model label:
 
 Environment:
 
-    WumboJetsII
+    local workstation
     NVIDIA RTX 5070 12GB
     llama.cpp backend
     installed llmgauge CLI

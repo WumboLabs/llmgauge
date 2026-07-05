@@ -41,7 +41,7 @@
 - Repairing malformed result directories.
 - Scoring output quality.
 - Validating model factual correctness.
-- Validating Monolith import compatibility.
+- Validating compatibility with any specific downstream importer.
 
 
 ## Score validation details

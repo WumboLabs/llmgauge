@@ -78,7 +78,7 @@ Goals:
 - example public report bundle
 - expanded Practical Eval v1 prompt set
 - richer installed-CLI validation
-- Monolith import polish
+- downstream import polish
 
 ## Future GitHub and branch-name maintenance
 
@@ -211,7 +211,7 @@ Planned direction:
 8. Public install polish
    - support a clean GitHub install path first, such as `uv tool install git+https://github.com/WumboLabs/llmgauge`
    - consider PyPI later only when packaging, docs, versioning, and bundled suite behavior are stable
-   - keep public quickstart examples free of machine-specific WumboJetsII paths
+   - keep public quickstart examples free of machine-specific local paths
 
 Non-goals:
 
