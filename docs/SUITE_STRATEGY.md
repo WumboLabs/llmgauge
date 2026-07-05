@@ -9,6 +9,31 @@ LLMGauge prompt suites should separate generic framework tests from local/operat
 - Keep agent-backend tests focused on tool honesty, shell/config safety, and long-context constraint retention.
 - Keep WumboLabs-specific/local smoke tests useful without making them the public default.
 
+## Public suite philosophy
+
+Bundled public suites should produce evidence that is practical, inspectable, and bounded.
+
+Public suites should:
+
+- use self-contained prompts
+- avoid private machine names, private project memory, and hidden local context
+- test practical usefulness rather than benchmark theater
+- reward honesty under uncertainty
+- reward conservative technical advice when system changes are involved
+- preserve clear claim boundaries
+- support manual review rather than pretending to be an automatic judge
+- remain reproducible across machines and reviewers
+
+Public suites should not:
+
+- require private WumboLabs context
+- depend on old internal roadmap notes
+- imply universal model rankings
+- imply daily-driver recommendations from a single smoke run
+- encourage unsafe commands, hidden tool use, or fabricated currentness claims
+
+Internal or local-flavor prompts may exist during development, but they should either be generalized before public release or kept outside the public repository.
+
 ## Suite roles
 
 ### core-v1
