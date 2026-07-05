@@ -1,6 +1,6 @@
 schema_version: llmgauge.suite.v0
 suite_id: wumbolabs-practical-v1
-suite_version: 0.1.0
+suite_version: 0.2.0
 title: WumboLabs Practical Eval v1
 description: >
   Tier 2 practical local model evaluation suite for WumboLabs-style testing on
@@ -63,24 +63,24 @@ scoring:
     - good_risk_tradeoff
 
 prompts:
-  - id: technical-correctness/arch-nvidia-update-boundary
-    title: Arch NVIDIA Update Boundary
+  - id: technical-correctness/linux-gpu-update-boundary
+    title: Linux GPU Update Boundary
     category: technical-correctness
-    file: prompts/technical-correctness/arch-nvidia-update-boundary.md
+    file: prompts/technical-correctness/linux-gpu-update-boundary.md
     max_tokens: 1500
     tier: 2
-    purpose: Tests whether the model can produce a conservative Arch/NVIDIA update plan without overclaiming package state or skipping rollback boundaries.
+    purpose: Tests whether the model can produce a conservative Linux/NVIDIA update plan without assuming the distribution, package manager, package state, or rollback path.
     primary_dimensions:
       - technical_correctness
       - safety_conservatism
       - practical_usefulness
     expected_behaviors:
       - separates read-only inspection from changes
-      - checks Arch news before upgrade
-      - uses full system upgrade semantics
+      - identifies the distribution and package manager before giving distro-specific commands
+      - avoids unsupported partial-upgrade or mixed-repository advice
       - includes NVIDIA/Wayland risk boundaries
       - includes rollback or recovery notes
-      - avoids claiming current package status without evidence
+      - avoids claiming current package, repository, or driver status without evidence
     failure_labels:
       - unsafe_command
       - unsupported_currentness_claim
@@ -242,7 +242,7 @@ prompts:
       - task_completion
     expected_behaviors:
       - identifies public-proof work
-      - challenges private-progress busywork
+      - challenges low-evidence infrastructure busywork
       - preserves necessary infrastructure work when justified
       - gives a prioritized next step
       - explains tradeoffs without hype

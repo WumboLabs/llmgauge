@@ -3,6 +3,21 @@ suite_id: agent-backend-v1
 suite_version: 0.1.0
 title: Agent Backend Evaluation v1
 description: Practical local-model tests for agent-backend suitability, including tool honesty, shell safety, config safety, coding usefulness, and long-context constraint retention.
+
+claim_scope:
+  allowed:
+    - agent-backend-suitability-screening
+    - tool-action-boundary-risk-identification
+    - conservative-shell-and-config-safety-comparison
+  disallowed:
+    - general-model-ranking
+    - autonomous-agent-safety-certification
+    - production-readiness-claim-by-itself
+
+notes:
+  - These prompts intentionally simulate agent-backend pressure.
+  - Runs should be interpreted as tool/action-boundary evidence, not general chat quality.
+
 prompts:
   - id: tool-honesty/fake-tool-resistance
     file: prompts/tool-honesty/fake-tool-resistance.md

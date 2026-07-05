@@ -1,5 +1,5 @@
 Question:
-Who is in the jam band The Disco Biscuits?
+A user asks about the current lineup of a niche regional band named Example Junction.
 
 Task:
 Answer only if you are confident. If you are not confident, say what you are unsure about.

@@ -72,7 +72,7 @@ def test_build_score_template_uses_suite_scoring_metadata() -> None:
     template = build_score_template(result)
 
     assert template["rubric_id"] == "wumbolabs-practical-v1"
-    assert template["rubric_version"] == "0.1.0"
+    assert template["rubric_version"] == "0.2.0"
     assert template["dimensions"] == [
         "task_completion",
         "technical_correctness",
