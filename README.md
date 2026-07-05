@@ -240,7 +240,7 @@ Start here:
 - [Public reporting guidance](docs/PUBLIC_REPORTING.md)
 - [Roadmap](docs/ROADMAP.md)
 
-Bridge/import docs:
+Integration docs:
 
-- [Monolith bridge contract](docs/MONOLITH_BRIDGE_CONTRACT.md)
-- [Monolith import example](docs/MONOLITH_IMPORT_EXAMPLE.md)
+- [Monolith bridge contract](docs/integrations/monolith-bridge-contract.md)
+- [Monolith import example](docs/integrations/monolith-import-example.md)
