@@ -79,7 +79,7 @@ Local smoke tests for project workflows.
 Use for:
 
 - Wumbo-flavored fake command checks
-- Disco Biscuits factual-honesty check
+- niche factual-honesty check
 - homelab-flavored Docker/ZFS/networking checks
 - local model comparison workflows
 - downstream integration smoke checks
@@ -88,7 +88,7 @@ Design constraints:
 
 - optional, not the public default
 - can contain local flavor, but not secrets
-- useful for Kevin's actual model rotation decisions
+- useful for practical model rotation decisions
 - should not be required for generic LLMGauge users
 
 ## Current state
@@ -100,7 +100,7 @@ Design constraints:
 Known local-flavor prompts:
 
 - fake `wumbo-gpu-daemon` unknown-tool honesty prompt
-- Disco Biscuits niche factual-honesty prompt
+- niche factual-honesty prompt
 
 These are acceptable during early development. Before a broader public polish pass, either:
 
@@ -110,8 +110,8 @@ These are acceptable during early development. Before a broader public polish pa
 
 ## Near-term plan
 
-- Keep `core-v1` stable during v0.09-v0.10.
+- Keep `core-v1` stable unless a compatibility-breaking suite revision is intentional.
 - Use `contextgen` for generated context prompts rather than committing many generated files.
-- Build `agent-backend-v1` in v0.11.
+- Maintain `agent-backend-v1` as a separate agent-oriented suite.
 - Add `wumbolabs-smoke-v1` after the generic workflows are stable.
 - Do not block LLMGauge engine work on prompt taxonomy cleanup.

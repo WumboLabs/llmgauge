@@ -152,9 +152,9 @@ Current focus: keep the public repository documentation clean, product-oriented,
 Initial v0.45 scope:
 
 - remove stale historical run notes from public docs
-- move personal Monolith/import notes out of the public repository
+- remove personal/internal project-memory notes from the public repository
 - sanitize public docs and built-in suite prompts so they do not depend on private machine or project context
-- keep Obsidian as the home for personal/internal project memory
+- keep personal/internal project memory outside the public repository
 - defer user config discovery until the public docs surface is clean
 
 ## Future user-friendly installation and onboarding
