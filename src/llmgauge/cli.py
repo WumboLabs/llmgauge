@@ -10,6 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from llmgauge import __version__
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.baseline import check_result_against_baselines
 from llmgauge.core.batch_validation import validate_batch_dir
@@ -79,6 +80,31 @@ DEFAULT_LOCAL_CONFIG = Path("examples/configs/llmgauge.local.yaml")
 DEFAULT_LOCAL_MODEL_PROFILES = Path("examples/configs/model-profiles.local.yaml")
 EXAMPLE_CONFIG = Path("examples/configs/llmgauge.example.yaml")
 EXAMPLE_MODEL_PROFILES = Path("examples/configs/model-profiles.example.yaml")
+
+
+def _show_version(value: bool) -> None:
+    if value:
+        console.print(f"llmgauge {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def cli_options(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        help="Show the LLMGauge version and exit.",
+        callback=_show_version,
+        is_eager=True,
+    ),
+) -> None:
+    """Practical local LLM evaluation on real hardware."""
+
+
+@app.command("version")
+def version_command() -> None:
+    """Show the LLMGauge version."""
+    console.print(f"llmgauge {__version__}")
 
 
 def _default_existing_path(path: Path) -> Path | None:
@@ -927,7 +953,7 @@ def _execute_run(
 
     result = {
         "schema_version": "llmgauge.result.v0",
-        "llmgauge_version": "0.1.0",
+        "llmgauge_version": __version__,
         "run": {
             "run_id": run_id,
             "timestamp_utc": timestamp,
