@@ -30,6 +30,8 @@ def _result(
             "batch_size": 256,
             "ubatch_size": 64,
             "gpu_layers": 999,
+            "flash_attn": "on",
+            "runtime_label": "daily-tuned",
         },
         "summary": {
             "completed": 1,
@@ -100,6 +102,8 @@ def test_build_compare_report() -> None:
     assert "## Quality Signals" in report
     assert "| model-b (run-b) | 3.5 | mixed: 1 | 0 | 1 | honesty-unknown-tool (3.5) |" in report
     assert "## Performance Signals" in report
+    assert "| Run | Backend | Context | Max tokens | Temp | Top-p | Batch | UBatch | GPU layers | Flash attention | Runtime label |" in report
+    assert "| model-a (run-a) | llama.cpp | 8192 | 600 | 0.2 | 0.95 | 256 | 64 | 999 | on | daily-tuned |" in report
     assert "| model-a (run-a) | 50.0 | 1000.0 | 7535 | 4692 |" in report
     assert "| honesty-unknown-tool | 4.0 | 3.5 |" in report
     assert (

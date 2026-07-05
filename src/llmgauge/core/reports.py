@@ -200,6 +200,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         f"- Batch: {runtime['batch_size']}",
         f"- UBatch: {runtime['ubatch_size']}",
         f"- GPU layers: {runtime['gpu_layers']}",
+        f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
+        f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
         "",
     ]
 
