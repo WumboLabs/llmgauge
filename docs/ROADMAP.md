@@ -119,3 +119,78 @@ Design constraints:
 - optional benchmark IDs could be stored as supplemental metadata in LLMGauge result artifacts
 
 Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
+
+## Future user-friendly installation and onboarding
+
+Goal: make LLMGauge feel like a normal installed CLI tool for users, while preserving the current `uv run` development workflow for contributors.
+
+Current development workflow:
+
+- `uv run llmgauge ...`
+- `uv run pytest`
+- `uv run ruff check .`
+
+Target user workflow:
+
+- `llmgauge doctor`
+- `llmgauge init`
+- `llmgauge model add ...`
+- `llmgauge run ...`
+- `llmgauge score ...`
+- `llmgauge compare ...`
+
+Planned direction:
+
+1. Runtime reproducibility metadata and reporting
+   - capture and report runtime settings that affect comparability
+   - include fields such as power limit, batch, ubatch, flash-attn mode, llama.cpp build/commit, GPU name, driver version, model path/quant, and runtime profile metadata when available
+   - avoid silently mixing tuned daily runs with stock/reference comparison artifacts
+
+2. Installation and usage documentation split
+   - clearly document normal installed CLI usage with `llmgauge ...`
+   - separately document development usage with `uv run llmgauge ...`
+   - explain editable local installs with `uv tool install --editable .`
+   - add or improve `llmgauge --version` if needed
+
+3. User config discovery
+   - support user-level config under `~/.config/llmgauge/`
+   - keep project-local config discovery for repo/development workflows
+   - prefer explicit CLI paths over discovered config
+   - keep built-in defaults conservative
+
+4. `llmgauge init`
+   - create initial user config files
+   - configure the llama.cpp binary path
+   - configure default results directory
+   - optionally record default backend/runtime settings
+   - keep the first version conservative and non-magical
+
+5. Model onboarding polish
+   - improve `llmgauge model add`
+   - improve `llmgauge model list`
+   - add or improve model update/remove flows if needed
+   - validate missing model paths clearly
+   - preserve the mental model that `--model-profile` selects a configured model and `--model-path` loads an exact GGUF file
+
+6. Suite discovery and built-in suite aliases
+   - add or improve `llmgauge suite list`
+   - allow users to run built-in suites by ID rather than repo-relative paths
+   - keep explicit suite paths supported for custom/local suites
+
+7. Smoke-test workflow
+   - add a simple `llmgauge smoke` path
+   - run one short built-in prompt against a configured/default model
+   - validate artifact creation
+   - print the report path and next recommended command
+
+8. Public install polish
+   - support a clean GitHub install path first, such as `uv tool install git+https://github.com/WumboLabs/llmgauge`
+   - consider PyPI later only when packaging, docs, versioning, and bundled suite behavior are stable
+   - keep public quickstart examples free of machine-specific WumboJetsII paths
+
+Non-goals:
+
+- do not remove the `uv run` development workflow
+- do not require network activity for normal runs
+- do not make setup overly magical
+- do not bundle unrelated feature work into installation polish
