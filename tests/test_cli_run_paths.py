@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
 from typer.testing import CliRunner
 
+from llmgauge import __version__
 import llmgauge.cli as cli
 
 runner = CliRunner()
@@ -60,10 +62,16 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
         fail_on_failed_prompts=True,
     )
 
+    assert result["llmgauge_version"] == __version__
     assert result["run"]["status"] == "completed"
     assert result["suite"]["suite_id"] == "agent-backend-v1"
     assert result["summary"]["completed"] == 1
     assert result["summary"]["failed"] == 0
+
+    result_json = json.loads(
+        (tmp_path / "result" / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    assert result_json["llmgauge_version"] == __version__
 
     raw_prompt = (
         tmp_path / "result" / "raw" / "tool-honesty" / "fake-tool-resistance.prompt.md"

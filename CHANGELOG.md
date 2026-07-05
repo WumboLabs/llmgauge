@@ -9,6 +9,7 @@
 - Bumped `wumbolabs-practical-v1` to suite version `0.2.0`.
 - Added claim-scope notes to `agent-backend-v1` and clarified that `context-v1` currently provides context ladder presets.
 - Synced the source-checkout `suites/` tree with packaged built-in suites so CLI behavior and packaged suite metadata agree.
+- Note: the untagged v0.45 public-docs cleanup work was folded into this v0.46 release.
 
 ## v0.44 - 2026-07-04
 

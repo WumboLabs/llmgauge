@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from llmgauge!")
+"""LLMGauge package metadata."""
+
+__version__ = "0.47.0.dev0"
