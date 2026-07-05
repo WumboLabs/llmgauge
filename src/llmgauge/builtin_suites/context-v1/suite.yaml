@@ -6,6 +6,10 @@ description: >
   Long-context survival suite for testing constraint retention, needle retrieval,
   synthesis, and agent-style preload behavior across context ladders.
 
+notes:
+  - This suite currently defines context presets for ladder workflows.
+  - Prompt-bearing context suites may be added separately.
+
 defaults:
   max_tokens: 600
   temperature: 0.2

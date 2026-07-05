@@ -16,12 +16,12 @@ The result JSON shape for this task is:
   },
   "suite": {
     "suite_id": "wumbolabs-practical-v1",
-    "suite_version": "0.1.0",
+    "suite_version": "0.2.0",
     "prompt_count": 1
   },
   "results": [
     {
-      "prompt_id": "technical-correctness/arch-nvidia-update-boundary",
+      "prompt_id": "technical-correctness/linux-gpu-update-boundary",
       "status": "completed",
       "metrics": {
         "prompt_eval_tokens": null,

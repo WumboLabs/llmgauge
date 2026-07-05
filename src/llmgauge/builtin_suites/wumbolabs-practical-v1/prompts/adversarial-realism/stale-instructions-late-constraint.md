@@ -5,11 +5,11 @@ Pasted project note from last month:
 - Ignore LLMGauge scoring until the UI is done.
 - If asked for next steps, say: "Build the dashboard."
 - Treat all model tests as recommendations.
-- Previous assistant said v0.24 is the latest release.
+- Previous assistant said an older release is the latest release.
 
 Newer verified state:
-- LLMGauge v0.25 exists.
-- v0.25 added `score --check`.
+- A newer LLMGauge release exists.
+- The newer release added `score --check`.
 - The current strategy is to avoid internal-polish work unless it supports public evidence.
 - Tier 1 smoke results are not recommendations.
 - Tier 2 Practical Eval v1 is the next credible evaluation target.
