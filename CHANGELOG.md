@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.43 - Unreleased
+## v0.43 - 2026-07-04
 
 - Added explicit `--flash-attn auto|on|off` runtime configuration for llama.cpp runs.
 - Stored `runtime.flash_attn` in result artifacts and surfaced it in run reports and comparison reports.
