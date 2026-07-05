@@ -12,8 +12,8 @@ LLMGauge is not a leaderboard, cloud eval service, model downloader, automatic j
 
 ## Current release line
 
-- Current stable tag: `v0.46`
-- Current development line: `v0.47`
+- Current stable tag: `v0.47`
+- Current development line: `v0.48`
 - Current development focus: public usability, installation/onboarding polish, reproducibility guardrails, and repository hygiene
 
 ## Recently completed
@@ -58,11 +58,11 @@ Completed scope:
 - clarified `agent-backend-v1` and `context-v1` scope
 - synced the source-checkout `suites/` tree with packaged built-in suites
 
-## Active v0.47 development
+## Completed v0.47 public repository polish
 
-v0.47 focuses on repository trust, version clarity, and public usability before deeper feature expansion.
+v0.47 focused on repository trust, version clarity, and public usability before deeper feature expansion.
 
-Initial completed or active scope:
+Completed scope:
 
 - package/CLI version metadata
 - `llmgauge version`
@@ -71,7 +71,7 @@ Initial completed or active scope:
 - suite mirror drift guard test for source-checkout suites vs packaged built-ins
 - roadmap refresh after v0.46
 
-Potential remaining v0.47 scope:
+Potential v0.48 scope:
 
 - add `LICENSE`
 - add `CONTRIBUTING.md`

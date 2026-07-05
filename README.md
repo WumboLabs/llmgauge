@@ -51,9 +51,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.46
+Current stable tag: v0.47
 
-Current development line: v0.47
+Current development line: v0.48
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...`.
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.47 - 2026-07-04
+
+- Added package and CLI version metadata for the v0.47 development line.
+- Added `llmgauge version` and global `llmgauge --version`.
+- Updated run artifacts so `llmgauge_version` is sourced from package metadata instead of a hardcoded placeholder.
+- Added tests for CLI version output and run artifact version metadata.
+- Added a suite mirror drift guard test to keep source-checkout suites and packaged built-in suites synchronized.
+- Refreshed the roadmap for v0.47 public repository polish.
+- Added an MIT license.
+- Added contributor guidance for development gates, suite hygiene, artifact preservation, runtime claim boundaries, and public-safe prompts.
+- Added read-only GitHub Actions CI for tests, ruff, and whitespace diff checks.
+
 ## v0.46 - 2026-07-04
 
 - Cleaned the public documentation tree by removing stale historical notes and private/internal project-memory docs.
