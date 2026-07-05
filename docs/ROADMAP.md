@@ -92,3 +92,30 @@ Goals:
   - avoid bundling the rename with feature work or release-critical fixes
 - Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
 - If `--model-profile-file` is added, keep `--model-profiles` as a compatibility alias for at least one release cycle and document the transition clearly.
+
+## Future LocalMaxxing integration interest
+
+Interest pending; not a current development priority.
+
+LLMGauge and LocalMaxxing solve different problems:
+
+- LLMGauge focuses on reproducible quality evaluation and reporting.
+- LocalMaxxing focuses on standardized public `llama-bench` performance benchmarking.
+
+A future optional addon could allow LLMGauge to export, or optionally submit,
+LocalMaxxing-compatible benchmark payloads after a standard `llama-bench` run.
+
+Possible future commands:
+
+- `llmgauge export-localmaxxing`
+- `llmgauge submit-localmaxxing`
+
+Design constraints:
+
+- entirely optional
+- no LocalMaxxing dependency for normal LLMGauge users
+- no automatic network or API activity
+- no change to LLMGauge's primary quality-evaluation mission
+- optional benchmark IDs could be stored as supplemental metadata in LLMGauge result artifacts
+
+Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
