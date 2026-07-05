@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.44 - 2026-07-04
+
+- Refreshed README as a concise public overview for technically curious users.
+- Clarified that the current recommended early-user workflow is source-checkout usage with `uv run llmgauge ...`.
+- Updated Quickstart with a clearer first-run path, command-form guidance, and runtime metadata examples.
+- Added `docs/USAGE.md` as a compact command map for common LLMGauge workflows.
+- Updated the roadmap to mark v0.43 runtime metadata work complete and v0.44 public documentation polish active.
+
 ## v0.43 - 2026-07-04
 
 - Added explicit `--flash-attn auto|on|off` runtime configuration for llama.cpp runs.
