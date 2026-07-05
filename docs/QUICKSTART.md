@@ -2,7 +2,19 @@
 
 This guide gets a new local user from a fresh checkout to a validated single-prompt run.
 
-LLMGauge does not download models, install GPU drivers, modify CUDA, change system packages, or tune hardware settings. You provide an existing GGUF model and a working llama.cpp `llama-cli`.
+LLMGauge is local-first. It does not download models, install GPU drivers, modify CUDA, change system packages, tune hardware settings, or submit results to a service. You provide an existing GGUF model and a working `llama.cpp` `llama-cli`.
+
+## Command forms
+
+From a cloned repository checkout, use:
+
+    uv run llmgauge ...
+
+After installing the CLI into your environment, use:
+
+    llmgauge ...
+
+The current recommended path for early users and contributors is the source-checkout workflow with `uv run llmgauge ...`.
 
 ## 1. Install from a checkout
 
@@ -11,10 +23,15 @@ From the repository root:
     uv sync
     uv run llmgauge --help
 
-Optional installed CLI usage:
+Optional local installed CLI usage:
 
     uv tool install .
+
+Then:
+
     llmgauge --help
+
+Installed CLI behavior is still being clarified. The rest of this guide uses `uv run llmgauge ...`.
 
 ## 2. Create local config files
 
@@ -31,17 +48,39 @@ Local config files matching `examples/configs/*.local.yaml` are ignored by git a
 
 ## 3. Edit local config
 
-Edit `examples/configs/llmgauge.local.yaml` and set your llama.cpp path:
+Edit `examples/configs/llmgauge.local.yaml` and set your `llama-cli` path:
 
     runtime:
       llama_cli: /path/to/llama-cli
+
+Optional defaults can also live here:
+
+    defaults:
+      ctx_size: 8192
+      max_tokens: 800
+      temperature: 0.2
+      flash_attn: auto
+      runtime_label: stock-reference
 
 Edit `examples/configs/model-profiles.local.yaml` and set at least one model profile path:
 
     models:
       example_model:
         label: Example Model
+        family: Example
+        quant: Q4_K_M
         path: /path/to/model.gguf
+
+Optional per-model runtime metadata can also live in the profile:
+
+    models:
+      example_model:
+        label: Example Model
+        family: Example
+        quant: Q4_K_M
+        path: /path/to/model.gguf
+        flash_attn: on
+        runtime_label: daily-tuned
 
 ## 4. Check the environment
 
@@ -84,22 +123,24 @@ List built-in suites:
 
 Validate a suite:
 
-    uv run llmgauge validate-suite core-v1
+    uv run llmgauge validate-suite wumbolabs-practical-v1
 
 ## 7. Preview one prompt
 
-Before launching llama.cpp, inspect the resolved run plan:
+Before launching `llama.cpp`, inspect the resolved run plan:
 
     uv run llmgauge run \
-      --suite core-v1 \
-      --include honesty \
+      --suite wumbolabs-practical-v1 \
+      --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \
+      --flash-attn auto \
+      --runtime-label stock-reference \
       --dry-run
 
-Dry-run mode resolves config, model profiles, model paths, runtime settings, and selected prompt count. It does not launch llama.cpp and does not create a result directory.
+Dry-run mode resolves config, model profiles, model paths, runtime settings, and selected prompt count. It does not launch `llama.cpp` and does not create a result directory.
 
 ## 8. Run one prompt
 
@@ -108,15 +149,17 @@ Start with one prompt before running a full suite.
 When `examples/configs/llmgauge.local.yaml` and `examples/configs/model-profiles.local.yaml` exist, LLMGauge auto-detects them. Explicit `--config` and `--model-profiles` still override the defaults.
 
     uv run llmgauge run \
-      --suite core-v1 \
-      --include honesty \
+      --suite wumbolabs-practical-v1 \
+      --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \
+      --flash-attn auto \
+      --runtime-label stock-reference \
       --auto-name \
       --runs-root results \
-      --run-name quickstart-honesty
+      --run-name quickstart-smoke
 
 ## 9. Validate the result
 
@@ -169,6 +212,33 @@ Create a machine-readable index for reports, comparisons, or import workflows:
       results/<generated-run-directory> \
       --validate \
       --out results/quickstart-index.json
+
+## 12. Compare runs
+
+After you have two or more result directories, create a comparison report:
+
+    uv run llmgauge compare \
+      results/run-a \
+      results/run-b \
+      --out results/compare.md
+
+Comparison reports summarize runtime settings, score totals, prompt verdicts, speed metrics, VRAM metrics, and label counts. They do not declare a universal winner.
+
+## Runtime metadata notes
+
+Use `--flash-attn` to record and pass the llama.cpp flash-attention mode:
+
+    --flash-attn auto
+    --flash-attn on
+    --flash-attn off
+
+Use `--runtime-label` to identify the methodology behind a run:
+
+    --runtime-label stock-reference
+    --runtime-label daily-tuned
+    --runtime-label experimental
+
+These labels are manual metadata. They do not change hardware settings. They help prevent mixing stock/reference runs with daily-tuned or experimental runs without noticing.
 
 ## Claim boundary
 
