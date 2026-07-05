@@ -228,6 +228,7 @@ LLMGauge is local-first and conservative by design.
 Start here:
 
 - [Quickstart](docs/QUICKSTART.md)
+- [Usage command map](docs/USAGE.md)
 - [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
 - [Evaluation tiers](docs/EVALUATION_TIERS.md)
 - [Practical Eval v1](docs/PRACTICAL_EVAL_V1.md)

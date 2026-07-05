@@ -2,6 +2,8 @@
 
 This guide gets a new local user from a fresh checkout to a validated single-prompt run.
 
+For a compact command reference, see [Usage](USAGE.md).
+
 LLMGauge is local-first. It does not download models, install GPU drivers, modify CUDA, change system packages, tune hardware settings, or submit results to a service. You provide an existing GGUF model and a working `llama.cpp` `llama-cli`.
 
 ## Command forms
