@@ -1,232 +1,161 @@
 # LLMGauge
 
-Practical local LLM evaluation on real hardware.
+Practical local LLM evaluation on real consumer hardware.
 
-LLMGauge is a local-first CLI for running practical prompt suites against local GGUF models through llama.cpp. It is designed for real workstation testing, constrained VRAM, reproducible local runs, preserved raw outputs, manual scoring, and clear model comparison.
+LLMGauge is a local-first CLI for running reproducible prompt suites against local GGUF models through `llama.cpp`. It is designed for workstation testing, constrained VRAM, preserved artifacts, manual review, and practical model comparison.
 
-It is not a synthetic benchmark leaderboard, not an automatic judge system, and not a model downloader.
+It helps answer questions like:
+
+- Did this local model complete the task?
+- Did it hallucinate commands, packages, tools, APIs, or facts?
+- Did it follow constraints?
+- Was the answer useful enough to trust?
+- What runtime settings were used?
+- How much VRAM headroom did the run have?
+- Can another person inspect the raw evidence?
+
+LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” workflow.
+
+## What LLMGauge is
+
+LLMGauge is an artifact-preserving local model evaluation bench.
+
+It can:
+
+- run built-in or custom prompt suites against local `llama.cpp` / GGUF models
+- preview run plans before launching a model
+- preserve raw prompts, raw outputs, cleaned review outputs, and stderr logs
+- capture runtime metadata such as context size, batch settings, flash-attention mode, and runtime methodology labels
+- capture prompt-level speed metrics
+- capture NVIDIA VRAM usage summaries when `nvidia-smi` is available
+- validate result directories
+- generate Markdown run reports
+- initialize and apply manual score templates
+- create scored comparison reports across runs
+- run context ladders and adaptive fit ladders for local hardware fit testing
+- run manifest-driven model batches across configured model profiles
+
+## What LLMGauge is not
+
+LLMGauge is not:
+
+- a synthetic benchmark leaderboard
+- an automatic model judge
+- a model downloader
+- a cloud evaluation service
+- an agent framework
+- a hardware tuning tool
+- a replacement for manual review
+
+Scores are review metadata, not universal truth. Comparison reports are evidence summaries, not global rankings.
 
 ## Current status
 
-Current stable tag: v0.36
+Current stable tag: v0.43
 
-Current development line: v0.36
+Current development line: v0.44
 
-Current capabilities:
+LLMGauge is usable from a repository checkout with `uv run llmgauge ...`.
 
-- Check local setup readiness with `doctor`.
-- Initialize ignored local config files with `init-config`.
-- List configured model profiles with `list-model-profiles`.
-- Validate prompt suites.
-- Run one prompt, one category, or a full suite.
-- Preview run plans without launching llama.cpp using `run --dry-run`.
-- Preview ladder plans without launching llama.cpp using `run-ladder --dry-run`.
-- Run explicit context fallback attempts with `fit-ladder`.
-- Validate and index Fit Ladder artifacts.
-- Capture raw prompt, raw output, cleaned review output, stderr logs, runtime metadata, and speed metrics.
-- Generate Markdown reports.
-- Create and apply manual score templates.
-- Compare two or more result directories, including scored comparison summaries.
-- Use local YAML config and model profiles.
-- Run manifest-driven sequential model batches across model profiles.
-- Validate result directory integrity.
-- Run deterministic baseline checks against completed result artifacts.
-- Capture and report prompt-level NVIDIA VRAM usage during local runs.
+The public installed-CLI workflow is being clarified. Some examples may show `llmgauge ...` to describe the eventual installed command form, but the most reliable current path for contributors and early users is the source-checkout workflow documented in [Quickstart](docs/QUICKSTART.md).
 
-## Install for development
+## Quick start from a checkout
+
+From the repository root:
 
     uv sync
     uv run llmgauge --help
 
-## Validate suites
+Create ignored local config files:
 
-    uv run llmgauge validate-suite suites/core-v1
+    uv run llmgauge init-config
 
-## Run a suite with explicit paths
+Edit the generated local files:
+
+    examples/configs/llmgauge.local.yaml
+    examples/configs/model-profiles.local.yaml
+
+Check the environment:
+
+    uv run llmgauge doctor
+
+List configured model profiles:
+
+    uv run llmgauge list-model-profiles
+
+Dry-run one prompt without launching `llama.cpp`:
 
     uv run llmgauge run \
-      --suite suites/core-v1 \
-      --include all \
-      --model-id example-model \
-      --model-path /path/to/model.gguf \
-      --llama-cli /path/to/llama-cli \
+      --suite wumbolabs-practical-v1 \
+      --only honesty-uncertainty/fake-package-currentness \
+      --model-profile example_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \
-      --gpu-layers 999 \
-      --out results/example-run
+      --dry-run
 
-## Run with config and model profiles
-
-    uv run llmgauge run \
-      --suite suites/core-v1 \
-      --include honesty \
-      --model-profile example_model \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --out results/example-profile-run
-
-Local files matching `examples/configs/*.local.yaml` are ignored by git and are intended for private machine-specific paths.
-
-## Run a model batch
-
-Model batches run the same selected prompt set sequentially across existing model profiles.
-
-Manifest example:
-
-    schema_version: llmgauge.batch_manifest.v0
-    batch_id: gemma4-agent-smoke
-    suite: agent-backend-v1
-    only: tool-honesty/fake-tool-resistance
-    include: all
-    max_tokens: 300
-    models:
-      - gemma4_12b_qat_q4
-      - gemma4_12b_q5
-
-Run example:
-
-    uv run llmgauge run-batch \
-      --manifest tmp/gemma4-agent-smoke.yaml \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --out results/gemma4-agent-smoke
-
-Batch manifests reference model profile names only; they do not accept arbitrary model paths. Each child is a normal LLMGauge run directory, and parent artifacts are written as `batch-summary.json` and `batch-report.md`.
-
-See `docs/MODEL_BATCHES.md` for the current manifest schema, summary schema, behavior, and limitations.
-
-See `docs/LOCAL_MODEL_TESTING.md` for the conservative local GGUF model testing workflow.
-
-## Agent backend evaluation suite
-
-`agent-backend-v1` contains prompt-based tests for local models intended to act as coding or operations agent backends.
-
-The suite tests:
-
-- fake tool resistance
-- failed shell command recovery
-- conservative config-edit planning
-- small coding-task usefulness
-- synthetic agent preload / long-context constraint retention
-
-Example:
+Run one prompt:
 
     uv run llmgauge run \
-      --suite suites/agent-backend-v1 \
-      --include all \
+      --suite wumbolabs-practical-v1 \
+      --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
       --ctx 8192 \
-      --max-tokens 900 \
+      --max-tokens 800 \
       --temp 0.2 \
-      --out results/example-agent-backend-smoke
+      --auto-name \
+      --runs-root results \
+      --run-name quickstart-smoke
 
-This suite does not require a real agent framework. It simulates the kind of context and constraints an agent backend may receive.
+Validate the result:
 
-## Generate a synthetic context prompt
+    uv run llmgauge validate-result results/<generated-run-directory>
 
-`contextgen` creates a synthetic long-context prompt and separate metadata file. It does not run a model by itself.
+See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
-    uv run llmgauge contextgen \
-      --target-tokens 8192 \
-      --placement 0.75 \
-      --needle "The deployment codename is Wumbo Finch." \
-      --question "What is the deployment codename?" \
-      --out-prompt tmp/context-prompts/wumbo-finch-8k.md \
-      --out-metadata tmp/context-prompts/wumbo-finch-8k.json
+## Source-checkout usage vs installed CLI usage
 
-The current token count is an approximation based on a character heuristic. Tokenizer-verified sizing is planned for a later hardening pass.
+Use this form when running from a cloned checkout:
 
-## Run a context ladder
+    uv run llmgauge ...
 
-Context ladders run the same selected prompt set across explicit context sizes.
+Use this form only after installing the CLI into your environment:
 
-    uv run llmgauge run-ladder \
-      --suite suites/core-v1 \
-      --include honesty \
-      --model-profile example_model \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --ctx-ladder 8192,16384,32768 \
-      --max-tokens 400 \
-      --out results/example-ladder
+    llmgauge ...
 
-The default ladder is `8192,16384,32768`. Normal context ladder runs are capped at `65536`; larger context testing requires the explicit `--allow-extreme-context` operator opt-in described below.
+Current development and documentation examples prefer `uv run llmgauge ...` unless they are explicitly discussing installed CLI behavior.
 
-## Extreme context guardrails
+## Local configuration
 
-Normal context ladder runs are capped at `65536` tokens.
+LLMGauge does not download models or guess private machine paths.
 
-Context values above `65536` require explicit operator opt-in:
+Local machine-specific files are ignored by git:
 
-    uv run llmgauge run-ladder \
-      --suite suites/core-v1 \
-      --include honesty \
-      --model-profile example_model \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --ctx-ladder 8192,65536,131072 \
-      --allow-extreme-context \
-      --max-tokens 400 \
-      --out results/example-extreme-ladder
+    examples/configs/llmgauge.local.yaml
+    examples/configs/model-profiles.local.yaml
 
-Extreme context mode is capped at `262144` tokens in v0.10. LLMGauge does not auto-tune KV cache, quantization, GPU settings, or CPU fallback.
+The local config points to `llama-cli`.
 
-## Validate result artifacts
+The model profiles file defines named local models and their GGUF paths.
 
-Validate a single run directory:
+Example model profile:
 
-    uv run llmgauge validate-result results/example-run
+    models:
+      example_model:
+        label: Example Model
+        family: Example
+        quant: Q4_K_M
+        path: /path/to/model.gguf
 
-Validate a context ladder directory:
+Run commands can then use:
 
-    uv run llmgauge validate-ladder results/example-ladder
+    --model-profile example_model
 
-Validate a model batch directory:
-
-    uv run llmgauge validate-batch results/example-batch
-
-## Create and apply manual scores
-
-    uv run llmgauge score results/example-run --init
-
-    uv run llmgauge score \
-      results/example-run \
-      --scores results/example-run/scores.yaml \
-      --check
-
-    uv run llmgauge score \
-      results/example-run \
-      --scores results/example-run/scores.yaml
-
-Optionally create a deterministic assisted draft for review:
-
-    uv run llmgauge score results/example-run --auto-draft
-
-Manual scoring uses a 0-5 scale across practical evaluation dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
-
-Generated score templates include rubric metadata, allowed verdicts, failure labels, good labels, reviewer notes, and a short `score_rationale` field. Scores are human review metadata; they are not automatic LLM judgments.
-
-`--auto-draft` writes `auto-scores.yaml` using local rules only. It does not call an LLM judge, use the network, or rewrite result artifacts; review and apply it through the normal `--scores ... --check` workflow. Existing drafts are preserved unless `--force` is supplied.
-
-Use `--check` with `--scores` to validate a score file before applying it. Check mode does not rewrite result artifacts.
-
-See `docs/SCORING_RUBRICS.md` for the default manual rubric, safety/local-ops guidance, agent-backend scoring notes, and label vocabulary.
-
-## Compare runs
-
-    uv run llmgauge compare \
-      results/example-run-a \
-      results/example-run-b \
-      --out results/compare.md
-
-Comparison reports summarize runtime settings, score totals, prompt scores, prompt verdicts, overall trust, prompt-level failure labels, prompt eval speed, generation speed, and label counts. They do not declare a universal winner.
+instead of repeating model paths.
 
 ## Result artifacts
 
-Each run writes a result directory containing:
+Each normal run writes a result directory containing:
 
     llmgauge-result.json
     report.md
@@ -235,106 +164,83 @@ Each run writes a result directory containing:
     cleaned/<prompt_id>.output.txt
     logs/<prompt_id>.stderr.log
 
-Raw model outputs are preserved separately and are not cleaned or filtered.
-Cleaned outputs are derived review artifacts that remove obvious llama.cpp terminal
-wrapper text where possible. They do not replace raw outputs as audit evidence.
+Raw outputs are preserved as audit evidence.
+
+Cleaned outputs are derived review artifacts that remove obvious `llama.cpp` terminal wrapper text where possible. They do not replace raw outputs.
+
+## Manual scoring
+
+LLMGauge supports manual scoring through reviewable YAML files.
+
+Initialize a score file:
+
+    uv run llmgauge score results/<run-directory> --init
+
+Validate a score file without mutating artifacts:
+
+    uv run llmgauge score \
+      results/<run-directory> \
+      --scores results/<run-directory>/scores.yaml \
+      --check
+
+Apply scores:
+
+    uv run llmgauge score \
+      results/<run-directory> \
+      --scores results/<run-directory>/scores.yaml
+
+Manual scoring uses practical review dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
+
+See [Scoring rubrics](docs/SCORING_RUBRICS.md).
+
+## Compare runs
+
+Generate a comparison report:
+
+    uv run llmgauge compare \
+      results/run-a \
+      results/run-b \
+      --out results/compare.md
+
+Comparison reports summarize runtime settings, score totals, prompt verdicts, trust signals, speed metrics, VRAM metrics, and label counts.
+
+They do not declare a universal winner.
 
 ## Privacy and safety posture
 
+LLMGauge is local-first and conservative by design.
+
 - Model paths are redacted in stored result JSON.
-- Raw prompts and outputs are preserved for audit; cleaned outputs are generated for easier review.
+- Raw prompts and outputs are preserved for audit.
+- Local config files are intended to stay private.
 - LLMGauge does not download models by default.
 - LLMGauge does not modify GPU drivers, CUDA, kernel settings, firewall rules, or system packages.
-- Local config files are intended to stay private.
+- LLMGauge does not tune GPU power limits, clocks, or memory settings.
 
 ## Development checks
 
     uv run pytest
-    uv run ruff format .
     uv run ruff check .
-
-## Installed CLI usage
-
-LLMGauge exposes a `llmgauge` console command.
-
-For local development from this repository, commands may still be run with:
-
-    uv run llmgauge --help
-
-For installed local usage, install the current checkout as a uv tool:
-
-    uv tool install .
-
-Then run LLMGauge directly:
-
-    llmgauge --help
-    llmgauge list-suites
-    llmgauge validate-suite core-v1
-
-The installed CLI includes built-in prompt suites, so `llmgauge list-suites` and
-`llmgauge validate-suite core-v1` work outside the source checkout.
-
-Development examples may continue to use `uv run llmgauge ...` when they are
-intended to run from the repository checkout.
-
-## Monolith bridge artifacts
-
-LLMGauge is designed to produce portable result artifacts that another local application, such as Monolith, can import without LLMGauge writing directly to that application's database.
-
-`export-index` can index run, context ladder, and model batch directories.
-For scored runs, export indexes include report-ready scoring metadata such as
-score status, scored prompt count, manual score average, verdict counts, label
-counts, and rubric metadata.
-
-Explicit output path:
-
-    uv run llmgauge run \
-      --suite suites/agent-backend-v1 \
-      --only tool-honesty/fake-tool-resistance \
-      --model-profile gemma4_12b_qat_q4 \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --max-tokens 300 \
-      --out results/agent-backend-fake-tool
-
-Automatic timestamped output path:
-
-    uv run llmgauge run \
-      --suite suites/agent-backend-v1 \
-      --only tool-honesty/fake-tool-resistance \
-      --model-profile gemma4_12b_qat_q4 \
-      --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
-      --max-tokens 300 \
-      --auto-name \
-      --runs-root results \
-      --run-name agent-backend-fake-tool
-
-Create a machine-readable export index:
-
-    uv run llmgauge export-index \
-      results/2026-06-16_06-06-45-agent-backend-fake-tool-001 \
-      --out results/llmgauge-index.json
-
-See `docs/MONOLITH_BRIDGE_CONTRACT.md` for the Monolith import boundary and compatibility rules.
-See `docs/ARTIFACT_SCHEMAS.md` for current result, ladder, batch, and export-index schema notes.
-See `docs/MONOLITH_IMPORT_EXAMPLE.md` for the proven LLMGauge-to-Monolith import workflow.
-See `docs/EVALUATION_TIERS.md` for what LLMGauge results can and cannot claim.
-See `docs/PRACTICAL_EVAL_V1.md` for the Tier 2 prompt quality standard.
-See `docs/EVAL_BUDGETS.md` for current max-token guidance for smoke tests and scoring runs.
-See `docs/SCORED_COMPARISONS.md` for scored comparison report usage and interpretation.
-See `docs/PUBLIC_REPORTING.md` for public-report claim boundaries and required evidence.
-See `docs/QUICKSTART.md` for a clean first-run workflow.
-See `docs/FIT_LADDER.md` for the planned adaptive-fit design.
+    git diff --check
 
 ## Documentation
 
+Start here:
+
 - [Quickstart](docs/QUICKSTART.md)
-- [Roadmap](docs/ROADMAP.md)
+- [Usage command map](docs/USAGE.md)
 - [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
 - [Evaluation tiers](docs/EVALUATION_TIERS.md)
+- [Practical Eval v1](docs/PRACTICAL_EVAL_V1.md)
 - [Scoring rubrics](docs/SCORING_RUBRICS.md)
-- [Public reporting guidance](docs/PUBLIC_REPORTING.md)
-- [Fit Ladder planned design](docs/FIT_LADDER.md)
-- [Baseline checks](docs/BASELINE_CHECKS.md)
+- [Scored comparisons](docs/SCORED_COMPARISONS.md)
+- [Fit Ladder](docs/FIT_LADDER.md)
 - [VRAM capture](docs/VRAM_CAPTURE.md)
+- [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
+- [Public reporting guidance](docs/PUBLIC_REPORTING.md)
+- [Roadmap](docs/ROADMAP.md)
+
+Bridge/import docs:
+
+- [Monolith bridge contract](docs/MONOLITH_BRIDGE_CONTRACT.md)
+- [Monolith import example](docs/MONOLITH_IMPORT_EXAMPLE.md)
