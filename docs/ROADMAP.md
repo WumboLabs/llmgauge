@@ -130,6 +130,7 @@ Initial v0.43 scope:
 - allow `flash_attn` in model profiles and default config
 - store `runtime.flash_attn` in result JSON
 - show Flash attention in run reports and comparison reports
+- add explicit runtime methodology labels such as `stock-reference`, `daily-tuned`, or `experimental`
 - keep power-limit and deeper GPU telemetry capture for a later, separate slice
 
 ## Future user-friendly installation and onboarding

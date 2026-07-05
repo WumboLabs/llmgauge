@@ -53,6 +53,7 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
             "ubatch": 64,
             "gpu_layers": 999,
             "flash_attn": "auto",
+            "runtime_label": None,
             "vram_min_headroom_warn_mib": None,
         },
         out=tmp_path / "result",
@@ -142,6 +143,7 @@ def test_execute_run_records_vram_guardrail_warning(
             "ubatch": 64,
             "gpu_layers": 999,
             "flash_attn": "auto",
+            "runtime_label": None,
             "vram_min_headroom_warn_mib": 1000,
         },
         out=tmp_path / "result",
@@ -210,6 +212,7 @@ def test_execute_run_records_vram_guardrail_ok(
             "ubatch": 64,
             "gpu_layers": 999,
             "flash_attn": "auto",
+            "runtime_label": None,
             "vram_min_headroom_warn_mib": 1000,
         },
         out=tmp_path / "result",
@@ -266,6 +269,7 @@ def test_run_batch_uses_manifest_model_profiles(
             "ubatch": 64,
             "gpu_layers": 999,
             "flash_attn": "auto",
+            "runtime_label": None,
             "vram_min_headroom_warn_mib": None,
         }
 

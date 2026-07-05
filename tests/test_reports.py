@@ -23,6 +23,7 @@ def test_build_markdown_report_multiple_prompts() -> None:
             "ubatch_size": 64,
             "gpu_layers": 999,
             "flash_attn": "on",
+            "runtime_label": "daily-tuned",
         },
         "suite": {
             "suite_id": "core-v1",
@@ -74,6 +75,7 @@ def test_build_markdown_report_multiple_prompts() -> None:
 
     assert "# LLMGauge Report: test-run" in report
     assert "- Flash attention: on" in report
+    assert "- Runtime label: daily-tuned" in report
     assert (
         "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
         in report

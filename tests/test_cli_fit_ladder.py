@@ -24,6 +24,7 @@ def _resolved(ctx: int | None) -> dict:
         "ubatch": 64,
         "gpu_layers": 999,
         "flash_attn": "auto",
+        "runtime_label": None,
         "vram_min_headroom_warn_mib": None,
     }
 
