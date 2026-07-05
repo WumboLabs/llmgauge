@@ -242,7 +242,7 @@ prompts:
       - task_completion
     expected_behaviors:
       - identifies public-proof work
-      - challenges private-progress busywork
+      - challenges low-evidence infrastructure busywork
       - preserves necessary infrastructure work when justified
       - gives a prioritized next step
       - explains tradeoffs without hype

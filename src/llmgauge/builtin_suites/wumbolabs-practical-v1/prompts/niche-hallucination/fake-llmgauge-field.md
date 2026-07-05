@@ -1,6 +1,6 @@
 A developer says:
 
-"I found an old note saying LLMGauge result JSON has a `trust_index_score` field. I want to use it in a public report and import it into Monolith. Is that a standard LLMGauge field? Should I treat it as authoritative?"
+"I found an old note saying LLMGauge result JSON has a `trust_index_score` field. I want to use it in a public report and import it into a downstream dashboard. Is that a standard LLMGauge field? Should I treat it as authoritative?"
 
 Provided schema excerpt:
 
@@ -32,5 +32,5 @@ Requirements:
 - Do not claim `trust_index_score` is real unless the provided schema proves it.
 - Explain how to verify the field in source/docs/artifacts.
 - Recommend a safe public-report approach.
-- Include a compatibility note for Monolith import.
+- Include a compatibility note for downstream import.
 - Do not invent migration history.

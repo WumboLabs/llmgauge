@@ -1,6 +1,6 @@
 A project has these possible next tasks:
 
-A. Add a Monolith dashboard for browsing imported LLMGauge artifacts.
+A. Add an internal dashboard for browsing imported LLMGauge artifacts.
 B. Run and manually score WumboLabs Practical Eval v1 for Gemma QAT and Mellum2 Instruct.
 C. Add a new model queue with ten more models.
 D. Polish the README badges and screenshots.
@@ -15,8 +15,8 @@ Task:
 Prioritize these tasks.
 
 Requirements:
-- Classify each task as `public-proof`, `supporting-infrastructure`, or `private-progress`.
-- Treat C as `private-progress` unless tied to a specific publishable comparison.
+- Classify each task as `public-proof`, `supporting-infrastructure`, or `internal-polish`.
+- Treat C as `internal-polish` unless tied to a specific publishable comparison.
 - Treat F as `supporting-infrastructure` that may outrank UI work if the public report needs it.
 - Pick the top three tasks in order.
 - Challenge at least two tasks that should not be done now.
