@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.46 - 2026-07-04
+
+- Cleaned the public documentation tree by removing stale historical notes and private/internal project-memory docs.
+- Sanitized public docs and bundled prompts to remove private machine names, stale internal context, and project-specific leakage.
+- Added public suite methodology guidance emphasizing self-contained prompts, practical usefulness, honest uncertainty, conservative technical advice, manual review, reproducibility, and bounded claims.
+- Generalized WumboLabs Practical Eval v1 technical-correctness coverage from an Arch-specific NVIDIA update prompt to a distro-agnostic Linux/NVIDIA update-boundary prompt.
+- Bumped `wumbolabs-practical-v1` to suite version `0.2.0`.
+- Added claim-scope notes to `agent-backend-v1` and clarified that `context-v1` currently provides context ladder presets.
+- Synced the source-checkout `suites/` tree with packaged built-in suites so CLI behavior and packaged suite metadata agree.
+
 ## v0.44 - 2026-07-04
 
 - Refreshed README as a concise public overview for technically curious users.
