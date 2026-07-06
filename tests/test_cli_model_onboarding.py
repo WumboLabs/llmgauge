@@ -169,6 +169,169 @@ models:
     assert resolved["temp"] == 0.1
 
 
+def test_resolve_run_options_auto_detects_user_config_when_local_missing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    user_config = user_config_dir / "config.yaml"
+    user_config.write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  ctx_size: 24576
+  max_tokens: 700
+""",
+        encoding="utf-8",
+    )
+
+    user_profiles = user_config_dir / "model-profiles.yaml"
+    user_profiles.write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  user_model:
+    label: User Model
+    path: {model_path}
+    temperature: 0.15
+""",
+        encoding="utf-8",
+    )
+
+    resolved = cli._resolve_run_options(
+        model_id=None,
+        model_profile="user_model",
+        config_path=None,
+        model_profiles_path=None,
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+        batch=None,
+        ubatch=None,
+        gpu_layers=None,
+        flash_attn=None,
+        runtime_label=None,
+    )
+
+    assert resolved["config_path"].resolve() == user_config.resolve()
+    assert resolved["model_profiles_path"].resolve() == user_profiles.resolve()
+    assert resolved["model_id"] == "user_model"
+    assert resolved["model_path"] == model_path
+    assert resolved["llama_cli"] == llama_cli
+    assert resolved["ctx"] == 24576
+    assert resolved["max_tokens"] == 700
+    assert resolved["temp"] == 0.15
+
+
+def test_resolve_run_options_prefers_project_local_over_user_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+
+    project_llama_cli = tmp_path / "project-llama-cli"
+    project_llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    project_llama_cli.chmod(0o755)
+
+    user_llama_cli = tmp_path / "user-llama-cli"
+    user_llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    user_llama_cli.chmod(0o755)
+
+    project_model = tmp_path / "project-model.gguf"
+    project_model.write_text("fake model placeholder\n", encoding="utf-8")
+
+    user_model = tmp_path / "user-model.gguf"
+    user_model.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {project_llama_cli}
+defaults:
+  ctx_size: 8192
+""",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Project Model
+    path: {project_model}
+""",
+        encoding="utf-8",
+    )
+
+    (user_config_dir / "config.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {user_llama_cli}
+defaults:
+  ctx_size: 32768
+""",
+        encoding="utf-8",
+    )
+    (user_config_dir / "model-profiles.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: User Model
+    path: {user_model}
+""",
+        encoding="utf-8",
+    )
+
+    resolved = cli._resolve_run_options(
+        model_id=None,
+        model_profile="example_model",
+        config_path=None,
+        model_profiles_path=None,
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+        batch=None,
+        ubatch=None,
+        gpu_layers=None,
+        flash_attn=None,
+        runtime_label=None,
+    )
+
+    assert resolved["config_path"].resolve() == (
+        examples_dir / "llmgauge.local.yaml"
+    ).resolve()
+    assert resolved["model_profiles_path"].resolve() == (
+        examples_dir / "model-profiles.local.yaml"
+    ).resolve()
+    assert resolved["model_path"] == project_model
+    assert resolved["llama_cli"] == project_llama_cli
+    assert resolved["ctx"] == 8192
+
+
 def test_resolve_run_options_explicit_paths_override_local_defaults(
     tmp_path: Path,
     monkeypatch,
@@ -581,3 +744,91 @@ models:
     )
 
     assert resolved["runtime_label"] is None
+
+def test_init_creates_user_config_files(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["init"])
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+
+    assert result.exit_code == 0
+    assert (user_config_dir / "config.yaml").exists()
+    assert (user_config_dir / "model-profiles.yaml").exists()
+    assert "created" in result.output
+    assert "Config directory" in result.output
+    assert "llmgauge doctor" in result.output
+
+
+def test_init_skips_existing_user_config_without_force(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+    user_config = user_config_dir / "config.yaml"
+    user_config.write_text("keep: true\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 0
+    assert "skipped" in result.output
+    assert user_config.read_text(encoding="utf-8") == "keep: true\n"
+
+
+def test_init_force_overwrites_user_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+    user_config = user_config_dir / "config.yaml"
+    user_config.write_text("replace: true\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["init", "--force"])
+
+    assert result.exit_code == 0
+    assert "created" in result.output
+    assert user_config.read_text(encoding="utf-8") == (
+        "schema_version: llmgauge.config.v0\n"
+    )

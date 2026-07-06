@@ -66,14 +66,14 @@ From the repository root:
     uv sync
     uv run llmgauge --help
 
-Create ignored local config files:
+Create user config files:
 
-    uv run llmgauge init-config
+    uv run llmgauge init
 
-Edit the generated local files:
+Edit the generated user config files:
 
-    examples/configs/llmgauge.local.yaml
-    examples/configs/model-profiles.local.yaml
+    ~/.config/llmgauge/config.yaml
+    ~/.config/llmgauge/model-profiles.yaml
 
 Check the environment:
 
@@ -125,16 +125,24 @@ Use this form only after installing the CLI into your environment:
 
 Current development and documentation examples prefer `uv run llmgauge ...` unless they are explicitly discussing installed CLI behavior.
 
+Configuration discovery checks explicit CLI paths first, then project-local
+`examples/configs/*.local.yaml`, then user config under `~/.config/llmgauge/`.
+`XDG_CONFIG_HOME` is respected.
+
 ## Local configuration
 
 LLMGauge does not download models or guess private machine paths.
 
-Local machine-specific files are ignored by git:
+User machine-specific files live outside the repository:
 
-    examples/configs/llmgauge.local.yaml
-    examples/configs/model-profiles.local.yaml
+    ~/.config/llmgauge/config.yaml
+    ~/.config/llmgauge/model-profiles.yaml
 
-The local config points to `llama-cli`.
+`XDG_CONFIG_HOME` is respected. Project-local ignored files under
+`examples/configs/*.local.yaml` are still supported for contributor workflows
+and take precedence over user config when present.
+
+The config file points to `llama-cli`.
 
 The model profiles file defines named local models and their GGUF paths.
 
