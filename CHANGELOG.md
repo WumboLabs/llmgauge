@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.49 - 2026-07-05
+
+- Packaged `llmgauge init` and `init-config` templates inside the installable package so GitHub and tool installs no longer depend on repo-relative `examples/configs` files.
+- Treated template placeholder paths as setup warnings during `smoke`, preserving safe first-run checks without failing before users edit local paths.
+- Finalized install/onboarding documentation for source checkout, editable installs, GitHub installs, update/uninstall workflows, and first-run verification.
+- Validated source checkout, editable `uv tool install`, GitHub `uv tool install`, global tool reinstall, and main CI.
+
 ## v0.48 - 2026-07-05
 
 - Added user-level initialization with `llmgauge init`, while preserving `init-config` for project-local compatibility.

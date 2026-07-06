@@ -12,9 +12,9 @@ LLMGauge is not a leaderboard, cloud eval service, model downloader, automatic j
 
 ## Current release line
 
-- Current stable tag: `v0.48`
-- Current development line: `v0.49`
-- Current development focus: v0.49 planning after the v0.48 onboarding release
+- Current stable tag: `v0.49`
+- Current development line: `v0.50`
+- Current development focus: v0.50 planning after the v0.49 install/onboarding release
 
 ## Recently completed
 
