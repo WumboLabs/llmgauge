@@ -73,9 +73,7 @@ Completed scope:
 
 Potential v0.48 scope:
 
-- add `LICENSE`
-- add `CONTRIBUTING.md`
-- add GitHub Actions CI
+- continue install and onboarding polish
 - add or update repository metadata guidance
 - clean duplicate `.gitignore` entries if straightforward
 - keep changes small, testable, and release-safe
