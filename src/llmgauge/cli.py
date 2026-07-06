@@ -83,6 +83,8 @@ console = Console()
 
 DEFAULT_LOCAL_CONFIG = Path("examples/configs/llmgauge.local.yaml")
 DEFAULT_LOCAL_MODEL_PROFILES = Path("examples/configs/model-profiles.local.yaml")
+USER_CONFIG_FILENAME = "config.yaml"
+USER_MODEL_PROFILES_FILENAME = "model-profiles.yaml"
 EXAMPLE_CONFIG = Path("examples/configs/llmgauge.example.yaml")
 EXAMPLE_MODEL_PROFILES = Path("examples/configs/model-profiles.example.yaml")
 
@@ -112,8 +114,26 @@ def version_command() -> None:
     console.print(f"llmgauge {__version__}")
 
 
-def _default_existing_path(path: Path) -> Path | None:
-    return path if path.exists() else None
+def _llmgauge_user_config_dir() -> Path:
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        return Path(xdg_config_home) / "llmgauge"
+    return Path.home() / ".config" / "llmgauge"
+
+
+def _user_config_path() -> Path:
+    return _llmgauge_user_config_dir() / USER_CONFIG_FILENAME
+
+
+def _user_model_profiles_path() -> Path:
+    return _llmgauge_user_config_dir() / USER_MODEL_PROFILES_FILENAME
+
+
+def _default_existing_path(*paths: Path) -> Path | None:
+    for candidate in paths:
+        if candidate.exists():
+            return candidate
+    return None
 
 
 @app.command()
@@ -171,7 +191,7 @@ def doctor(
         add_row("Built-in suites", "fail", str(exc))
 
     config_data: dict[str, Any] = {}
-    config_path = config or _default_existing_path(DEFAULT_LOCAL_CONFIG)
+    config_path = config or _default_existing_path(DEFAULT_LOCAL_CONFIG, _user_config_path())
     if config_path is None:
         add_row("Config", "warn", "No --config provided; run checks are limited")
     else:
@@ -207,7 +227,8 @@ def doctor(
 
     profiles: dict[str, Any] = {}
     model_profiles_path = model_profiles or _default_existing_path(
-        DEFAULT_LOCAL_MODEL_PROFILES
+        DEFAULT_LOCAL_MODEL_PROFILES,
+        _user_model_profiles_path(),
     )
     if model_profiles_path is None:
         add_row(
@@ -372,7 +393,8 @@ def list_model_profiles(
 ) -> None:
     """List configured model profiles and model path status."""
     model_profiles_path = model_profiles or _default_existing_path(
-        DEFAULT_LOCAL_MODEL_PROFILES
+        DEFAULT_LOCAL_MODEL_PROFILES,
+        _user_model_profiles_path(),
     )
     if model_profiles_path is None:
         raise typer.BadParameter(
@@ -606,9 +628,10 @@ def _resolve_run_options(
     flash_attn: str | None = None,
     runtime_label: str | None = None,
 ) -> dict[str, Any]:
-    resolved_config_path = config_path or _default_existing_path(DEFAULT_LOCAL_CONFIG)
+    resolved_config_path = config_path or _default_existing_path(DEFAULT_LOCAL_CONFIG, _user_config_path())
     resolved_model_profiles_path = model_profiles_path or _default_existing_path(
-        DEFAULT_LOCAL_MODEL_PROFILES
+        DEFAULT_LOCAL_MODEL_PROFILES,
+        _user_model_profiles_path(),
     )
 
     config_data = load_llmgauge_config(resolved_config_path)
