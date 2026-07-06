@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from importlib import resources
 import os
 import shutil
 from typing import Any
@@ -138,6 +139,16 @@ def _default_existing_path(*paths: Path) -> Path | None:
 
 def _is_placeholder_path(path: Path) -> bool:
     return str(path).startswith("/path/to/")
+
+
+def _read_packaged_template(template_name: str) -> str:
+    return (
+        resources.files("llmgauge")
+        .joinpath("templates")
+        .joinpath("configs")
+        .joinpath(template_name)
+        .read_text(encoding="utf-8")
+    )
 
 
 @app.command()
@@ -361,26 +372,28 @@ def _copy_config_templates(
     force: bool,
 ) -> tuple[list[tuple[Path, str, str]], bool]:
     targets = [
-        (EXAMPLE_CONFIG, config_target),
-        (EXAMPLE_MODEL_PROFILES, model_profiles_target),
+        ("llmgauge.example.yaml", config_target),
+        ("model-profiles.example.yaml", model_profiles_target),
     ]
 
     rows: list[tuple[Path, str, str]] = []
     has_failure = False
 
-    for source, target in targets:
-        if not source.exists():
-            rows.append((target, "fail", f"Example template missing: {source}"))
-            has_failure = True
-            continue
-
+    for template_name, target in targets:
         if target.exists() and not force:
             rows.append((target, "skipped", "already exists; use --force"))
             continue
 
+        try:
+            template_text = _read_packaged_template(template_name)
+        except FileNotFoundError:
+            rows.append((target, "fail", f"Packaged template missing: {template_name}"))
+            has_failure = True
+            continue
+
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-        rows.append((target, "created", f"from {source}"))
+        target.write_text(template_text, encoding="utf-8")
+        rows.append((target, "created", f"from packaged template {template_name}"))
 
     return rows, has_failure
 

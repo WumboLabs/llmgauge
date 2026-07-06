@@ -1,0 +1,36 @@
+schema_version: llmgauge.model_profiles.v0
+
+models:
+  qwen36_35b_a3b_ud_iq2_m:
+    label: Qwen3.6 35B A3B UD-IQ2_M
+    family: Qwen
+    role: quality-reference
+    quant: UD-IQ2_M
+    path: /path/to/qwen.gguf
+    notes: Quality reference; may be tight for high context on 12GB VRAM.
+
+  gemma4_12b_it_ud_q5_k_xl:
+    label: Gemma 4 12B IT UD-Q5_K_XL
+    family: Gemma 4
+    role: practical-12gb-candidate
+    quant: UD-Q5_K_XL
+    path: /path/to/gemma-q5.gguf
+    recommended_contexts:
+      - 8192
+      - 12288
+      - 16384
+      - 24576
+      - 32768
+      - 65536
+
+  gemma4_12b_it_qat_ud_q4_k_xl:
+    label: Gemma 4 12B IT QAT UD-Q4_K_XL
+    family: Gemma 4
+    role: high-context-12gb-candidate
+    quant: UD-Q4_K_XL
+    path: /path/to/gemma-qat-q4.gguf
+    recommended_contexts:
+      - 8192
+      - 16384
+      - 32768
+      - 65536

@@ -1,0 +1,28 @@
+schema_version: llmgauge.config.v0
+
+runtime:
+  backend: llama.cpp
+  llama_cli: /path/to/llama-cli
+  llama_bench: /path/to/llama-bench
+  llama_tokenize: /path/to/llama-tokenize
+  build_label: optional
+  commit: optional
+
+defaults:
+  ctx_size: 8192
+  max_tokens: 800
+  temperature: 0.2
+  top_p: 0.95
+  batch_size: 256
+  ubatch_size: 64
+  gpu_layers: 999
+  reasoning: off
+  mmproj: none
+
+paths:
+  results_dir: results
+  suites_dir: suites
+
+privacy:
+  redact_model_paths: true
+  redact_hostname: true

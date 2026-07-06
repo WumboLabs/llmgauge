@@ -857,6 +857,28 @@ def test_init_force_overwrites_user_config(
 
     assert result.exit_code == 0
     assert "created" in result.output
-    assert user_config.read_text(encoding="utf-8") == (
-        "schema_version: llmgauge.config.v0\n"
-    )
+    overwritten_config = user_config.read_text(encoding="utf-8")
+    assert "schema_version: llmgauge.config.v0" in overwritten_config
+    assert "runtime:" in overwritten_config
+    assert "llama_cli: /path/to/llama-cli" in overwritten_config
+
+
+def test_user_init_uses_packaged_templates_outside_repo_root(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    outside_repo = tmp_path / "outside"
+    outside_repo.mkdir()
+    monkeypatch.chdir(outside_repo)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 0
+    config_path = tmp_path / "xdg-config" / "llmgauge" / "config.yaml"
+    model_profiles_path = tmp_path / "xdg-config" / "llmgauge" / "model-profiles.yaml"
+    assert config_path.exists()
+    assert model_profiles_path.exists()
+    assert "schema_version: llmgauge.config.v0" in config_path.read_text(encoding="utf-8")
+    assert "schema_version: llmgauge.model_profiles.v0" in model_profiles_path.read_text(encoding="utf-8")
+    assert "packaged template" in result.output
