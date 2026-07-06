@@ -9,6 +9,16 @@ LLMGauge does not download models, install GPU drivers, modify CUDA, change
 system packages, tune hardware settings, or submit results to a service. You
 provide an existing GGUF model and a working `llama.cpp` `llama-cli`.
 
+## Requirements
+
+- Python 3.11 or newer
+- `uv`
+- an existing `llama.cpp` `llama-cli` binary for real model runs
+- an existing local GGUF model for real model runs
+
+`llmgauge smoke`, `llmgauge list-suites`, and `llmgauge run --dry-run` are safe
+to run before you have a working model configured.
+
 ## Source checkout
 
 Use this path when developing LLMGauge or testing from a cloned repository.
@@ -61,6 +71,18 @@ llmgauge list-suites
 Editable installs are useful during local development because command changes
 track the checkout.
 
+Update an editable install by pulling the checkout:
+
+```bash
+git pull --ff-only
+```
+
+Remove the installed command when you no longer need it:
+
+```bash
+uv tool uninstall llmgauge
+```
+
 ## Installed CLI from GitHub
 
 Use this path when you want to install from the GitHub repository without
@@ -79,8 +101,30 @@ llmgauge smoke
 llmgauge list-suites
 ```
 
-If you later need to update the tool, reinstall from GitHub with your normal
-`uv tool` update or reinstall workflow.
+Update a GitHub install by reinstalling the tool:
+
+```bash
+uv tool install --force git+https://github.com/WumboLabs/llmgauge
+```
+
+Remove the installed command when you no longer need it:
+
+```bash
+uv tool uninstall llmgauge
+```
+
+## What installation does not do
+
+Installing LLMGauge only installs the Python CLI and its Python dependencies.
+
+It does not:
+
+- install or build `llama.cpp`
+- download GGUF models
+- install GPU drivers, CUDA, ROCm, or other accelerator runtimes
+- modify system packages, kernel settings, firewall rules, clocks, or power limits
+- create result directories until you run an evaluation command
+- upload prompts, outputs, results, or hardware details to a service
 
 ## Configuration discovery
 

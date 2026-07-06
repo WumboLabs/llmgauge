@@ -103,6 +103,32 @@ def test_init_config_skips_existing_without_force(tmp_path: Path, monkeypatch) -
     assert local_config.read_text(encoding="utf-8") == "keep: true\n"
 
 
+def test_init_user_config_prints_safe_first_run_next_steps(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 0
+    assert "llmgauge smoke" in result.output
+    assert "llmgauge list-suites" in result.output
+    assert "llmgauge run --dry-run" in result.output
+
+
 def test_resolve_run_options_auto_detects_local_config_and_profiles(
     tmp_path: Path,
     monkeypatch,
@@ -769,7 +795,9 @@ def test_init_creates_user_config_files(tmp_path: Path, monkeypatch) -> None:
     assert (user_config_dir / "model-profiles.yaml").exists()
     assert "created" in result.output
     assert "Config directory" in result.output
-    assert "llmgauge doctor" in result.output
+    assert "llmgauge smoke" in result.output
+    assert "llmgauge list-suites" in result.output
+    assert "llmgauge run --dry-run" in result.output
 
 
 def test_init_skips_existing_user_config_without_force(

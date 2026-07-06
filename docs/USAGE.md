@@ -73,7 +73,7 @@ still record canonical suite IDs.
 
 Validate a suite:
 
-    uv run llmgauge validate-suite wumbolabs-practical-v1
+    uv run llmgauge validate-suite practical
 
 ## Run planning
 
@@ -92,7 +92,7 @@ Preview one exact prompt without launching `llama.cpp`:
 Preview a category:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --include honesty-uncertainty \
       --model-profile example_model \
       --dry-run
@@ -104,7 +104,7 @@ Use `--only <prompt-id>` for one exact prompt. Use `--include <category>` for a 
 Run one exact prompt:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \
@@ -116,7 +116,7 @@ Run one exact prompt:
 Run a full suite:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --include all \
       --model-profile example_model \
       --ctx 8192 \
