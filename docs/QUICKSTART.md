@@ -33,7 +33,7 @@ Then:
 
     llmgauge --help
 
-Installed CLI behavior is still being clarified. The rest of this guide uses `uv run llmgauge ...`.
+The rest of this guide uses `uv run llmgauge ...`. Installed CLI users can drop `uv run` after installing the command.
 
 ## 2. Create user config files
 

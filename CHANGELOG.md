@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.48 - 2026-07-05
+
+- Added user-level initialization with `llmgauge init`, while preserving `init-config` for project-local compatibility.
+- Added `llmgauge smoke` readiness checks for package, suite, config, model-profile, `llama-cli`, optional `nvidia-smi`, and optional selected-model validation without launching `llama.cpp`.
+- Added built-in suite aliases such as `practical`, `core`, `agent`, and `context`, while preserving canonical suite IDs in resolved run metadata.
+- Added public install documentation covering source checkout, editable local install, GitHub install, first-run setup, configuration discovery, and safe dry-run checks.
+- Linked install guidance from README, Quickstart, and Usage.
+
 ## v0.47 - 2026-07-04
 
 - Added package and CLI version metadata for the v0.47 development line.

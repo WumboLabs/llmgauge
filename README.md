@@ -51,13 +51,13 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.47
+Current stable tag: v0.48
 
-Current development line: v0.48
+Current development line: v0.49
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
-The public installed-CLI workflow is being clarified. Some examples may show `llmgauge ...` to describe the eventual installed command form, but the most reliable current path for contributors and early users is the source-checkout workflow documented in [Quickstart](docs/QUICKSTART.md).
+For install paths, see [Installation](docs/INSTALL.md). The source-checkout workflow remains the preferred contributor path and uses `uv run llmgauge ...`; installed CLI usage uses `llmgauge ...` directly.
 
 ## Quick start from a checkout
 
