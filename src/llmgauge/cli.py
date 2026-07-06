@@ -2158,7 +2158,7 @@ def score(
         try:
             scores_path = write_auto_score_draft(result_dir, draft, overwrite=force)
         except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
+            _fail_cli_validation(str(exc))
 
         action = "Overwrote" if force else "Created"
         console.print(f"[bold green]{action} auto score draft[/bold green]: {scores_path}")
