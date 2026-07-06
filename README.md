@@ -75,7 +75,11 @@ Edit the generated user config files:
     ~/.config/llmgauge/config.yaml
     ~/.config/llmgauge/model-profiles.yaml
 
-Check the environment:
+Run a safe setup smoke check:
+
+    uv run llmgauge smoke
+
+Check the environment in more detail:
 
     uv run llmgauge doctor
 
@@ -83,7 +87,7 @@ List configured model profiles:
 
     uv run llmgauge list-model-profiles
 
-Dry-run one prompt without launching `llama.cpp`:
+Smoke checks do not launch `llama.cpp`. Dry-run one prompt to preview resolved run settings without launching `llama.cpp`:
 
     uv run llmgauge run \
       --suite wumbolabs-practical-v1 \

@@ -91,7 +91,21 @@ Optional per-model runtime metadata can also live in the profile:
         flash_attn: on
         runtime_label: daily-tuned
 
-## 4. Check the environment
+## 4. Run a safe smoke check
+
+Run:
+
+    uv run llmgauge smoke
+
+Smoke checks verify the package, built-in suites, config discovery, model profile
+discovery, `llama-cli`, optional `nvidia-smi`, and an optional selected model
+profile. They do not launch `llama.cpp` and do not create result artifacts.
+
+To verify a specific profile:
+
+    uv run llmgauge smoke --model-profile example_model
+
+## 5. Check the environment in more detail
 
 Run:
 
@@ -110,7 +124,7 @@ To check a specific profile:
 
     uv run llmgauge doctor --model-profile example_model
 
-## 5. List model profiles
+## 6. List model profiles
 
 Inspect configured model profiles and model path status:
 
@@ -124,7 +138,7 @@ Useful path statuses include:
 
 Fix any missing model path before running model evaluations.
 
-## 6. List and validate suites
+## 7. List and validate suites
 
 List built-in suites:
 
@@ -134,7 +148,7 @@ Validate a suite:
 
     uv run llmgauge validate-suite wumbolabs-practical-v1
 
-## 7. Preview one prompt
+## 8. Preview one prompt
 
 Before launching `llama.cpp`, inspect the resolved run plan:
 
@@ -151,7 +165,7 @@ Before launching `llama.cpp`, inspect the resolved run plan:
 
 Dry-run mode resolves config, model profiles, model paths, runtime settings, and selected prompt count. It does not launch `llama.cpp` and does not create a result directory.
 
-## 8. Run one prompt
+## 9. Run one prompt
 
 Start with one prompt before running a full suite.
 
@@ -178,7 +192,7 @@ settings.
       --runs-root results \
       --run-name quickstart-smoke
 
-## 9. Validate the result
+## 10. Validate the result
 
 After the run completes, validate the generated result directory:
 
