@@ -116,3 +116,40 @@ models:
     assert "Model file" in result.output
     assert "Path does not exist" in result.output
     assert "Smoke check failed" in result.output
+
+def test_smoke_with_placeholder_paths_passes_with_warnings(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+    _write_templates(tmp_path)
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+
+    (user_config_dir / "config.yaml").write_text(
+        """schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: /path/to/llama-cli
+""",
+        encoding="utf-8",
+    )
+
+    (user_config_dir / "model-profiles.yaml").write_text(
+        """schema_version: llmgauge.model_profiles.v0
+models:
+  placeholder_model:
+    label: Placeholder Model
+    path: /path/to/model.gguf
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["smoke", "--model-profile", "placeholder_model"])
+
+    assert result.exit_code == 0
+    assert "llama-cli" in result.output
+    assert "Model file" in result.output
+    assert "Placeholder path" in result.output
+    assert "Smoke check passed" in result.output
