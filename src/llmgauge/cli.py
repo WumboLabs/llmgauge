@@ -435,6 +435,174 @@ def init_config(
         raise typer.Exit(code=1)
 
 
+
+@app.command()
+def smoke(
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="Optional LLMGauge config YAML to check",
+    ),
+    model_profiles: Path | None = typer.Option(
+        None,
+        "--model-profiles",
+        help="Optional model profiles YAML to check",
+    ),
+    model_profile: str | None = typer.Option(
+        None,
+        "--model-profile",
+        help="Optional model profile name to verify",
+    ),
+    llama_cli: Path | None = typer.Option(
+        None,
+        "--llama-cli",
+        help="Optional llama-cli path override",
+    ),
+) -> None:
+    """Run safe setup checks without launching a model."""
+    table = Table(title="LLMGauge Smoke Check")
+    table.add_column("Check")
+    table.add_column("Status")
+    table.add_column("Notes")
+
+    has_failure = False
+
+    def add_row(check: str, status: str, notes: str) -> None:
+        nonlocal has_failure
+        if status == "fail":
+            has_failure = True
+        table.add_row(check, status, notes)
+
+    add_row("Python package", "ok", f"LLMGauge {__version__} import works")
+    add_row("Runner", "ok", "llama.cpp runner module installed")
+
+    try:
+        suites_dir = resolve_suites_dir()
+        suite_count = len(list(suites_dir.glob("*/suite.yaml")))
+        if suite_count:
+            add_row(
+                "Built-in suites",
+                "ok",
+                f"{suite_count} suite(s) available at {suites_dir}",
+            )
+        else:
+            add_row("Built-in suites", "fail", f"No suite.yaml files under {suites_dir}")
+    except Exception as exc:
+        add_row("Built-in suites", "fail", str(exc))
+
+    config_data: dict[str, Any] = {}
+    config_path = config or _default_existing_path(
+        DEFAULT_LOCAL_CONFIG,
+        _user_config_path(),
+    )
+    if config_path is None:
+        add_row(
+            "Config",
+            "warn",
+            "No config found; run llmgauge init or provide --config",
+        )
+    else:
+        try:
+            config_data = load_llmgauge_config(config_path)
+            if config is None:
+                add_row("Config", "ok", f"Auto-detected {config_path}")
+            else:
+                add_row("Config", "ok", f"Loaded {config_path}")
+        except Exception as exc:
+            add_row("Config", "fail", str(exc))
+
+    resolved_llama_cli = coalesce(
+        llama_cli,
+        get_config_value(config_data, "runtime.llama_cli"),
+    )
+    if resolved_llama_cli is None:
+        add_row(
+            "llama-cli",
+            "warn",
+            "Provide --llama-cli or runtime.llama_cli before running models",
+        )
+    else:
+        resolved_llama_cli = Path(resolved_llama_cli)
+        if not resolved_llama_cli.exists():
+            add_row("llama-cli", "fail", f"Path does not exist: {resolved_llama_cli}")
+        elif not resolved_llama_cli.is_file():
+            add_row("llama-cli", "fail", f"Path is not a file: {resolved_llama_cli}")
+        elif not os.access(resolved_llama_cli, os.X_OK):
+            add_row("llama-cli", "fail", f"Path is not executable: {resolved_llama_cli}")
+        else:
+            add_row("llama-cli", "ok", str(resolved_llama_cli))
+
+    profiles: dict[str, Any] = {}
+    model_profiles_path = model_profiles or _default_existing_path(
+        DEFAULT_LOCAL_MODEL_PROFILES,
+        _user_model_profiles_path(),
+    )
+    if model_profiles_path is None:
+        add_row(
+            "Model profiles",
+            "warn",
+            "No model profiles found; run llmgauge init or provide --model-profiles",
+        )
+    else:
+        try:
+            profiles = load_model_profiles(model_profiles_path)
+            if model_profiles is None:
+                add_row(
+                    "Model profiles",
+                    "ok",
+                    f"Auto-detected {len(profiles)} profile(s) from {model_profiles_path}",
+                )
+            else:
+                add_row(
+                    "Model profiles",
+                    "ok",
+                    f"Loaded {len(profiles)} profile(s) from {model_profiles_path}",
+                )
+        except Exception as exc:
+            add_row("Model profiles", "fail", str(exc))
+
+    if model_profile is not None:
+        try:
+            profile = resolve_model_profile(profiles, model_profile)
+            add_row("Selected model profile", "ok", model_profile)
+            model_path = profile.get("path")
+            if model_path is None:
+                add_row("Model file", "fail", f"Profile has no path: {model_profile}")
+            else:
+                resolved_model_path = Path(model_path)
+                if resolved_model_path.exists() and resolved_model_path.is_file():
+                    add_row("Model file", "ok", str(resolved_model_path))
+                elif resolved_model_path.exists():
+                    add_row(
+                        "Model file",
+                        "fail",
+                        f"Path is not a file: {resolved_model_path}",
+                    )
+                else:
+                    add_row(
+                        "Model file",
+                        "fail",
+                        f"Path does not exist: {resolved_model_path}",
+                    )
+        except Exception as exc:
+            add_row("Selected model profile", "fail", str(exc))
+
+    nvidia_smi = shutil.which("nvidia-smi")
+    if nvidia_smi:
+        add_row("nvidia-smi", "ok", nvidia_smi)
+    else:
+        add_row("nvidia-smi", "warn", "not found; VRAM capture may be unavailable")
+
+    console.print(table)
+
+    if has_failure:
+        console.print("[bold red]Smoke check failed[/bold red]")
+        raise typer.Exit(code=1)
+
+    console.print("[bold green]Smoke check passed[/bold green]")
+    console.print("Safe next step: run llmgauge run --dry-run before launching a model.")
+
+
 @app.command("list-model-profiles")
 def list_model_profiles(
     model_profiles: Path | None = typer.Option(
