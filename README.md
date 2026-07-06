@@ -55,9 +55,7 @@ Current stable tag: v0.48
 
 Current development line: v0.49
 
-LLMGauge is usable from a repository checkout with `uv run llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
-
-For install paths, see [Installation](docs/INSTALL.md). The source-checkout workflow remains the preferred contributor path and uses `uv run llmgauge ...`; installed CLI usage uses `llmgauge ...` directly.
+LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
 ## Quick start from a checkout
 
@@ -108,7 +106,7 @@ Smoke checks do not launch `llama.cpp`. Dry-run one prompt to preview resolved r
 Run one prompt:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \

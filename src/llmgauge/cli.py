@@ -409,8 +409,9 @@ def init(
     console.print(f"Config directory: {_llmgauge_user_config_dir()}")
     console.print("Next steps:")
     console.print("  1. Edit config.yaml and model-profiles.yaml")
-    console.print("  2. Run llmgauge doctor")
-    console.print("  3. Run llmgauge list-model-profiles")
+    console.print("  2. Run llmgauge smoke")
+    console.print("  3. Run llmgauge list-suites")
+    console.print("  4. Preview a run with llmgauge run --dry-run")
 
 
 @app.command("init-config")
@@ -617,7 +618,7 @@ def list_model_profiles(
     )
     if model_profiles_path is None:
         raise typer.BadParameter(
-            "Provide --model-profiles or run llmgauge init-config first"
+            "Provide --model-profiles or run llmgauge init first"
         )
 
     if not model_profiles_path.exists():

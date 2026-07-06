@@ -190,7 +190,7 @@ experiments can override installed/user defaults without changing global
 settings.
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \
