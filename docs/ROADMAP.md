@@ -198,18 +198,26 @@ Planned direction:
 - config/profile/suite schema validation polish
 - public artifact sanitization/export mode
 
-## Future GitHub and branch-name maintenance
+## GitHub branch maintenance
 
-- Use `main` as the default branch name for new GitHub repositories going forward.
-- Keep existing LLMGauge `master` branch as-is unless a separate branch-rename maintenance task is intentionally scheduled.
-- If LLMGauge is later renamed from `master` to `main`, handle it as a standalone compatibility task:
-  - update GitHub default branch settings before deleting or retiring `master`
-  - review branch protection and repository rules
-  - update docs, badges, scripts, release notes, and examples that mention `master`
-  - verify local and remote tracking branches after the rename
-  - avoid bundling the rename with feature work or release-critical fixes
-- Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
-- If `--model-profile-file` is added, keep `--model-profiles` as a compatibility alias for at least one release cycle and document the transition clearly.
+LLMGauge now uses `main` as the default branch.
+
+Completed branch maintenance:
+
+- pushed `main`
+- changed the GitHub default branch to `main`
+- updated `origin/HEAD` to point to `main`
+- updated CI to run on pushes to `main`
+
+Follow-up:
+
+- keep the old remote `master` branch only until the first `main` CI run is confirmed
+- delete the remote `master` branch after verification
+- avoid bundling future branch maintenance with feature work or release-critical fixes
+
+Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
+
+If `--model-profile-file` is added, keep `--model-profiles` as a compatibility alias for at least one release cycle and document the transition clearly.
 
 ## Future LocalMaxxing integration
 
