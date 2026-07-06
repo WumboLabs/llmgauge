@@ -14,7 +14,7 @@ LLMGauge is not a leaderboard, cloud eval service, model downloader, automatic j
 
 - Current stable tag: `v0.47`
 - Current development line: `v0.48`
-- Current development focus: public usability, installation/onboarding polish, reproducibility guardrails, and repository hygiene
+- Current development focus: easier install, user-level initialization, doctor polish, smoke-test onboarding, and reproducibility guardrails
 
 ## Recently completed
 
@@ -73,31 +73,46 @@ Completed scope:
 
 Potential v0.48 scope:
 
-- add `LICENSE`
-- add `CONTRIBUTING.md`
-- add GitHub Actions CI
+- continue install and onboarding polish
 - add or update repository metadata guidance
 - clean duplicate `.gitignore` entries if straightforward
 - keep changes small, testable, and release-safe
 
 ## Near-term roadmap
 
-### Repository trust and public maintenance
+### v0.48: user-friendly installation and onboarding
 
 Goals:
 
-- make the project easier to verify from a clean checkout
-- make external contribution expectations explicit
-- reduce accidental drift between source-checkout and packaged behavior
-- keep release hygiene clear
+- make LLMGauge easier to try from a clean checkout or installed CLI
+- make setup failures diagnosable with clear next steps
+- keep onboarding explicit, local-first, and non-magical
+- avoid model downloads, hidden network activity, or private-path assumptions
 
-Potential work:
+Planned work:
 
-- add a license file, likely MIT unless project policy changes
-- add contribution guidance for tests, formatting, release gates, and claim boundaries
-- add basic CI with `uv run pytest`, `uv run ruff check .`, and `git diff --check`
-- add issue/PR templates later if external activity warrants it
-- add `SECURITY.md` later if the project surface grows
+- clarify source-checkout usage vs installed CLI usage
+- add or refine user-level config discovery under `~/.config/llmgauge/`
+- add preferred `llmgauge init` flow while keeping `init-config` compatibility
+- polish `llmgauge doctor` so setup checks are action-oriented
+- add a simple `llmgauge smoke` workflow for proving one configured model can create and validate a result artifact
+- update README, Quickstart, and Usage docs around the new first-run path
+
+### Repository trust and public maintenance
+
+Recently completed in v0.47:
+
+- MIT license
+- contributor guide
+- read-only GitHub Actions CI
+- package/CLI version metadata
+- suite mirror drift guard test
+
+Potential later work:
+
+- add issue/PR templates if external activity warrants it
+- add `SECURITY.md` when the project surface grows
+- clean duplicate `.gitignore` entries if straightforward
 
 ### User-friendly installation and onboarding
 
@@ -196,31 +211,55 @@ Planned direction:
 - Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
 - If `--model-profile-file` is added, keep `--model-profiles` as a compatibility alias for at least one release cycle and document the transition clearly.
 
-## Future LocalMaxxing integration interest
+## Future LocalMaxxing integration
 
-Interest pending; not a current development priority.
+LLMGauge has green light from LottoLabs to explore LocalMaxxing integration. This is now a planned optional integration area, but not the immediate v0.48 priority.
 
-LLMGauge and LocalMaxxing solve different problems:
+LLMGauge and LocalMaxxing solve complementary problems:
 
-- LLMGauge focuses on reproducible quality evaluation and reporting.
-- LocalMaxxing focuses on standardized public `llama-bench` performance benchmarking.
+- LLMGauge focuses on reproducible quality evaluation, prompt-suite artifacts, manual scoring, and reporting.
+- LocalMaxxing focuses on local LLM inference performance benchmarking, public hardware/model comparison, and benchmark sharing.
 
-A future optional addon could allow LLMGauge to export, or optionally submit, LocalMaxxing-compatible benchmark payloads after a standard `llama-bench` run.
+Integration should be staged and opt-in.
 
-Possible future commands:
+### Proposed integration levels
 
-- `llmgauge export-localmaxxing`
-- `llmgauge submit-localmaxxing`
+1. Documentation-only compatibility
+   - document how LLMGauge runtime metadata maps to LocalMaxxing-style benchmark fields
+   - clarify what LLMGauge can and cannot claim from prompt-suite runs
+
+2. Export-only integration
+   - add `llmgauge export-localmaxxing`
+   - write a LocalMaxxing-compatible JSON payload from an existing artifact or dedicated benchmark artifact
+   - perform no network activity
+
+3. Explicit submit integration
+   - add `llmgauge submit-localmaxxing`
+   - use LocalMaxxing API docs from the website after reviewing the API contract
+   - require an explicit user command
+   - preview what will be submitted
+   - preserve any returned benchmark/submission ID as supplemental metadata
+
+4. Dedicated benchmark runner, if needed
+   - only if LocalMaxxing requires benchmark data that LLMGauge prompt-suite runs should not approximate
+   - keep this separate from LLMGauge's quality-evaluation workflow
 
 Design constraints:
 
 - entirely optional
 - no LocalMaxxing dependency for normal LLMGauge users
 - no automatic network or API activity
+- no submission during normal `run`, `smoke`, `score`, or `compare`
 - no change to LLMGauge's primary quality-evaluation mission
-- optional benchmark IDs could be stored as supplemental metadata in LLMGauge result artifacts
+- no leaderboard claims from LLMGauge quality scores
+- preserve raw artifacts and methodology boundaries
+- do not implement API calls until LocalMaxxing API docs have been reviewed and captured in a design note
 
-Revisit only if there is sufficient user demand or a future collaboration opportunity with LottoLabs/LocalMaxxing.
+Likely roadmap placement:
+
+- v0.48: install/onboarding, `init`, `doctor`, and `smoke`
+- v0.49 or later: LocalMaxxing export-only design and payload generation
+- later: optional submit command, if the API contract and user value justify it
 
 ## Non-goals
 
