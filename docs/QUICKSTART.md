@@ -140,20 +140,30 @@ Fix any missing model path before running model evaluations.
 
 ## 7. List and validate suites
 
-List built-in suites:
+List built-in suites and friendly aliases:
 
     uv run llmgauge list-suites
 
-Validate a suite:
+Common aliases:
 
-    uv run llmgauge validate-suite wumbolabs-practical-v1
+    practical -> wumbolabs-practical-v1
+    core      -> core-v1
+    agent     -> agent-backend-v1
+    context   -> context-v1
+
+Aliases are input conveniences only. Result artifacts continue to record the
+canonical `suite_id` from `suite.yaml`.
+
+Validate a suite by alias or canonical ID:
+
+    uv run llmgauge validate-suite practical
 
 ## 8. Preview one prompt
 
 Before launching `llama.cpp`, inspect the resolved run plan:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \

@@ -58,6 +58,17 @@ List built-in suites:
 
     uv run llmgauge list-suites
 
+Built-in aliases:
+
+    practical -> wumbolabs-practical-v1
+    core      -> core-v1
+    agent     -> agent-backend-v1
+    context   -> context-v1
+
+Aliases are accepted anywhere a built-in suite is resolved. Result artifacts
+still record canonical suite IDs.
+
+
 Validate a suite:
 
     uv run llmgauge validate-suite wumbolabs-practical-v1
@@ -67,7 +78,7 @@ Validate a suite:
 Preview one exact prompt without launching `llama.cpp`:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \

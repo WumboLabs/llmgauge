@@ -87,10 +87,17 @@ List configured model profiles:
 
     uv run llmgauge list-model-profiles
 
+List built-in suites and friendly aliases:
+
+    uv run llmgauge list-suites
+
+Built-in suite aliases include `practical`, `core`, `agent`, and `context`.
+Canonical suite IDs are still preserved in result artifacts.
+
 Smoke checks do not launch `llama.cpp`. Dry-run one prompt to preview resolved run settings without launching `llama.cpp`:
 
     uv run llmgauge run \
-      --suite wumbolabs-practical-v1 \
+      --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
       --model-profile example_model \
       --ctx 8192 \
