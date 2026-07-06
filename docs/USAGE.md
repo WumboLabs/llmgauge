@@ -1,5 +1,7 @@
 # LLMGauge Usage
 
+See [Installation](INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
+
 This page is a compact command map for common LLMGauge workflows.
 
 For a first run, start with [Quickstart](QUICKSTART.md). For local model evaluation process guidance, see [Local model testing workflow](LOCAL_MODEL_TESTING.md).
