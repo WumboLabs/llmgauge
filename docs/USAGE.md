@@ -34,7 +34,15 @@ This writes user config files under `~/.config/llmgauge/`:
 `XDG_CONFIG_HOME` is respected. Use `uv run llmgauge init-config` only when you
 specifically want project-local ignored files under `examples/configs/`.
 
-Check the environment:
+Run a safe setup smoke check:
+
+    uv run llmgauge smoke
+
+Check one configured model profile without launching a model:
+
+    uv run llmgauge smoke --model-profile example_model
+
+Check the environment in more detail:
 
     uv run llmgauge doctor
 
