@@ -68,6 +68,11 @@ from llmgauge.core.suite import load_suite, validate_suite
 from llmgauge.core.suite_paths import resolve_suite_path, resolve_suites_dir
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
 
+def _fail_cli_validation(message: str) -> None:
+    typer.echo(message, err=True)
+    raise typer.Exit(2)
+
+
 app = typer.Typer(
     name="llmgauge",
     help="Practical local LLM evaluation on real hardware.",
@@ -575,7 +580,7 @@ def _resolve_cli_output_dir(
         return out
 
     if not auto_name:
-        raise typer.BadParameter("Use --out PATH or --auto-name")
+        _fail_cli_validation("Use --out PATH or --auto-name")
 
     return build_auto_output_dir(
         runs_root=runs_root,
@@ -2123,22 +2128,22 @@ def score(
 ) -> None:
     """Initialize or apply manual scores for a completed run."""
     if check and init:
-        raise typer.BadParameter("--check cannot be used with --init")
+        _fail_cli_validation("--check cannot be used with --init")
 
     if auto_draft and init:
-        raise typer.BadParameter("--auto-draft cannot be used with --init")
+        _fail_cli_validation("--auto-draft cannot be used with --init")
 
     if auto_draft and scores is not None:
-        raise typer.BadParameter("--auto-draft cannot be used with --scores")
+        _fail_cli_validation("--auto-draft cannot be used with --scores")
 
     if auto_draft and check:
-        raise typer.BadParameter("--auto-draft cannot be used with --check")
+        _fail_cli_validation("--auto-draft cannot be used with --check")
 
     if force and not auto_draft:
-        raise typer.BadParameter("--force can only be used with --auto-draft")
+        _fail_cli_validation("--force can only be used with --auto-draft")
 
     if check and scores is None:
-        raise typer.BadParameter("--check requires --scores PATH")
+        _fail_cli_validation("--check requires --scores PATH")
 
     mismatch = describe_score_artifact_mismatch(result_dir)
     if mismatch:
