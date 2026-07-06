@@ -35,22 +35,29 @@ Then:
 
 Installed CLI behavior is still being clarified. The rest of this guide uses `uv run llmgauge ...`.
 
-## 2. Create local config files
+## 2. Create user config files
 
-Create ignored local config files from the example templates:
+Create user config files from the example templates:
 
-    uv run llmgauge init-config
+    uv run llmgauge init
 
 This creates, or skips if already present:
+
+    ~/.config/llmgauge/config.yaml
+    ~/.config/llmgauge/model-profiles.yaml
+
+`XDG_CONFIG_HOME` is respected. For example, with `XDG_CONFIG_HOME=/tmp/config`,
+LLMGauge uses `/tmp/config/llmgauge/`.
+
+Compatibility note: `uv run llmgauge init-config` still creates project-local
+ignored files under `examples/configs/` for contributor workflows:
 
     examples/configs/llmgauge.local.yaml
     examples/configs/model-profiles.local.yaml
 
-Local config files matching `examples/configs/*.local.yaml` are ignored by git and should contain your machine-specific paths.
+## 3. Edit user config
 
-## 3. Edit local config
-
-Edit `examples/configs/llmgauge.local.yaml` and set your `llama-cli` path:
+Edit `~/.config/llmgauge/config.yaml` and set your `llama-cli` path:
 
     runtime:
       llama_cli: /path/to/llama-cli
@@ -64,7 +71,7 @@ Optional defaults can also live here:
       flash_attn: auto
       runtime_label: stock-reference
 
-Edit `examples/configs/model-profiles.local.yaml` and set at least one model profile path:
+Edit `~/.config/llmgauge/model-profiles.yaml` and set at least one model profile path:
 
     models:
       example_model:
@@ -90,7 +97,7 @@ Run:
 
     uv run llmgauge doctor
 
-When local config files are present, `doctor` auto-detects them.
+When config files are present, `doctor` auto-detects them.
 
 A ready setup should show:
 
@@ -148,7 +155,15 @@ Dry-run mode resolves config, model profiles, model paths, runtime settings, and
 
 Start with one prompt before running a full suite.
 
-When `examples/configs/llmgauge.local.yaml` and `examples/configs/model-profiles.local.yaml` exist, LLMGauge auto-detects them. Explicit `--config` and `--model-profiles` still override the defaults.
+LLMGauge auto-detects configuration in this order:
+
+1. explicit `--config` / `--model-profiles` paths
+2. project-local `examples/configs/*.local.yaml`
+3. user config under `~/.config/llmgauge/`
+
+Project-local files take precedence over user config so source-checkout
+experiments can override installed/user defaults without changing global
+settings.
 
     uv run llmgauge run \
       --suite wumbolabs-practical-v1 \

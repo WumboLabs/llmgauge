@@ -22,9 +22,17 @@ Show top-level help:
 
     uv run llmgauge --help
 
-Create ignored local config files:
+Create user config files:
 
-    uv run llmgauge init-config
+    uv run llmgauge init
+
+This writes user config files under `~/.config/llmgauge/`:
+
+    ~/.config/llmgauge/config.yaml
+    ~/.config/llmgauge/model-profiles.yaml
+
+`XDG_CONFIG_HOME` is respected. Use `uv run llmgauge init-config` only when you
+specifically want project-local ignored files under `examples/configs/`.
 
 Check the environment:
 
