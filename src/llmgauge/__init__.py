@@ -1,3 +1,3 @@
 """LLMGauge package metadata."""
 
-__version__ = "0.48.0.dev0"
+__version__ = "0.48.0"

@@ -12,9 +12,9 @@ LLMGauge is not a leaderboard, cloud eval service, model downloader, automatic j
 
 ## Current release line
 
-- Current stable tag: `v0.47`
-- Current development line: `v0.48`
-- Current development focus: easier install, user-level initialization, doctor polish, smoke-test onboarding, and reproducibility guardrails
+- Current stable tag: `v0.48`
+- Current development line: `v0.49`
+- Current development focus: v0.49 planning after the v0.48 onboarding release
 
 ## Recently completed
 
@@ -58,6 +58,21 @@ Completed scope:
 - clarified `agent-backend-v1` and `context-v1` scope
 - synced the source-checkout `suites/` tree with packaged built-in suites
 
+## Completed v0.48 user-friendly installation and onboarding
+
+v0.48 focused on making LLMGauge easier to start from both a source checkout and
+an installed CLI while preserving the existing contributor workflow.
+
+Completed:
+
+- added user-level config initialization with `llmgauge init`
+- kept `llmgauge init-config` compatibility for project-local ignored config
+- added `llmgauge smoke` readiness checks that do not launch `llama.cpp`
+- added built-in suite aliases such as `practical`, `core`, `agent`, and `context`
+- preserved canonical suite IDs in resolved run metadata and artifacts
+- documented source checkout, editable local install, and GitHub install workflows
+- linked installation guidance from README, Quickstart, and Usage
+
 ## Completed v0.47 public repository polish
 
 v0.47 focused on repository trust, version clarity, and public usability before deeper feature expansion.
@@ -71,7 +86,7 @@ Completed scope:
 - suite mirror drift guard test for source-checkout suites vs packaged built-ins
 - roadmap refresh after v0.46
 
-Potential v0.48 scope:
+Potential v0.49 scope:
 
 - continue install and onboarding polish
 - add or update repository metadata guidance

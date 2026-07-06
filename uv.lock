@@ -40,7 +40,7 @@ wheels = [
 
 [[package]]
 name = "llmgauge"
-version = "0.48.0.dev0"
+version = "0.48.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
