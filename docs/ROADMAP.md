@@ -211,8 +211,6 @@ Completed branch maintenance:
 
 Follow-up:
 
-- keep the old remote `master` branch only until the first `main` CI run is confirmed
-- delete the remote `master` branch after verification
 - avoid bundling future branch maintenance with feature work or release-critical fixes
 
 Future CLI polish idea: keep `--model-profile` as the configured model selector, and consider adding `--model-profile-file` as the clearer preferred name for the YAML file path currently passed with `--model-profiles`.
