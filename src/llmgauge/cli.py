@@ -136,6 +136,10 @@ def _default_existing_path(*paths: Path) -> Path | None:
     return None
 
 
+def _is_placeholder_path(path: Path) -> bool:
+    return str(path).startswith("/path/to/")
+
+
 @app.command()
 def doctor(
     config: Path | None = typer.Option(
@@ -217,7 +221,14 @@ def doctor(
     else:
         resolved_llama_cli = Path(resolved_llama_cli)
         if not resolved_llama_cli.exists():
-            add_row("llama-cli", "fail", f"Path does not exist: {resolved_llama_cli}")
+            if _is_placeholder_path(resolved_llama_cli):
+                add_row(
+                    "llama-cli",
+                    "warn",
+                    f"Placeholder path; edit config.yaml before running models: {resolved_llama_cli}",
+                )
+            else:
+                add_row("llama-cli", "fail", f"Path does not exist: {resolved_llama_cli}")
         elif not resolved_llama_cli.is_file():
             add_row("llama-cli", "fail", f"Path is not a file: {resolved_llama_cli}")
         elif not os.access(resolved_llama_cli, os.X_OK):
@@ -524,7 +535,14 @@ def smoke(
     else:
         resolved_llama_cli = Path(resolved_llama_cli)
         if not resolved_llama_cli.exists():
-            add_row("llama-cli", "fail", f"Path does not exist: {resolved_llama_cli}")
+            if _is_placeholder_path(resolved_llama_cli):
+                add_row(
+                    "llama-cli",
+                    "warn",
+                    f"Placeholder path; edit config.yaml before running models: {resolved_llama_cli}",
+                )
+            else:
+                add_row("llama-cli", "fail", f"Path does not exist: {resolved_llama_cli}")
         elif not resolved_llama_cli.is_file():
             add_row("llama-cli", "fail", f"Path is not a file: {resolved_llama_cli}")
         elif not os.access(resolved_llama_cli, os.X_OK):
@@ -579,11 +597,18 @@ def smoke(
                         f"Path is not a file: {resolved_model_path}",
                     )
                 else:
-                    add_row(
-                        "Model file",
-                        "fail",
-                        f"Path does not exist: {resolved_model_path}",
-                    )
+                    if _is_placeholder_path(resolved_model_path):
+                        add_row(
+                            "Model file",
+                            "warn",
+                            f"Placeholder path; edit model-profiles.yaml before running models: {resolved_model_path}",
+                        )
+                    else:
+                        add_row(
+                            "Model file",
+                            "fail",
+                            f"Path does not exist: {resolved_model_path}",
+                        )
         except Exception as exc:
             add_row("Selected model profile", "fail", str(exc))
 
