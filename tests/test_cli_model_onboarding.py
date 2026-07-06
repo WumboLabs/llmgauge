@@ -744,3 +744,91 @@ models:
     )
 
     assert resolved["runtime_label"] is None
+
+def test_init_creates_user_config_files(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["init"])
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+
+    assert result.exit_code == 0
+    assert (user_config_dir / "config.yaml").exists()
+    assert (user_config_dir / "model-profiles.yaml").exists()
+    assert "created" in result.output
+    assert "Config directory" in result.output
+    assert "llmgauge doctor" in result.output
+
+
+def test_init_skips_existing_user_config_without_force(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+    user_config = user_config_dir / "config.yaml"
+    user_config.write_text("keep: true\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["init"])
+
+    assert result.exit_code == 0
+    assert "skipped" in result.output
+    assert user_config.read_text(encoding="utf-8") == "keep: true\n"
+
+
+def test_init_force_overwrites_user_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+    (examples_dir / "llmgauge.example.yaml").write_text(
+        "schema_version: llmgauge.config.v0\n",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.example.yaml").write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    user_config_dir = tmp_path / "xdg-config" / "llmgauge"
+    user_config_dir.mkdir(parents=True)
+    user_config = user_config_dir / "config.yaml"
+    user_config.write_text("replace: true\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["init", "--force"])
+
+    assert result.exit_code == 0
+    assert "created" in result.output
+    assert user_config.read_text(encoding="utf-8") == (
+        "schema_version: llmgauge.config.v0\n"
+    )

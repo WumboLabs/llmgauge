@@ -344,6 +344,76 @@ def validate_suite_command(suite_dir: Path = typer.Argument(...)) -> None:
     )
 
 
+def _copy_config_templates(
+    *,
+    config_target: Path,
+    model_profiles_target: Path,
+    force: bool,
+) -> tuple[list[tuple[Path, str, str]], bool]:
+    targets = [
+        (EXAMPLE_CONFIG, config_target),
+        (EXAMPLE_MODEL_PROFILES, model_profiles_target),
+    ]
+
+    rows: list[tuple[Path, str, str]] = []
+    has_failure = False
+
+    for source, target in targets:
+        if not source.exists():
+            rows.append((target, "fail", f"Example template missing: {source}"))
+            has_failure = True
+            continue
+
+        if target.exists() and not force:
+            rows.append((target, "skipped", "already exists; use --force"))
+            continue
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        rows.append((target, "created", f"from {source}"))
+
+    return rows, has_failure
+
+
+def _print_config_init_table(title: str, rows: list[tuple[Path, str, str]]) -> None:
+    table = Table(title=title)
+    table.add_column("File")
+    table.add_column("Status")
+    table.add_column("Notes")
+
+    for target, status, notes in rows:
+        table.add_row(str(target), status, notes)
+
+    console.print(table)
+
+
+@app.command("init")
+def init(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite existing user config files",
+    ),
+) -> None:
+    """Create user config files under the LLMGauge config directory."""
+    rows, has_failure = _copy_config_templates(
+        config_target=_user_config_path(),
+        model_profiles_target=_user_model_profiles_path(),
+        force=force,
+    )
+
+    _print_config_init_table("Initialize User Config", rows)
+
+    if has_failure:
+        raise typer.Exit(code=1)
+
+    console.print(f"Config directory: {_llmgauge_user_config_dir()}")
+    console.print("Next steps:")
+    console.print("  1. Edit config.yaml and model-profiles.yaml")
+    console.print("  2. Run llmgauge doctor")
+    console.print("  3. Run llmgauge list-model-profiles")
+
+
 @app.command("init-config")
 def init_config(
     force: bool = typer.Option(
@@ -352,35 +422,17 @@ def init_config(
         help="Overwrite existing local config files",
     ),
 ) -> None:
-    """Create ignored local config files from example templates."""
-    targets = [
-        (EXAMPLE_CONFIG, DEFAULT_LOCAL_CONFIG),
-        (EXAMPLE_MODEL_PROFILES, DEFAULT_LOCAL_MODEL_PROFILES),
-    ]
-
-    table = Table(title="Initialize Local Config")
-    table.add_column("File")
-    table.add_column("Status")
-    table.add_column("Notes")
-
-    for source, target in targets:
-        if not source.exists():
-            table.add_row(str(target), "fail", f"Example template missing: {source}")
-            console.print(table)
-            raise typer.Exit(code=1)
-
-        if target.exists() and not force:
-            table.add_row(str(target), "skipped", "Already exists; use --force to overwrite")
-            continue
-
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
-        table.add_row(str(target), "created" if not force else "written", f"Copied from {source}")
-
-    console.print(table)
-    console.print(
-        "Edit the local YAML files with your llama-cli path and GGUF model paths."
+    """Create ignored project-local config files from example templates."""
+    rows, has_failure = _copy_config_templates(
+        config_target=DEFAULT_LOCAL_CONFIG,
+        model_profiles_target=DEFAULT_LOCAL_MODEL_PROFILES,
+        force=force,
     )
+
+    _print_config_init_table("Initialize Local Config", rows)
+
+    if has_failure:
+        raise typer.Exit(code=1)
 
 
 @app.command("list-model-profiles")
