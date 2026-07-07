@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.56 - 2026-07-07
+
+- Added Publish Readiness Notes to comparison reports with deterministic signals for scored/unscored runs, reviewed/unreviewed scores, mixed suites/runtime settings, prompt overlap, and artifact gaps.
+- Strengthened comparison report claim boundaries so reports are framed as local evidence, not universal rankings or leaderboards.
+- Added tests for publish-readiness warnings around mixed suites, unscored runs, and unreviewed automatic-rule scores.
+- Documented responsible public comparison guidance in public reporting and local model testing docs.
+
 ## v0.55 - 2026-07-07
 
 - Corrected first-run and clean-clone documentation so post-init `model add` examples use new profile names instead of colliding with packaged `example_model`.
