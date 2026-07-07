@@ -4,6 +4,8 @@ Guidance for AI coding tools, assistants, and automated editors working on LLMGa
 
 LLMGauge is a conservative local-LLM evaluation tool for real consumer hardware. The project values reproducibility, artifact integrity, clear command behavior, and stable local workflows over clever automation or broad rewrites.
 
+Grok Build uses this file as its repository guidance. Keep this file self-contained and current.
+
 ## Project structure
 
 LLMGauge is a Python CLI project using a `src/` layout.
@@ -11,6 +13,7 @@ LLMGauge is a Python CLI project using a `src/` layout.
 - Core package code lives in `src/llmgauge/`.
 - The Typer CLI entry point is `src/llmgauge/cli.py`.
 - Focused CLI command modules live under `src/llmgauge/commands/`.
+- Shared CLI helpers live in `src/llmgauge/cli_common.py`.
 - Shared evaluation logic lives under `src/llmgauge/core/`.
 - llama.cpp integration lives under `src/llmgauge/runners/`.
 - Bundled prompt suites live in `src/llmgauge/builtin_suites/`.
@@ -19,7 +22,21 @@ LLMGauge is a Python CLI project using a `src/` layout.
 - Tests live in `tests/` and should mirror behavior with focused `test_*.py` files.
 - User-facing docs live in `docs/`.
 
-## Core rules
+## Mission and non-goals
+
+LLMGauge supports practical, reproducible local LLM evaluation on real consumer hardware.
+
+It is not:
+
+- a cloud evaluation service
+- a model downloader
+- a hosted leaderboard
+- an automatic judge that hides review
+- a hardware tuning tool
+- a general autonomous agent framework
+- a telemetry system
+
+## Absolute rules
 
 - Make small, reviewable changes.
 - Prefer boring, explicit, deterministic code.
@@ -31,6 +48,98 @@ LLMGauge is a Python CLI project using a `src/` layout.
 - Treat generated evaluation artifacts as records, not scratch files.
 - Avoid broad refactors unless the task is explicitly a refactor and tests cover compatibility.
 - Do not add dependencies unless they are necessary, lightweight, and justified.
+- Do not add Cursor configuration files for Grok Build work.
+
+## Standard branch workflow
+
+Follow this order for normal branches.
+
+1. Start from `main`.
+
+   ```bash
+   git switch main
+   git pull --ff-only origin main
+   git switch -c descriptive-branch-name
+   ```
+
+2. Inspect state.
+
+   ```bash
+   git status --short --branch
+   git log --oneline --decorate --graph --max-count=12
+   uv run llmgauge --version
+   ```
+
+3. Read guidance.
+
+   ```bash
+   sed -n '1,260p' AGENTS.md
+   ```
+
+4. Inspect task-relevant files before editing.
+
+5. Patch the smallest safe set of files.
+
+6. Run targeted tests first when behavior changed.
+
+7. Run the full gate.
+
+   ```bash
+   uv run pytest
+   uv run ruff check .
+   git diff --check
+   ```
+
+8. Review the diff.
+
+   ```bash
+   git diff --stat
+   git diff --name-status
+   git diff
+   ```
+
+9. Commit focused work.
+
+10. Verify post-commit state.
+
+    ```bash
+    git status --short --branch
+    git log --oneline --decorate --graph --max-count=12
+    ```
+
+11. Stop and report.
+
+Do not push, merge, tag, delete branches, or rewrite history unless explicitly asked.
+
+## Grok Build operating rules
+
+Grok Build should operate as a supervised coding assistant, not an autonomous maintainer.
+
+At the start of every Grok Build task:
+
+1. read `AGENTS.md`
+2. report current branch and HEAD
+3. report whether the working tree is clean
+4. restate the requested scope
+5. identify likely files to change
+6. identify planned targeted tests and full gates
+
+Grok Build may write review notes under `tmp/` when explicitly requested, but those reports should not be committed.
+
+Grok Build must not add Cursor-specific configuration files such as `.cursor/` or `.cursorrules`.
+
+Grok Build must stop after completing the requested scope and report:
+
+- branch name
+- final HEAD
+- files changed
+- commands run
+- test results
+- ruff result
+- diff-check result
+- working tree status
+- risks or follow-up items
+
 
 ## Local development expectations
 
@@ -42,14 +151,6 @@ Common commands:
 uv sync
 uv run llmgauge --help
 uv run llmgauge validate-suite suites/core-v1
-uv run pytest
-uv run ruff check .
-git diff --check
-```
-
-Run these gates before any commit:
-
-```bash
 uv run pytest
 uv run ruff check .
 git diff --check
@@ -72,6 +173,7 @@ git diff --check
 - Do not create tags unless explicitly asked.
 - Do not push unless explicitly asked.
 - Do not rewrite public history unless explicitly asked.
+- Do not delete branches unless explicitly asked.
 - Do not include private machine paths, local model paths, benchmark artifacts, database files, secrets, `.env` files, generated `results/` data, or personal notes in commits unless intentionally adding fixtures.
 
 Preferred commit shape:
@@ -81,9 +183,14 @@ Preferred commit shape:
 3. docs, if needed
 4. release metadata only when preparing a release
 
-Commit subjects should be concise, imperative, and specific, for example `Harden model profile mutations`.
+Commit subjects should be concise, imperative, and specific, for example:
 
-## Release metadata
+- `Harden model profile mutations`
+- `Add model profile management commands`
+- `Set v0.50 release metadata`
+- `Expand repository agent guidance`
+
+## Release metadata workflow
 
 Only update these during an explicit release-prep step:
 
@@ -94,6 +201,102 @@ Only update these during an explicit release-prep step:
 - release/version language in docs
 
 Do not bump `__version__` just because a feature branch starts.
+
+Release-prep branch order:
+
+1. branch from current `main`
+2. update version metadata
+3. update lockfile with `uv lock`
+4. add changelog entry
+5. verify version
+
+   ```bash
+   grep '^version' pyproject.toml
+   grep '__version__' src/llmgauge/__init__.py
+   uv run llmgauge --version
+   ```
+
+6. run full gate
+7. commit release metadata
+8. push and PR only when asked
+9. merge only when asked
+10. tag only after release metadata is merged to `main`
+
+## PR and CI workflow
+
+When asked to create a PR:
+
+1. verify branch state
+2. push branch
+3. create PR
+4. inspect PR
+5. watch checks
+6. report PR number, URL, CI result, and mergeability
+
+Use explicit PR numbers with `gh` when using `--repo`.
+
+```bash
+gh pr view 1 --repo WumboLabs/llmgauge
+gh pr checks 1 --repo WumboLabs/llmgauge --watch
+```
+
+CI runs automatically for pull requests and pushes to `main`. Feature branch pushes may not trigger CI unless manually dispatched.
+
+## Merge workflow
+
+When asked to merge a PR:
+
+1. confirm checks passed
+2. confirm `mergeable` is `MERGEABLE`
+3. use merge commit when preserving focused branch history matters
+4. update local `main`
+5. run final local gate
+
+```bash
+git switch main
+git pull --ff-only origin main
+uv run pytest
+uv run ruff check .
+git diff --check
+```
+
+## Tag workflow
+
+Only create a release tag after the release metadata merge is on `main`.
+
+Pre-tag checks:
+
+```bash
+git status --short --branch
+git rev-parse HEAD
+uv run llmgauge --version
+uv run pytest
+uv run ruff check .
+git diff --check
+```
+
+Create annotated tags:
+
+```bash
+git tag -a vX.YY -m "LLMGauge vX.YY"
+git push origin refs/tags/vX.YY:refs/tags/vX.YY
+```
+
+Use full tag refs if a branch and tag share the same name.
+
+## Branch cleanup workflow
+
+Only clean up after merge and tag verification.
+
+Preferred cleanup:
+
+```bash
+git branch -d branch-name
+git push origin --delete branch-name
+git fetch --prune origin
+```
+
+Keep backup branches until the user explicitly confirms they can be removed.
 
 ## CLI compatibility
 
@@ -192,6 +395,7 @@ Docs should be practical and precise.
 - State limitations plainly.
 - Keep examples local-first and source-checkout friendly.
 - Do not recommend cloud workflows as the default path.
+- Keep public docs free of private project memory, private machine paths, and local-only benchmark conclusions.
 
 ## Code style
 
@@ -219,3 +423,4 @@ Before presenting work as complete, verify:
 - No user data, model paths, result artifacts, caches, or secrets were staged.
 - Destructive behavior requires explicit confirmation.
 - User-owned YAML unknown fields are preserved by update paths.
+- Branch, PR, CI, release, and tag steps were not performed unless explicitly requested.
