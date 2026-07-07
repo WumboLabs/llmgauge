@@ -124,8 +124,10 @@ def test_init_user_config_prints_safe_first_run_next_steps(
     result = runner.invoke(app, ["init"])
 
     assert result.exit_code == 0
+    assert "llmgauge doctor" in result.output
+    assert "llmgauge model add" in result.output
+    assert "llmgauge model list" in result.output
     assert "llmgauge smoke" in result.output
-    assert "llmgauge list-suites" in result.output
     assert "llmgauge run --dry-run" in result.output
 
 
@@ -795,8 +797,9 @@ def test_init_creates_user_config_files(tmp_path: Path, monkeypatch) -> None:
     assert (user_config_dir / "model-profiles.yaml").exists()
     assert "created" in result.output
     assert "Config directory" in result.output
+    assert "llmgauge doctor" in result.output
+    assert "llmgauge model add" in result.output
     assert "llmgauge smoke" in result.output
-    assert "llmgauge list-suites" in result.output
     assert "llmgauge run --dry-run" in result.output
 
 

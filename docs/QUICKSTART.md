@@ -35,6 +35,23 @@ Then:
 
 The rest of this guide uses `uv run llmgauge ...`. Installed CLI users can drop `uv run` after installing the command.
 
+## Installed CLI quick path
+
+If you installed `llmgauge` into your environment, the same workflow applies with
+the installed command form:
+
+    llmgauge --version
+    llmgauge init
+    llmgauge doctor
+    llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+    llmgauge model list
+    llmgauge smoke
+    llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile example_model --dry-run
+
+Installed users normally rely on `~/.config/llmgauge/`. Project-local
+`examples/configs/*.local.yaml` files are discovered only when they exist
+relative to your current working directory.
+
 ## 2. Create user config files
 
 Create user config files from the example templates:
@@ -105,21 +122,7 @@ Optional per-model runtime metadata can also live in the profile:
         flash_attn: on
         runtime_label: daily-tuned
 
-## 4. Run a safe smoke check
-
-Run:
-
-    uv run llmgauge smoke
-
-Smoke checks verify the package, built-in suites, config discovery, model profile
-discovery, `llama-cli`, optional `nvidia-smi`, and an optional selected model
-profile. They do not launch `llama.cpp` and do not create result artifacts.
-
-To verify a specific profile:
-
-    uv run llmgauge smoke --model-profile example_model
-
-## 5. Check the environment in more detail
+## 4. Check the environment in more detail
 
 Run:
 
@@ -134,9 +137,29 @@ A ready setup should show:
 - model profiles loaded
 - optional `nvidia-smi` status
 
+Missing config or profiles appear as `skip`, not `fail`. `doctor` prints next
+steps when setup is incomplete.
+
 To check a specific profile:
 
     uv run llmgauge doctor --model-profile example_model
+
+## 5. Run a safe smoke check
+
+Run:
+
+    uv run llmgauge smoke
+
+Smoke checks verify the package, built-in suites, config discovery, model profile
+discovery, `llama-cli`, optional `nvidia-smi`, and an optional selected model
+profile. They do not launch `llama.cpp` and do not create result artifacts.
+
+When setup is incomplete, smoke exits zero with `Smoke check passed with warnings`
+and prints next steps. Blocking problems still exit nonzero.
+
+To verify a specific profile:
+
+    uv run llmgauge smoke --model-profile example_model
 
 ## 6. List model profiles
 

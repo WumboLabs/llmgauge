@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -5,6 +6,10 @@ from typer.testing import CliRunner
 from llmgauge.cli import app
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def _write_templates(root: Path) -> None:
@@ -24,12 +29,16 @@ def test_smoke_without_config_passes_with_warnings(tmp_path: Path, monkeypatch) 
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["smoke"])
+    plain_output = _strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "LLMGauge Smoke Check" in result.output
-    assert "Config" in result.output
-    assert "warn" in result.output
-    assert "Smoke check passed" in result.output
+    assert "LLMGauge Smoke Check" in plain_output
+    assert "Config" in plain_output
+    assert "skip" in plain_output
+    assert "Skipped" in plain_output
+    assert "llmgauge init" in plain_output
+    assert "Smoke check passed with warnings" in plain_output
+    assert "Next steps:" in plain_output
 
 
 def test_smoke_with_user_config_and_profile_passes(
@@ -75,6 +84,7 @@ models:
     assert "Selected model profile" in result.output
     assert "Model file" in result.output
     assert "Smoke check passed" in result.output
+    assert "passed with warnings" not in result.output
 
 
 def test_smoke_fails_for_missing_selected_model_file(
@@ -117,6 +127,7 @@ models:
     assert "Path does not exist" in result.output
     assert "Smoke check failed" in result.output
 
+
 def test_smoke_with_placeholder_paths_passes_with_warnings(
     tmp_path: Path,
     monkeypatch,
@@ -147,9 +158,25 @@ models:
     )
 
     result = runner.invoke(app, ["smoke", "--model-profile", "placeholder_model"])
+    plain_output = _strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "llama-cli" in result.output
-    assert "Model file" in result.output
-    assert "Placeholder path" in result.output
-    assert "Smoke check passed" in result.output
+    assert "llama-cli" in plain_output
+    assert "Model file" in plain_output
+    assert "Placeholder path" in plain_output
+    assert "Smoke check passed with warnings" in plain_output
+
+
+def test_smoke_with_model_profile_but_no_profiles_fails_clearly(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["smoke", "--model-profile", "example_model"])
+    plain_output = _strip_ansi(result.output)
+
+    assert result.exit_code == 1
+    assert "Selected model profile" in plain_output
+    assert "Cannot check profile" in plain_output
+    assert "Next steps:" in plain_output
