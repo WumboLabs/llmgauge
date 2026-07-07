@@ -151,7 +151,8 @@ def doctor(
         add_row(
             "Model profiles",
             "warn",
-            "No --model-profiles provided; profile checks are skipped",
+            "No --model-profile-file provided; profile checks are skipped "
+            "(--model-profiles also accepted)",
         )
     else:
         try:
@@ -176,7 +177,7 @@ def doctor(
             add_row(
                 "Selected model profile",
                 "fail",
-                "Use --model-profiles with --model-profile",
+                "Use --model-profile-file (or --model-profiles) with --model-profile",
             )
         else:
             try:
@@ -421,7 +422,8 @@ def smoke(
         add_row(
             "Model profiles",
             "warn",
-            "No model profiles found; run llmgauge init or provide --model-profiles",
+            "No model profiles found; run llmgauge init or provide "
+            "--model-profile-file (or --model-profiles)",
         )
     else:
         try:

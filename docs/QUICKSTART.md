@@ -92,6 +92,8 @@ Use `--model-profile-file` to target a specific profiles YAML. When omitted,
 LLMGauge discovers the profiles file using the same order as runs. The older
 `--model-profiles` flag remains supported.
 
+Structured CLI writes may not preserve YAML comments.
+
 Optional per-model runtime metadata can also live in the profile:
 
     models:

@@ -77,6 +77,8 @@ while keeping extras.
 
 `model remove` requires `--yes`.
 
+Structured CLI writes may not preserve YAML comments.
+
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are
 intended for private machine-specific paths.
 
