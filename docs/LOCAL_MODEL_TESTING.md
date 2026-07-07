@@ -319,6 +319,29 @@ Do not treat score averages as universal model rankings. Compare them with the
 prompt suite, context size, token budget, raw/cleaned outputs, speed, VRAM
 headroom, and task stakes.
 
+## Comparing runs for public proof
+
+When comparing two or more result directories, generate a comparison report:
+
+    uv run llmgauge compare \
+      results/run-a \
+      results/run-b \
+      --out results/compare.md
+
+The report includes **Publish Readiness Notes** with deterministic signals about
+scored vs unscored runs, reviewed vs unreviewed scores, mixed suites or runtime
+settings, prompt overlap, and artifact gaps.
+
+Use comparison reports responsibly:
+
+- compare like-for-like runs when making quality claims
+- disclose hardware, runtime, suite, prompt subset, context, max tokens, temperature, and scoring status
+- do not publish unreviewed automatic-rule scores as final human judgment
+- treat comparison output as evidence, not as a universal leaderboard
+- keep raw and cleaned outputs available for audit when possible
+
+See `docs/PUBLIC_REPORTING.md` and `docs/SCORED_COMPARISONS.md` for fuller guidance.
+
 After applying scores, export a validated index for public-proof or importer workflows:
 
     uv run llmgauge export-index \

@@ -89,7 +89,13 @@ def test_build_compare_report() -> None:
     assert "# LLMGauge Comparison Report" in report
     assert "This report compares completed local evaluation runs" in report
     assert "## Interpretation Notes" in report
-    assert "Manual score averages are review aids, not universal model rankings." in report
+    assert "not universal rankings or leaderboards" in report
+    assert "## Publish Readiness Notes" in report
+    assert "- Compared runs: 2" in report
+    assert "- Runs with scored prompts: 2" in report
+    assert "- Mixed suite IDs: no" in report
+    assert "### Claim boundaries" in report
+    assert "Manual scores are review metadata" in report
     assert (
         "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 | 7535 | 4692 |"
         in report
@@ -116,3 +122,44 @@ def test_build_compare_report() -> None:
     assert "## VRAM Headroom MiB" in report
     assert "| honesty-unknown-tool | 4692 | 4027 |" in report
     assert "good_verification: 1" in report
+
+
+def test_build_compare_report_publish_readiness_warns_for_mixed_suites() -> None:
+    mixed_suite_result = _result("run-c", "model-c", 4.0, 55.0)
+    mixed_suite_result["suite"]["suite_id"] = "agent-backend-v1"
+
+    report = build_compare_report(
+        [
+            _result("run-a", "model-a", 4.0, 50.0),
+            mixed_suite_result,
+        ]
+    )
+
+    assert "- Mixed suite IDs: yes" in report
+    assert "Suite IDs differ across runs" in report
+
+
+def test_build_compare_report_publish_readiness_warns_for_unscored_runs() -> None:
+    report = build_compare_report(
+        [
+            _result("run-a", "model-a", 4.0, 50.0),
+            _result("run-b", "model-b", None, 70.0),
+        ]
+    )
+
+    assert "- Runs without scored prompts: 1" in report
+    assert "- Scoring status by run: scored: 1, unscored: 1" in report
+    assert "At least one run has no scored prompts" in report
+
+
+def test_build_compare_report_publish_readiness_warns_for_unreviewed_scores() -> None:
+    reviewed = _result("run-a", "model-a", 4.0, 50.0)
+    unreviewed = _result("run-b", "model-b", 3.5, 70.0)
+    unreviewed["results"][0]["score"]["scoring_mode"] = "automatic_rules"
+    unreviewed["results"][0]["score"]["reviewed"] = False
+
+    report = build_compare_report([reviewed, unreviewed])
+
+    assert "- Unreviewed applied scores: 1" in report
+    assert "- Unreviewed automatic-rule scores: 1" in report
+    assert "unreviewed assisted drafts" in report

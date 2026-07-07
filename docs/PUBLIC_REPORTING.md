@@ -39,10 +39,23 @@ Public claims should be backed by validated artifacts:
 
 Manual scores are review metadata. They are not automatic judgments and are not universal model rankings.
 
-Generated reports surface scoring provenance, including scoring mode and
+Generated single-run reports surface scoring provenance, including scoring mode and
 reviewed/unreviewed counts. If assisted draft scores were applied before review,
 treat the report warning as a claim boundary and finish manual review before
 using those scores in public conclusions.
+
+Comparison reports add a **Publish Readiness Notes** section with deterministic
+signals such as scored vs unscored runs, unreviewed assisted drafts, mixed suite
+or runtime settings, prompt-set overlap, and artifact gaps. Use that section to
+decide whether a comparison is complete enough to publish.
+
+When comparing multiple runs:
+
+- compare only like-for-like runs when making quality claims
+- disclose hardware, runtime, suite, prompt subset, context, max tokens, temperature, and scoring status
+- do not publish unreviewed automatic-rule scores as final human judgment
+- treat comparison output as evidence, not as a universal leaderboard
+- keep raw and cleaned outputs available for audit when possible
 
 A public report may say that a model performed well or poorly on a specific suite under a specific hardware/runtime configuration.
 
@@ -68,6 +81,21 @@ A concise public report should include:
 8. Representative examples from cleaned output
 9. Operational performance
 10. Claim boundary
+11. Comparison publish-readiness notes when multiple runs are summarized
+
+## Comparison reports
+
+Generate a comparison report only after the underlying runs are validated and,
+when making quality claims, scored with reviewed metadata:
+
+    uv run llmgauge compare results/run-a results/run-b --out results/compare.md
+
+Read **Publish Readiness Notes** before publishing. Prefer same-suite,
+same-prompt-subset comparisons with matching runtime settings. Mixed result sets
+can still be useful, but they support narrower claims.
+
+Do not select a public winner from score averages alone. A slightly lower average
+may be preferable when failures are safer or more predictable.
 
 ## Interpretation guidance
 
