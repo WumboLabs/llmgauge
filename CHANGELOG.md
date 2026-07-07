@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.53 - 2026-07-07
+
+- Improved `llmgauge doctor` first-run guidance for missing config, missing profiles, skipped checks, and selected model profile prerequisites.
+- Clarified `llmgauge smoke` readiness output, including pass-with-warnings behavior for incomplete setup.
+- Updated `llmgauge init` next steps to include `doctor`, `model add`, `model list`, `smoke`, and dry-run preview.
+- Documented the installed-user first-run workflow across Install, Quickstart, and Usage docs.
+- Clarified `doctor` and `smoke` status meanings, inspection-only behavior, and project-local versus user-level config discovery.
+
 ## v0.52 - 2026-07-07
 
 - Added `--model-profile-file` as a clearer alias for model profile YAML paths while preserving `--model-profiles` compatibility.
