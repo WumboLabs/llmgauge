@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.55 - 2026-07-07
+
+- Corrected first-run and clean-clone documentation so post-init `model add` examples use new profile names instead of colliding with packaged `example_model`.
+- Clarified that `llmgauge init` creates example template profiles and that users should edit, update, or intentionally replace them with `--force`.
+- Updated clean-clone docs to use `clean_clone_model` for add/list/dry-run verification.
+- Removed the remaining stale `model add example_model` example from local model testing docs.
+
 ## v0.54 - 2026-07-07
 
 - Refreshed public onboarding docs so README, Install, Quickstart, and Usage agree on the current first-run workflow.
