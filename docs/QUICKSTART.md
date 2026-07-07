@@ -43,10 +43,14 @@ the installed command form:
     llmgauge --version
     llmgauge init
     llmgauge doctor
-    llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+    llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
     llmgauge model list
     llmgauge smoke
-    llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile example_model --dry-run
+    llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile my_model --dry-run
+
+`init` creates example template profiles such as `example_model` in
+`model-profiles.yaml`. Use a new profile name with `model add`, edit the template
+paths in YAML, or replace an existing profile intentionally with `--force`.
 
 The model path must exist on disk. Use a real GGUF file or a scratch placeholder
 for inspection-only dry-run testing.
@@ -65,6 +69,9 @@ This creates, or skips if already present:
 
     ~/.config/llmgauge/config.yaml
     ~/.config/llmgauge/model-profiles.yaml
+
+The generated `model-profiles.yaml` includes example template profiles such as
+`example_model`, `example_large_model`, and `example_context_model`.
 
 `XDG_CONFIG_HOME` is respected. For example, with `XDG_CONFIG_HOME=/tmp/config`,
 LLMGauge uses `/tmp/config/llmgauge/`.
@@ -100,13 +107,17 @@ Edit `~/.config/llmgauge/model-profiles.yaml` and set at least one model profile
         quant: Q4_K_M
         path: /path/to/model.gguf
 
-Alternatively, add a profile from the CLI after placing your GGUF file:
+Alternatively, add a new profile from the CLI after placing your GGUF file:
 
-    uv run llmgauge model add example_model \
+    uv run llmgauge model add my_model \
       --path /path/to/model.gguf \
-      --label "Example Model" \
+      --label "My Model" \
       --family Example \
       --quant Q4_K_M
+
+To use the packaged `example_model` entry instead, edit its `path` in
+`model-profiles.yaml`, run `model update example_model --path /path/to/model.gguf`,
+or replace it intentionally with `model add example_model --force`.
 
 Use `--model-profile-file` to target a specific profiles YAML. When omitted,
 LLMGauge discovers the profiles file using the same order as runs. The older
@@ -207,7 +218,7 @@ Before launching `llama.cpp`, inspect the resolved run plan:
     uv run llmgauge run \
       --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
-      --model-profile example_model \
+      --model-profile my_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \
@@ -234,7 +245,7 @@ settings.
     uv run llmgauge run \
       --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
-      --model-profile example_model \
+      --model-profile my_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \

@@ -42,10 +42,14 @@ Recommended first-run order:
 
     uv run llmgauge init
     uv run llmgauge doctor
-    uv run llmgauge model add example_model --path /path/to/model.gguf
+    uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
     uv run llmgauge model list
     uv run llmgauge smoke
-    uv run llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile example_model --dry-run
+    uv run llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile my_model --dry-run
+
+`init` creates example template profiles such as `example_model` in
+`model-profiles.yaml`. Use a new profile name with `model add`, edit the template
+paths in YAML, or replace an existing profile intentionally with `--force`.
 
 Installed CLI users can drop `uv run` after installing the command.
 
@@ -93,9 +97,9 @@ List configured model profiles:
 Manage profiles with the `model` command group:
 
     uv run llmgauge model list
-    uv run llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
-    uv run llmgauge model update example_model --label "Updated Label"
-    uv run llmgauge model remove example_model --yes
+    uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
+    uv run llmgauge model update example_model --path /path/to/model.gguf
+    uv run llmgauge model remove my_model --yes
 
 Pass an explicit profiles YAML path with `--model-profile-file`. The older
 `--model-profiles` flag remains supported with identical behavior.

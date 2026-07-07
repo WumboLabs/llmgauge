@@ -62,11 +62,11 @@ From the repository root, list configured profiles and path status:
     uv run llmgauge model list \
       --model-profile-file examples/configs/model-profiles.local.yaml
 
-Add a profile after placing your GGUF file:
+Add a new profile after placing your GGUF file:
 
-    uv run llmgauge model add example_model \
+    uv run llmgauge model add my_model \
       --path /path/to/model.gguf \
-      --label "Example Model" \
+      --label "My Model" \
       --model-profile-file examples/configs/model-profiles.local.yaml
 
 `--model-profiles` remains a compatibility alias for `--model-profile-file`.

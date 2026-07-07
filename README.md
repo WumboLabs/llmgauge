@@ -69,11 +69,16 @@ Create user config files and inspect the environment:
     uv run llmgauge init
     uv run llmgauge doctor
 
-Add and verify a model profile:
+`init` creates example template profiles such as `example_model` in
+`model-profiles.yaml`. Add a new profile name with `model add`, edit the
+template paths in YAML, or replace an existing profile intentionally with
+`--force`.
 
-    uv run llmgauge model add example_model \
+Add and verify your own model profile:
+
+    uv run llmgauge model add my_model \
       --path /path/to/model.gguf \
-      --label "Example Model"
+      --label "My Model"
     uv run llmgauge model list
 
 The model path must exist on disk. Replace `/path/to/model.gguf` with a real
@@ -88,7 +93,7 @@ Preview one prompt without launching `llama.cpp`:
     uv run llmgauge run \
       --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
-      --model-profile example_model \
+      --model-profile my_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \
@@ -101,7 +106,7 @@ Run one prompt:
     uv run llmgauge run \
       --suite practical \
       --only honesty-uncertainty/fake-package-currentness \
-      --model-profile example_model \
+      --model-profile my_model \
       --ctx 8192 \
       --max-tokens 800 \
       --temp 0.2 \

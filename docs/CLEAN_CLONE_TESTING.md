@@ -130,6 +130,10 @@ Expected files created under `$XDG_CONFIG_HOME/llmgauge/`:
 - `config.yaml`
 - `model-profiles.yaml`
 
+The generated `model-profiles.yaml` already includes example template profiles
+such as `example_model`. Do not run `model add example_model` immediately after
+`init` unless you intentionally replace that entry with `--force`.
+
 Expected files not created:
 
 - anything under `results/`
@@ -152,18 +156,20 @@ Expected behavior:
 
 ## Model profile add and list workflow
 
-`model add` validates that the model path exists on disk. For an audit pass
-without a real GGUF file, create a scratch placeholder first:
+`model add` validates that the model path exists on disk. After `init`, use a
+new profile name because `example_model` already exists in the packaged
+template. For an audit pass without a real GGUF file, create a scratch
+placeholder first:
 
 ```bash
 mkdir -p tmp/clean-clone-audit
 touch tmp/clean-clone-audit/placeholder.gguf
 PROFILES="$XDG_CONFIG_HOME/llmgauge/model-profiles.yaml"
 CONFIG="$XDG_CONFIG_HOME/llmgauge/config.yaml"
-uv run llmgauge model add example_model \
+uv run llmgauge model add clean_clone_model \
   --model-profile-file "$PROFILES" \
   --path tmp/clean-clone-audit/placeholder.gguf \
-  --label "Example Model"
+  --label "Clean Clone Model"
 uv run llmgauge model list --model-profile-file "$PROFILES"
 ```
 
@@ -171,7 +177,9 @@ Expected behavior:
 
 - `model add` updates the isolated `model-profiles.yaml` when the path exists
 - `model add` exits nonzero with a clear error when the path is missing
-- `model list` shows `example_model` after a successful add
+- `model add example_model` after `init` exits nonzero unless `--force` is passed
+- `model list` shows `clean_clone_model` after a successful add
+- `model list` also shows packaged template profiles such as `example_model`
 - `doctor` or `smoke` may still report `warn` for scratch placeholder files;
   that is acceptable for this audit pass
 
@@ -181,7 +189,7 @@ Expected behavior:
 uv run llmgauge run \
   --suite practical \
   --only honesty-uncertainty/fake-package-currentness \
-  --model-profile example_model \
+  --model-profile clean_clone_model \
   --config "$CONFIG" \
   --model-profile-file "$PROFILES" \
   --dry-run
@@ -204,7 +212,10 @@ chmod +x tmp/clean-clone-audit/placeholder-llama-cli
 ```
 
 Edit `config.yaml` so `runtime.llama_cli` points at the scratch binary, and
-ensure `example_model.path` exists via `model add --force` or a manual edit.
+ensure `clean_clone_model.path` exists from the successful `model add` step
+above. To use the packaged `example_model` entry instead, edit its `path` in
+YAML, run `model update example_model --path ...`, or replace it with
+`model add example_model --force`.
 
 If dry-run exits nonzero, record the exact message and compare it against the
 public docs rather than treating the failure as hidden.
