@@ -15,6 +15,10 @@ USER_MODEL_PROFILES_FILENAME = "model-profiles.yaml"
 EXAMPLE_CONFIG = Path("examples/configs/llmgauge.example.yaml")
 EXAMPLE_MODEL_PROFILES = Path("examples/configs/model-profiles.example.yaml")
 
+MODEL_PROFILES_FILE_OPTION = "--model-profile-file"
+MODEL_PROFILES_LEGACY_OPTION = "--model-profiles"
+MODEL_PROFILES_FILE_OPTIONS = (MODEL_PROFILES_LEGACY_OPTION, MODEL_PROFILES_FILE_OPTION)
+
 
 class _LazyConsole:
     """Defer Console creation so tests can set NO_COLOR before first print."""

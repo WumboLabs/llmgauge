@@ -19,6 +19,17 @@ def test_validate_model_profiles_rejects_invalid_models_mapping() -> None:
         )
 
 
+def test_load_model_profiles_document_reports_invalid_file_label(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: bad\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Invalid model profiles file"):
+        load_model_profiles_document(profiles_path)
+
+
 def test_add_and_list_model_profile_round_trip(tmp_path: Path) -> None:
     profiles_path = tmp_path / "model-profiles.yaml"
     model_path = tmp_path / "model.gguf"
@@ -52,7 +63,7 @@ def test_add_model_profile_rejects_duplicate_without_force(tmp_path: Path) -> No
         model_path=model_path,
     )
 
-    with pytest.raises(ValueError, match="already exists"):
+    with pytest.raises(ValueError, match="pass --force to replace it"):
         add_model_profile(
             profiles_path,
             profile_name="dup_model",
@@ -84,6 +95,24 @@ def test_update_and_remove_model_profile(tmp_path: Path) -> None:
     remove_model_profile(profiles_path, profile_name="mutable_model")
     document = load_model_profiles_document(profiles_path)
     assert "mutable_model" not in document.models
+
+
+def test_update_model_profile_reports_missing_profile_name(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        KeyError,
+        match="No model profile named 'missing_model' in the profiles file",
+    ):
+        update_model_profile(
+            profiles_path,
+            profile_name="missing_model",
+            label="Should Fail",
+        )
 
 
 def test_update_model_profile_preserves_extra_fields(tmp_path: Path) -> None:

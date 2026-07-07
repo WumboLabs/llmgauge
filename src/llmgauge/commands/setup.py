@@ -12,6 +12,7 @@ from llmgauge import __version__
 from llmgauge.cli_common import (
     DEFAULT_LOCAL_CONFIG,
     DEFAULT_LOCAL_MODEL_PROFILES,
+    MODEL_PROFILES_FILE_OPTIONS,
     console,
     default_existing_path,
     is_placeholder_path,
@@ -54,7 +55,7 @@ def doctor(
     ),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Optional model profiles YAML to check",
     ),
     model_profile: str | None = typer.Option(
@@ -150,7 +151,8 @@ def doctor(
         add_row(
             "Model profiles",
             "warn",
-            "No --model-profiles provided; profile checks are skipped",
+            "No --model-profile-file provided; profile checks are skipped "
+            "(--model-profiles also accepted)",
         )
     else:
         try:
@@ -175,7 +177,7 @@ def doctor(
             add_row(
                 "Selected model profile",
                 "fail",
-                "Use --model-profiles with --model-profile",
+                "Use --model-profile-file (or --model-profiles) with --model-profile",
             )
         else:
             try:
@@ -317,7 +319,7 @@ def smoke(
     ),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Optional model profiles YAML to check",
     ),
     model_profile: str | None = typer.Option(
@@ -420,7 +422,8 @@ def smoke(
         add_row(
             "Model profiles",
             "warn",
-            "No model profiles found; run llmgauge init or provide --model-profiles",
+            "No model profiles found; run llmgauge init or provide "
+            "--model-profile-file (or --model-profiles)",
         )
     else:
         try:

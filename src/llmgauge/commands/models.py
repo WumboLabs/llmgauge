@@ -6,6 +6,7 @@ import typer
 from rich.table import Table
 
 from llmgauge.cli_common import (
+    MODEL_PROFILES_FILE_OPTIONS,
     console,
     default_model_profiles_path,
 )
@@ -27,7 +28,10 @@ model_app = typer.Typer(
 def _resolve_profiles_path(model_profiles: Path | None) -> Path:
     resolved = default_model_profiles_path(model_profiles)
     if resolved is None:
-        raise typer.BadParameter("Provide --model-profiles or run llmgauge init first")
+        raise typer.BadParameter(
+            "No model profiles file found. Pass --model-profile-file "
+            "(or --model-profiles) or run 'llmgauge init' first."
+        )
     return resolved
 
 
@@ -63,7 +67,7 @@ def render_model_profiles_table(model_profiles_path: Path) -> None:
 def list_model_profiles(
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML to list; defaults to discovered config",
     ),
 ) -> None:
@@ -84,7 +88,7 @@ def list_model_profiles(
 def model_list(
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML to list; defaults to discovered config",
     ),
 ) -> None:
@@ -106,7 +110,7 @@ def model_add(
     notes: str | None = typer.Option(None, "--notes", help="Optional notes"),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML to update; defaults to discovered config",
     ),
     force: bool = typer.Option(
@@ -153,7 +157,7 @@ def model_remove(
     profile_name: str = typer.Argument(..., help="Model profile name"),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML to update; defaults to discovered config",
     ),
     yes: bool = typer.Option(
@@ -197,7 +201,7 @@ def model_update(
     notes: str | None = typer.Option(None, "--notes", help="Optional notes"),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML to update; defaults to discovered config",
     ),
 ) -> None:

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -5,6 +6,10 @@ from typer.testing import CliRunner
 from llmgauge.cli import app
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 def test_model_add_list_remove_flow(tmp_path: Path) -> None:
@@ -91,6 +96,130 @@ models:
     assert result.exit_code == 0, result.output
     assert "Updated model profile" in result.output
     assert "New Label" in profiles_path.read_text(encoding="utf-8")
+
+
+def test_model_list_accepts_model_profile_file_alias(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        """
+schema_version: llmgauge.model_profiles.v0
+models:
+  alias_model:
+    label: Alias Model
+    path: /tmp/model.gguf
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["model", "list", "--model-profile-file", str(profiles_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "alias_model" in result.output
+    assert "Alias Model" in result.output
+
+
+def test_model_add_accepts_model_profile_file_alias(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: {}\n",
+        encoding="utf-8",
+    )
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "model",
+            "add",
+            "alias_added",
+            "--path",
+            str(model_path),
+            "--model-profile-file",
+            str(profiles_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Added model profile" in result.output
+    assert "alias_added" in profiles_path.read_text(encoding="utf-8")
+
+
+def test_model_help_lists_model_profile_file_alias() -> None:
+    result = runner.invoke(app, ["model", "list", "--help"])
+
+    assert result.exit_code == 0, result.output
+    plain_output = _strip_ansi(result.output)
+    assert "--model-profiles" in plain_output
+    # Rich help truncates the second alias; the comma shows dual option names.
+    assert ",--model-profi" in plain_output
+    assert "Model profiles YAML to list" in plain_output
+
+
+def test_model_list_accepts_both_model_profile_file_aliases(tmp_path: Path) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        """
+schema_version: llmgauge.model_profiles.v0
+models:
+  dual_alias_model:
+    label: Dual Alias Model
+    path: /tmp/model.gguf
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "model",
+            "list",
+            "--model-profiles",
+            str(profiles_path),
+            "--model-profile-file",
+            str(profiles_path),
+        ],
+    )
+
+    # Typer treats both flags as one option; the last value wins and the command succeeds.
+    assert result.exit_code == 0, result.output
+    assert "dual_alias_model" in result.output
+
+
+def test_model_list_without_profiles_file_suggests_init(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "llmgauge.commands.models.default_model_profiles_path",
+        lambda explicit: explicit,
+    )
+
+    result = runner.invoke(app, ["model", "list"])
+    plain_output = _strip_ansi(result.output)
+
+    assert result.exit_code != 0
+    assert "No model profiles file found" in plain_output
+    assert "llmgauge init" in plain_output
+    assert "--model-profile-file" in plain_output
+
+
+def test_model_list_invalid_profiles_file_reports_validation_context(
+    tmp_path: Path,
+) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: bad\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["model", "list", "--model-profile-file", str(profiles_path)],
+    )
+
+    assert result.exit_code != 0
+    assert "Invalid model profiles file" in result.output
 
 
 def test_model_remove_requires_yes(tmp_path: Path) -> None:

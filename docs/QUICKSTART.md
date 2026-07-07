@@ -80,6 +80,20 @@ Edit `~/.config/llmgauge/model-profiles.yaml` and set at least one model profile
         quant: Q4_K_M
         path: /path/to/model.gguf
 
+Alternatively, add a profile from the CLI after placing your GGUF file:
+
+    uv run llmgauge model add example_model \
+      --path /path/to/model.gguf \
+      --label "Example Model" \
+      --family Example \
+      --quant Q4_K_M
+
+Use `--model-profile-file` to target a specific profiles YAML. When omitted,
+LLMGauge discovers the profiles file using the same order as runs. The older
+`--model-profiles` flag remains supported.
+
+Structured CLI writes may not preserve YAML comments.
+
 Optional per-model runtime metadata can also live in the profile:
 
     models:
@@ -128,7 +142,9 @@ To check a specific profile:
 
 Inspect configured model profiles and model path status:
 
-    uv run llmgauge list-model-profiles
+    uv run llmgauge model list
+
+`list-model-profiles` remains a compatibility alias for `model list`.
 
 Useful path statuses include:
 
@@ -181,7 +197,7 @@ Start with one prompt before running a full suite.
 
 LLMGauge auto-detects configuration in this order:
 
-1. explicit `--config` / `--model-profiles` paths
+1. explicit `--config` and `--model-profile-file` (or `--model-profiles`) paths
 2. project-local `examples/configs/*.local.yaml`
 3. user config under `~/.config/llmgauge/`
 
