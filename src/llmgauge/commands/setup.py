@@ -406,6 +406,7 @@ def smoke(
     table.add_column("Notes")
 
     has_failure = False
+    readiness = SetupReadiness()
 
     def add_row(check: str, status: str, notes: str) -> None:
         nonlocal has_failure
@@ -436,14 +437,12 @@ def smoke(
         user_config_path(),
     )
     if config_path is None:
-        add_row(
-            "Config",
-            "warn",
-            "No config found; run llmgauge init or provide --config",
-        )
+        readiness.setup_skipped = True
+        add_row("Config", "skip", _config_missing_note())
     else:
         try:
             config_data = load_llmgauge_config(config_path)
+            readiness.config_found = True
             if config is None:
                 add_row("Config", "ok", f"Auto-detected {config_path}")
             else:
@@ -456,6 +455,7 @@ def smoke(
         get_config_value(config_data, "runtime.llama_cli"),
     )
     if resolved_llama_cli is None:
+        readiness.setup_warnings = True
         add_row(
             "llama-cli",
             "warn",
@@ -465,6 +465,7 @@ def smoke(
         resolved_llama_cli = Path(resolved_llama_cli)
         if not resolved_llama_cli.exists():
             if is_placeholder_path(resolved_llama_cli):
+                readiness.setup_warnings = True
                 add_row(
                     "llama-cli",
                     "warn",
@@ -477,6 +478,7 @@ def smoke(
         elif not os.access(resolved_llama_cli, os.X_OK):
             add_row("llama-cli", "fail", f"Path is not executable: {resolved_llama_cli}")
         else:
+            readiness.llama_cli_ready = True
             add_row("llama-cli", "ok", str(resolved_llama_cli))
 
     profiles: dict[str, Any] = {}
@@ -485,15 +487,12 @@ def smoke(
         user_model_profiles_path(),
     )
     if model_profiles_path is None:
-        add_row(
-            "Model profiles",
-            "warn",
-            "No model profiles found; run llmgauge init or provide "
-            "--model-profile-file (or --model-profiles)",
-        )
+        readiness.setup_skipped = True
+        add_row("Model profiles", "skip", _profiles_missing_note())
     else:
         try:
             profiles = load_model_profiles(model_profiles_path)
+            readiness.profiles_loaded = True
             if model_profiles is None:
                 add_row(
                     "Model profiles",
@@ -510,37 +509,45 @@ def smoke(
             add_row("Model profiles", "fail", str(exc))
 
     if model_profile is not None:
-        try:
-            profile = resolve_model_profile(profiles, model_profile)
-            add_row("Selected model profile", "ok", model_profile)
-            model_path = profile.get("path")
-            if model_path is None:
-                add_row("Model file", "fail", f"Profile has no path: {model_profile}")
-            else:
-                resolved_model_path = Path(model_path)
-                if resolved_model_path.exists() and resolved_model_path.is_file():
-                    add_row("Model file", "ok", str(resolved_model_path))
-                elif resolved_model_path.exists():
-                    add_row(
-                        "Model file",
-                        "fail",
-                        f"Path is not a file: {resolved_model_path}",
-                    )
+        if not profiles:
+            add_row(
+                "Selected model profile",
+                "fail",
+                _model_profile_without_profiles_note(),
+            )
+        else:
+            try:
+                profile = resolve_model_profile(profiles, model_profile)
+                add_row("Selected model profile", "ok", model_profile)
+                model_path = profile.get("path")
+                if model_path is None:
+                    add_row("Model file", "fail", f"Profile has no path: {model_profile}")
                 else:
-                    if is_placeholder_path(resolved_model_path):
-                        add_row(
-                            "Model file",
-                            "warn",
-                            f"Placeholder path; edit model-profiles.yaml before running models: {resolved_model_path}",
-                        )
-                    else:
+                    resolved_model_path = Path(model_path)
+                    if resolved_model_path.exists() and resolved_model_path.is_file():
+                        add_row("Model file", "ok", str(resolved_model_path))
+                    elif resolved_model_path.exists():
                         add_row(
                             "Model file",
                             "fail",
-                            f"Path does not exist: {resolved_model_path}",
+                            f"Path is not a file: {resolved_model_path}",
                         )
-        except Exception as exc:
-            add_row("Selected model profile", "fail", str(exc))
+                    else:
+                        if is_placeholder_path(resolved_model_path):
+                            readiness.setup_warnings = True
+                            add_row(
+                                "Model file",
+                                "warn",
+                                f"Placeholder path; edit model-profiles.yaml before running models: {resolved_model_path}",
+                            )
+                        else:
+                            add_row(
+                                "Model file",
+                                "fail",
+                                f"Path does not exist: {resolved_model_path}",
+                            )
+            except Exception as exc:
+                add_row("Selected model profile", "fail", str(exc))
 
     nvidia_smi = shutil.which("nvidia-smi")
     if nvidia_smi:
@@ -552,7 +559,14 @@ def smoke(
 
     if has_failure:
         console.print("[bold red]Smoke check failed[/bold red]")
+        _print_first_run_next_steps(readiness)
         raise typer.Exit(code=1)
 
-    console.print("[bold green]Smoke check passed[/bold green]")
-    console.print("Safe next step: run llmgauge run --dry-run before launching a model.")
+    if readiness.setup_skipped or readiness.setup_warnings:
+        console.print("[bold yellow]Smoke check passed with warnings[/bold yellow]")
+        _print_first_run_next_steps(readiness)
+    else:
+        console.print("[bold green]Smoke check passed[/bold green]")
+        console.print(
+            "Safe next step: run llmgauge run --dry-run before launching a model."
+        )
