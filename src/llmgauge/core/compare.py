@@ -209,6 +209,257 @@ def _fmt_counts(counts: dict[str, int]) -> str:
     return ", ".join(f"{key}: {value}" for key, value in sorted(counts.items()))
 
 
+def _scored_results(result: dict[str, Any]) -> list[dict[str, Any]]:
+    return [item for item in result.get("results", []) if isinstance(item.get("score"), dict)]
+
+
+def _scoring_status(result: dict[str, Any]) -> str:
+    summary = result.get("summary", {})
+    scored_results = _scored_results(result)
+    scored_prompt_count = summary.get("scored_prompt_count")
+
+    if not isinstance(scored_prompt_count, int):
+        scored_prompt_count = sum(
+            1
+            for prompt_result in scored_results
+            if isinstance(_score_average(prompt_result), int | float)
+        )
+
+    prompt_count = len(result.get("results", []))
+
+    if scored_prompt_count == 0:
+        if scored_results:
+            return "review_metadata_only"
+        return "unscored"
+    if scored_prompt_count < prompt_count:
+        return "partially_scored"
+    return "scored"
+
+
+def _scoring_provenance(scored_results: list[dict[str, Any]]) -> dict[str, Any]:
+    mode_counts: dict[str, int] = {}
+    reviewed_count = 0
+    unreviewed_count = 0
+    automatic_unreviewed_count = 0
+
+    for prompt_result in scored_results:
+        score = _score_dict(prompt_result)
+
+        scoring_mode = score.get("scoring_mode")
+        if not isinstance(scoring_mode, str) or not scoring_mode:
+            scoring_mode = "manual"
+        mode_counts[scoring_mode] = mode_counts.get(scoring_mode, 0) + 1
+
+        reviewed = score.get("reviewed", True)
+        if reviewed is False:
+            unreviewed_count += 1
+            if scoring_mode == "automatic_rules":
+                automatic_unreviewed_count += 1
+        else:
+            reviewed_count += 1
+
+    return {
+        "mode_counts": mode_counts,
+        "reviewed_count": reviewed_count,
+        "unreviewed_count": unreviewed_count,
+        "automatic_unreviewed_count": automatic_unreviewed_count,
+    }
+
+
+def _unique_nonempty_values(results: list[dict[str, Any]], getter) -> list[str]:
+    values = sorted({value for value in (getter(result) for result in results) if value is not None})
+    return values
+
+
+def _prompt_id_set(result: dict[str, Any]) -> set[str]:
+    return set(_prompt_map(result))
+
+
+def _completed_prompt_artifact_gaps(result: dict[str, Any]) -> int:
+    gaps = 0
+    for prompt_result in result.get("results", []):
+        if prompt_result.get("status") != "completed":
+            continue
+        if not prompt_result.get("raw_output_path"):
+            gaps += 1
+        if not prompt_result.get("cleaned_output_path"):
+            gaps += 1
+    return gaps
+
+
+def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
+    compared_runs = len(results)
+    scoring_status_counts: dict[str, int] = {}
+    runs_with_scored_prompts = 0
+    runs_without_scored_prompts = 0
+    runs_with_failed_prompts = 0
+    runs_not_completed = 0
+    total_unreviewed_scores = 0
+    total_automatic_unreviewed_scores = 0
+    total_artifact_gaps = 0
+
+    for result in results:
+        status = _scoring_status(result)
+        scoring_status_counts[status] = scoring_status_counts.get(status, 0) + 1
+
+        summary = result.get("summary", {})
+        scored_prompt_count = summary.get("scored_prompt_count")
+        if not isinstance(scored_prompt_count, int):
+            scored_prompt_count = sum(
+                1
+                for prompt_result in _scored_results(result)
+                if isinstance(_score_average(prompt_result), int | float)
+            )
+
+        if scored_prompt_count > 0:
+            runs_with_scored_prompts += 1
+        else:
+            runs_without_scored_prompts += 1
+
+        if summary.get("failed", 0):
+            runs_with_failed_prompts += 1
+
+        if result.get("run", {}).get("status") != "completed":
+            runs_not_completed += 1
+
+        provenance = _scoring_provenance(_scored_results(result))
+        total_unreviewed_scores += provenance["unreviewed_count"]
+        total_automatic_unreviewed_scores += provenance["automatic_unreviewed_count"]
+        total_artifact_gaps += _completed_prompt_artifact_gaps(result)
+
+    suite_ids = _unique_nonempty_values(
+        results, lambda result: result.get("suite", {}).get("suite_id")
+    )
+    model_ids = _unique_nonempty_values(
+        results, lambda result: result.get("model", {}).get("model_id")
+    )
+    ctx_sizes = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("ctx_size")
+    )
+    max_tokens = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("max_tokens")
+    )
+    temperatures = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("temperature")
+    )
+    runtime_labels = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("runtime_label")
+    )
+
+    prompt_sets = [_prompt_id_set(result) for result in results]
+    shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
+    all_prompt_ids = set.union(*prompt_sets) if prompt_sets else set()
+    prompt_sets_differ = len({frozenset(prompt_set) for prompt_set in prompt_sets}) > 1
+
+    mixed_suite = len(suite_ids) > 1
+    mixed_model = len(model_ids) > 1
+    mixed_runtime = any(
+        len(values) > 1 for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
+    )
+
+    lines = [
+        "## Publish Readiness Notes",
+        "",
+        "Comparison reports are evidence summaries for local review. They are not universal rankings, leaderboards, or automatic best-model declarations.",
+        "",
+        "- Compared runs: "
+        f"{compared_runs}",
+        "- Runs with scored prompts: "
+        f"{runs_with_scored_prompts}",
+        "- Runs without scored prompts: "
+        f"{runs_without_scored_prompts}",
+        "- Scoring status by run: "
+        f"{_fmt_counts(scoring_status_counts)}",
+        "- Runs with failed prompts: "
+        f"{runs_with_failed_prompts}",
+        "- Runs not completed: "
+        f"{runs_not_completed}",
+        "- Unreviewed applied scores: "
+        f"{total_unreviewed_scores}",
+        "- Unreviewed automatic-rule scores: "
+        f"{total_automatic_unreviewed_scores}",
+        "- Completed prompts missing raw or cleaned output paths: "
+        f"{total_artifact_gaps}",
+        "- Suite IDs in comparison: "
+        f"{', '.join(suite_ids) if suite_ids else 'None'}",
+        "- Model IDs in comparison: "
+        f"{', '.join(model_ids) if model_ids else 'None'}",
+        "- Shared prompt IDs across all runs: "
+        f"{len(shared_prompt_ids)} of {len(all_prompt_ids)}",
+        "- Prompt sets differ across runs: "
+        f"{'yes' if prompt_sets_differ else 'no'}",
+        "- Mixed suite IDs: "
+        f"{'yes' if mixed_suite else 'no'}",
+        "- Mixed model IDs: "
+        f"{'yes' if mixed_model else 'no'}",
+        "- Mixed runtime settings: "
+        f"{'yes' if mixed_runtime else 'no'}",
+        "",
+        "### Claim boundaries",
+        "",
+        "- Manual scores are review metadata under the configured rubric, not objective truth.",
+        "- Automatic-rule scores are assisted drafts unless reviewed; do not publish them as final human judgment.",
+        "- Missing or partial scores mean this comparison cannot support quality-ranking claims.",
+        "- Speed and VRAM numbers are hardware/runtime-specific operational signals, not answer-quality scores.",
+        "- Compare like-for-like runs when making quality claims: same suite, prompt subset, context, token budget, temperature, and scoring status when possible.",
+        "- Mixed suites, models, prompt subsets, or runtime settings require careful interpretation and narrower public claims.",
+        "",
+    ]
+
+    limited_claims: list[str] = []
+    if runs_without_scored_prompts:
+        limited_claims.append(
+            "At least one run has no scored prompts, so quality comparisons are incomplete."
+        )
+    if scoring_status_counts.get("partially_scored", 0) or scoring_status_counts.get(
+        "review_metadata_only", 0
+    ):
+        limited_claims.append(
+            "Some runs are only partially scored or contain metadata-only score entries."
+        )
+    if total_unreviewed_scores:
+        limited_claims.append(
+            "Some applied scores are unreviewed assisted drafts and need manual review before public use."
+        )
+    if mixed_suite:
+        limited_claims.append(
+            "Suite IDs differ across runs, so prompt overlap and score meaning may not be directly comparable."
+        )
+    if mixed_runtime:
+        limited_claims.append(
+            "Runtime settings differ across runs, so speed and VRAM comparisons are not like-for-like."
+        )
+    if prompt_sets_differ:
+        limited_claims.append(
+            "Prompt sets differ across runs; missing prompt cells are expected and limit direct score comparison."
+        )
+    if runs_with_failed_prompts or runs_not_completed:
+        limited_claims.append(
+            "Some runs are incomplete or contain failed prompts and should not be treated as full evidence."
+        )
+    if total_artifact_gaps:
+        limited_claims.append(
+            "Some completed prompts are missing raw or cleaned output paths, which weakens auditability."
+        )
+
+    if limited_claims:
+        lines.extend(["### Limited or unsupported public claims", ""])
+        lines.extend(f"- {claim}" for claim in limited_claims)
+        lines.append("")
+    else:
+        lines.extend(
+            [
+                "### Limited or unsupported public claims",
+                "",
+                "- No major mixed-set or scoring-coverage warnings were detected from available metadata.",
+                "- Public claims should still cite raw/cleaned outputs, hardware, runtime settings, and scoring provenance.",
+                "",
+            ]
+        )
+
+    return lines
+
+
 def build_compare_report(results: list[dict[str, Any]]) -> str:
     if len(results) < 2:
         raise ValueError("Need at least two result directories to compare")
@@ -220,17 +471,26 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
         "",
         "## Interpretation Notes",
         "",
-        "- Compare runs from the same suite when possible.",
-        "- Manual score averages are review aids, not universal model rankings.",
+        "- Comparison reports summarize local evidence; they are not universal rankings or leaderboards.",
+        "- Compare runs from the same suite and prompt subset when making quality claims.",
+        "- Manual score averages are review metadata, not objective truth or automatic judgments.",
+        "- Automatic-rule scores are assisted drafts unless reviewed and applied as reviewed metadata.",
+        "- Missing scores mean this report cannot support quality-ranking claims.",
         "- Failure labels and low-trust prompts matter more than small average-score differences.",
-        "- Speed and VRAM are operational metrics; they do not measure answer quality.",
-        "- Inspect raw and cleaned artifacts before making model-selection decisions.",
+        "- Speed and VRAM are hardware/runtime-specific operational metrics, not answer-quality scores.",
+        "- Mixed suites, models, contexts, token budgets, or temperatures require careful interpretation.",
+        "- Inspect raw and cleaned artifacts before making model-selection or public-proof decisions.",
         "",
-        "## Runs",
-        "",
-        "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score | Peak VRAM MiB | Min VRAM Headroom MiB |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
+    lines.extend(_build_publish_readiness_notes(results))
+    lines.extend(
+        [
+            "## Runs",
+            "",
+            "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score | Peak VRAM MiB | Min VRAM Headroom MiB |",
+            "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
 
     for result in results:
         run = result.get("run", {})
@@ -517,7 +777,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
         [
             "## Notes",
             "",
-            "Scores are manual/local-context judgments. Speed and VRAM metrics are operational metrics, not quality scores.",
+            "Scores are manual/local-context review metadata. Speed and VRAM metrics are operational metrics, not quality scores.",
+            "Use this report as evidence for bounded public claims, not as a universal model ranking.",
             "",
         ]
     )
