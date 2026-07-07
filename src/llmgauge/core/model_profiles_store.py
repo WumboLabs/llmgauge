@@ -23,7 +23,9 @@ def _load_raw_yaml(path: Path) -> dict[str, Any]:
         return {"schema_version": "llmgauge.model_profiles.v0", "models": {}}
 
     if not isinstance(data, dict):
-        raise ValueError(f"Model profiles file did not parse as a mapping: {path}")
+        raise ValueError(
+            f"Model profiles file must be a YAML mapping at the top level: {path}"
+        )
 
     return data
 
@@ -32,7 +34,9 @@ def load_model_profiles_document(path: Path) -> ModelProfilesDocument:
     try:
         return validate_model_profiles_document(_load_raw_yaml(path))
     except Exception as exc:
-        raise ValueError(format_validation_error(exc)) from exc
+        raise ValueError(
+            format_validation_error(exc, label="Invalid model profiles file")
+        ) from exc
 
 
 def save_model_profiles_document(path: Path, document: ModelProfilesDocument) -> None:
@@ -69,16 +73,21 @@ def add_model_profile(
     overwrite: bool = False,
 ) -> tuple[ModelProfilesDocument, bool]:
     if not profile_name.strip():
-        raise ValueError("Profile name must not be empty")
+        raise ValueError("Model profile name must not be empty")
 
     if profile_name in {"schema_version", "models"}:
-        raise ValueError(f"Reserved profile name: {profile_name}")
+        raise ValueError(
+            f"Model profile name '{profile_name}' is reserved; choose a different name"
+        )
 
     document = ensure_model_profiles_file(path)
     created = profile_name not in document.models
 
     if not created and not overwrite:
-        raise ValueError(f"Model profile already exists: {profile_name}")
+        raise ValueError(
+            f"Model profile '{profile_name}' already exists; "
+            "pass --force to replace it"
+        )
 
     entry = ModelProfileEntry(
         label=label or profile_name,
@@ -100,7 +109,9 @@ def remove_model_profile(path: Path, *, profile_name: str) -> ModelProfilesDocum
     document = load_model_profiles_document(path)
 
     if profile_name not in document.models:
-        raise KeyError(f"Model profile not found: {profile_name}")
+        raise KeyError(
+            f"No model profile named '{profile_name}' in the profiles file"
+        )
 
     del document.models[profile_name]
     save_model_profiles_document(path, document)
@@ -124,7 +135,9 @@ def update_model_profile(
     document = load_model_profiles_document(path)
 
     if profile_name not in document.models:
-        raise KeyError(f"Model profile not found: {profile_name}")
+        raise KeyError(
+            f"No model profile named '{profile_name}' in the profiles file"
+        )
 
     current = document.models[profile_name].model_dump(exclude_none=True)
 

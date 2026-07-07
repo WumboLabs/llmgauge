@@ -28,7 +28,10 @@ model_app = typer.Typer(
 def _resolve_profiles_path(model_profiles: Path | None) -> Path:
     resolved = default_model_profiles_path(model_profiles)
     if resolved is None:
-        raise typer.BadParameter("Provide --model-profiles or run llmgauge init first")
+        raise typer.BadParameter(
+            "No model profiles file found. Pass --model-profile-file "
+            "(or --model-profiles) or run 'llmgauge init' first."
+        )
     return resolved
 
 

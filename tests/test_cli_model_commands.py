@@ -189,6 +189,39 @@ models:
     assert "dual_alias_model" in result.output
 
 
+def test_model_list_without_profiles_file_suggests_init(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "llmgauge.commands.models.default_model_profiles_path",
+        lambda explicit: explicit,
+    )
+
+    result = runner.invoke(app, ["model", "list"])
+    plain_output = _strip_ansi(result.output)
+
+    assert result.exit_code != 0
+    assert "No model profiles file found" in plain_output
+    assert "llmgauge init" in plain_output
+    assert "--model-profile-file" in plain_output
+
+
+def test_model_list_invalid_profiles_file_reports_validation_context(
+    tmp_path: Path,
+) -> None:
+    profiles_path = tmp_path / "model-profiles.yaml"
+    profiles_path.write_text(
+        "schema_version: llmgauge.model_profiles.v0\nmodels: bad\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["model", "list", "--model-profile-file", str(profiles_path)],
+    )
+
+    assert result.exit_code != 0
+    assert "Invalid model profiles file" in result.output
+
+
 def test_model_remove_requires_yes(tmp_path: Path) -> None:
     profiles_path = tmp_path / "model-profiles.yaml"
     profiles_path.write_text(

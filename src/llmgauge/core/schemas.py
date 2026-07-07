@@ -96,7 +96,7 @@ def validate_llmgauge_config_document(data: dict[str, Any]) -> LlmgaugeConfigDoc
     return LlmgaugeConfigDocument.model_validate(data)
 
 
-def format_validation_error(exc: Exception) -> str:
+def format_validation_error(exc: Exception, *, label: str | None = None) -> str:
     from pydantic import ValidationError
 
     if isinstance(exc, ValidationError):
@@ -104,9 +104,13 @@ def format_validation_error(exc: Exception) -> str:
         for error in exc.errors():
             location = ".".join(str(part) for part in error["loc"])
             messages.append(f"{location}: {error['msg']}")
-        return "; ".join(messages)
+        detail = "; ".join(messages)
+    else:
+        detail = str(exc)
 
-    return str(exc)
+    if label is None:
+        return detail
+    return f"{label}: {detail}"
 
 
 def model_profile_entry_to_dict(entry: ModelProfileEntry) -> dict[str, Any]:

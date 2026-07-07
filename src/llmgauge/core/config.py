@@ -34,7 +34,9 @@ def load_llmgauge_config(path: Path | None) -> dict[str, Any]:
     try:
         validate_llmgauge_config_document(data)
     except Exception as exc:
-        raise ValueError(format_validation_error(exc)) from exc
+        raise ValueError(
+            format_validation_error(exc, label="Invalid config file")
+        ) from exc
 
     return data
 
@@ -58,7 +60,9 @@ def load_model_profiles(path: Path | None) -> dict[str, Any]:
     try:
         document = validate_model_profiles_document(data)
     except Exception as exc:
-        raise ValueError(format_validation_error(exc)) from exc
+        raise ValueError(
+            format_validation_error(exc, label="Invalid model profiles file")
+        ) from exc
 
     return {
         name: entry.model_dump(exclude_none=True)
