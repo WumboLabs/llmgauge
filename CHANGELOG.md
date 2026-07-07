@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.52 - 2026-07-07
+
+- Added `--model-profile-file` as a clearer alias for model profile YAML paths while preserving `--model-profiles` compatibility.
+- Improved model profile validation and mutation error messages.
+- Documented the model profile lifecycle in Usage, Quickstart, and Local Model Testing docs.
+- Clarified profile path discovery, update behavior, `add --force` replacement behavior, `remove --yes`, and YAML comment caveats.
+- Polished doctor and smoke guidance wording to prefer `--model-profile-file` while noting the compatibility alias.
+
 ## v0.51 - 2026-07-07
 
 - Refreshed the roadmap for the v0.50 stable / v0.51 development line.
