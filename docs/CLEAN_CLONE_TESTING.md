@@ -224,16 +224,21 @@ public docs rather than treating the failure as hidden.
 
 ## Public-safety checks
 
-Before calling the pass complete, run:
+Before calling the pass complete, search tracked files for private machine
+identifiers, personal paths, and old personal contact addresses. Use placeholder
+terms in committed docs; run exact private-term searches manually on your
+workstation when needed.
+
+Example checks (replace placeholders with terms that would expose private state
+on your machine):
 
 ```bash
-git grep -n "WumboJetsII" || true
-git grep -n "cheez" || true
-git grep -n "/home/cheez" || true
-git grep -n "Projects/local-llm" || true
-git grep -n "/mnt/data" || true
-git grep -n "kdick518" || true
-git grep -n "icloud.com" || true
+git grep -n "YOUR_HOSTNAME" || true
+git grep -n "YOUR_USERNAME" || true
+git grep -n "/home/YOUR_USERNAME" || true
+git grep -n "/path/to/private/project" || true
+git grep -n "/mnt/private-data" || true
+git grep -n "old-personal-email@example.com" || true
 ```
 
 Review sensitive terms carefully:
