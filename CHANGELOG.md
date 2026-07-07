@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.51 - 2026-07-07
+
+- Refreshed the roadmap for the v0.50 stable / v0.51 development line.
+- Expanded the roadmap into a fuller LLMGauge direction document.
+- Hardened `AGENTS.md` as the self-contained guidance source for supervised AI coding tools across different agent harnesses and models.
+- Documented the standard branch, PR, CI, merge, release metadata, tag, and cleanup workflows.
+- Updated README release-line references.
+
 ## v0.50 - 2026-07-07
 
 - Modularized the CLI into focused command modules while preserving the public command surface.
