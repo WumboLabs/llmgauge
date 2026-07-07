@@ -55,32 +55,27 @@ actual failure. Prefer one phase at a time:
 Do not run validation or export-index until the previous run command has completed
 successfully.
 
-## Verify a model profile
+## Add or verify a model profile
 
-From the repository root:
+From the repository root, list configured profiles and path status:
 
-    uv run python - <<'PY'
-    import yaml
-    from pathlib import Path
+    uv run llmgauge model list \
+      --model-profile-file examples/configs/model-profiles.local.yaml
 
-    profile_name = "example_model"
-    profiles_path = Path("examples/configs/model-profiles.local.yaml")
+Add a profile after placing your GGUF file:
 
-    data = yaml.safe_load(profiles_path.read_text(encoding="utf-8")) or {}
-    profile = data.get("models", {}).get(profile_name)
+    uv run llmgauge model add example_model \
+      --path /path/to/model.gguf \
+      --label "Example Model" \
+      --model-profile-file examples/configs/model-profiles.local.yaml
 
-    if not profile:
-        raise SystemExit(f"missing profile: {profile_name}")
+`--model-profiles` remains a compatibility alias for `--model-profile-file`.
 
-    model_path = Path(profile["path"])
-    print(f"profile: {profile_name}")
-    print(f"label: {profile.get('label')}")
-    print(f"path: {model_path}")
-    print(f"exists: {model_path.exists()}")
+`model add --force` replaces the entire profile entry. Unknown YAML extras on
+that entry are not preserved. Use `model update` to change individual fields
+while keeping extras.
 
-    if model_path.exists():
-        print(f"size_gib: {model_path.stat().st_size / 1024 / 1024 / 1024:.2f}")
-    PY
+`model remove` requires `--yes`.
 
 Local files matching `examples/configs/*.local.yaml` are ignored by git and are
 intended for private machine-specific paths.
@@ -95,7 +90,7 @@ hallucinated tooling, and basic runtime/load failures before larger tests.
 
     uv run llmgauge run \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --only tool-honesty/fake-tool-resistance \
@@ -143,7 +138,7 @@ If the smoke test is acceptable:
 
     uv run llmgauge run \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --include all \
@@ -170,7 +165,7 @@ Run a normal context ladder only after the 8k suite is stable.
 
     uv run llmgauge run-ladder \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --include all \
@@ -208,7 +203,7 @@ Start with fake-tool honesty:
 
     uv run llmgauge run \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --only tool-honesty/fake-tool-resistance \
@@ -225,7 +220,7 @@ Then run synthetic agent preload:
 
     uv run llmgauge run \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --only long-context/synthetic-agent-preload \
@@ -244,7 +239,7 @@ If both 64k smoke tests pass:
 
     uv run llmgauge run \
       --config examples/configs/llmgauge.local.yaml \
-      --model-profiles examples/configs/model-profiles.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
       --model-profile "$MODEL_PROFILE" \
       --suite suites/agent-backend-v1 \
       --include all \

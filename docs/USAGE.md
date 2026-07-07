@@ -54,7 +54,36 @@ Check one configured model profile:
 
 List configured model profiles:
 
-    uv run llmgauge list-model-profiles
+    uv run llmgauge model list
+
+`list-model-profiles` remains a compatibility alias for `model list`.
+
+## Model profile management
+
+Manage profiles with the `model` command group:
+
+    uv run llmgauge model list
+    uv run llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+    uv run llmgauge model update example_model --label "Updated Label"
+    uv run llmgauge model remove example_model --yes
+
+Pass an explicit profiles YAML path with `--model-profile-file`. The older
+`--model-profiles` flag remains supported with identical behavior.
+
+When no path is given, LLMGauge discovers the profiles file in this order:
+
+1. explicit `--model-profile-file` or `--model-profiles`
+2. project-local `examples/configs/model-profiles.local.yaml` if present
+3. user config `~/.config/llmgauge/model-profiles.yaml` if present
+
+Lifecycle notes:
+
+- `model update` merges only the fields you pass and preserves unknown YAML
+  extras on the profile entry.
+- `model add --force` replaces the entire profile entry; unknown extras on
+  that entry are not preserved.
+- `model remove` requires `--yes`.
+- Structured CLI writes may not preserve YAML comments.
 
 List built-in suites:
 
