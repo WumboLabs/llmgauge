@@ -4,7 +4,7 @@ Guidance for AI coding tools, assistants, and automated editors working on LLMGa
 
 LLMGauge is a conservative local-LLM evaluation tool for real consumer hardware. The project values reproducibility, artifact integrity, clear command behavior, and stable local workflows over clever automation or broad rewrites.
 
-Grok Build uses this file as its repository guidance. Keep this file self-contained and current.
+`AGENTS` refers to the current AI coding tool, model, assistant, or automated editor reading this file. Keep this file self-contained and current so the same guardrails apply across different agent harnesses and models.
 
 ## Project structure
 
@@ -48,7 +48,7 @@ It is not:
 - Treat generated evaluation artifacts as records, not scratch files.
 - Avoid broad refactors unless the task is explicitly a refactor and tests cover compatibility.
 - Do not add dependencies unless they are necessary, lightweight, and justified.
-- Do not add Cursor configuration files for Grok Build work.
+- Do not add harness-specific configuration files unless the user explicitly asks for that specific tool.
 
 ## Standard branch workflow
 
@@ -111,11 +111,11 @@ Follow this order for normal branches.
 
 Do not push, merge, tag, delete branches, or rewrite history unless explicitly asked.
 
-## Grok Build operating rules
+## AGENTS operating rules
 
-Grok Build should operate as a supervised coding assistant, not an autonomous maintainer.
+AGENTS should operate as supervised coding assistants, not autonomous maintainers.
 
-At the start of every Grok Build task:
+At the start of every AGENTS task:
 
 1. read `AGENTS.md`
 2. report current branch and HEAD
@@ -124,11 +124,11 @@ At the start of every Grok Build task:
 5. identify likely files to change
 6. identify planned targeted tests and full gates
 
-Grok Build may write review notes under `tmp/` when explicitly requested, but those reports should not be committed.
+AGENTS may write review notes under `tmp/` when explicitly requested, but those reports should not be committed.
 
-Grok Build must not add Cursor-specific configuration files such as `.cursor/` or `.cursorrules`.
+AGENTS must not add tool-specific configuration files such as `.cursor/`, `.cursorrules`, `CLAUDE.md`, `GEMINI.md`, or other harness sidecar files unless the user explicitly requests that exact integration.
 
-Grok Build must stop after completing the requested scope and report:
+AGENTS must stop after completing the requested scope and report:
 
 - branch name
 - final HEAD

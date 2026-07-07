@@ -125,16 +125,16 @@ Earlier releases established the current artifact model, suite structure, valida
 
 ### v0.51: documentation and process hardening
 
-Goal: make the repository easier and safer to work on with human-supervised AI coding tools, especially Grok Build.
+Goal: make the repository easier and safer to work on with human-supervised AI coding tools across different agent harnesses and models.
 
 Planned scope:
 
 - refresh this roadmap so it reflects the v0.50 release line
 - make `AGENTS.md` the canonical AI-coding runbook
-- make `AGENTS.md` self-contained for Grok Build and other supervised AI coding tools
+- make `AGENTS.md` self-contained for supervised AI coding tools across different agent harnesses and models
 - document the expected branch lifecycle in order
 - document PR, CI, release metadata, tag, and branch cleanup workflows
-- clarify that Cursor-specific files should not be added for Grok Build work
+- clarify that tool-specific sidecar files should not be added unless explicitly requested
 - keep this release docs/process-only unless a broken docs reference requires a tiny fix
 
 ### v0.52 candidate: model profile polish
