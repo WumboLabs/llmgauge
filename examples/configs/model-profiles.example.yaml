@@ -1,36 +1,30 @@
 schema_version: llmgauge.model_profiles.v0
 
 models:
-  qwen36_35b_a3b_ud_iq2_m:
-    label: Qwen3.6 35B A3B UD-IQ2_M
-    family: Qwen
-    role: quality-reference
-    quant: UD-IQ2_M
-    path: /path/to/qwen.gguf
-    notes: Quality reference; may be tight for high context on 12GB VRAM.
+  example_model:
+    label: Example Model
+    family: Example
+    role: smoke-test
+    quant: Q4_K_M
+    path: /path/to/model.gguf
+    notes: Small example profile for local setup checks.
 
-  gemma4_12b_it_ud_q5_k_xl:
-    label: Gemma 4 12B IT UD-Q5_K_XL
-    family: Gemma 4
-    role: practical-12gb-candidate
-    quant: UD-Q5_K_XL
-    path: /path/to/gemma-q5.gguf
-    recommended_contexts:
-      - 8192
-      - 12288
-      - 16384
-      - 24576
-      - 32768
-      - 65536
+  example_large_model:
+    label: Example Large Model
+    family: Example
+    role: quality-check
+    quant: Q5_K_M
+    path: /path/to/large-model.gguf
+    notes: Larger example profile for extended evaluation workflows.
 
-  gemma4_12b_it_qat_ud_q4_k_xl:
-    label: Gemma 4 12B IT QAT UD-Q4_K_XL
-    family: Gemma 4
-    role: high-context-12gb-candidate
-    quant: UD-Q4_K_XL
-    path: /path/to/gemma-qat-q4.gguf
+  example_context_model:
+    label: Example Context Model
+    family: Example
+    role: context-ladder
+    quant: Q4_K_M
+    path: /path/to/context-model.gguf
     recommended_contexts:
       - 8192
       - 16384
       - 32768
-      - 65536
+    notes: Example profile for context ladder testing.

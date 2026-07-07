@@ -1,6 +1,7 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.py[cod]
 build/
 dist/
 wheels/
@@ -9,20 +10,29 @@ wheels/
 # Virtual environments
 .venv
 
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.tox/
+.nox/
+.coverage
+htmlcov/
+
+# Local environment and editor noise
+.env
+.env.*
+.DS_Store
+.vscode/
+.idea/
+*.log
+
 # LLMGauge generated results
 results/
 
 # Local/private LLMGauge config
 examples/configs/*.local.yaml
-
-# Local generated scratch artifacts
-tmp/
-
-# Python cache
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
 
 # Local generated scratch artifacts
 tmp/
