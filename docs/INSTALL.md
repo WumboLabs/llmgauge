@@ -35,9 +35,13 @@ First-run setup:
 uv run llmgauge --version
 uv run llmgauge init
 uv run llmgauge doctor
-uv run llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
 uv run llmgauge model list
 ```
+
+`init` creates example template profiles such as `example_model` in
+`model-profiles.yaml`. Use a new profile name with `model add`, edit the template
+paths in YAML, or replace an existing profile intentionally with `--force`.
 
 `model add` requires the model path to exist. Use a real GGUF file or a scratch
 placeholder when you only need inspection and dry-run checks.
@@ -47,7 +51,7 @@ uv run llmgauge smoke
 uv run llmgauge run \
   --suite practical \
   --only honesty-uncertainty/fake-package-currentness \
-  --model-profile example_model \
+  --model-profile my_model \
   --dry-run
 ```
 
@@ -148,14 +152,14 @@ After installing the CLI, a typical first run looks like this:
 llmgauge --version
 llmgauge init
 llmgauge doctor
-llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
 llmgauge model list
 llmgauge smoke
-llmgauge smoke --model-profile example_model
+llmgauge smoke --model-profile my_model
 llmgauge run \
   --suite practical \
   --only honesty-uncertainty/fake-package-currentness \
-  --model-profile example_model \
+  --model-profile my_model \
   --dry-run
 ```
 
@@ -200,7 +204,7 @@ check before launching a model:
 ```bash
 llmgauge doctor
 llmgauge smoke
-llmgauge smoke --model-profile example_model
+llmgauge smoke --model-profile my_model
 ```
 
 Status meanings in `doctor` and `smoke` output:
@@ -225,7 +229,7 @@ Before a real run, preview the resolved plan:
 llmgauge run \
   --suite practical \
   --only honesty-uncertainty/fake-package-currentness \
-  --model-profile example_model \
+  --model-profile my_model \
   --dry-run
 ```
 
