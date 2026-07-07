@@ -36,13 +36,16 @@ This writes user config files under `~/.config/llmgauge/`:
 `XDG_CONFIG_HOME` is respected. Use `uv run llmgauge init-config` only when you
 specifically want project-local ignored files under `examples/configs/`.
 
-Run a safe setup smoke check:
+Recommended first-run order:
 
+    uv run llmgauge init
+    uv run llmgauge doctor
+    uv run llmgauge model add example_model --path /path/to/model.gguf
+    uv run llmgauge model list
     uv run llmgauge smoke
+    uv run llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile example_model --dry-run
 
-Check one configured model profile without launching a model:
-
-    uv run llmgauge smoke --model-profile example_model
+Installed CLI users can drop `uv run` after installing the command.
 
 Check the environment in more detail:
 
@@ -51,6 +54,31 @@ Check the environment in more detail:
 Check one configured model profile:
 
     uv run llmgauge doctor --model-profile example_model
+
+Run a safe setup smoke check:
+
+    uv run llmgauge smoke
+
+Check one configured model profile without launching a model:
+
+    uv run llmgauge smoke --model-profile example_model
+
+`doctor` and `smoke` are inspection-only. They do not launch `llama.cpp`.
+
+Status meanings:
+
+- `ok` — check completed
+- `skip` — config or profile checks were skipped because no file was found
+- `warn` — optional or incomplete setup, such as placeholder paths or missing
+  `nvidia-smi`
+- `fail` — blocking problem; command exits nonzero
+
+When config or profiles are missing, both commands print next-step guidance.
+Smoke may report `passed with warnings` while setup is still incomplete.
+
+Config discovery checks explicit CLI paths first, then project-local
+`examples/configs/*.local.yaml` relative to the current working directory, then
+user config under `~/.config/llmgauge/`.
 
 List configured model profiles:
 

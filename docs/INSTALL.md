@@ -126,16 +126,44 @@ It does not:
 - create result directories until you run an evaluation command
 - upload prompts, outputs, results, or hardware details to a service
 
+## Installed CLI first-run workflow
+
+After installing the CLI, a typical first run looks like this:
+
+```bash
+llmgauge --version
+llmgauge init
+llmgauge doctor
+llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+llmgauge model list
+llmgauge smoke
+llmgauge smoke --model-profile example_model
+llmgauge run \
+  --suite practical \
+  --only honesty-uncertainty/fake-package-currentness \
+  --model-profile example_model \
+  --dry-run
+```
+
+`doctor` and `smoke` are inspection-only. They do not launch `llama.cpp` and do
+not create result artifacts.
+
 ## Configuration discovery
 
 LLMGauge resolves config in this order:
 
-1. explicit CLI paths such as `--config` and `--model-profiles`
-2. project-local files under `examples/configs/*.local.yaml`
+1. explicit CLI paths such as `--config` and `--model-profile-file` (or
+   `--model-profiles`)
+2. project-local files under `examples/configs/*.local.yaml` relative to the
+   current working directory
 3. user config under `~/.config/llmgauge/`
 
 `XDG_CONFIG_HOME` is respected. For example, if `XDG_CONFIG_HOME=/tmp/config`,
 LLMGauge looks under `/tmp/config/llmgauge/`.
+
+Project-local files are intended for source-checkout contributor workflows. An
+installed CLI user running from `$HOME` or another directory will normally see
+only user-level config unless explicit CLI paths are passed.
 
 For normal installed use, prefer:
 
@@ -152,12 +180,26 @@ uv run llmgauge init-config
 
 ## Safe readiness checks
 
-Use `smoke` before launching a model:
+Use `doctor` for a broader environment table and `smoke` for a shorter readiness
+check before launching a model:
 
 ```bash
+llmgauge doctor
 llmgauge smoke
 llmgauge smoke --model-profile example_model
 ```
+
+Status meanings in `doctor` and `smoke` output:
+
+- `ok` — check completed successfully
+- `skip` — check was intentionally skipped because config or profiles were not
+  found
+- `warn` — optional or incomplete setup, such as missing `nvidia-smi` or
+  placeholder paths
+- `fail` — blocking problem; `doctor` and `smoke` exit nonzero
+
+When config or profiles are missing, the commands print next-step guidance
+rather than treating skipped checks as hard failures.
 
 Smoke checks verify the package, built-in suites, config discovery, model profile
 discovery, `llama-cli`, optional `nvidia-smi`, and an optional selected model
