@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.54 - 2026-07-07
+
+- Refreshed public onboarding docs so README, Install, Quickstart, and Usage agree on the current first-run workflow.
+- Updated the roadmap for the v0.54 release line and moved recent candidate work into completed release highlights.
+- Hardened `.gitignore` for local config, generated results, scratch output, environment files, editor noise, and common Python caches.
+- Replaced the public package contact email with `contact@wumbocore.com`.
+- Genericized public model-profile templates so they no longer imply specific model recommendations.
+- Added `docs/CLEAN_CLONE_TESTING.md` as a repeatable fresh-clone audit checklist.
+- Removed tracked local config from the public repository and sanitized audit docs to avoid committed private machine identifiers.
+
 ## v0.53 - 2026-07-07
 
 - Improved `llmgauge doctor` first-run guidance for missing config, missing profiles, skipped checks, and selected model profile prerequisites.
