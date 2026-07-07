@@ -5,7 +5,7 @@ from typing import Any
 
 import typer
 
-from llmgauge.cli_common import console
+from llmgauge.cli_common import MODEL_PROFILES_FILE_OPTIONS, console
 from llmgauge.commands import run_helpers
 from llmgauge.core.artifacts import prepare_result_dir, write_json
 from llmgauge.core.fit_ladder import (
@@ -46,7 +46,7 @@ def fit_ladder(
     ),
     model_profiles_path: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML",
     ),
     model_path: Path | None = typer.Option(
@@ -300,7 +300,7 @@ def run_ladder(
     ),
     model_profiles_path: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML",
     ),
     model_path: Path | None = typer.Option(

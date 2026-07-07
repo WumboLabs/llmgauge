@@ -12,6 +12,7 @@ from llmgauge import __version__
 from llmgauge.cli_common import (
     DEFAULT_LOCAL_CONFIG,
     DEFAULT_LOCAL_MODEL_PROFILES,
+    MODEL_PROFILES_FILE_OPTIONS,
     console,
     default_existing_path,
     is_placeholder_path,
@@ -54,7 +55,7 @@ def doctor(
     ),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Optional model profiles YAML to check",
     ),
     model_profile: str | None = typer.Option(
@@ -317,7 +318,7 @@ def smoke(
     ),
     model_profiles: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Optional model profiles YAML to check",
     ),
     model_profile: str | None = typer.Option(

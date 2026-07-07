@@ -5,7 +5,7 @@ from typing import Any
 
 import typer
 
-from llmgauge.cli_common import console
+from llmgauge.cli_common import MODEL_PROFILES_FILE_OPTIONS, console
 from llmgauge.commands import run_helpers
 from llmgauge.core.artifacts import prepare_result_dir
 from llmgauge.core.batch import (
@@ -25,7 +25,7 @@ def run_batch(
     config_path: Path = typer.Option(..., "--config", help="LLMGauge config YAML"),
     model_profiles_path: Path = typer.Option(
         ...,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML",
     ),
     out: Path = typer.Option(..., "--out", help="Output batch directory"),

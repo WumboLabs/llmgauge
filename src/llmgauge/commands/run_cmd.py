@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from llmgauge.cli_common import console
+from llmgauge.cli_common import MODEL_PROFILES_FILE_OPTIONS, console
 from llmgauge.commands import run_helpers
 from llmgauge.core.contextgen import build_context_prompt, write_context_prompt_artifacts
 
@@ -78,7 +78,7 @@ def run(
     ),
     model_profiles_path: Path | None = typer.Option(
         None,
-        "--model-profiles",
+        *MODEL_PROFILES_FILE_OPTIONS,
         help="Model profiles YAML",
     ),
     model_path: Path | None = typer.Option(
