@@ -8,9 +8,9 @@ LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” wo
 
 ## Current release line
 
-- Current stable tag: `v0.52`
-- Current development line: `v0.53`
-- Current development focus: installed-user workflow polish, setup diagnostics, and first-run guidance
+- Current stable tag: `v0.53`
+- Current development line: `v0.54`
+- Current development focus: public repo audit cleanup and clean-clone readiness
 
 ## Product identity
 
@@ -117,49 +117,57 @@ Completed scope:
 - suite mirror drift guard test
 - roadmap refresh
 
+### v0.53: installed-user workflow polish
+
+v0.53 improved first-run guidance for installed and checkout users.
+
+Completed scope:
+
+- improved `llmgauge doctor` skip/next-step messaging
+- clarified `llmgauge smoke` readiness output and warnings
+- documented installed-user first-run workflow in `INSTALL.md`, `QUICKSTART.md`, and `USAGE.md`
+- preserved network-free, model-download-free setup checks
+
+### v0.52: model profile polish
+
+v0.52 polished model-profile CLI ergonomics and documentation.
+
+Completed scope:
+
+- added `--model-profile-file` as the preferred alias for model profiles YAML paths
+- preserved `--model-profiles` compatibility
+- improved model profile validation and mutation error messages
+- documented model profile lifecycle patterns
+
+### v0.51: documentation and process hardening
+
+v0.51 made the repository easier and safer to work on with human-supervised AI coding tools.
+
+Completed scope:
+
+- refreshed roadmap and agent workflow guidance
+- made `AGENTS.md` the canonical AI-coding runbook
+- documented branch, PR, CI, release metadata, tag, and branch cleanup workflows
+- clarified that tool-specific sidecar files should not be added unless explicitly requested
+
 ### v0.46 and earlier: public documentation, suite audit, scoring, fit ladder, and artifact foundations
 
 Earlier releases established the current artifact model, suite structure, validation, scoring, comparison, fit ladder, runtime metadata, public docs, and practical-evaluation methodology.
 
 ## Near-term roadmap
 
-### v0.51: documentation and process hardening
-
-Goal: make the repository easier and safer to work on with human-supervised AI coding tools across different agent harnesses and models.
-
-Planned scope:
-
-- refresh this roadmap so it reflects the v0.50 release line
-- make `AGENTS.md` the canonical AI-coding runbook
-- make `AGENTS.md` self-contained for supervised AI coding tools across different agent harnesses and models
-- document the expected branch lifecycle in order
-- document PR, CI, release metadata, tag, and branch cleanup workflows
-- clarify that tool-specific sidecar files should not be added unless explicitly requested
-- keep this release docs/process-only unless a broken docs reference requires a tiny fix
-
-### v0.52 candidate: model profile polish
+### v0.54 candidate: public repo audit cleanup and clean-clone readiness
 
 Potential scope:
 
-- improve `llmgauge model add` ergonomics
-- consider clearer alias `--model-profile-file` for the YAML path currently passed as `--model-profiles`
-- preserve `--model-profiles` as a compatibility alias for at least one release cycle if a new name is added
-- improve profile validation messages
-- document profile lifecycle patterns
-- consider import/repair/check commands only if they remain conservative and explicit
-
-### v0.53 candidate: installed-user workflow polish
-
-Potential scope:
-
-- improve `llmgauge doctor`
-- improve `llmgauge smoke`
-- improve first-run messages
-- ensure installed CLI docs match actual behavior
-- clarify user-level config discovery vs project-local config discovery
+- align README and public docs with the current release line and first-run workflow
+- harden ignore rules for local/private artifacts
+- genericize public model-profile templates
+- add a clean-clone testing checklist
+- audit public-facing files for private paths, personal contact details, and stale release language
 - keep normal runs network-free and model-download-free
 
-### v0.54 candidate: comparison/report polish
+### v0.55 candidate: comparison/report polish
 
 Potential scope:
 
@@ -169,7 +177,7 @@ Potential scope:
 - improve public-report bundle guidance
 - preserve artifact provenance
 
-### v0.55 candidate: suite and scoring maturity
+### v0.56 candidate: suite and scoring maturity
 
 Potential scope:
 
