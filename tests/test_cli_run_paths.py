@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from llmgauge import __version__
 import llmgauge.cli as cli
+from llmgauge.commands import run_helpers
 
 runner = CliRunner()
 
@@ -28,7 +29,7 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
             exit_status=0,
         )
 
-    monkeypatch.setattr(cli, "run_llama_cpp", fake_run_llama_cpp)
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
 
     result = cli._execute_run(
         suite=Path("agent-backend-v1"),
@@ -124,7 +125,7 @@ def test_execute_run_records_vram_guardrail_warning(
             },
         )
 
-    monkeypatch.setattr(cli, "run_llama_cpp", fake_run_llama_cpp)
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
 
     result = cli._execute_run(
         suite=Path("agent-backend-v1"),
@@ -193,7 +194,7 @@ def test_execute_run_records_vram_guardrail_ok(
             },
         )
 
-    monkeypatch.setattr(cli, "run_llama_cpp", fake_run_llama_cpp)
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
 
     result = cli._execute_run(
         suite=Path("agent-backend-v1"),
@@ -289,8 +290,8 @@ def test_run_batch_uses_manifest_model_profiles(
             "summary": {"completed": 1, "failed": 0},
         }
 
-    monkeypatch.setattr(cli, "_resolve_run_options", fake_resolve_run_options)
-    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+    monkeypatch.setattr(run_helpers, "resolve_run_options", fake_resolve_run_options)
+    monkeypatch.setattr(run_helpers, "execute_run", fake_execute_run)
 
     cli.run_batch(
         manifest=manifest,
@@ -354,7 +355,7 @@ models:
     def fake_run_llama_cpp(config, prompt):
         raise AssertionError("dry-run must not launch llama.cpp")
 
-    monkeypatch.setattr(cli, "run_llama_cpp", fake_run_llama_cpp)
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
 
     result = runner.invoke(
         cli.app,
@@ -468,7 +469,7 @@ models:
     def fake_execute_run(**kwargs):
         raise AssertionError("ladder dry-run must not execute child runs")
 
-    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+    monkeypatch.setattr(run_helpers, "execute_run", fake_execute_run)
 
     result = runner.invoke(
         cli.app,
