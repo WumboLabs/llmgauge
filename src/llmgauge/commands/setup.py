@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,63 @@ from llmgauge.core.config import (
     resolve_model_profile,
 )
 from llmgauge.core.suite_paths import resolve_suites_dir
+
+
+@dataclass
+class SetupReadiness:
+    config_found: bool = False
+    profiles_loaded: bool = False
+    llama_cli_ready: bool = False
+    setup_skipped: bool = False
+    setup_warnings: bool = False
+
+
+def _config_missing_note() -> str:
+    return "Skipped; no config file found. Run llmgauge init or provide --config"
+
+
+def _profiles_missing_note() -> str:
+    return (
+        "Skipped; no profiles file found. Run llmgauge init, add a profile with "
+        "llmgauge model add, or pass --model-profile-file "
+        "(--model-profiles also accepted)"
+    )
+
+
+def _model_profile_without_profiles_note() -> str:
+    return (
+        "Cannot check profile; profiles file was not loaded. Run llmgauge init or "
+        "pass --model-profile-file (or --model-profiles), then retry --model-profile"
+    )
+
+
+def _collect_first_run_next_steps(readiness: SetupReadiness) -> list[str]:
+    steps: list[str] = []
+    if readiness.setup_skipped or not readiness.config_found:
+        steps.append("Run llmgauge init to create user config files")
+    elif not readiness.llama_cli_ready:
+        steps.append("Edit config.yaml and set runtime.llama_cli")
+    if readiness.setup_skipped or not readiness.profiles_loaded:
+        steps.append(
+            "Add a model profile with llmgauge model add or edit model-profiles.yaml"
+        )
+    steps.extend(
+        [
+            "Run llmgauge model list to verify profile paths",
+            "Run llmgauge smoke for a quick readiness check",
+            "Preview a run with llmgauge run --dry-run",
+        ]
+    )
+    return steps
+
+
+def _print_first_run_next_steps(readiness: SetupReadiness) -> None:
+    if not (readiness.setup_skipped or readiness.setup_warnings):
+        return
+
+    console.print("Next steps:")
+    for index, step in enumerate(_collect_first_run_next_steps(readiness), start=1):
+        console.print(f"  {index}. {step}")
 
 
 def show_version(value: bool) -> None:
@@ -76,6 +134,7 @@ def doctor(
     table.add_column("Notes")
 
     has_failure = False
+    readiness = SetupReadiness()
 
     def add_row(check: str, status: str, notes: str) -> None:
         nonlocal has_failure
@@ -103,10 +162,12 @@ def doctor(
     config_data: dict[str, Any] = {}
     config_path = config or default_existing_path(DEFAULT_LOCAL_CONFIG, user_config_path())
     if config_path is None:
-        add_row("Config", "warn", "No --config provided; run checks are limited")
+        readiness.setup_skipped = True
+        add_row("Config", "skip", _config_missing_note())
     else:
         try:
             config_data = load_llmgauge_config(config_path)
+            readiness.config_found = True
             if config is None:
                 add_row("Config", "ok", f"Auto-detected {config_path}")
             else:
@@ -119,6 +180,7 @@ def doctor(
         get_config_value(config_data, "runtime.llama_cli"),
     )
     if resolved_llama_cli is None:
+        readiness.setup_warnings = True
         add_row(
             "llama-cli",
             "warn",
@@ -128,6 +190,7 @@ def doctor(
         resolved_llama_cli = Path(resolved_llama_cli)
         if not resolved_llama_cli.exists():
             if is_placeholder_path(resolved_llama_cli):
+                readiness.setup_warnings = True
                 add_row(
                     "llama-cli",
                     "warn",
@@ -140,6 +203,7 @@ def doctor(
         elif not os.access(resolved_llama_cli, os.X_OK):
             add_row("llama-cli", "fail", f"Path is not executable: {resolved_llama_cli}")
         else:
+            readiness.llama_cli_ready = True
             add_row("llama-cli", "ok", str(resolved_llama_cli))
 
     profiles: dict[str, Any] = {}
@@ -148,15 +212,12 @@ def doctor(
         user_model_profiles_path(),
     )
     if model_profiles_path is None:
-        add_row(
-            "Model profiles",
-            "warn",
-            "No --model-profile-file provided; profile checks are skipped "
-            "(--model-profiles also accepted)",
-        )
+        readiness.setup_skipped = True
+        add_row("Model profiles", "skip", _profiles_missing_note())
     else:
         try:
             profiles = load_model_profiles(model_profiles_path)
+            readiness.profiles_loaded = True
             if model_profiles is None:
                 add_row(
                     "Model profiles",
@@ -177,7 +238,7 @@ def doctor(
             add_row(
                 "Selected model profile",
                 "fail",
-                "Use --model-profile-file (or --model-profiles) with --model-profile",
+                _model_profile_without_profiles_note(),
             )
         else:
             try:
@@ -211,6 +272,7 @@ def doctor(
         )
 
     console.print(table)
+    _print_first_run_next_steps(readiness)
 
     if has_failure:
         raise typer.Exit(code=1)
@@ -283,10 +345,14 @@ def init(
 
     console.print(f"Config directory: {llmgauge_user_config_dir()}")
     console.print("Next steps:")
-    console.print("  1. Edit config.yaml and model-profiles.yaml")
-    console.print("  2. Run llmgauge smoke")
-    console.print("  3. Run llmgauge list-suites")
-    console.print("  4. Preview a run with llmgauge run --dry-run")
+    console.print("  1. Edit config.yaml and set runtime.llama_cli")
+    console.print(
+        "  2. Add a model profile with llmgauge model add or edit model-profiles.yaml"
+    )
+    console.print("  3. Run llmgauge doctor")
+    console.print("  4. Run llmgauge model list")
+    console.print("  5. Run llmgauge smoke")
+    console.print("  6. Preview a run with llmgauge run --dry-run")
 
 
 
