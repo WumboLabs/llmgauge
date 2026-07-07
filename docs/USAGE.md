@@ -4,7 +4,9 @@ See [Installation](INSTALL.md) for source-checkout, editable local install, and 
 
 This page is a compact command map for common LLMGauge workflows.
 
-For a first run, start with [Quickstart](QUICKSTART.md). For local model evaluation process guidance, see [Local model testing workflow](LOCAL_MODEL_TESTING.md).
+For a first run, start with [Quickstart](QUICKSTART.md). For a fresh-clone audit
+checklist, see [Clean clone testing](CLEAN_CLONE_TESTING.md). For local model
+evaluation process guidance, see [Local model testing workflow](LOCAL_MODEL_TESTING.md).
 
 ## Command forms
 

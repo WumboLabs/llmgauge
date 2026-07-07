@@ -48,6 +48,9 @@ the installed command form:
     llmgauge smoke
     llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile example_model --dry-run
 
+The model path must exist on disk. Use a real GGUF file or a scratch placeholder
+for inspection-only dry-run testing.
+
 Installed users normally rely on `~/.config/llmgauge/`. Project-local
 `examples/configs/*.local.yaml` files are discovered only when they exist
 relative to your current working directory.
@@ -257,7 +260,7 @@ Inspect:
 
 Raw model outputs are preserved for audit. Cleaned outputs are derived review artifacts.
 
-## 10. Optional manual scoring
+## 11. Optional manual scoring
 
 Initialize a score file:
 
@@ -284,7 +287,7 @@ Validate again:
 
     uv run llmgauge validate-result results/<generated-run-directory>
 
-## 11. Export an index
+## 12. Export an index
 
 Create a machine-readable index for reports, comparisons, or import workflows:
 
@@ -293,7 +296,7 @@ Create a machine-readable index for reports, comparisons, or import workflows:
       --validate \
       --out results/quickstart-index.json
 
-## 12. Compare runs
+## 13. Compare runs
 
 After you have two or more result directories, create a comparison report:
 

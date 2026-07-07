@@ -32,15 +32,27 @@ uv run llmgauge --help
 First-run setup:
 
 ```bash
+uv run llmgauge --version
 uv run llmgauge init
+uv run llmgauge doctor
+uv run llmgauge model add example_model --path /path/to/model.gguf --label "Example Model"
+uv run llmgauge model list
+```
+
+`model add` requires the model path to exist. Use a real GGUF file or a scratch
+placeholder when you only need inspection and dry-run checks.
+
+```bash
 uv run llmgauge smoke
-uv run llmgauge list-suites
 uv run llmgauge run \
   --suite practical \
   --only honesty-uncertainty/fake-package-currentness \
   --model-profile example_model \
   --dry-run
 ```
+
+`doctor`, `smoke`, and `--dry-run` are inspection-only. They do not launch
+`llama.cpp` or create result artifacts.
 
 The source-checkout form is:
 
@@ -62,10 +74,11 @@ uv tool install --editable .
 Then run:
 
 ```bash
-llmgauge --help
+llmgauge --version
 llmgauge init
+llmgauge doctor
+llmgauge model list
 llmgauge smoke
-llmgauge list-suites
 ```
 
 Editable installs are useful during local development because command changes
@@ -95,10 +108,11 @@ uv tool install git+https://github.com/WumboLabs/llmgauge
 Then run:
 
 ```bash
-llmgauge --help
+llmgauge --version
 llmgauge init
+llmgauge doctor
+llmgauge model list
 llmgauge smoke
-llmgauge list-suites
 ```
 
 Update a GitHub install by reinstalling the tool:
@@ -214,3 +228,5 @@ llmgauge run \
   --model-profile example_model \
   --dry-run
 ```
+
+For a full fresh-clone audit pass, see [Clean clone testing](CLEAN_CLONE_TESTING.md).

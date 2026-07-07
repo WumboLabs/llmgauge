@@ -51,9 +51,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.52
+Current stable tag: v0.53
 
-Current development line: v0.53
+Current development line: v0.54
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
@@ -62,37 +62,28 @@ LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as a
 From the repository root:
 
     uv sync
-    uv run llmgauge --help
+    uv run llmgauge --version
 
-Create user config files:
+Create user config files and inspect the environment:
 
     uv run llmgauge init
+    uv run llmgauge doctor
 
-Edit the generated user config files:
+Add and verify a model profile:
 
-    ~/.config/llmgauge/config.yaml
-    ~/.config/llmgauge/model-profiles.yaml
+    uv run llmgauge model add example_model \
+      --path /path/to/model.gguf \
+      --label "Example Model"
+    uv run llmgauge model list
 
-Run a safe setup smoke check:
+The model path must exist on disk. Replace `/path/to/model.gguf` with a real
+GGUF file, or create a scratch placeholder for inspection-only dry-run testing.
+
+Run a safe readiness check:
 
     uv run llmgauge smoke
 
-Check the environment in more detail:
-
-    uv run llmgauge doctor
-
-List configured model profiles:
-
-    uv run llmgauge list-model-profiles
-
-List built-in suites and friendly aliases:
-
-    uv run llmgauge list-suites
-
-Built-in suite aliases include `practical`, `core`, `agent`, and `context`.
-Canonical suite IDs are still preserved in result artifacts.
-
-Smoke checks do not launch `llama.cpp`. Dry-run one prompt to preview resolved run settings without launching `llama.cpp`:
+Preview one prompt without launching `llama.cpp`:
 
     uv run llmgauge run \
       --suite practical \
@@ -102,6 +93,8 @@ Smoke checks do not launch `llama.cpp`. Dry-run one prompt to preview resolved r
       --max-tokens 800 \
       --temp 0.2 \
       --dry-run
+
+`doctor`, `smoke`, and `--dry-run` are inspection-only. They do not launch `llama.cpp` or create result artifacts. `list-model-profiles` remains a compatibility alias for `model list`.
 
 Run one prompt:
 
@@ -135,8 +128,8 @@ Use this form only after installing the CLI into your environment:
 Current development and documentation examples prefer `uv run llmgauge ...` unless they are explicitly discussing installed CLI behavior.
 
 Configuration discovery checks explicit CLI paths first, then project-local
-`examples/configs/*.local.yaml`, then user config under `~/.config/llmgauge/`.
-`XDG_CONFIG_HOME` is respected.
+`examples/configs/*.local.yaml` relative to the current working directory, then
+user config under `~/.config/llmgauge/`. `XDG_CONFIG_HOME` is respected.
 
 ## Local configuration
 
@@ -245,6 +238,7 @@ LLMGauge is local-first and conservative by design.
 Start here:
 
 - [Quickstart](docs/QUICKSTART.md)
+- [Clean clone testing](docs/CLEAN_CLONE_TESTING.md)
 - [Usage command map](docs/USAGE.md)
 - [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
 - [Evaluation tiers](docs/EVALUATION_TIERS.md)
