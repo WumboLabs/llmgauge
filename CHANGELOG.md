@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.50 - 2026-07-07
+
+- Modularized the CLI into focused command modules while preserving the public command surface.
+- Added `llmgauge model` profile management commands for listing, adding, updating, and removing local model profiles.
+- Preserved the `llmgauge list-model-profiles` compatibility command.
+- Added Pydantic-backed validation for config and model-profile documents.
+- Hardened model-profile mutations: removals require `--yes`, and update paths preserve unknown YAML fields.
+- Expanded repository agent guidance in `AGENTS.md`.
+
 ## v0.49 - 2026-07-05
 
 - Packaged `llmgauge init` and `init-config` templates inside the installable package so GitHub and tool installs no longer depend on repo-relative `examples/configs` files.
