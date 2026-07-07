@@ -5,6 +5,12 @@ from typing import Any
 
 import yaml
 
+from llmgauge.core.schemas import (
+    format_validation_error,
+    validate_llmgauge_config_document,
+    validate_model_profiles_document,
+)
+
 
 def load_yaml_file(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -23,7 +29,14 @@ def load_yaml_file(path: Path) -> dict[str, Any]:
 def load_llmgauge_config(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {}
-    return load_yaml_file(path)
+
+    data = load_yaml_file(path)
+    try:
+        validate_llmgauge_config_document(data)
+    except Exception as exc:
+        raise ValueError(format_validation_error(exc)) from exc
+
+    return data
 
 
 def get_config_value(
@@ -42,11 +55,15 @@ def load_model_profiles(path: Path | None) -> dict[str, Any]:
         return {}
 
     data = load_yaml_file(path)
-    models = data.get("models", {})
-    if not isinstance(models, dict):
-        raise ValueError("Model profiles file field 'models' must be a mapping")
+    try:
+        document = validate_model_profiles_document(data)
+    except Exception as exc:
+        raise ValueError(format_validation_error(exc)) from exc
 
-    return models
+    return {
+        name: entry.model_dump(exclude_none=True)
+        for name, entry in document.models.items()
+    }
 
 
 def resolve_model_profile(

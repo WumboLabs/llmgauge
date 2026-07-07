@@ -3,6 +3,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import llmgauge.cli as cli
+from llmgauge.commands import run_helpers
 
 runner = CliRunner()
 
@@ -38,8 +39,8 @@ def test_fit_ladder_dry_run_does_not_execute(tmp_path: Path, monkeypatch) -> Non
     def fake_execute_run(**kwargs):
         raise AssertionError("fit-ladder dry-run must not execute attempts")
 
-    monkeypatch.setattr(cli, "_resolve_run_options", fake_resolve_run_options)
-    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+    monkeypatch.setattr(run_helpers, "resolve_run_options", fake_resolve_run_options)
+    monkeypatch.setattr(run_helpers, "execute_run", fake_execute_run)
 
     result = runner.invoke(
         cli.app,
@@ -122,8 +123,8 @@ def test_fit_ladder_executes_until_first_completed(
             "summary": {"completed": 1, "failed": 0},
         }
 
-    monkeypatch.setattr(cli, "_resolve_run_options", fake_resolve_run_options)
-    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+    monkeypatch.setattr(run_helpers, "resolve_run_options", fake_resolve_run_options)
+    monkeypatch.setattr(run_helpers, "execute_run", fake_execute_run)
 
     out = tmp_path / "fit-out"
     result = runner.invoke(
@@ -196,8 +197,8 @@ def test_fit_ladder_stops_on_nonretryable_failure(
             "summary": {"completed": 0, "failed": 1},
         }
 
-    monkeypatch.setattr(cli, "_resolve_run_options", fake_resolve_run_options)
-    monkeypatch.setattr(cli, "_execute_run", fake_execute_run)
+    monkeypatch.setattr(run_helpers, "resolve_run_options", fake_resolve_run_options)
+    monkeypatch.setattr(run_helpers, "execute_run", fake_execute_run)
 
     out = tmp_path / "fit-out"
     result = runner.invoke(
