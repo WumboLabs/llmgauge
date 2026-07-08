@@ -298,6 +298,89 @@ git fetch --prune origin
 
 Keep backup branches until the user explicitly confirms they can be removed.
 
+
+## Review bundle workflow
+
+For every feature, docs, process, or release-prep branch, create a Markdown review bundle before final handoff.
+
+Required path pattern:
+
+    tmp/<branch-name>-review-bundle.md
+
+The review bundle is a temporary local artifact. It must remain untracked and must not be written under `docs/`, `results/`, or another tracked path.
+
+The bundle should include:
+
+- current git status
+- recent git log
+- branch commits relative to `main`
+- diff stat relative to `main`
+- changed files relative to `main`
+- version check
+- task-relevant grep or ripgrep search output
+- public/private safety searches
+- full diff relative to `main`
+- working tree diff, if any
+- targeted test output
+- full gate output when run
+- final git status
+
+Always print the absolute review-bundle path at the end of the task.
+
+Standard shell pattern:
+
+    mkdir -p tmp
+    OUT="tmp/$(git branch --show-current)-review-bundle.md"
+
+    {
+      printf '# Review bundle\n\n'
+      date
+
+      printf '\n\n## Current state\n\n'
+      git status --short --branch
+
+      printf '\n\n## Recent log\n\n'
+      git log --oneline --decorate --graph --max-count=32
+
+      printf '\n\n## Branch commits relative to main\n\n'
+      git log --oneline --decorate main..HEAD || true
+
+      printf '\n\n## Diff stat relative to main\n\n'
+      git diff --stat main..HEAD || true
+
+      printf '\n\n## Changed files relative to main\n\n'
+      git diff --name-status main..HEAD || true
+
+      printf '\n\n## Version check\n\n'
+      grep '^version' pyproject.toml || true
+      grep '__version__' src/llmgauge/__init__.py || true
+      uv run llmgauge --version || true
+
+      printf '\n\n## Public/private safety searches\n\n'
+      git grep -n "WumboJetsII" || true
+      git grep -n "cheez" || true
+      git grep -n "/home/cheez" || true
+      git grep -n "Projects/local-llm" || true
+      git grep -n "/mnt/data" || true
+      git grep -n "kdick518" || true
+      git grep -n "icloud.com" || true
+
+      printf '\n\n## Full diff relative to main\n\n'
+      git diff --no-ext-diff main..HEAD || true
+
+      printf '\n\n## Working tree diff if any\n\n'
+      git diff --no-ext-diff || true
+
+      printf '\n\n## Final state\n\n'
+      git status --short --branch
+    } > "$OUT" 2>&1
+
+    printf '\nReview bundle written to:\n%s\n' "$PWD/$OUT"
+    ls -lh "$OUT"
+
+Use this pattern unless the user explicitly asks for a different review artifact.
+
+
 ## CLI compatibility
 
 LLMGauge is a CLI-first tool. Preserve existing command names, aliases, option names, exit codes, and dry-run behavior unless the task explicitly asks to change them.
