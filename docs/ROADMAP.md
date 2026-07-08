@@ -1,8 +1,10 @@
 # LLMGauge Roadmap
 
-LLMGauge is a local-first evaluation bench for practical local LLM testing on real consumer hardware.
+LLMGauge is the evidence engine for practical local model testing on real consumer hardware.
 
 The project direction is intentionally conservative: reproducible workflows, preserved artifacts, explicit methodology, honest claim boundaries, and useful model characterization before broad public claims.
+
+The point is not to chase every model, build a hosted leaderboard, or declare universal winners. The point is to produce defensible, reproducible public evidence about usefulness, honesty, correctness, safety, speed, VRAM/headroom, and workflow fit under disclosed hardware/runtime conditions.
 
 LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” workflow.
 
@@ -150,57 +152,268 @@ Completed scope:
 - documented branch, PR, CI, release metadata, tag, and branch cleanup workflows
 - clarified that tool-specific sidecar files should not be added unless explicitly requested
 
+### v0.54: public repo audit cleanup and clean-clone readiness
+
+v0.54 prepared the public repository for external-style installs and audits.
+
+Completed scope:
+
+- aligned README and public docs with the current release line and first-run workflow
+- hardened ignore rules for local/private artifacts
+- genericized public model-profile templates
+- added `docs/CLEAN_CLONE_TESTING.md`
+- removed tracked local config files and sanitized audit-doc placeholders
+- kept normal runs network-free and model-download-free
+
+### v0.55: clean-clone doc corrections
+
+v0.55 fixed first-run and clean-clone documentation after v0.54 testing.
+
+Completed scope:
+
+- corrected post-init `model add` examples so they do not collide with packaged `example_model`
+- aligned README, INSTALL, QUICKSTART, USAGE, and CLEAN_CLONE_TESTING guidance
+- documented init template profiles and `--force` replacement behavior
+
+### v0.56: comparison and report polish
+
+v0.56 improved comparison-report clarity for public-proof workflows.
+
+Completed scope:
+
+- added **Publish Readiness Notes** to comparison reports
+- expanded interpretation notes and claim-boundary language
+- documented responsible comparison usage in `PUBLIC_REPORTING.md` and `LOCAL_MODEL_TESTING.md`
+- preserved deterministic Markdown output and existing artifact schemas
+
 ### v0.46 and earlier: public documentation, suite audit, scoring, fit ladder, and artifact foundations
 
 Earlier releases established the current artifact model, suite structure, validation, scoring, comparison, fit ladder, runtime metadata, public docs, and practical-evaluation methodology.
 
-## Near-term roadmap
+## Forward roadmap
 
-### v0.54 candidate: public repo audit cleanup and clean-clone readiness
+### v0.57 — Suite and scoring maturity
 
-Potential scope:
+Primary goal:
 
-- align README and public docs with the current release line and first-run workflow
-- harden ignore rules for local/private artifacts
-- genericize public model-profile templates
-- add a clean-clone testing checklist
-- audit public-facing files for private paths, personal contact details, and stale release language
-- keep normal runs network-free and model-download-free
+Make existing practical suites and scoring guidance more credible, consistent, and publishable.
 
-### v0.55 candidate: comparison/report polish
+Likely work:
 
-Potential scope:
+- review Practical Eval v1 scoring guidance
+- tighten rubric wording where ambiguous
+- add better scoring examples for pass/mixed/fail cases
+- clarify when a result is scoreable vs `needs_review`
+- improve docs around failure labels and good labels
+- check whether existing labels are too broad, duplicated, or under-defined
+- add tests only if scoring metadata or generated templates change
 
-- improve comparison reports for mixed scored/unscored runs
-- make speed, VRAM, fit, and quality tradeoffs easier to read
-- add clearer comparison caveats
-- improve public-report bundle guidance
-- preserve artifact provenance
+Good outcome:
 
-### v0.56 candidate: suite and scoring maturity
+A human reviewer has clearer guidance for scoring practical local-model outputs, and public comparison claims are easier to defend.
 
-Potential scope:
+Avoid:
 
-- expand Practical Eval v1 carefully
-- improve rubric text and scoring examples
-- keep suite changes versioned
-- distinguish Tier 1 smoke, Tier 2 practical eval, and Tier 3 research/public-report workflows
-- avoid claiming leaderboard-style authority
+- automatic LLM-as-judge scoring
+- new leaderboard framing
+- changing score meanings casually
+- large suite rewrites
+- adding many new prompts before current rubric quality is stable
 
-## Long-term roadmap
+### v0.58 — Practical suite polish
 
-### Public-proof model reports
+Primary goal:
 
-LLMGauge should eventually produce clean, reproducible public report bundles with:
+Improve actual prompt suite quality, especially `wumbolabs-practical-v1`.
 
-- result summaries
-- prompt outputs
-- manual score provenance
-- runtime metadata
-- VRAM and speed summaries
-- fit/context caveats
-- methodology limitations
-- publishable comparison tables
+Likely work:
+
+- audit prompt wording for ambiguity
+- remove or revise prompts that overfit to one environment
+- ensure prompts test useful, real consumer-hardware behavior
+- improve prompt metadata and expected review dimensions
+- confirm each prompt produces enough evidence for scoring
+- add or refine only a small number of prompts if there is a clear gap
+
+Good outcome:
+
+The practical suite becomes a stronger public-proof suite for usefulness, honesty, technical correctness, safety, and real workflow fit.
+
+Avoid:
+
+- expanding prompt count just to expand it
+- agent-heavy framing unless a prompt is explicitly agent-oriented
+- benchmark trivia
+- model-specific prompts
+
+### v0.59 — Scored comparison evidence polish
+
+Primary goal:
+
+Make scored comparisons easier to turn into public WumboLabs proof.
+
+Likely work:
+
+- improve scored comparison docs
+- clarify how to compare same-suite vs cross-suite runs
+- add better examples of bounded public claims
+- improve report language around small score differences
+- possibly add better summary tables if they are deterministic and schema-safe
+
+Good outcome:
+
+A comparison report can be read by an outside person and they can understand what is supported, what is not supported, and why.
+
+Avoid:
+
+- declaring winners automatically
+- ranking models globally
+- hiding caveats behind averages
+
+### v0.60 — Public-proof workflow hardening
+
+Primary goal:
+
+Tighten the full run → validate → inspect → score → compare → publish workflow.
+
+Likely work:
+
+- review docs end-to-end from clean install to public comparison
+- make sure commands are consistent across README, QUICKSTART, USAGE, LOCAL_MODEL_TESTING, and PUBLIC_REPORTING
+- add a concise public-proof checklist
+- add examples of publishable vs non-publishable claims
+- ensure report artifacts, score files, cleaned outputs, and raw outputs are referenced consistently
+
+Good outcome:
+
+The project has a coherent, repeatable public-proof workflow, not just a set of independent CLI commands.
+
+Avoid:
+
+- new major CLI surface
+- packaging churn
+- external website integration before the proof workflow is tight
+
+### v0.61 — Export/index/report integration polish
+
+Primary goal:
+
+Improve how downstream tools, website scripts, or Monolith can consume results without changing core semantics.
+
+Likely work:
+
+- review export-index fields for public-proof completeness
+- improve docs for machine-readable metadata
+- ensure scoring provenance, artifact paths, run metadata, and comparison caveats are visible
+- possibly add small metadata fields only if clearly needed and backward-safe
+
+Good outcome:
+
+External reporting tools can consume LLMGauge artifacts without guessing about score state, review state, or artifact completeness.
+
+Avoid:
+
+- breaking artifact compatibility
+- major schema migration
+- Monolith-specific coupling
+
+### v0.62 — Real-result publication preparation
+
+Primary goal:
+
+Prepare the first polished public comparison result set.
+
+Likely work:
+
+- pick a narrow model set
+- re-run or verify existing practical-use results
+- confirm comparable settings
+- confirm score files are reviewed
+- generate comparison reports
+- prepare public-readable result summaries
+- identify exact artifacts worth publishing
+
+Good outcome:
+
+WumboLabs has a clean candidate result set for publication, not just private local testing notes.
+
+Candidate comparison set:
+
+- Gemma 4 12B IT QAT UD-Q4_K_XL
+- Mellum2 Instruct Q4_K_M
+- Qwen3.6 35B-A3B UD-IQ2_M
+- Qwen3-14B Q4_K_M
+- possibly Grug-12B Q4_K_M as an additional comparison point
+
+The point is not to chase every model. The point is to publish a defensible, bounded comparison.
+
+### v0.63 — Public WumboLabs proof layer
+
+Primary goal:
+
+Move selected results into a public-facing WumboLabs presentation.
+
+Likely work:
+
+- decide website format for result summaries
+- publish bounded claims only
+- include hardware/runtime disclosure
+- include score caveats
+- link or reference relevant artifacts
+- avoid leaderboard framing
+
+Good outcome:
+
+The WumboLabs site can show real local-model evidence under “Real Hardware. Real Testing. No Hype.”
+
+Avoid:
+
+- making the website a benchmark leaderboard
+- hiding failure cases
+- overstating generality
+
+### v0.64+ — Tooling after public proof is credible
+
+Primary goal:
+
+Only after the public-proof loop is working, consider broader tooling improvements.
+
+Possible later lanes:
+
+- better comparison table formatting
+- optional static report generation
+- more robust artifact browsing
+- richer score summaries
+- fit-ladder/report integration polish
+- context-size comparison reporting
+- importer/exporter polish for Monolith
+- more suite aliases
+- better result grouping by model/profile/suite/hardware
+
+These are useful, but they should follow evidence quality, not precede it.
+
+## Strategic priority order
+
+1. v0.57: scoring/rubric maturity
+2. v0.58: practical suite polish
+3. v0.59: scored comparison evidence polish
+4. v0.60: public-proof workflow hardening
+5. v0.61: export/index/report integration polish
+6. v0.62: prepare first public result set
+7. v0.63: publish WumboLabs proof layer
+8. v0.64+: only then add broader tooling polish
+
+## Working rule
+
+For every proposed v0.57+ task, ask:
+
+Does this make LLMGauge better at producing defensible public evidence about local models on real consumer hardware?
+
+If yes, it belongs on the roadmap.
+
+If it is only private progress, model chasing, UI polish, or architecture expansion, park it.
+
+## Later exploration
 
 ### Web UI / dashboard direction
 
