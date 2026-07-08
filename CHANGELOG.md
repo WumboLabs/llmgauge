@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.58 - 2026-07-07
+
+- Polished the bundled Practical Eval v1 seed suite for clearer public-proof local model evaluation.
+- Generalized prompt wording to reduce private-machine, branded fake-package, model-queue, and local-path overfitting.
+- Improved Practical Eval v1 suite metadata with clearer purposes, expected behaviors, and failure labels.
+- Kept prompt IDs and prompt count unchanged.
+- Mirrored built-in suite changes into the source-checkout `suites/` copy.
+- Added Practical Eval v1 workflow guidance to local model testing docs.
+- Documented seed-suite environment discipline for future prompt changes.
+- Added Practical Eval v1 positioning and design constraints to suite strategy docs.
+
 ## v0.57 - 2026-07-07
 
 - Clarified practical scoring guidance for human reviewers.
