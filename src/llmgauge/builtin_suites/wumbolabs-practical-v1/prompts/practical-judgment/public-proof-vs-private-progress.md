@@ -1,7 +1,7 @@
 A project has these possible next tasks:
 
 A. Add an internal dashboard for browsing imported LLMGauge artifacts.
-B. Run and manually score WumboLabs Practical Eval v1 for Gemma QAT and Mellum2 Instruct.
+B. Run and manually score the bundled Practical Eval v1 suite for two candidate GGUF models in the current local test rotation.
 C. Add a new model queue with ten more models.
 D. Polish the README badges and screenshots.
 E. Write a public-facing report from existing validated, scored artifacts.
@@ -9,7 +9,7 @@ F. Add an export-index field that is needed by the report generator to show scor
 G. Rewrite the scoring system to support automatic LLM-as-judge evaluation.
 
 Strategic goal:
-Turn LLMGauge into credible public proof for WumboLabs under "Real Hardware. Real Testing. No Hype."
+Turn LLMGauge into credible public proof under "Real Hardware. Real Testing. No Hype."
 
 Task:
 Prioritize these tasks.

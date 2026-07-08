@@ -1,7 +1,7 @@
 Return only valid JSON. Do not use Markdown. Do not include commentary before or after the JSON.
 
 Task:
-Create a concise risk register for publishing a WumboLabs model report based only on a Tier 1 smoke suite.
+Create a concise risk register for publishing a local model evaluation report based only on a Tier 1 smoke suite.
 
 This is about local LLM model-report evidence, not generic software release testing.
 

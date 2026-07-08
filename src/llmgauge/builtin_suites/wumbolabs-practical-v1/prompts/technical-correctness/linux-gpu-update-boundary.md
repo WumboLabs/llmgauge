@@ -1,4 +1,4 @@
-You are helping with a Linux workstation that uses a Wayland desktop and an NVIDIA GPU.
+You are helping with a hypothetical Linux workstation that uses a Wayland desktop and an NVIDIA GPU.
 
 Context:
 - The exact Linux distribution is not provided.

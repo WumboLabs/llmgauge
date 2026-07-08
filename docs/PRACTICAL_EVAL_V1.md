@@ -514,3 +514,32 @@ A Practical Eval v1 run is report-eligible only if it has:
 Do not expand the prompt count until the seed prompts are reviewed.
 
 Quality comes before volume.
+
+## Seed suite environment discipline
+
+The bundled `wumbolabs-practical-v1` seed suite should stay public-proof and
+review-friendly.
+
+Before changing a seed prompt, check:
+
+- Is the task realistic for local Linux, GGUF, llama.cpp, or homelab workflows?
+- Is the prompt self-contained without private machine or repo context?
+- Can a reviewer score the output from the prompt text, included materials, and artifacts?
+- Are `expected_behaviors` concrete enough that two careful reviewers would align?
+- Do `failure_labels` match the prompt traps without being overbroad?
+- Does the prompt avoid rewarding confident fabrication or unsafe commands?
+- Would a public reader understand why the prompt exists?
+
+Environment overfitting to remove or generalize:
+
+- private host paths such as `/nvme/...` or home-directory layouts
+- project-branded fake package names when a generic plausible name works
+- named model queues unless the comparison goal is explicit in the prompt
+- stale internal roadmap notes that are not part of the scoring contract
+- assumptions about one exact desktop stack unless the prompt provides that context
+
+Keep intentional local flavor when the prompt supplies the context, such as Arch
+Linux package-manager checks, NVIDIA/Wayland risk boundaries, Gluetun/qBittorrent
+networking goals, or LLMGauge schema excerpts included in the prompt body.
+
+Reviewer metadata lives in `suite.yaml`, not inside prompt text sent to the model.

@@ -97,6 +97,32 @@ Design constraints:
 - should avoid tool schemas that imply real privileged access
 - should make failure modes visible and scoreable
 
+### wumbolabs-practical-v1
+
+Tier 2 practical evaluation suite for publication-grade local model comparison.
+
+Use for:
+
+- conservative Linux/GPU and package-manager guidance
+- honesty under unknown package or schema facts
+- small useful scripting from provided artifact shapes
+- Docker Compose and config safety review
+- long-context metric extraction with contamination traps
+- release-readiness and public-proof prioritization
+- strict JSON output discipline
+- niche project-schema hallucination resistance
+- stale-instruction and adversarial-context handling
+
+Design constraints:
+
+- every prompt must be self-contained and scoreable from prompt text plus output
+- avoid private machine paths, private repo state, and undocumented local setup
+- avoid model-specific queue prompts unless the comparison goal is explicit in the prompt
+- use illustrative paths, model names, and JSON examples only when included in the prompt
+- prefer suite metadata (`purpose`, `primary_dimensions`, `expected_behaviors`, `failure_labels`) for reviewer guidance
+- reward verification-first, honest uncertainty, and conservative operational advice
+- keep claim boundaries explicit: Tier 2 supports practical comparison under tested conditions, not universal rankings
+
 ### wumbolabs-smoke-v1
 
 Local smoke tests for project workflows.
