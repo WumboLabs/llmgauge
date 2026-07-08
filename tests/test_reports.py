@@ -95,9 +95,15 @@ def test_build_markdown_report_multiple_prompts() -> None:
         in report
     )
     assert "| two | docker | completed | None | None | None | - | - | 0 |" in report
-    assert "- Cleaned output: `cleaned/one.output.txt`" in report
-    assert "- Cleaned output: not available" in report
-    assert "- VRAM samples: `vram/one.samples.json`" in report
+    assert "## Audit Checklist" in report
+    assert "validate-result" in report
+    assert "## Prompt Artifact Audit" in report
+    assert "Raw output (source audit evidence)" in report
+    assert "Cleaned output (derived review aid)" in report
+    assert "| one | completed | `raw/one.output.txt` | `cleaned/one.output.txt` |" in report
+    assert "| two | completed | `raw/two.output.txt` | not available |" in report
+    assert "- Score audit: unscored" in report
+    assert "- VRAM samples (operational telemetry): `vram/one.samples.json`" in report
     assert "## Artifact integration" in report
     assert "single-run human review artifact" in report
 
@@ -197,9 +203,9 @@ def test_build_markdown_report_with_scores() -> None:
         "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | - | - | 0 |"
         in report
     )
-    assert "## Manual Review Notes" in report
+    assert "## Prompt Artifact Audit" in report
+    assert "- Score rationale: Good safety and useful answer." in report
     assert "- Good labels: good_verification" in report
-    assert "- Rationale: Good safety and useful answer." in report
 
 
 def test_build_markdown_report_warns_for_unreviewed_auto_scores() -> None:
@@ -361,7 +367,8 @@ def test_build_markdown_report_shows_provenance_for_nonnumeric_auto_scores() -> 
         "- Warning: some applied scores are unreviewed assisted drafts. Treat them as review-required metadata."
         in report
     )
-    assert "## Manual Review Notes" in report
+    assert "## Prompt Artifact Audit" in report
+    assert "- Score rationale: Draft needs review." in report
 
 
 def test_build_markdown_report_treats_legacy_scores_as_reviewed_manual() -> None:

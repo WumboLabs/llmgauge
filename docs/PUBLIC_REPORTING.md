@@ -124,7 +124,8 @@ Single-run `report.md` files include:
 - **Evidence Summary** — cite-friendly run, model, suite, runtime, and scoring snapshot
 - **Publish Readiness Notes** — deterministic publish-readiness signals
 - **Test Configuration** — detailed run, model, and runtime metadata
-- **Artifact Paths** — raw and cleaned output references for audit
+- **Audit Checklist** — validation, inspection, and retention steps before publication
+- **Prompt Artifact Audit** — per-prompt paths, score rationales, and source vs derived artifact roles
 
 Comparison `compare.md` files add:
 

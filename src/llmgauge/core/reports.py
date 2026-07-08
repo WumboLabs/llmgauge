@@ -206,9 +206,204 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
         f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
         f"- Peak VRAM MiB: {_fmt_optional_mib(peak_vram)}",
         f"- Min VRAM headroom MiB: {_fmt_optional_mib(min_headroom)}",
-        "- Inspect raw and cleaned outputs in **Artifact Paths** before publication.",
+        "- Inspect raw and cleaned outputs in **Prompt Artifact Audit** before publication.",
         "",
     ]
+
+    return lines
+
+
+def _artifact_path_line(path: str | None, *, label: str, missing_note: str) -> str:
+    if path:
+        return f"- {label}: `{path}`"
+    return f"- {label}: {missing_note}"
+
+
+def _score_audit_lines(prompt_result: dict[str, Any]) -> list[str]:
+    score = _score_dict(prompt_result)
+    if not score:
+        return ["- Score audit: unscored"]
+
+    lines = [
+        f"- Score average: {_fmt(score.get('prompt_average'))} / 5",
+        f"- Verdict: {score.get('verdict') or 'None'}",
+    ]
+
+    failure_labels = score.get("failure_labels", [])
+    good_labels = score.get("good_labels", [])
+    lines.append(
+        f"- Failure labels: {', '.join(failure_labels) if failure_labels else 'None'}"
+    )
+    lines.append(
+        f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}"
+    )
+
+    score_rationale = score.get("score_rationale", "")
+    if score_rationale:
+        lines.append(f"- Score rationale: {score_rationale}")
+    else:
+        lines.append("- Score rationale: missing (weakens auditability for public claims)")
+
+    reviewer_notes = score.get("reviewer_notes", "")
+    if reviewer_notes:
+        lines.append(f"- Reviewer notes: {reviewer_notes}")
+
+    scoring_mode = score.get("scoring_mode")
+    if isinstance(scoring_mode, str) and scoring_mode:
+        lines.append(f"- Scoring mode: {scoring_mode}")
+
+    if score.get("reviewed") is False:
+        lines.append(
+            "- Review status: unreviewed assisted draft (not final human judgment)"
+        )
+
+    return lines
+
+
+def _build_audit_checklist(result: dict[str, Any]) -> list[str]:
+    evidence = scoring_evidence_summary(result)
+    artifact_gaps = _completed_prompt_artifact_gaps(result)
+
+    lines = [
+        "## Audit Checklist",
+        "",
+        "Use this checklist before citing this run in a public report:",
+        "",
+        "1. Run `validate-result` on this directory to confirm structure and on-disk references.",
+        "2. Inspect raw outputs in `raw/` for each cited prompt (source audit evidence).",
+        "3. Use cleaned outputs in `cleaned/` for readable review when present (derived; does not replace raw).",
+        "4. Check stderr logs in `logs/` when exit status or output quality is uncertain.",
+        "5. Review score rationales in **Prompt Artifact Audit** when making quality claims.",
+        "6. Read **Publish Readiness Notes** for claim boundaries.",
+        "",
+        "Retain for audit:",
+        "- `llmgauge-result.json`, raw outputs, stderr logs, and `scores.yaml` when manually scored.",
+        "- `report.md` for human review; regenerate after scoring changes.",
+        "",
+    ]
+
+    if artifact_gaps:
+        lines.append(
+            f"- Warning: {artifact_gaps} completed prompt(s) are missing raw or cleaned output paths in metadata."
+        )
+        lines.append("")
+
+    if evidence["scoring_status"] == "unscored":
+        lines.append("- This run is unscored; quality claims require manual scoring first.")
+        lines.append("")
+
+    if evidence["unreviewed_score_count"]:
+        lines.append(
+            "- Some applied scores are unreviewed assisted drafts; finish manual review before publication."
+        )
+        lines.append("")
+
+    return lines
+
+
+def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
+    lines = [
+        "## Prompt Artifact Audit",
+        "",
+        "Paths are relative to this result directory.",
+        "",
+        "- Raw prompts and raw outputs are source audit evidence.",
+        "- Cleaned outputs are derived review aids and do not replace raw outputs.",
+        "- Stderr logs are diagnostic evidence.",
+        "- VRAM samples are operational telemetry captured locally.",
+        "- Scores are review metadata; trace public claims to raw/cleaned outputs and rationales below.",
+        "",
+        "| Prompt | Status | Raw output | Cleaned output | Stderr log | VRAM samples |",
+        "|---|---|---|---|---|---|",
+    ]
+
+    for prompt_result in result.get("results", []):
+        prompt_id = prompt_result["prompt_id"]
+        status = prompt_result.get("status", "unknown")
+        raw_output = prompt_result.get("raw_output_path")
+        cleaned_output = prompt_result.get("cleaned_output_path")
+        stderr_log = prompt_result.get("stderr_log_path")
+        vram_samples = prompt_result.get("vram_samples_path")
+
+        if status == "completed" and not raw_output:
+            raw_cell = "missing"
+        elif raw_output:
+            raw_cell = f"`{raw_output}`"
+        else:
+            raw_cell = "n/a"
+
+        if status == "completed" and not cleaned_output:
+            cleaned_cell = "not available"
+        elif cleaned_output:
+            cleaned_cell = f"`{cleaned_output}`"
+        else:
+            cleaned_cell = "n/a"
+
+        if stderr_log:
+            stderr_cell = f"`{stderr_log}`"
+        else:
+            stderr_cell = "missing" if status == "completed" else "n/a"
+
+        if vram_samples:
+            vram_cell = f"`{vram_samples}`"
+        else:
+            vram_cell = "-"
+
+        lines.append(
+            "| "
+            f"{prompt_id} | "
+            f"{status} | "
+            f"{raw_cell} | "
+            f"{cleaned_cell} | "
+            f"{stderr_cell} | "
+            f"{vram_cell} |"
+        )
+
+    lines.append("")
+
+    for prompt_result in result.get("results", []):
+        prompt_id = prompt_result["prompt_id"]
+        status = prompt_result.get("status", "unknown")
+        category = prompt_result.get("category") or "uncategorized"
+
+        lines.extend(
+            [
+                f"### {prompt_id} ({category}, {status})",
+                "",
+                _artifact_path_line(
+                    prompt_result.get("raw_prompt_path"),
+                    label="Raw prompt (source)",
+                    missing_note="missing",
+                ),
+                _artifact_path_line(
+                    prompt_result.get("raw_output_path"),
+                    label="Raw output (source audit evidence)",
+                    missing_note="missing (weakens auditability)",
+                ),
+                _artifact_path_line(
+                    prompt_result.get("cleaned_output_path"),
+                    label="Cleaned output (derived review aid)",
+                    missing_note="not available (use raw output for audit; older artifacts may omit cleaned paths)",
+                ),
+                _artifact_path_line(
+                    prompt_result.get("stderr_log_path"),
+                    label="Stderr log (diagnostic evidence)",
+                    missing_note="missing",
+                ),
+            ]
+        )
+
+        vram_samples = prompt_result.get("vram_samples_path")
+        if vram_samples:
+            lines.append(
+                f"- VRAM samples (operational telemetry): `{vram_samples}`"
+            )
+        else:
+            lines.append("- VRAM samples (operational telemetry): not captured")
+
+        lines.append("")
+        lines.extend(_score_audit_lines(prompt_result))
+        lines.append("")
 
     return lines
 
@@ -448,58 +643,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{prompt_result['exit_status']} |"
         )
 
-    if scored_results:
-        lines.extend(["", "## Manual Review Notes", ""])
-
-        for prompt_result in scored_results:
-            score = prompt_result["score"]
-            failure_labels = score.get("failure_labels", [])
-            good_labels = score.get("good_labels", [])
-            reviewer_notes = score.get("reviewer_notes", "")
-            score_rationale = score.get("score_rationale", "")
-            verdict = score.get("verdict", "")
-
-            lines.extend(
-                [
-                    f"### {prompt_result['prompt_id']}",
-                    "",
-                    f"- Score average: {_fmt(score.get('prompt_average'))} / 5",
-                    f"- Verdict: {verdict}",
-                    f"- Failure labels: {', '.join(failure_labels) if failure_labels else 'None'}",
-                    f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}",
-                    f"- Rationale: {score_rationale}",
-                    f"- Notes: {reviewer_notes}",
-                    "",
-                ]
-            )
-
-    lines.extend(
-        [
-            "## Artifact Paths",
-            "",
-            "Inspect cleaned outputs for readable review and raw outputs for audit evidence.",
-            "",
-        ]
-    )
-
-    for prompt_result in result["results"]:
-        lines.extend(
-            [
-                f"### {prompt_result['prompt_id']}",
-                "",
-                f"- Raw prompt: `{prompt_result['raw_prompt_path']}`",
-                f"- Raw output: `{prompt_result['raw_output_path']}`",
-                f"- Cleaned output: `{prompt_result['cleaned_output_path']}`"
-                if prompt_result.get("cleaned_output_path")
-                else "- Cleaned output: not available",
-                f"- Stderr log: `{prompt_result['stderr_log_path']}`",
-            ]
-        )
-
-        if prompt_result.get("vram_samples_path"):
-            lines.append(f"- VRAM samples: `{prompt_result['vram_samples_path']}`")
-
-        lines.append("")
+    lines.extend(_build_audit_checklist(result))
+    lines.extend(_build_prompt_artifact_audit(result))
 
     lines.extend(
         [
