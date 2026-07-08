@@ -26,9 +26,34 @@ For installed CLI usage:
       results/run-b \
       --out results/compare.md
 
+## Publish Readiness Notes
+
+Comparison reports include **Publish Readiness Notes** near the top of the
+report. Read this section before publishing or importing comparison evidence.
+
+It summarizes deterministic signals such as:
+
+- scored vs unscored runs
+- partially scored or review-metadata-only runs
+- `needs_review` verdict counts
+- unreviewed automatic-rule drafts
+- missing `score_rationale` entries
+- mixed suite IDs or suite versions
+- mixed runtime settings
+- prompt-set overlap
+- artifact gaps
+
+The report also includes a **Publication evidence summary** that lists safer
+bounded claims and explicitly unsupported ranking-style claims.
+
+Do not treat a higher manual score average as a winner declaration. Use verdict
+counts, failure labels, lowest-scored prompts, and publish-readiness warnings
+together.
+
 ## What the report includes
 
-A scored comparison report includes interpretation notes, quality signals, performance signals, and detailed prompt-level tables.
+A scored comparison report includes interpretation notes, publish-readiness
+signals, quality signals, performance signals, and detailed prompt-level tables.
 
 A scored comparison report includes:
 

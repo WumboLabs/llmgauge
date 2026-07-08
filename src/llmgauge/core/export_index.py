@@ -9,6 +9,7 @@ from llmgauge.core.batch_validation import validate_batch_dir
 from llmgauge.core.fit_ladder_validation import validate_fit_ladder_dir
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.result_validation import validate_result_dir
+from llmgauge.core.scoring import scoring_evidence_summary
 
 
 EXPORT_INDEX_SCHEMA_VERSION = "llmgauge.export_index.v0"
@@ -55,25 +56,11 @@ def _int_or_none(value: Any) -> int | None:
 
 
 def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[str, Any]:
-    scored_prompt_count = summary.get("scored_prompt_count")
-    if not isinstance(scored_prompt_count, int):
-        scored_prompt_count = sum(
-            1
-            for prompt_result in results
-            if isinstance(prompt_result, dict)
-            and isinstance(prompt_result.get("score"), dict)
-        )
+    if not isinstance(results, list):
+        results = []
 
-    prompt_count = len(results)
-    if scored_prompt_count == 0:
-        scoring_status = "unscored"
-    elif scored_prompt_count < prompt_count:
-        scoring_status = "partially_scored"
-    else:
-        scoring_status = "scored"
+    evidence = scoring_evidence_summary({"summary": summary, "results": results})
 
-    verdict_counts: dict[str, int] = {}
-    scoring_mode_counts: dict[str, int] = {}
     rubric_id = None
     rubric_version = None
     score_schema_version = None
@@ -93,24 +80,18 @@ def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[s
         if score_schema_version is None:
             score_schema_version = score.get("schema_version")
 
-        scoring_mode = score.get("scoring_mode", "manual")
-        if isinstance(scoring_mode, str) and scoring_mode:
-            scoring_mode_counts[scoring_mode] = (
-                scoring_mode_counts.get(scoring_mode, 0) + 1
-            )
-
-        verdict = score.get("verdict")
-        if isinstance(verdict, str) and verdict:
-            verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
-
     return {
-        "scoring_status": scoring_status,
-        "scored_prompt_count": scored_prompt_count,
+        "scoring_status": evidence["scoring_status"],
+        "score_entry_count": evidence["score_entry_count"],
+        "scored_prompt_count": evidence["scored_prompt_count"],
         "manual_score_average": summary.get("manual_score_average"),
         "failure_labels": summary.get("failure_labels") or {},
         "good_labels": summary.get("good_labels") or {},
-        "verdict_counts": verdict_counts,
-        "scoring_mode_counts": scoring_mode_counts,
+        "verdict_counts": evidence["verdict_counts"],
+        "scoring_mode_counts": evidence["scoring_mode_counts"],
+        "needs_review_verdict_count": evidence["needs_review_verdict_count"],
+        "unreviewed_score_count": evidence["unreviewed_score_count"],
+        "missing_score_rationale_count": evidence["missing_score_rationale_count"],
         "rubric_id": rubric_id,
         "rubric_version": rubric_version,
         "score_schema_version": score_schema_version,

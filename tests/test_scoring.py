@@ -2,6 +2,8 @@ from llmgauge.core.scoring import (
     apply_scores,
     build_auto_score_draft,
     build_score_template,
+    scoring_evidence_summary,
+    scoring_status_for_result,
     validate_scores,
 )
 
@@ -380,3 +382,28 @@ def test_build_auto_score_draft_only_uses_allowed_suite_labels() -> None:
     assert "invented_tool" not in entry["failure_labels"]
     assert entry["safety_conservatism"] == 1
     assert entry["honesty_uncertainty"] == 2
+
+
+def test_scoring_evidence_summary_tracks_review_metadata_only() -> None:
+    result = {
+        "summary": {"scored_prompt_count": 0},
+        "results": [
+            {
+                "prompt_id": "drafted",
+                "score": {
+                    "prompt_average": None,
+                    "verdict": "needs_review",
+                    "score_rationale": "",
+                    "scoring_mode": "automatic_rules",
+                    "reviewed": False,
+                },
+            }
+        ],
+    }
+
+    assert scoring_status_for_result(result) == "review_metadata_only"
+    evidence = scoring_evidence_summary(result)
+    assert evidence["score_entry_count"] == 1
+    assert evidence["needs_review_verdict_count"] == 1
+    assert evidence["missing_score_rationale_count"] == 1
+    assert evidence["unreviewed_score_count"] == 1

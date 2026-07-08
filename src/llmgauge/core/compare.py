@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.scoring import scoring_evidence_summary
+
 
 def load_compare_result(result_dir: Path) -> dict[str, Any]:
     result_path = result_dir / "llmgauge-result.json"
@@ -209,63 +211,6 @@ def _fmt_counts(counts: dict[str, int]) -> str:
     return ", ".join(f"{key}: {value}" for key, value in sorted(counts.items()))
 
 
-def _scored_results(result: dict[str, Any]) -> list[dict[str, Any]]:
-    return [item for item in result.get("results", []) if isinstance(item.get("score"), dict)]
-
-
-def _scoring_status(result: dict[str, Any]) -> str:
-    summary = result.get("summary", {})
-    scored_results = _scored_results(result)
-    scored_prompt_count = summary.get("scored_prompt_count")
-
-    if not isinstance(scored_prompt_count, int):
-        scored_prompt_count = sum(
-            1
-            for prompt_result in scored_results
-            if isinstance(_score_average(prompt_result), int | float)
-        )
-
-    prompt_count = len(result.get("results", []))
-
-    if scored_prompt_count == 0:
-        if scored_results:
-            return "review_metadata_only"
-        return "unscored"
-    if scored_prompt_count < prompt_count:
-        return "partially_scored"
-    return "scored"
-
-
-def _scoring_provenance(scored_results: list[dict[str, Any]]) -> dict[str, Any]:
-    mode_counts: dict[str, int] = {}
-    reviewed_count = 0
-    unreviewed_count = 0
-    automatic_unreviewed_count = 0
-
-    for prompt_result in scored_results:
-        score = _score_dict(prompt_result)
-
-        scoring_mode = score.get("scoring_mode")
-        if not isinstance(scoring_mode, str) or not scoring_mode:
-            scoring_mode = "manual"
-        mode_counts[scoring_mode] = mode_counts.get(scoring_mode, 0) + 1
-
-        reviewed = score.get("reviewed", True)
-        if reviewed is False:
-            unreviewed_count += 1
-            if scoring_mode == "automatic_rules":
-                automatic_unreviewed_count += 1
-        else:
-            reviewed_count += 1
-
-    return {
-        "mode_counts": mode_counts,
-        "reviewed_count": reviewed_count,
-        "unreviewed_count": unreviewed_count,
-        "automatic_unreviewed_count": automatic_unreviewed_count,
-    }
-
-
 def _unique_nonempty_values(results: list[dict[str, Any]], getter) -> list[str]:
     values = sorted({value for value in (getter(result) for result in results) if value is not None})
     return values
@@ -296,39 +241,38 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     runs_not_completed = 0
     total_unreviewed_scores = 0
     total_automatic_unreviewed_scores = 0
+    total_needs_review_verdicts = 0
+    total_missing_score_rationales = 0
     total_artifact_gaps = 0
 
     for result in results:
-        status = _scoring_status(result)
+        evidence = scoring_evidence_summary(result)
+        status = evidence["scoring_status"]
         scoring_status_counts[status] = scoring_status_counts.get(status, 0) + 1
 
-        summary = result.get("summary", {})
-        scored_prompt_count = summary.get("scored_prompt_count")
-        if not isinstance(scored_prompt_count, int):
-            scored_prompt_count = sum(
-                1
-                for prompt_result in _scored_results(result)
-                if isinstance(_score_average(prompt_result), int | float)
-            )
-
-        if scored_prompt_count > 0:
+        if evidence["scored_prompt_count"] > 0:
             runs_with_scored_prompts += 1
         else:
             runs_without_scored_prompts += 1
 
+        summary = result.get("summary", {})
         if summary.get("failed", 0):
             runs_with_failed_prompts += 1
 
         if result.get("run", {}).get("status") != "completed":
             runs_not_completed += 1
 
-        provenance = _scoring_provenance(_scored_results(result))
-        total_unreviewed_scores += provenance["unreviewed_count"]
-        total_automatic_unreviewed_scores += provenance["automatic_unreviewed_count"]
+        total_unreviewed_scores += evidence["unreviewed_score_count"]
+        total_automatic_unreviewed_scores += evidence["automatic_unreviewed_count"]
+        total_needs_review_verdicts += evidence["needs_review_verdict_count"]
+        total_missing_score_rationales += evidence["missing_score_rationale_count"]
         total_artifact_gaps += _completed_prompt_artifact_gaps(result)
 
     suite_ids = _unique_nonempty_values(
         results, lambda result: result.get("suite", {}).get("suite_id")
+    )
+    suite_versions = _unique_nonempty_values(
+        results, lambda result: result.get("suite", {}).get("suite_version")
     )
     model_ids = _unique_nonempty_values(
         results, lambda result: result.get("model", {}).get("model_id")
@@ -352,6 +296,7 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     prompt_sets_differ = len({frozenset(prompt_set) for prompt_set in prompt_sets}) > 1
 
     mixed_suite = len(suite_ids) > 1
+    mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(
         len(values) > 1 for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
@@ -378,10 +323,16 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         f"{total_unreviewed_scores}",
         "- Unreviewed automatic-rule scores: "
         f"{total_automatic_unreviewed_scores}",
+        "- Needs-review verdicts across scored prompts: "
+        f"{total_needs_review_verdicts}",
+        "- Scored prompts missing score rationale: "
+        f"{total_missing_score_rationales}",
         "- Completed prompts missing raw or cleaned output paths: "
         f"{total_artifact_gaps}",
         "- Suite IDs in comparison: "
         f"{', '.join(suite_ids) if suite_ids else 'None'}",
+        "- Suite versions in comparison: "
+        f"{', '.join(str(value) for value in suite_versions) if suite_versions else 'None'}",
         "- Model IDs in comparison: "
         f"{', '.join(model_ids) if model_ids else 'None'}",
         "- Shared prompt IDs across all runs: "
@@ -390,6 +341,8 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         f"{'yes' if prompt_sets_differ else 'no'}",
         "- Mixed suite IDs: "
         f"{'yes' if mixed_suite else 'no'}",
+        "- Mixed suite versions: "
+        f"{'yes' if mixed_suite_versions else 'no'}",
         "- Mixed model IDs: "
         f"{'yes' if mixed_model else 'no'}",
         "- Mixed runtime settings: "
@@ -399,7 +352,8 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         "",
         "- Manual scores are review metadata under the configured rubric, not objective truth.",
         "- Automatic-rule scores are assisted drafts unless reviewed; do not publish them as final human judgment.",
-        "- Missing or partial scores mean this comparison cannot support quality-ranking claims.",
+        "- Missing, partial, or review-metadata-only scores weaken quality-comparison claims.",
+        "- `needs_review` verdicts mean the prompt is not ready for ranking-style publication claims.",
         "- Speed and VRAM numbers are hardware/runtime-specific operational signals, not answer-quality scores.",
         "- Compare like-for-like runs when making quality claims: same suite, prompt subset, context, token budget, temperature, and scoring status when possible.",
         "- Mixed suites, models, prompt subsets, or runtime settings require careful interpretation and narrower public claims.",
@@ -421,9 +375,21 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         limited_claims.append(
             "Some applied scores are unreviewed assisted drafts and need manual review before public use."
         )
+    if total_needs_review_verdicts:
+        limited_claims.append(
+            "Some scored prompts still have `needs_review` verdicts and should be resolved before publication."
+        )
+    if total_missing_score_rationales:
+        limited_claims.append(
+            "Some scored prompts are missing `score_rationale`, which weakens auditability for public claims."
+        )
     if mixed_suite:
         limited_claims.append(
             "Suite IDs differ across runs, so prompt overlap and score meaning may not be directly comparable."
+        )
+    if mixed_suite_versions:
+        limited_claims.append(
+            "Suite versions differ across runs, so prompt or rubric changes may affect score meaning."
         )
     if mixed_runtime:
         limited_claims.append(
@@ -456,6 +422,55 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
                 "",
             ]
         )
+
+    safe_claims: list[str] = []
+    risky_claims = [
+        "Universal best-model, winner, or definitive-ranking claims",
+        "Daily-driver or production-ready recommendations from this comparison alone",
+        "Quality-ranking claims when any run is unscored, partially scored, or review-metadata-only",
+        "Publishing unreviewed automatic-rule drafts as final human judgment",
+    ]
+
+    if (
+        runs_with_scored_prompts == compared_runs
+        and not total_unreviewed_scores
+        and not total_needs_review_verdicts
+        and not mixed_suite
+        and not mixed_runtime
+        and not prompt_sets_differ
+    ):
+        safe_claims.append(
+            "Bounded same-suite comparison claims under the disclosed hardware, runtime, suite, and scoring metadata"
+        )
+        safe_claims.append(
+            "Recurring failure-label or prompt-level evidence when backed by reviewed scores and artifacts"
+        )
+    else:
+        safe_claims.append(
+            "Operational signals such as speed, VRAM, and artifact availability under disclosed settings"
+        )
+        safe_claims.append(
+            "Narrow workflow-specific observations when tied to specific prompts and reviewed scores"
+        )
+
+    lines.extend(
+        [
+            "### Publication evidence summary",
+            "",
+            "Safer public claims for this comparison:",
+            "",
+        ]
+    )
+    lines.extend(f"- {claim}" for claim in safe_claims)
+    lines.extend(
+        [
+            "",
+            "Claims that are not supported from this comparison alone:",
+            "",
+        ]
+    )
+    lines.extend(f"- {claim}" for claim in risky_claims)
+    lines.append("")
 
     return lines
 

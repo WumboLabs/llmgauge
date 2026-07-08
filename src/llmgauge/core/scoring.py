@@ -65,6 +65,102 @@ ALLOWED_VERDICTS = [
 ]
 
 
+def _prompt_score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
+    score = prompt_result.get("score")
+    return score if isinstance(score, dict) else {}
+
+
+def scored_prompt_results(result: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in result.get("results", [])
+        if isinstance(item, dict) and isinstance(item.get("score"), dict)
+    ]
+
+
+def _numeric_prompt_average(prompt_result: dict[str, Any]) -> int | float | None:
+    average = _prompt_score_dict(prompt_result).get("prompt_average")
+    return average if isinstance(average, int | float) else None
+
+
+def effective_scored_prompt_count(result: dict[str, Any]) -> int:
+    summary = result.get("summary", {})
+    scored_prompt_count = summary.get("scored_prompt_count")
+    if isinstance(scored_prompt_count, int):
+        return scored_prompt_count
+
+    return sum(
+        1
+        for prompt_result in scored_prompt_results(result)
+        if _numeric_prompt_average(prompt_result) is not None
+    )
+
+
+def scoring_status_for_result(result: dict[str, Any]) -> str:
+    scored_results = scored_prompt_results(result)
+    scored_prompt_count = effective_scored_prompt_count(result)
+    prompt_count = len(result.get("results", []))
+
+    if scored_prompt_count == 0:
+        if scored_results:
+            return "review_metadata_only"
+        return "unscored"
+    if scored_prompt_count < prompt_count:
+        return "partially_scored"
+    return "scored"
+
+
+def scoring_evidence_summary(result: dict[str, Any]) -> dict[str, Any]:
+    scored_results = scored_prompt_results(result)
+    mode_counts: dict[str, int] = {}
+    verdict_counts: dict[str, int] = {}
+    reviewed_count = 0
+    unreviewed_count = 0
+    automatic_unreviewed_count = 0
+    needs_review_verdict_count = 0
+    missing_score_rationale_count = 0
+
+    for prompt_result in scored_results:
+        score = _prompt_score_dict(prompt_result)
+
+        scoring_mode = score.get("scoring_mode")
+        if not isinstance(scoring_mode, str) or not scoring_mode:
+            scoring_mode = "manual"
+        mode_counts[scoring_mode] = mode_counts.get(scoring_mode, 0) + 1
+
+        reviewed = score.get("reviewed", True)
+        if reviewed is False:
+            unreviewed_count += 1
+            if scoring_mode == "automatic_rules":
+                automatic_unreviewed_count += 1
+        else:
+            reviewed_count += 1
+
+        verdict = score.get("verdict")
+        if isinstance(verdict, str) and verdict:
+            verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+            if verdict == "needs_review":
+                needs_review_verdict_count += 1
+
+        score_rationale = score.get("score_rationale", "")
+        if not isinstance(score_rationale, str) or not score_rationale.strip():
+            missing_score_rationale_count += 1
+
+    return {
+        "scoring_status": scoring_status_for_result(result),
+        "score_entry_count": len(scored_results),
+        "scored_prompt_count": effective_scored_prompt_count(result),
+        "prompt_count": len(result.get("results", [])),
+        "needs_review_verdict_count": needs_review_verdict_count,
+        "missing_score_rationale_count": missing_score_rationale_count,
+        "unreviewed_score_count": unreviewed_count,
+        "automatic_unreviewed_count": automatic_unreviewed_count,
+        "reviewed_score_count": reviewed_count,
+        "verdict_counts": verdict_counts,
+        "scoring_mode_counts": mode_counts,
+    }
+
+
 def describe_score_artifact_mismatch(result_dir: Path) -> str | None:
     """Return a friendly score-target error for non-run artifact directories."""
 

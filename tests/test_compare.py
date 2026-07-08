@@ -163,3 +163,32 @@ def test_build_compare_report_publish_readiness_warns_for_unreviewed_scores() ->
     assert "- Unreviewed applied scores: 1" in report
     assert "- Unreviewed automatic-rule scores: 1" in report
     assert "unreviewed assisted drafts" in report
+
+
+def test_build_compare_report_publish_readiness_warns_for_needs_review_verdicts() -> None:
+    needs_review = _result("run-a", "model-a", 3.0, 50.0)
+    needs_review["results"][0]["score"]["verdict"] = "needs_review"
+    needs_review["results"][0]["score"]["score_rationale"] = ""
+
+    reviewed = _result("run-b", "model-b", 4.0, 55.0)
+    reviewed["results"][0]["score"]["score_rationale"] = "Reviewed pass with rationale."
+
+    report = build_compare_report([needs_review, reviewed])
+
+    assert "- Needs-review verdicts across scored prompts: 1" in report
+    assert "- Scored prompts missing score rationale: 1" in report
+    assert "`needs_review` verdicts" in report
+    assert "### Publication evidence summary" in report
+    assert "Claims that are not supported from this comparison alone:" in report
+
+
+def test_build_compare_report_publish_readiness_warns_for_mixed_suite_versions() -> None:
+    older_suite = _result("run-a", "model-a", 4.0, 50.0)
+    older_suite["suite"]["suite_version"] = "0.1.0"
+    newer_suite = _result("run-b", "model-b", 4.0, 55.0)
+    newer_suite["suite"]["suite_version"] = "0.2.0"
+
+    report = build_compare_report([older_suite, newer_suite])
+
+    assert "- Mixed suite versions: yes" in report
+    assert "Suite versions differ across runs" in report
