@@ -77,6 +77,40 @@ Audit artifact directories:
     raw/
     logs/
 
+Optional derived review directory:
+
+    cleaned/
+
+Optional operational telemetry:
+
+    vram/
+
+## Auditing a result directory
+
+When reviewing or publishing from a result directory, inspect in this order:
+
+1. `llmgauge-result.json` — machine-readable source of truth for run metadata and applied scores.
+2. `report.md` — human review artifact with **Audit Checklist** and **Prompt Artifact Audit**.
+3. `validate-result` — confirms structure and on-disk references, not answer quality.
+4. `raw/` — source audit evidence for prompts and model outputs.
+5. `cleaned/` — derived review aids when present; do not treat as a raw replacement.
+6. `logs/` — stderr diagnostic evidence.
+7. `scores.yaml` — manual score intent before application (when present).
+8. `export-index` — optional machine-readable discovery metadata for importers.
+
+Authoritative vs derived:
+
+| Path | Role |
+|---|---|
+| `raw/*` | Source audit evidence |
+| `logs/*` | Diagnostic evidence |
+| `cleaned/*` | Derived review aid |
+| `vram/*` | Operational telemetry captured locally |
+| `llmgauge-result.json` | Applied score and run metadata source |
+| `report.md` | Regenerable human review summary |
+
+Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
+
 ## Schema: llmgauge.result.v0
 
 Primary file:

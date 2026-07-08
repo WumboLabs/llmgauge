@@ -336,7 +336,7 @@ See `docs/PUBLIC_REPORTING.md` for the full checklist. Short form:
     -> edit scores.yaml -> score --check -> score --scores
     -> validate-result -> report.md -> compare -> export-index
 
-Read **Report Scope**, **Evidence Summary**, and **Publish Readiness Notes** in `report.md` before publication. Use `compare.md` **Comparison Scope** and publish-readiness sections for multi-run caveats. Export index is importer metadata only. See `docs/ARTIFACT_SCHEMAS.md` for artifact roles.
+Read **Report Scope**, **Evidence Summary**, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes** in `report.md` before publication. Use `compare.md` **Comparison Scope** for multi-run caveats. See `docs/ARTIFACT_SCHEMAS.md` for auditing a result directory.
 
 ## Claim boundary
 

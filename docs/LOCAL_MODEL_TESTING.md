@@ -184,7 +184,7 @@ Inspect per-context report tables:
       printf '\n\n===== %s =====\n' "$(basename "$dir")"
       awk '
         /^## Prompt Results/ {show=1}
-        /^## Artifact Paths/ {show=0}
+        /^## Audit Checklist/ {show=0}
         show {print}
       ' "$dir/report.md"
     done
@@ -342,6 +342,18 @@ Artifact roles:
 - Export index JSON — machine-readable metadata for importers; regenerate after scoring or validation changes.
 
 See `docs/PUBLIC_REPORTING.md` and `docs/ARTIFACT_SCHEMAS.md` for the full checklist and schema detail.
+
+## Auditing a result directory
+
+Before scoring or publishing, inspect the result directory directly:
+
+- `llmgauge-result.json` for run metadata and applied scores
+- `report.md` for **Audit Checklist** and **Prompt Artifact Audit**
+- `raw/` for source audit evidence
+- `cleaned/` for derived review aids when present
+- `logs/` for stderr diagnostics
+
+Run `validate-result` to confirm structure and references. Validation does not prove answer quality. See `docs/ARTIFACT_SCHEMAS.md` for authoritative vs derived artifact roles.
 
 ## Manual scoring notes
 
