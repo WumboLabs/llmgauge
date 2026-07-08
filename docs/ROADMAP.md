@@ -10,9 +10,9 @@ LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” wo
 
 ## Current release line
 
-- Current stable tag: `v0.59`
-- Current development line: `v0.60`
-- Current development focus: public-proof workflow hardening
+- Current stable tag: `v0.60`
+- Current development line: `v0.61`
+- Current development focus: export/index/report integration polish
 
 ## Product identity
 
