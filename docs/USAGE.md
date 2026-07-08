@@ -26,30 +26,42 @@ Show top-level help:
 
     uv run llmgauge --help
 
-Create user config files:
+Guided first-run setup (preferred):
+
+    uv run llmgauge setup
+
+Read-only scan for likely `llama-cli` and GGUF paths:
+
+    uv run llmgauge setup --scan
+
+Non-interactive setup with explicit paths:
+
+    uv run llmgauge setup --non-interactive \
+      --llama-cli /path/to/llama-cli \
+      --model-path /path/to/model.gguf \
+      --profile-name my_model
+
+`setup` writes user config files under `~/.config/llmgauge/` when needed and does
+not launch a model. `XDG_CONFIG_HOME` is respected.
+
+Manual fallback — create user config files from templates:
 
     uv run llmgauge init
 
-This writes user config files under `~/.config/llmgauge/`:
-
-    ~/.config/llmgauge/config.yaml
-    ~/.config/llmgauge/model-profiles.yaml
-
-`XDG_CONFIG_HOME` is respected. Use `uv run llmgauge init-config` only when you
-specifically want project-local ignored files under `examples/configs/`.
+Use `uv run llmgauge init-config` only when you specifically want project-local
+ignored files under `examples/configs/`.
 
 Recommended first-run order:
 
-    uv run llmgauge init
+    uv run llmgauge setup
     uv run llmgauge doctor
-    uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
-    uv run llmgauge model list
     uv run llmgauge smoke
     uv run llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile my_model --dry-run
 
-`init` creates example template profiles such as `example_model` in
-`model-profiles.yaml`. Use a new profile name with `model add`, edit the template
-paths in YAML, or replace an existing profile intentionally with `--force`.
+Manual alternative after `init`:
+
+    uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
+    uv run llmgauge model list
 
 Installed CLI users can drop `uv run` after installing the command.
 

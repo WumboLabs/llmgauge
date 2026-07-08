@@ -9,8 +9,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.64`
-- Current development line: paused after `v0.64`
-- Current development focus: paused for clean-clone testing, real model validation, website update, and first public post preparation
+- Current development line: `v0.65` guided setup / first-run onboarding
+- Current development focus: reduce first-run setup friction before clean-clone testing and real model validation
 
 ## What LLMGauge is
 
@@ -70,6 +70,30 @@ Condensed highlights from recent release lines:
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
 ## Active development line
+
+### v0.65 — Guided setup / first-run onboarding
+
+**Goal:** Reduce first-run friction without downloading models, building
+llama.cpp, or launching models automatically.
+
+**Scope:**
+
+- `llmgauge setup` command with `--scan` and `--non-interactive` modes
+- conservative `llama-cli` and GGUF path discovery
+- config and model profile write helpers that preserve existing fields
+- docs and tests for guided setup and manual fallback
+
+**Exit criteria:**
+
+- `llmgauge setup --scan` is read-only and exits 0
+- `llmgauge setup --non-interactive` can create valid config/profile with
+  placeholder executable and GGUF for dry-run validation
+- `doctor`, `smoke`, and `run --dry-run` pass after setup-created config
+- manual `init` workflow still works
+- full local gate passes
+
+**Avoid:** model downloads, network behavior, schema-breaking changes, release
+metadata on the feature branch, real model launches during setup.
 
 ### v0.64 — Repo review, clean-clone readiness, and pre-public-proof hardening
 

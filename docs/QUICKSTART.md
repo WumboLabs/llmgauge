@@ -41,16 +41,18 @@ If you installed `llmgauge` into your environment, the same workflow applies wit
 the installed command form:
 
     llmgauge --version
-    llmgauge init
+    llmgauge setup
     llmgauge doctor
-    llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
-    llmgauge model list
     llmgauge smoke
     llmgauge run --suite practical --only honesty-uncertainty/fake-package-currentness --model-profile my_model --dry-run
 
-`init` creates example template profiles such as `example_model` in
-`model-profiles.yaml`. Use a new profile name with `model add`, edit the template
-paths in YAML, or replace an existing profile intentionally with `--force`.
+`setup` is the preferred first-run path. It scans for likely `llama-cli` and GGUF
+paths and writes user config files without launching a model.
+
+Manual fallback: `init` creates example template profiles such as `example_model`
+in `model-profiles.yaml`. Use a new profile name with `model add`, edit the
+template paths in YAML, or replace an existing profile intentionally with
+`--force`.
 
 The model path must exist on disk. Use a real GGUF file or a scratch placeholder
 for inspection-only dry-run testing.
@@ -59,30 +61,48 @@ Installed users normally rely on `~/.config/llmgauge/`. Project-local
 `examples/configs/*.local.yaml` files are discovered only when they exist
 relative to your current working directory.
 
-## 2. Create user config files
+## 2. Guided setup (preferred)
 
-Create user config files from the example templates:
+Run guided setup to configure `llama-cli` and a model profile:
 
-    uv run llmgauge init
+    uv run llmgauge setup
 
-This creates, or skips if already present:
+`setup` scans for likely `llama-cli` candidates and model directories, lets you
+select or enter paths, writes user config files, and does not launch a model.
+
+Read-only preview:
+
+    uv run llmgauge setup --scan
+
+Non-interactive scripted setup (useful for clean-clone validation):
+
+    uv run llmgauge setup --non-interactive \
+      --llama-cli /path/to/llama-cli \
+      --model-path /path/to/model.gguf \
+      --profile-name my_model
+
+This creates, or updates with confirmation/`--force`, files under:
 
     ~/.config/llmgauge/config.yaml
     ~/.config/llmgauge/model-profiles.yaml
 
-The generated `model-profiles.yaml` includes example template profiles such as
-`example_model`, `example_large_model`, and `example_context_model`.
-
 `XDG_CONFIG_HOME` is respected. For example, with `XDG_CONFIG_HOME=/tmp/config`,
 LLMGauge uses `/tmp/config/llmgauge/`.
+
+## 3. Manual config fallback
+
+If you prefer manual editing, create user config files from templates:
+
+    uv run llmgauge init
+
+The generated `model-profiles.yaml` includes example template profiles such as
+`example_model`, `example_large_model`, and `example_context_model`.
 
 Compatibility note: `uv run llmgauge init-config` still creates project-local
 ignored files under `examples/configs/` for contributor workflows:
 
     examples/configs/llmgauge.local.yaml
     examples/configs/model-profiles.local.yaml
-
-## 3. Edit user config
 
 Edit `~/.config/llmgauge/config.yaml` and set your `llama-cli` path:
 

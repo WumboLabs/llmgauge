@@ -27,6 +27,7 @@ def _write_templates(root: Path) -> None:
 
 def test_smoke_without_config_passes_with_warnings(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty-xdg"))
 
     result = runner.invoke(app, ["smoke"])
     plain_output = _strip_ansi(result.output)
@@ -172,6 +173,7 @@ def test_smoke_with_model_profile_but_no_profiles_fails_clearly(
     monkeypatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty-xdg"))
 
     result = runner.invoke(app, ["smoke", "--model-profile", "example_model"])
     plain_output = _strip_ansi(result.output)

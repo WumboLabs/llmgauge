@@ -14,6 +14,7 @@ def _strip_ansi(text: str) -> str:
 
 def test_doctor_without_config_passes(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty-xdg"))
 
     result = runner.invoke(app, ["doctor"])
     plain_output = _strip_ansi(result.output)
@@ -53,6 +54,7 @@ def test_doctor_with_model_profile_but_no_profiles_fails_clearly(
     monkeypatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty-xdg"))
 
     result = runner.invoke(app, ["doctor", "--model-profile", "example_model"])
     plain_output = _strip_ansi(result.output)

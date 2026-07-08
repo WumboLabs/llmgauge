@@ -53,10 +53,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 Current stable tag: v0.64
 
-Current development line: paused after v0.64
+Current development line: v0.65 guided setup / first-run onboarding
 
-Feature work is paused after v0.64 for clean-clone testing, real model validation,
-and WumboLabs publication prep. See [Roadmap](docs/ROADMAP.md).
+See [Roadmap](docs/ROADMAP.md).
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
@@ -67,17 +66,26 @@ From the repository root:
     uv sync
     uv run llmgauge --version
 
-Create user config files and inspect the environment:
+Run guided setup (preferred first-run path):
 
-    uv run llmgauge init
+    uv run llmgauge setup
+
+`setup` scans for likely `llama-cli` and GGUF paths, writes `config.yaml` and
+`model-profiles.yaml`, and does not launch a model. Use `llmgauge setup --scan`
+for a read-only preview, or `llmgauge setup --non-interactive` with explicit
+flags for scripted clean-clone validation.
+
+Inspect the environment:
+
     uv run llmgauge doctor
 
-`init` creates example template profiles such as `example_model` in
+Manual fallback: `llmgauge init` still creates user config files from templates.
+`init` includes example template profiles such as `example_model` in
 `model-profiles.yaml`. Add a new profile name with `model add`, edit the
 template paths in YAML, or replace an existing profile intentionally with
 `--force`.
 
-Add and verify your own model profile:
+Add and verify your own model profile (manual path):
 
     uv run llmgauge model add my_model \
       --path /path/to/model.gguf \

@@ -29,12 +29,23 @@ cd llmgauge
 uv run llmgauge --help
 ```
 
-First-run setup:
+First-run setup (guided path):
 
 ```bash
 uv run llmgauge --version
-uv run llmgauge init
+uv run llmgauge setup
 uv run llmgauge doctor
+uv run llmgauge smoke
+```
+
+`setup` scans for likely `llama-cli` and GGUF paths, writes user config files,
+and does not launch a model. Use `llmgauge setup --scan` for a read-only
+preview.
+
+Manual fallback:
+
+```bash
+uv run llmgauge init
 uv run llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
 uv run llmgauge model list
 ```
@@ -79,7 +90,7 @@ Then run:
 
 ```bash
 llmgauge --version
-llmgauge init
+llmgauge setup
 llmgauge doctor
 llmgauge model list
 llmgauge smoke
@@ -113,7 +124,7 @@ Then run:
 
 ```bash
 llmgauge --version
-llmgauge init
+llmgauge setup
 llmgauge doctor
 llmgauge model list
 llmgauge smoke
@@ -150,10 +161,8 @@ After installing the CLI, a typical first run looks like this:
 
 ```bash
 llmgauge --version
-llmgauge init
+llmgauge setup
 llmgauge doctor
-llmgauge model add my_model --path /path/to/model.gguf --label "My Model"
-llmgauge model list
 llmgauge smoke
 llmgauge smoke --model-profile my_model
 llmgauge run \
@@ -162,6 +171,8 @@ llmgauge run \
   --model-profile my_model \
   --dry-run
 ```
+
+Manual fallback: `llmgauge init` and `llmgauge model add` still work.
 
 `doctor` and `smoke` are inspection-only. They do not launch `llama.cpp` and do
 not create result artifacts.
@@ -184,6 +195,12 @@ installed CLI user running from `$HOME` or another directory will normally see
 only user-level config unless explicit CLI paths are passed.
 
 For normal installed use, prefer:
+
+```bash
+llmgauge setup
+```
+
+Manual fallback:
 
 ```bash
 llmgauge init
