@@ -42,6 +42,11 @@
 - Scoring output quality.
 - Validating model factual correctness.
 - Validating compatibility with any specific downstream importer.
+- Proving publication readiness or bounded public-claim eligibility.
+
+Passing `validate-result` means artifact integrity and on-disk references look
+consistent. Review `report.md` **Audit Checklist** and **Prompt Artifact Audit**
+sections, then inspect raw and cleaned outputs before citing claims publicly.
 
 
 ## Score validation details

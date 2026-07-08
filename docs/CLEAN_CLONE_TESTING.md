@@ -6,8 +6,12 @@ accidental local artifacts.
 
 ## Purpose
 
-Use this workflow before tagging a release or after public-facing repo changes.
-It is a manual audit pass, not an automated CI gate.
+Use this workflow after v0.64 release-prep, before tagging a release, or after
+public-facing repo changes. It is a manual audit pass, not an automated CI gate.
+
+A clean clone validates installation and test execution. It does not prove model
+quality. Real model testing happens after v0.64 using user-provided `llama.cpp`
+and GGUF files.
 
 ## What this test verifies
 
@@ -17,6 +21,7 @@ It is a manual audit pass, not an automated CI gate.
 - `model add` and `model list` work against isolated user config
 - `--dry-run` resolves a run plan without launching `llama.cpp`
 - public docs, templates, and ignore rules look safe for external readers
+- `uv run pytest` passes in the clone (developer/contributor gate)
 
 ## What this test does not verify
 
@@ -220,6 +225,21 @@ YAML, run `model update example_model --path ...`, or replace it with
 If dry-run exits nonzero, record the exact message and compare it against the
 public docs rather than treating the failure as hidden.
 
+## Developer gate in a fresh clone
+
+From the clone root:
+
+```bash
+uv run pytest
+uv run ruff check .
+```
+
+Expected behavior:
+
+- all tests pass without real model runs
+- ruff reports no issues
+- this gate checks code and documented CLI behavior, not answer quality
+
 ## Expected files created
 
 - `$XDG_CONFIG_HOME/llmgauge/config.yaml`
@@ -285,7 +305,9 @@ outside the isolated `XDG_CONFIG_HOME` path.
 - [ ] `init` creates only the expected user config files
 - [ ] `model add` and `model list` work against isolated config
 - [ ] `--dry-run` does not launch `llama.cpp` or create result artifacts
+- [ ] `uv run pytest` and `uv run ruff check .` pass in the clone
 - [ ] README, INSTALL, QUICKSTART, and USAGE agree on first-run order
+- [ ] docs reference current `report.md` sections (**Audit Checklist**, **Prompt Artifact Audit**)
 - [ ] public templates use neutral example profile names
 - [ ] audit searches show no private machine paths or personal email addresses
 - [ ] normal LLMGauge commands performed no hidden network activity beyond clone/install steps you ran manually

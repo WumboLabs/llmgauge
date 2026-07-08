@@ -55,6 +55,9 @@ Current stable tag: v0.63
 
 Current development line: v0.64
 
+v0.64 is the final feature-polish line before pausing for clean-clone testing,
+real model validation, and WumboLabs publication prep. See [Roadmap](docs/ROADMAP.md).
+
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
 ## Quick start from a checkout
@@ -121,7 +124,8 @@ Validate the result:
 Validation checks artifact structure, not model quality. For public-facing
 evidence, follow the checklist in [Public reporting](docs/PUBLIC_REPORTING.md):
 run, validate, inspect outputs, `score --check`, apply scores, re-validate,
-review **Publish Readiness Notes**, then compare or export-index as needed.
+review **Report Scope**, **Audit Checklist**, **Prompt Artifact Audit**, and
+**Publish Readiness Notes** in `report.md`, then compare or export-index as needed.
 
 See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
@@ -187,6 +191,10 @@ Each normal run writes a result directory containing:
 Raw outputs are preserved as audit evidence.
 
 Cleaned outputs are derived review artifacts that remove obvious `llama.cpp` terminal wrapper text where possible. They do not replace raw outputs.
+
+Generated `report.md` includes **Audit Checklist** and **Prompt Artifact Audit**
+sections for tracing public claims back to raw/cleaned outputs and score
+rationales. See [Artifact schemas](docs/ARTIFACT_SCHEMAS.md).
 
 ## Manual scoring
 

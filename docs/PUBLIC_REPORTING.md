@@ -14,7 +14,7 @@ For public-facing evidence, prefer this order:
 6. `score --check` before applying scores.
 7. `score --scores` to apply reviewed scores.
 8. `validate-result` again after scoring.
-9. Read `report.md`, especially **Publish Readiness Notes**.
+9. Read `report.md`: **Report Scope**, **Evidence Summary**, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes**.
 10. `compare` only like-for-like scored runs when making quality claims.
 11. Read comparison **Publish Readiness Notes** and **Publication evidence summary**.
 12. `export-index` when an importer or summary workflow needs metadata.
@@ -29,7 +29,7 @@ reviewer applies reviewed scores.
 
 | Step | Artifact | Use for |
 |---|---|---|
-| Single-run review | `report.md` | Prompt-level review, score/rationale review, **Publish Readiness Notes** |
+| Single-run review | `report.md` | **Audit Checklist**, **Prompt Artifact Audit**, score/rationale review, **Publish Readiness Notes** |
 | Multi-run review | `compare.md` | Cross-run comparison, **Publish Readiness Notes**, **Publication evidence summary** |
 | Importer metadata | Export index JSON | Discovery, `scoring_status`, scoring evidence fields, validation status |
 

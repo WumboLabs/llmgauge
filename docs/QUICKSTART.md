@@ -272,7 +272,9 @@ Inspect:
     raw/
     logs/
 
-Raw model outputs are preserved for audit. Cleaned outputs are derived review artifacts.
+In `report.md`, read **Audit Checklist** and **Prompt Artifact Audit** to trace
+outputs and score metadata. Raw outputs are source audit evidence. Cleaned
+outputs are derived review aids.
 
 ## 11. Optional manual scoring
 
@@ -321,9 +323,10 @@ After you have two or more result directories, create a comparison report:
 
 Comparison reports summarize runtime settings, score totals, prompt verdicts, speed metrics, VRAM metrics, and label counts. They do not declare a universal winner.
 
-Read **Publish Readiness Notes** in `report.md` for single-run review and in
-`compare.md` for multi-run comparison caveats. Read **Publication evidence
-summary** in `compare.md` before making public quality claims.
+Read **Report Scope**, **Audit Checklist**, and **Prompt Artifact Audit** in
+`report.md` for single-run review. Read **Comparison Scope**, **Publish
+Readiness Notes**, and **Publication evidence summary** in `compare.md` before
+making public quality claims.
 
 Export index mirrors scoring evidence fields for importers. Regenerate it after
 scoring or validation changes.
