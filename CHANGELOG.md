@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.60 - 2026-07-07
+
+- Hardened the public-proof workflow across docs and CLI guidance.
+- Added clearer validation caveats explaining that `validate-result` checks artifact structure, not answer quality or publication readiness.
+- Added public-proof workflow checklist guidance covering run, validate, inspect, score, re-validate, report, compare, export-index, and publish-readiness review.
+- Added scoring command next-step guidance for `score --init`, `score --check`, `score --scores`, and `score --auto-draft`.
+- Added validation CLI output clarifying artifact-only validation boundaries.
+- Added compare and export-index CLI reminders for Publish Readiness Notes, bounded claims, and evidence metadata.
+- Updated README, Quickstart, Usage, Public Reporting, Scored Comparisons, Evaluation Tiers, Local Model Testing, and Artifact Schemas docs.
+- Added CLI tests for validation caveats, scoring next steps, compare publish-readiness reminders, and export-index metadata caveats.
+
 ## v0.59 - 2026-07-07
 
 - Polished scored comparison reporting for clearer public evidence boundaries.
