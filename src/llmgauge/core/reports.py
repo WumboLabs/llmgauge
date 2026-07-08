@@ -403,6 +403,14 @@ def build_markdown_report(result: dict[str, Any]) -> str:
 
     lines.extend(
         [
+            "## Artifact integration",
+            "",
+            "- `llmgauge-result.json` is the machine-readable source of truth for run metadata and applied scores.",
+            "- This `report.md` is the single-run human review artifact; read **Publish Readiness Notes** before publication.",
+            "- Regenerate this report after `score --scores` or other updates to `llmgauge-result.json`.",
+            "- Use `compare` for multi-run evidence summaries across result directories.",
+            "- Use `export-index` for machine-readable importer metadata; it mirrors scoring evidence fields but is not a model recommendation.",
+            "",
             "## Notes",
             "",
             "Raw model outputs are preserved separately and are not cleaned or filtered.",

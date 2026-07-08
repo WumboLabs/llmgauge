@@ -20,6 +20,11 @@ Prefer this order for public-proof evidence:
 4. Re-run `validate-result` after scoring.
 5. Generate the comparison report.
 6. Read **Publish Readiness Notes** and **Publication evidence summary**.
+7. Use `export-index` when an importer or summary workflow needs machine-readable metadata.
+
+Per-run `report.md` files remain authoritative for single-run review. Comparison
+reports summarize multiple runs. Export index mirrors scoring evidence fields for
+importers but does not replace either report type.
 
 ## Generate a comparison report
 
@@ -195,3 +200,12 @@ speed, VRAM, and raw/cleaned artifacts as separate signals.
 Do not select a model only because it has the highest average score. A model with
 slightly lower average score may be the better operational choice if it is safer,
 more honest about uncertainty, or has more predictable failure modes.
+
+## Artifact integration
+
+- Per-run `report.md` files are authoritative for single-run review and **Publish Readiness Notes**.
+- `compare.md` is the multi-run evidence summary; read **Publication evidence summary** before quality claims.
+- Export index JSON mirrors scoring evidence fields (`scoring_status`, verdict counts, publish-readiness signals) for importers.
+- Regenerate comparison reports and export index after underlying runs are re-scored or re-validated.
+
+See `docs/ARTIFACT_SCHEMAS.md` for schema detail and `docs/PUBLIC_REPORTING.md` for the full workflow checklist.

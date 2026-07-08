@@ -21,6 +21,28 @@ Validation does not prove:
 Use `report.md` **Publish Readiness Notes**, comparison publish-readiness
 sections, and manual review of raw/cleaned outputs for publication decisions.
 
+## Public-proof artifact roles
+
+Three generated artifacts work together in the public-proof workflow. They
+overlap in topic but serve different roles:
+
+| Artifact | Role | Authoritative for | Regenerate when |
+|---|---|---|---|
+| `report.md` (single-run) | Human review artifact for one run | Prompt-level output review, score/rationale review, single-run publish-readiness | After `score --scores` or other updates to `llmgauge-result.json` |
+| `compare.md` (comparison) | Multi-run evidence summary | Cross-run comparison, mixed-set caveats, **Publication evidence summary** | After underlying runs change or are re-scored |
+| Export index JSON | Machine-readable metadata | Importer discovery, batch summaries, `scoring_status` and publish-readiness fields | After scoring, validation, or report regeneration |
+
+Source-of-truth references:
+
+- `llmgauge-result.json` is the machine-readable source of truth for run metadata and applied scores.
+- `scores.yaml` is authoritative for manual score intent before application.
+- Applied scores embedded in `llmgauge-result.json` are authoritative after `score --scores`.
+- Raw and cleaned outputs under `raw/` and `cleaned/` are authoritative for prompt-level output review.
+
+None of these artifacts are model recommendations, leaderboards, or automatic
+quality judgments. See `docs/PUBLIC_REPORTING.md` for the full workflow
+checklist.
+
 ## Design rules
 
 - Artifacts should be readable without any external dashboard or importer.
@@ -572,6 +594,7 @@ Expected fields:
     schema_version
     result_json
     report
+    scores_yaml
     run_id
     status
     timestamp_utc
@@ -584,6 +607,20 @@ Expected fields:
     failed
     manual_score_total
     manual_score_max
+    scoring_status
+    score_entry_count
+    scored_prompt_count
+    manual_score_average
+    failure_labels
+    good_labels
+    verdict_counts
+    scoring_mode_counts
+    needs_review_verdict_count
+    unreviewed_score_count
+    missing_score_rationale_count
+    rubric_id
+    rubric_version
+    score_schema_version
     has_raw_artifacts
     has_cleaned_artifacts
     has_logs
@@ -593,6 +630,14 @@ Expected fields:
     vram_prompt_count
     vram_sample_artifact_count
     validation
+
+`report` points to `report.md` when present.
+
+`scores_yaml` points to `scores.yaml` when present.
+
+`scoring_status` is one of `unscored`, `review_metadata_only`, `partially_scored`, or `scored`.
+
+Scoring evidence fields (`score_entry_count`, `scored_prompt_count`, `verdict_counts`, `scoring_mode_counts`, `needs_review_verdict_count`, `unreviewed_score_count`, `missing_score_rationale_count`, and rubric metadata) mirror the publish-readiness signals in `report.md` **Publish Readiness Notes**. They help importers summarize score state without opening every prompt result. They are not automated judgments.
 
 `has_raw_artifacts` is true when a `raw/` directory exists.
 

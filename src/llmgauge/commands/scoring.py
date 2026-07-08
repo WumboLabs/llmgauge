@@ -224,7 +224,13 @@ def export_index_command(
         "Export index is evidence metadata for import or summarization, not a model recommendation."
     )
     console.print(
+        "Per-run report.md files are authoritative for single-run review; comparison reports summarize multiple runs."
+    )
+    console.print(
         "Read source report.md Publish Readiness Notes before publication."
+    )
+    console.print(
+        "Regenerate export index after scoring, validation, or report changes."
     )
 
 
@@ -307,6 +313,12 @@ def compare(
     console.print(f"[bold green]Wrote comparison report[/bold green]: {out}")
     console.print(
         "Read Publish Readiness Notes and Publication evidence summary before public claims."
+    )
+    console.print(
+        "Per-run report.md files remain authoritative for single-run review; this comparison summarizes multiple runs."
+    )
+    console.print(
+        "Use export-index for machine-readable metadata when feeding importers or summary workflows."
     )
     console.print(
         "Compare like-for-like scored runs for quality claims; this report does not declare a winner."

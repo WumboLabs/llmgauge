@@ -471,6 +471,8 @@ def test_compare_prints_publish_readiness_reminder(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Publish Readiness Notes" in result.output
     assert "Publication evidence summary" in result.output
+    assert "authoritative for single-run review" in result.output
+    assert "export-index" in result.output.lower()
     assert out_path.exists()
 
 
@@ -487,4 +489,6 @@ def test_export_index_prints_metadata_caveat(tmp_path: Path) -> None:
     compact_output = " ".join(result.output.split())
     assert "evidence metadata" in compact_output
     assert "not a model recommendation" in compact_output
+    assert "authoritative for single-run review" in compact_output
+    assert "Regenerate export index" in compact_output
     assert out_path.exists()

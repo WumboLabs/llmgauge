@@ -25,6 +25,20 @@ Validation confirms artifact shape and references. It does not prove model
 quality, safety, or publication readiness. Auto-drafts are triage only until a
 reviewer applies reviewed scores.
 
+## Artifact roles in the workflow
+
+| Step | Artifact | Use for |
+|---|---|---|
+| Single-run review | `report.md` | Prompt-level review, score/rationale review, **Publish Readiness Notes** |
+| Multi-run review | `compare.md` | Cross-run comparison, **Publish Readiness Notes**, **Publication evidence summary** |
+| Importer metadata | Export index JSON | Discovery, `scoring_status`, scoring evidence fields, validation status |
+
+Regenerate `report.md` after applying scores. Regenerate `compare.md` when
+underlying runs change. Regenerate export index after scoring, validation, or
+report changes.
+
+See `docs/ARTIFACT_SCHEMAS.md` for field-level schema detail.
+
 ## Required report context
 
 A public model report should state:

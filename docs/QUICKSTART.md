@@ -321,10 +321,15 @@ After you have two or more result directories, create a comparison report:
 
 Comparison reports summarize runtime settings, score totals, prompt verdicts, speed metrics, VRAM metrics, and label counts. They do not declare a universal winner.
 
-Read **Publish Readiness Notes** and **Publication evidence summary** in
-`compare.md` before making public quality claims.
+Read **Publish Readiness Notes** in `report.md` for single-run review and in
+`compare.md` for multi-run comparison caveats. Read **Publication evidence
+summary** in `compare.md` before making public quality claims.
 
-See `docs/PUBLIC_REPORTING.md` for the full public-proof workflow checklist.
+Export index mirrors scoring evidence fields for importers. Regenerate it after
+scoring or validation changes.
+
+See `docs/PUBLIC_REPORTING.md` and `docs/ARTIFACT_SCHEMAS.md` for the full
+public-proof workflow and artifact roles.
 
 ## Runtime metadata notes
 

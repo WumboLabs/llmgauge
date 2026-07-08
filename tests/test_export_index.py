@@ -602,6 +602,56 @@ def test_build_export_index_includes_scored_run_public_proof_metadata(
     assert item["score_schema_version"] == "llmgauge.scores.v0"
 
 
+def test_build_export_index_includes_scores_yaml_when_present(tmp_path: Path) -> None:
+    result_dir = tmp_path / "scored-with-yaml"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {"run_id": "scored-with-yaml", "status": "completed"},
+  "model": {"model_id": "test-model"},
+  "suite": {"suite_id": "core-v1", "prompt_count": 1},
+  "summary": {"completed": 1, "failed": 0},
+  "results": []
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    scores_path = result_dir / "scores.yaml"
+    scores_path.write_text("schema_version: llmgauge.scores.v0\n", encoding="utf-8")
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scores_yaml"] == str(scores_path)
+
+
+def test_build_export_index_omits_scores_yaml_when_missing(tmp_path: Path) -> None:
+    result_dir = tmp_path / "no-scores-yaml"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {"run_id": "no-scores-yaml", "status": "completed"},
+  "model": {"model_id": "test-model"},
+  "suite": {"suite_id": "core-v1", "prompt_count": 1},
+  "summary": {"completed": 1, "failed": 0},
+  "results": []
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scores_yaml"] is None
+
+
 def test_build_export_index_marks_partially_scored_run(tmp_path: Path) -> None:
     result_dir = tmp_path / "partially-scored-run"
     result_dir.mkdir()

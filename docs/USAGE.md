@@ -336,7 +336,7 @@ See `docs/PUBLIC_REPORTING.md` for the full checklist. Short form:
     -> edit scores.yaml -> score --check -> score --scores
     -> validate-result -> report.md -> compare -> export-index
 
-Read **Publish Readiness Notes** before publication. Export index is metadata, not a recommendation.
+Read **Publish Readiness Notes** in `report.md` before publication. Use `compare.md` for multi-run caveats and export index for importer metadata. Regenerate export index after scoring or validation changes. Export index is metadata, not a recommendation. See `docs/ARTIFACT_SCHEMAS.md` for artifact roles.
 
 ## Claim boundary
 

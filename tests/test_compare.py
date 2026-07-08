@@ -180,6 +180,8 @@ def test_build_compare_report_publish_readiness_warns_for_needs_review_verdicts(
     assert "`needs_review` verdicts" in report
     assert "### Publication evidence summary" in report
     assert "Claims that are not supported from this comparison alone:" in report
+    assert "## Artifact integration" in report
+    assert "authoritative single-run review artifacts" in report
 
 
 def test_build_compare_report_publish_readiness_warns_for_mixed_suite_versions() -> None:
