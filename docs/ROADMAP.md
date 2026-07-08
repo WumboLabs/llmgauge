@@ -42,15 +42,15 @@ After `v0.63`, LLMGauge provides:
 - artifact validation (`validate-result`, ladder/batch validators)
 - manual scoring templates and `score --check` / `score --scores` workflow
 - auto-draft scoring as review-required triage only
-- single-run `report.md` generation with **Publish Readiness Notes**
-- comparison reports with publish-readiness and **Publication evidence summary**
+- single-run `report.md` with **Report Scope**, **Evidence Summary**, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes**
+- comparison reports with **Comparison Scope**, publish-readiness, and **Publication evidence summary**
 - `export-index` machine-readable metadata for importers
 - model profile onboarding and management commands
 - dry-run and preflight commands (`smoke`, `doctor`)
 - context ladder and fit ladder artifacts with preserved failures
 - public-proof workflow guidance across docs
 - Practical Eval v1 seed suite (`wumbolabs-practical-v1`)
-- artifact schema documentation
+- artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
 
 ## Recently completed releases
@@ -63,49 +63,47 @@ Condensed highlights from recent release lines:
 | v0.58 | Practical suite polish — prompt audit and metadata |
 | v0.59 | Scored comparison evidence — publish-readiness in reports/compare, export-index scoring fields |
 | v0.60 | Public-proof workflow hardening — end-to-end checklist, CLI next-steps, validate-result artifact messaging |
+| v0.61 | Export/index/report integration — artifact roles, export-index scoring fields, roadmap cleanup |
+| v0.62 | Public report artifact polish — Report Scope, Evidence Summary, Comparison Scope |
+| v0.63 | Result artifact audit polish — Audit Checklist, Prompt Artifact Audit, auditing docs |
 
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
 ## Active development line
 
-### v0.61 — Export/index/report integration polish
+### v0.64 — Repo review, clean-clone readiness, and pre-public-proof hardening
 
-**Goal:** Make `report.md`, comparison reports, and export-index artifacts work together more coherently in the public-proof workflow.
+**Goal:** Final conservative hardening before pausing feature work for real-world validation.
 
 **Scope:**
 
-- align report/compare/export-index terminology across docs and generated output
-- clarify artifact roles and regeneration points
-- improve importer/public-proof metadata guidance
-- keep schemas backward-compatible
+- repo-wide doc consistency (README, INSTALL, QUICKSTART, USAGE, artifact docs)
+- clean-clone readiness checklist and claim-boundary review
+- stale reference cleanup and public/private safety searches
+- small test or CLI help fixes only when audit finds real gaps
 
-**Avoid:** breaking artifact compatibility, major schema migration, external integration coupling.
+**Exit criteria:**
 
-## Near-term roadmap
+- docs agree on install, smoke, validate, score, report, compare, and export-index workflow
+- clean-clone checklist is copy/paste-safe and does not assume private paths
+- full local gate passes (`uv run pytest`, `uv run ruff check .`)
+- repo is ready for v0.64 release-prep, then clean-clone test and model testing
 
-### v0.62 — Public report artifact polish
+**Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
 
-**Goal:** Make generated artifacts easier to cite in human-facing reports.
+## After v0.64 — pause feature work for validation and publication prep
 
-**Possible work:**
+Planned sequence after v0.64 merges and tags:
 
-- tighten report wording and auditability
-- improve comparison excerpts or summary sections
-- keep claims bounded and hardware-specific
+1. v0.64 release-prep (version metadata only)
+2. merge, tag, and push `v0.64`
+3. clean local branches
+4. manual clean-clone test per `docs/CLEAN_CLONE_TESTING.md`
+5. real model test pass on selected hardware (user-provided `llama.cpp` and GGUF models)
+6. WumboLabs website update with bounded claims
+7. first public X post draft about LLMGauge
 
-**Avoid:** model-specific winner claims, leaderboard framing.
-
-### v0.63 — Result artifact usability / audit polish
-
-**Goal:** Improve reviewer ergonomics without changing the file-based design.
-
-**Possible work:**
-
-- improve artifact navigation guidance
-- improve raw/cleaned output references in docs and reports
-- keep local-first, file-based artifacts as the source of truth
-
-**Avoid:** cloud dashboards, hidden artifact mutation, network dependencies.
+Clean-clone testing validates installation and CLI readiness. It does not prove model quality. Real model testing and website/social work happen after v0.64.
 
 ## Later roadmap / parking lot
 

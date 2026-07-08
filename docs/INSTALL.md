@@ -234,3 +234,6 @@ llmgauge run \
 ```
 
 For a full fresh-clone audit pass, see [Clean clone testing](CLEAN_CLONE_TESTING.md).
+That checklist includes `uv run pytest` as a developer gate. Clean-clone testing
+validates installation and CLI readiness, not model quality. Real model testing
+uses user-provided `llama.cpp` and GGUF files after release hardening.

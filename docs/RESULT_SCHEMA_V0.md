@@ -8,6 +8,14 @@ Canonical human-readable report:
 
 - `report.md`
 
+Key `report.md` sections for audit and publication review:
+
+- **Report Scope** — supported and unsupported uses
+- **Evidence Summary** — cite-friendly run snapshot
+- **Audit Checklist** — validation, inspection, and retention steps
+- **Prompt Artifact Audit** — per-prompt paths, score rationales, source vs derived roles
+- **Publish Readiness Notes** — claim boundaries
+
 Raw artifacts must be preserved:
 
 - raw prompt text

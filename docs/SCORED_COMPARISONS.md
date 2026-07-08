@@ -209,7 +209,7 @@ more honest about uncertainty, or has more predictable failure modes.
 
 ## Artifact integration
 
-- Per-run `report.md` files are authoritative for single-run review and **Publish Readiness Notes**.
+- Per-run `report.md` files are authoritative for single-run review, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes**.
 - `compare.md` is the multi-run evidence summary; read **Publication evidence summary** before quality claims.
 - Export index JSON mirrors scoring evidence fields (`scoring_status`, verdict counts, publish-readiness signals) for importers.
 - Regenerate comparison reports and export index after underlying runs are re-scored or re-validated.
