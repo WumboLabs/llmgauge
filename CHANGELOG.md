@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.64 - 2026-07-07
+
+- Hardened the repo for clean-clone and public-proof readiness before pausing feature work.
+- Updated README, install, quickstart, usage, local-model-testing, public-reporting, result-schema, and result-validation docs for current report/audit terminology.
+- Expanded clean-clone testing guidance with developer gates, expected behavior, and claim boundaries.
+- Updated roadmap state to reflect v0.64 as the final pre-validation hardening line.
+- Clarified that clean-clone testing validates installation and CLI readiness, not model quality.
+- Preserved docs-only feature scope with no code, schema, export-index, or validation behavior changes.
+- Confirmed the next phase: clean-clone test, real model test pass, website update, and first public X post draft.
+
 ## v0.63 - 2026-07-07
 
 - Polished result artifact auditability for reviewers inspecting run directories.
