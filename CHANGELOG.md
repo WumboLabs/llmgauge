@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.62 - 2026-07-07
+
+- Polished generated public report artifacts for clearer citation, review, and audit use.
+- Added single-run **Report Scope** guidance with explicit use/do-not-use boundaries.
+- Added single-run **Evidence Summary** and reorganized run/model/runtime details under **Test Configuration**.
+- Strengthened single-run report language around manual scores, prompt artifacts, output inspection, and publication boundaries.
+- Added comparison **Comparison Scope** with like-for-like quality comparison checks and explicit supported/unsupported uses.
+- Clarified comparison tables by labeling manual score totals and manual average score columns.
+- Updated Public Reporting, Scored Comparisons, Local Model Testing, and Usage docs to reference the new report sections.
+- Added tests locking the new report and comparison sections, claim boundaries, and table labels.
+
 ## v0.61 - 2026-07-07
 
 - Polished integration between single-run reports, comparison reports, and export-index artifacts.
