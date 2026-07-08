@@ -51,9 +51,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.58
+Current stable tag: v0.59
 
-Current development line: v0.59
+Current development line: v0.60
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
