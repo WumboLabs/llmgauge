@@ -44,10 +44,22 @@ reviewed/unreviewed counts. If assisted draft scores were applied before review,
 treat the report warning as a claim boundary and finish manual review before
 using those scores in public conclusions.
 
-Comparison reports add a **Publish Readiness Notes** section with deterministic
-signals such as scored vs unscored runs, unreviewed assisted drafts, mixed suite
-or runtime settings, prompt-set overlap, and artifact gaps. Use that section to
-decide whether a comparison is complete enough to publish.
+Single-run `report.md` files and comparison reports both include **Publish
+Readiness Notes** with deterministic signals such as:
+
+- scoring status (`scored`, `partially_scored`, `review_metadata_only`, `unscored`)
+- scored prompt coverage
+- `needs_review` verdict counts
+- unreviewed assisted drafts
+- missing `score_rationale` entries
+- mixed suite IDs or suite versions
+- mixed runtime settings
+- prompt-set overlap
+- artifact gaps
+
+Comparison reports also add a **Publication evidence summary** that separates
+safer bounded claims from unsupported ranking-style claims. Use these sections
+to decide whether a comparison is complete enough to publish.
 
 When comparing multiple runs:
 
@@ -90,9 +102,14 @@ when making quality claims, scored with reviewed metadata:
 
     uv run llmgauge compare results/run-a results/run-b --out results/compare.md
 
-Read **Publish Readiness Notes** before publishing. Prefer same-suite,
-same-prompt-subset comparisons with matching runtime settings. Mixed result sets
+Read **Publish Readiness Notes** and **Publication evidence summary** before
+publishing. Prefer same-suite, same-suite-version, same-prompt-subset
+comparisons with matching runtime settings and reviewed scores. Mixed result sets
 can still be useful, but they support narrower claims.
+
+Treat any `needs_review` verdict, unreviewed automatic-rule draft, or missing
+`score_rationale` as a publication blocker for ranking-style claims until review
+is complete.
 
 Do not select a public winner from score averages alone. A slightly lower average
 may be preferable when failures are safer or more predictable.

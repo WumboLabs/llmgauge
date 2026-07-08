@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from llmgauge.core.scoring import (
+    scored_prompt_results,
+    scoring_evidence_summary,
+    scoring_status_for_result,
+)
+
 
 def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
@@ -14,33 +20,6 @@ def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
 
 def _score_average(prompt_result: dict[str, Any]) -> Any:
     return _score_dict(prompt_result).get("prompt_average")
-
-
-def _scored_results(result: dict[str, Any]) -> list[dict[str, Any]]:
-    return [item for item in result["results"] if isinstance(item.get("score"), dict)]
-
-
-def _scoring_status(result: dict[str, Any]) -> str:
-    summary = result["summary"]
-    scored_results = _scored_results(result)
-    scored_prompt_count = summary.get("scored_prompt_count")
-
-    if not isinstance(scored_prompt_count, int):
-        scored_prompt_count = sum(
-            1
-            for prompt_result in scored_results
-            if isinstance(_score_average(prompt_result), int | float)
-        )
-
-    prompt_count = len(result["results"])
-
-    if scored_prompt_count == 0:
-        if scored_results:
-            return "review_metadata_only"
-        return "unscored"
-    if scored_prompt_count < prompt_count:
-        return "partially_scored"
-    return "scored"
 
 
 def _verdict_counts(scored_results: list[dict[str, Any]]) -> dict[str, int]:
@@ -151,6 +130,86 @@ def _vram_peak_used_mib(prompt_result: dict[str, Any]) -> int | None:
     return peak_used_mib
 
 
+def _completed_prompt_artifact_gaps(result: dict[str, Any]) -> int:
+    gaps = 0
+    for prompt_result in result.get("results", []):
+        if prompt_result.get("status") != "completed":
+            continue
+        if not prompt_result.get("raw_output_path"):
+            gaps += 1
+        if not prompt_result.get("cleaned_output_path"):
+            gaps += 1
+    return gaps
+
+
+def _build_single_run_publish_readiness_notes(result: dict[str, Any]) -> list[str]:
+    evidence = scoring_evidence_summary(result)
+    summary = result.get("summary", {})
+    artifact_gaps = _completed_prompt_artifact_gaps(result)
+
+    lines = [
+        "## Publish Readiness Notes",
+        "",
+        "Single-run reports summarize local evidence for review. They are not universal rankings, leaderboards, or automatic recommendations.",
+        "",
+        f"- Scoring status: {evidence['scoring_status']}",
+        f"- Scored prompts: {evidence['scored_prompt_count']} of {evidence['prompt_count']}",
+        f"- Score entries present: {evidence['score_entry_count']}",
+        f"- Needs-review verdicts: {evidence['needs_review_verdict_count']}",
+        f"- Unreviewed applied scores: {evidence['unreviewed_score_count']}",
+        f"- Unreviewed automatic-rule scores: {evidence['automatic_unreviewed_count']}",
+        f"- Scored prompts missing score rationale: {evidence['missing_score_rationale_count']}",
+        f"- Completed prompts missing raw or cleaned output paths: {artifact_gaps}",
+        f"- Failed prompts: {summary.get('failed', 0)}",
+        "",
+        "### Claim boundaries",
+        "",
+        "- Manual scores are review metadata under the configured rubric, not objective truth.",
+        "- Automatic-rule scores are assisted drafts unless reviewed; do not publish them as final human judgment.",
+        "- Missing, partial, or review-metadata-only scores weaken quality-ranking claims.",
+        "- `needs_review` verdicts mean the prompt is not ready for ranking-style publication claims.",
+        "- Speed and VRAM numbers are hardware/runtime-specific operational signals, not answer-quality scores.",
+        "",
+    ]
+
+    limited_claims: list[str] = []
+    if evidence["scoring_status"] == "unscored":
+        limited_claims.append(
+            "This run has no scored prompts, so it cannot support quality-ranking claims."
+        )
+    if evidence["scoring_status"] in {"partially_scored", "review_metadata_only"}:
+        limited_claims.append(
+            "Scoring is incomplete or metadata-only, so publication claims should stay narrow."
+        )
+    if evidence["unreviewed_score_count"]:
+        limited_claims.append(
+            "Some applied scores are unreviewed assisted drafts and need manual review before public use."
+        )
+    if evidence["needs_review_verdict_count"]:
+        limited_claims.append(
+            "Some scored prompts still have `needs_review` verdicts and should be resolved before publication."
+        )
+    if evidence["missing_score_rationale_count"]:
+        limited_claims.append(
+            "Some scored prompts are missing `score_rationale`, which weakens auditability for public claims."
+        )
+    if artifact_gaps:
+        limited_claims.append(
+            "Some completed prompts are missing raw or cleaned output paths, which weakens auditability."
+        )
+    if summary.get("failed", 0):
+        limited_claims.append(
+            "This run contains failed prompts and should not be treated as full-suite evidence."
+        )
+
+    if limited_claims:
+        lines.extend(["### Limited or unsupported public claims", ""])
+        lines.extend(f"- {claim}" for claim in limited_claims)
+        lines.append("")
+
+    return lines
+
+
 def _vram_headroom_mib(prompt_result: dict[str, Any]) -> int | None:
     vram = prompt_result.get("vram")
     if not isinstance(vram, dict) or not vram.get("available"):
@@ -170,7 +229,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     runtime = result["runtime"]
     suite = result["suite"]
     summary = result["summary"]
-    scored_results = _scored_results(result)
+    scored_results = scored_prompt_results(result)
 
     lines = [
         f"# LLMGauge Report: {run['run_id']}",
@@ -208,6 +267,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     failure_labels = summary.get("failure_labels", {})
     good_labels = summary.get("good_labels", {})
 
+    lines.extend(_build_single_run_publish_readiness_notes(result))
+
     if summary.get("scored_prompt_count"):
         lines.extend(
             [
@@ -239,7 +300,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             [
                 "## Scored Interpretation",
                 "",
-                f"- Scoring status: {_scoring_status(result)}",
+                f"- Scoring status: {scoring_status_for_result(result)}",
                 f"- Verdict counts: {_fmt_counts(_verdict_counts(scored_results))}",
                 f"- Highest scored prompt: {_prompt_score_extreme(scored_results, highest=True)}",
                 f"- Lowest scored prompt: {_prompt_score_extreme(scored_results, highest=False)}",

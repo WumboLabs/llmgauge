@@ -254,6 +254,20 @@ failure behind performance numbers.
 
 If a model fits only with thin VRAM headroom, treat that as a practical risk.
 
+## Comparison and publication evidence
+
+When comparing scored runs, use the generated comparison report publish-readiness
+sections before making public claims.
+
+- Tier 1 smoke evidence supports smoke-screen claims only.
+- Tier 2 practical evidence supports bounded comparison claims under disclosed
+  hardware, runtime, suite, and scoring metadata.
+- Unscored, partially scored, review-metadata-only, or `needs_review` results
+  weaken ranking-style publication claims.
+- Export-index entries now expose scoring-status and review-coverage fields such
+  as `needs_review_verdict_count`, `unreviewed_score_count`, and
+  `missing_score_rationale_count` for report/import workflows.
+
 ## Public report rule
 
 A public WumboLabs model report should state:

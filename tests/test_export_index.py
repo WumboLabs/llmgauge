@@ -762,6 +762,7 @@ def test_build_export_index_counts_explicit_scoring_modes(tmp_path: Path) -> Non
                     "rubric_version": "0.1.0",
                     "scoring_mode": "automatic_rules",
                     "verdict": "needs_review",
+                    "reviewed": False,
                 },
             },
         ],
@@ -777,3 +778,63 @@ def test_build_export_index_counts_explicit_scoring_modes(tmp_path: Path) -> Non
 
     assert item["scoring_mode_counts"] == {"manual": 1, "automatic_rules": 1}
     assert item["verdict_counts"] == {"pass": 1, "needs_review": 1}
+    assert item["needs_review_verdict_count"] == 1
+    assert item["unreviewed_score_count"] == 1
+
+
+def test_build_export_index_marks_review_metadata_only_run(tmp_path: Path) -> None:
+    result_dir = tmp_path / "metadata-only-run"
+    result_dir.mkdir()
+    (result_dir / "llmgauge-result.json").write_text(
+        """
+{
+  "schema_version": "llmgauge.result.v0",
+  "run": {
+    "run_id": "metadata-only-run",
+    "timestamp_utc": "2026-06-23T02:25:51+00:00",
+    "status": "completed"
+  },
+  "model": {
+    "model_id": "test-model",
+    "model_profile": "test-profile"
+  },
+  "suite": {
+    "suite_id": "core-v1",
+    "suite_version": "0.1.0",
+    "prompt_count": 1
+  },
+  "summary": {
+    "completed": 1,
+    "failed": 0,
+    "manual_score_average": null
+  },
+  "results": [
+    {
+      "prompt_id": "prompt-a",
+      "score": {
+        "schema_version": "llmgauge.scores.v0",
+        "rubric_id": "default-manual-v0",
+        "rubric_version": "0.1.0",
+        "verdict": "needs_review",
+        "prompt_average": null,
+        "score_rationale": "",
+        "scoring_mode": "automatic_rules",
+        "reviewed": false
+      }
+    }
+  ]
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    index = build_export_index([result_dir])
+    item = index["items"][0]
+
+    assert item["scoring_status"] == "review_metadata_only"
+    assert item["score_entry_count"] == 1
+    assert item["scored_prompt_count"] == 0
+    assert item["needs_review_verdict_count"] == 1
+    assert item["unreviewed_score_count"] == 1
+    assert item["missing_score_rationale_count"] == 1

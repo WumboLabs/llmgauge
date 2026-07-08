@@ -74,6 +74,8 @@ def test_build_markdown_report_multiple_prompts() -> None:
     report = build_markdown_report(result)
 
     assert "# LLMGauge Report: test-run" in report
+    assert "## Publish Readiness Notes" in report
+    assert "- Scoring status: unscored" in report
     assert "- Flash attention: on" in report
     assert "- Runtime label: daily-tuned" in report
     assert (
@@ -158,6 +160,8 @@ def test_build_markdown_report_with_scores() -> None:
 
     report = build_markdown_report(result)
 
+    assert "## Publish Readiness Notes" in report
+    assert "- Scoring status: scored" in report
     assert "## Score Summary" in report
     assert "- Manual score average: 3.6 / 5" in report
     assert "## Scored Interpretation" in report
@@ -256,10 +260,12 @@ def test_build_markdown_report_warns_for_unreviewed_auto_scores() -> None:
     assert "- Reviewed scores: 0" in report
     assert "- Unreviewed scores: 1" in report
     assert "- Scorer IDs: llmgauge-auto-rules" in report
+    assert "- Needs-review verdicts: 1" in report
     assert (
         "- Warning: some applied scores are unreviewed assisted drafts. Treat them as review-required metadata."
         in report
     )
+    assert "unreviewed assisted drafts" in report
 
 
 def test_build_markdown_report_shows_provenance_for_nonnumeric_auto_scores() -> None:
@@ -326,6 +332,8 @@ def test_build_markdown_report_shows_provenance_for_nonnumeric_auto_scores() -> 
 
     report = build_markdown_report(result)
 
+    assert "## Publish Readiness Notes" in report
+    assert "- Scoring status: review_metadata_only" in report
     assert "## Scored Interpretation" in report
     assert "- Scoring status: review_metadata_only" in report
     assert "### Scoring Provenance" in report

@@ -192,11 +192,16 @@ Notes:
 
 - `completed` and `failed` should match prompt result statuses.
 - Manual score fields may be null until scoring is applied.
-- `scoring_status` is one of `unscored`, `partially_scored`, or `scored`.
-- `scored_prompt_count` records how many prompt results contain applied score objects.
+- `scoring_status` is one of `unscored`, `review_metadata_only`, `partially_scored`, or `scored`.
+- `score_entry_count` records how many prompt results contain applied score objects, including metadata-only score entries.
+- `scored_prompt_count` records how many prompt results contain numeric applied score averages.
 - `manual_score_average` is a human-review summary on the configured score scale.
 - `failure_labels` and `good_labels` are aggregate label-count mappings from applied scores.
 - `verdict_counts` summarizes non-empty prompt verdicts from applied score objects.
+- `scoring_mode_counts` summarizes applied score provenance modes such as `manual` or `automatic_rules`.
+- `needs_review_verdict_count` counts applied score entries whose verdict is `needs_review`.
+- `unreviewed_score_count` counts applied score entries marked `reviewed: false`.
+- `missing_score_rationale_count` counts applied score entries without a non-empty `score_rationale`.
 - `rubric_id`, `rubric_version`, and `score_schema_version` are copied from applied prompt scores when present.
 - These fields are public-proof metadata for report generation and importers. They are not automated judgments.
 

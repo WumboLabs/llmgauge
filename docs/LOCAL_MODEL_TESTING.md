@@ -372,9 +372,11 @@ When comparing two or more result directories, generate a comparison report:
       results/run-b \
       --out results/compare.md
 
-The report includes **Publish Readiness Notes** with deterministic signals about
-scored vs unscored runs, reviewed vs unreviewed scores, mixed suites or runtime
-settings, prompt overlap, and artifact gaps.
+The report includes **Publish Readiness Notes** and a **Publication evidence
+summary** with deterministic signals about scored vs unscored runs, reviewed vs
+unreviewed scores, `needs_review` verdicts, missing score rationales, mixed
+suites or suite versions, mixed runtime settings, prompt overlap, and artifact
+gaps.
 
 Use comparison reports responsibly:
 
