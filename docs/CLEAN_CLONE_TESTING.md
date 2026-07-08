@@ -17,6 +17,7 @@ and GGUF files.
 
 - clone and dependency install steps are documented and reproducible
 - `init` creates only the expected user config files
+- `setup --scan` is read-only and `setup --non-interactive` can write config/profile
 - `doctor` and `smoke` remain inspection-only
 - `model add` and `model list` work against isolated user config
 - `--dry-run` resolves a run plan without launching `llama.cpp`
@@ -118,13 +119,48 @@ Expected behavior:
 
 - exit code `0` unless a true `fail` row appears
 - `Config` and `Model profiles` rows show `skip`, not `fail`
-- next-step guidance mentions `llmgauge init`
+- next-step guidance mentions `llmgauge setup` or `llmgauge init`
 - commands do not launch `llama.cpp`
 - commands do not create result artifacts
 
 Placeholder `llama-cli` or model-path warnings are acceptable after `init`.
 
-## Init workflow
+## Guided setup workflow (preferred)
+
+Read-only scan:
+
+```bash
+uv run llmgauge setup --scan
+```
+
+Expected behavior:
+
+- exit code `0`
+- prints detected `llama-cli` candidates and model directories when present
+- does not write config or profile files
+
+Non-interactive setup for audit passes without a real GGUF file:
+
+```bash
+mkdir -p tmp/clean-clone-audit
+printf '#!/usr/bin/env sh\nprintf "placeholder llama-cli for dry-run only\n"\n' > tmp/clean-clone-audit/llama-cli
+chmod +x tmp/clean-clone-audit/llama-cli
+touch tmp/clean-clone-audit/placeholder.gguf
+
+uv run llmgauge setup --non-interactive \
+  --llama-cli "$PWD/tmp/clean-clone-audit/llama-cli" \
+  --model-path "$PWD/tmp/clean-clone-audit/placeholder.gguf" \
+  --profile-name clean_clone_model
+```
+
+Expected behavior:
+
+- creates or updates `$XDG_CONFIG_HOME/llmgauge/config.yaml` and
+  `model-profiles.yaml`
+- does not launch `llama.cpp`
+- prints next-step guidance for `doctor`, `smoke`, and `run --dry-run`
+
+## Init workflow (manual fallback)
 
 ```bash
 uv run llmgauge init
@@ -302,7 +338,9 @@ outside the isolated `XDG_CONFIG_HOME` path.
 - [ ] `uv sync` succeeds in a fresh clone
 - [ ] `uv run llmgauge --version` reports the expected release line
 - [ ] pre-init `doctor` and `smoke` show skipped config/profile checks, not hidden failures
-- [ ] `init` creates only the expected user config files
+- [ ] `setup --scan` is read-only and exits 0
+- [ ] `setup --non-interactive` writes config/profile without launching a model
+- [ ] `init` creates only the expected user config files (manual fallback)
 - [ ] `model add` and `model list` work against isolated config
 - [ ] `--dry-run` does not launch `llama.cpp` or create result artifacts
 - [ ] `uv run pytest` and `uv run ruff check .` pass in the clone
