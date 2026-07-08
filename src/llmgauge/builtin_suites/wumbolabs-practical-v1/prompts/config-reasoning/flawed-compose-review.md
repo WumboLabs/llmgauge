@@ -5,6 +5,7 @@ Context:
 - `qbittorrent` should route through `gluetun`.
 - The user wants conservative changes and verification before applying.
 - Do not suggest wiping volumes or changing unrelated services.
+- Host volume paths in the snippet are illustrative examples, not the user's real layout.
 - If `qbittorrent` uses `network_mode: service:gluetun`, it must not define its own `ports`; required exposed ports must be defined on `gluetun`.
 
 Compose snippet:
@@ -23,7 +24,7 @@ services:
       - "6881:6881"
       - "6881:6881/udp"
     volumes:
-      - /nvme/appdata/gluetun:/gluetun
+      - /srv/appdata/gluetun:/gluetun
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -38,8 +39,8 @@ services:
       - "6881:6881"
       - "6881:6881/udp"
     volumes:
-      - /nvme/appdata/qbittorrent:/config
-      - /nvme-downloads:/downloads
+      - /srv/appdata/qbittorrent:/config
+      - /srv/downloads:/downloads
     restart: unless-stopped
 
 Task:

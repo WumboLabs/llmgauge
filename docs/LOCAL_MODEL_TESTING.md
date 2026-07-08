@@ -257,6 +257,34 @@ If both 64k smoke tests pass:
       --validate \
       --out "tmp/${MODEL_PROFILE}-agent-backend-64k-index.json"
 
+## Phase 7: Practical Eval v1 (Tier 2)
+
+After agent-backend smoke and ladder work are stable, run the bundled Practical
+Eval v1 seed suite for publication-grade comparison evidence.
+
+    OUT_DIR="results/${MODEL_PROFILE}-practical-v1-8k"
+
+    uv run llmgauge run \
+      --config examples/configs/llmgauge.local.yaml \
+      --model-profile-file examples/configs/model-profiles.local.yaml \
+      --model-profile "$MODEL_PROFILE" \
+      --suite wumbolabs-practical-v1 \
+      --include all \
+      --ctx 8192 \
+      --max-tokens 1600 \
+      --temp 0.2 \
+      --out "$OUT_DIR"
+
+    uv run llmgauge validate-result "$OUT_DIR"
+
+Before scoring, read each prompt's `purpose`, `primary_dimensions`,
+`expected_behaviors`, and `failure_labels` from
+`src/llmgauge/builtin_suites/wumbolabs-practical-v1/suite.yaml` or the mirrored
+`suites/wumbolabs-practical-v1/suite.yaml`.
+
+See `docs/PRACTICAL_EVAL_V1.md` for prompt environment discipline and
+`docs/SCORING_RUBRICS.md` for verdict and label guidance.
+
 ## Manual review focus
 
 Validation confirms artifact structure. It does not guarantee the model is safe or
