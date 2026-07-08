@@ -4,6 +4,23 @@ This document describes the current LLMGauge artifact schemas intended for valid
 
 These schemas are intentionally conservative and file-based. They are not database schemas.
 
+## Validation vs quality
+
+`validate-result` and related validators confirm artifact structure, schema
+fields, and on-disk references. Passing validation means the directory is
+internally consistent enough to inspect, score, compare, or export.
+
+Validation does not prove:
+
+- answer correctness
+- operational safety
+- manual scoring quality
+- publication readiness
+- bounded public-claim eligibility
+
+Use `report.md` **Publish Readiness Notes**, comparison publish-readiness
+sections, and manual review of raw/cleaned outputs for publication decisions.
+
 ## Design rules
 
 - Artifacts should be readable without any external dashboard or importer.

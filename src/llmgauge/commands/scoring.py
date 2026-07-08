@@ -50,6 +50,28 @@ def metadata_only_score_prompt_count(scores_data: dict[str, Any]) -> int:
     return count
 
 
+def print_score_init_next_steps(result_dir: Path, scores_path: Path) -> None:
+    console.print("Edit scores manually, then validate before applying:")
+    console.print(
+        f"  llmgauge score {result_dir} --scores {scores_path} --check"
+    )
+
+
+def print_score_check_next_steps(result_dir: Path, scores_path: Path) -> None:
+    console.print("If scores look correct, apply them:")
+    console.print(f"  llmgauge score {result_dir} --scores {scores_path}")
+    console.print("After applying scores, re-validate artifacts:")
+    console.print(f"  llmgauge validate-result {result_dir}")
+
+
+def print_score_apply_next_steps(result_dir: Path) -> None:
+    console.print("Re-validate the updated result directory:")
+    console.print(f"  llmgauge validate-result {result_dir}")
+    console.print(
+        "Read Publish Readiness Notes in report.md before making public claims."
+    )
+
+
 def print_metadata_only_score_warning(count: int) -> None:
     if count == 0:
         return
@@ -130,6 +152,9 @@ def score(
         console.print(f"[bold green]{action} auto score draft[/bold green]: {scores_path}")
         console.print("Draft scores are review-required before applying.")
         console.print(
+            "Do not publish auto-draft scores as final human judgment."
+        )
+        console.print(
             "Validate next: "
             f"llmgauge score {result_dir} --scores {scores_path} --check"
         )
@@ -139,6 +164,7 @@ def score(
         template = build_score_template(result)
         scores_path = write_score_template(result_dir, template)
         console.print(f"[bold green]Created score template[/bold green]: {scores_path}")
+        print_score_init_next_steps(result_dir, scores_path)
         return
 
     if scores is None:
@@ -157,6 +183,7 @@ def score(
     if check:
         console.print(f"[bold green]Score validation passed[/bold green]: {scores}")
         print_metadata_only_score_warning(metadata_only_count)
+        print_score_check_next_steps(result_dir, scores)
         return
 
     print_metadata_only_score_warning(metadata_only_count)
@@ -167,6 +194,7 @@ def score(
     console.print(f"[bold green]Applied scores[/bold green]: {scores}")
     console.print(f"Updated: {result_dir / 'llmgauge-result.json'}")
     console.print(f"Updated: {result_dir / 'report.md'}")
+    print_score_apply_next_steps(result_dir)
 
 
 
@@ -192,6 +220,12 @@ def export_index_command(
 
     console.print(f"[bold green]Wrote export index[/bold green]: {out}")
     console.print(f"Indexed artifacts: {index['item_count']}")
+    console.print(
+        "Export index is evidence metadata for import or summarization, not a model recommendation."
+    )
+    console.print(
+        "Read source report.md Publish Readiness Notes before publication."
+    )
 
 
 
@@ -271,3 +305,9 @@ def compare(
     write_text(out, report)
 
     console.print(f"[bold green]Wrote comparison report[/bold green]: {out}")
+    console.print(
+        "Read Publish Readiness Notes and Publication evidence summary before public claims."
+    )
+    console.print(
+        "Compare like-for-like scored runs for quality claims; this report does not declare a winner."
+    )

@@ -2,6 +2,29 @@
 
 This document describes how to use LLMGauge artifacts in public WumboLabs model reports without overstating the evidence.
 
+## Public-proof workflow checklist
+
+For public-facing evidence, prefer this order:
+
+1. Run the suite.
+2. `validate-result` on the result directory.
+3. Inspect `raw/` and `cleaned/` outputs.
+4. `score --init` to create `scores.yaml`.
+5. Fill scores manually with rationale, labels, and verdicts.
+6. `score --check` before applying scores.
+7. `score --scores` to apply reviewed scores.
+8. `validate-result` again after scoring.
+9. Read `report.md`, especially **Publish Readiness Notes**.
+10. `compare` only like-for-like scored runs when making quality claims.
+11. Read comparison **Publish Readiness Notes** and **Publication evidence summary**.
+12. `export-index` when an importer or summary workflow needs metadata.
+13. Write bounded claims with hardware, runtime, suite, and scoring disclosure.
+14. Retain raw/cleaned artifacts for audit.
+
+Validation confirms artifact shape and references. It does not prove model
+quality, safety, or publication readiness. Auto-drafts are triage only until a
+reviewer applies reviewed scores.
+
 ## Required report context
 
 A public model report should state:

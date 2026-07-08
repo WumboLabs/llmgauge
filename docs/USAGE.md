@@ -206,6 +206,9 @@ Runtime labels are manual metadata. They do not change hardware settings.
 
 ## Validation
 
+`validate-result` confirms artifact structure and file references. It does not
+prove answer quality, safety, scoring completeness, or publication readiness.
+
 Validate a single run:
 
     uv run llmgauge validate-result results/<run-directory>
@@ -241,11 +244,16 @@ Apply scores:
       results/<run-directory> \
       --scores results/<run-directory>/scores.yaml
 
+Re-validate after applying scores:
+
+    uv run llmgauge validate-result results/<run-directory>
+
 Create a deterministic assisted draft for review:
 
     uv run llmgauge score results/<run-directory> --auto-draft
 
-Manual scores are review metadata. They are not automatic LLM judgments.
+Run `score --check` before applying scores. Manual scores are review metadata.
+They are not automatic LLM judgments. Do not publish auto-drafts as final review.
 
 ## Compare and export
 
@@ -319,6 +327,16 @@ Run a manifest-driven model batch:
 Batch manifests reference configured model profile names. They do not accept arbitrary model paths.
 
 See [Model batch runs](MODEL_BATCHES.md).
+
+## Public-proof workflow
+
+See `docs/PUBLIC_REPORTING.md` for the full checklist. Short form:
+
+    run -> validate-result -> inspect outputs -> score --init
+    -> edit scores.yaml -> score --check -> score --scores
+    -> validate-result -> report.md -> compare -> export-index
+
+Read **Publish Readiness Notes** before publication. Export index is metadata, not a recommendation.
 
 ## Claim boundary
 

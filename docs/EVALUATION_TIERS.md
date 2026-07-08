@@ -256,6 +256,12 @@ If a model fits only with thin VRAM headroom, treat that as a practical risk.
 
 ## Comparison and publication evidence
 
+Follow the public-proof workflow in `docs/PUBLIC_REPORTING.md` before citing
+results publicly:
+
+    run -> validate-result -> inspect outputs -> score --check -> score --scores
+    -> validate-result -> report.md -> compare -> export-index
+
 When comparing scored runs, use the generated comparison report publish-readiness
 sections before making public claims.
 

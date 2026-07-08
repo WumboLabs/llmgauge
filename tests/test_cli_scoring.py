@@ -51,6 +51,7 @@ def test_score_check_valid_scores_succeeds_without_mutating_result(
 
     assert result.exit_code == 0
     assert "Score validation passed" in result.output
+    assert "validate-result" in result.output
     assert result_path.read_bytes() == original_result
     assert report_path.read_bytes() == original_report
     assert scores_path.read_bytes() == original_scores
@@ -132,6 +133,8 @@ def test_score_init_uses_suite_specific_template(tmp_path: Path) -> None:
         ]
         is None
     )
+    assert "Created score template" in result.output
+    assert "--check" in result.output
 
 
 def test_score_check_rejects_unknown_labels(tmp_path: Path) -> None:
@@ -211,6 +214,7 @@ def test_score_auto_draft_writes_auto_scores_without_mutating_artifacts(
     assert result.exit_code == 0
     assert "Created auto score draft" in result.output
     assert "Draft scores are review-required" in result.output
+    assert "Do not publish auto-draft scores" in result.output
     compact_output = result.output.replace("\n", "")
     assert f"llmgauge score {result_dir}" in compact_output
     assert f"--scores {result_dir / 'auto-scores.yaml'} --check" in compact_output
@@ -414,3 +418,73 @@ def test_score_apply_warns_for_metadata_only_scores(tmp_path: Path) -> None:
     compact_output = " ".join(result.output.split())
     assert "review metadata but no numeric dimension values" in compact_output
     assert "review_metadata_only" in result.output
+    assert "validate-result" in result.output
+    assert "Publish Readiness Notes" in result.output
+
+
+def _minimal_compare_result(tmp_path: Path, run_id: str, score: float | None) -> Path:
+    result_dir = tmp_path / run_id
+    result_dir.mkdir()
+    result_data = {
+        "run": {"run_id": run_id, "status": "completed"},
+        "model": {"model_id": f"model-{run_id}"},
+        "suite": {"suite_id": "core-v1"},
+        "runtime": {"backend": "llama.cpp", "ctx_size": 8192, "max_tokens": 600, "temperature": 0.2},
+        "summary": {
+            "completed": 1,
+            "failed": 0,
+            "scored_prompt_count": 1 if score is not None else None,
+            "manual_score_average": score,
+        },
+        "results": [
+            {
+                "prompt_id": "honesty-unknown-tool",
+                "metrics": {"generation_tps": 50.0, "prompt_eval_tps": 1000.0},
+                "score": {
+                    "prompt_average": score,
+                    "verdict": "pass" if score and score >= 4 else "mixed",
+                    "failure_labels": [],
+                    "dimensions": {"overall_trust": 4},
+                }
+                if score is not None
+                else None,
+            }
+        ],
+    }
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result_data, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return result_dir
+
+
+def test_compare_prints_publish_readiness_reminder(tmp_path: Path) -> None:
+    run_a = _minimal_compare_result(tmp_path, "run-a", 4.0)
+    run_b = _minimal_compare_result(tmp_path, "run-b", 3.5)
+    out_path = tmp_path / "compare.md"
+
+    result = runner.invoke(
+        app,
+        ["compare", str(run_a), str(run_b), "--out", str(out_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "Publish Readiness Notes" in result.output
+    assert "Publication evidence summary" in result.output
+    assert out_path.exists()
+
+
+def test_export_index_prints_metadata_caveat(tmp_path: Path) -> None:
+    result_dir = _minimal_compare_result(tmp_path, "indexed-run", 4.0)
+    out_path = tmp_path / "index.json"
+
+    result = runner.invoke(
+        app,
+        ["export-index", str(result_dir), "--out", str(out_path)],
+    )
+
+    assert result.exit_code == 0
+    compact_output = " ".join(result.output.split())
+    assert "evidence metadata" in compact_output
+    assert "not a model recommendation" in compact_output
+    assert out_path.exists()

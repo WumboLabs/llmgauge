@@ -317,6 +317,26 @@ Use a simple first-pass classification:
 Keep raw artifacts local unless intentionally publishing or importing them.
 
 
+## Public-proof workflow
+
+For evidence you may cite publicly, follow this sequence:
+
+    run -> validate-result -> inspect outputs -> score --init
+    -> edit scores.yaml -> score --check -> score --scores
+    -> validate-result -> report.md review -> compare -> export-index
+
+Key rules:
+
+- `validate-result` checks artifact integrity, not answer quality.
+- Run `score --check` before applying scores.
+- Re-run `validate-result` after applying scores.
+- Read **Publish Readiness Notes** in `report.md` before publication.
+- Read comparison **Publish Readiness Notes** and **Publication evidence summary** before quality claims.
+- Treat `export-index` output as evidence metadata, not a model recommendation.
+- Do not publish unreviewed `auto-scores.yaml` drafts as final human judgment.
+
+See `docs/PUBLIC_REPORTING.md` for the full checklist and claim boundaries.
+
 ## Manual scoring notes
 
 For serious scoring runs, generate a template first:

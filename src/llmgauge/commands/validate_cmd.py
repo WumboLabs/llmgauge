@@ -85,3 +85,9 @@ def validate_result(
         raise typer.Exit(code=1)
 
     console.print(f"[bold green]OK[/bold green] {result_dir}")
+    console.print(
+        "Artifact validation passed: structure and references are consistent."
+    )
+    console.print(
+        "This does not prove answer quality, safety, scoring completeness, or publication readiness."
+    )
