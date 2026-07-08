@@ -261,6 +261,9 @@ After the run completes, validate the generated result directory:
 
     uv run llmgauge validate-result results/<generated-run-directory>
 
+`validate-result` checks artifact structure and references. It does not prove
+answer quality, safety, or publication readiness.
+
 Inspect:
 
     report.md
@@ -317,6 +320,11 @@ After you have two or more result directories, create a comparison report:
       --out results/compare.md
 
 Comparison reports summarize runtime settings, score totals, prompt verdicts, speed metrics, VRAM metrics, and label counts. They do not declare a universal winner.
+
+Read **Publish Readiness Notes** and **Publication evidence summary** in
+`compare.md` before making public quality claims.
+
+See `docs/PUBLIC_REPORTING.md` for the full public-proof workflow checklist.
 
 ## Runtime metadata notes
 

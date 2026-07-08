@@ -10,6 +10,17 @@ or, during development from the repository checkout:
 
     uv run llmgauge score RESULT_DIR --scores RESULT_DIR/scores.yaml
 
+## Before you compare
+
+Prefer this order for public-proof evidence:
+
+1. Validate each run with `validate-result`.
+2. Inspect raw/cleaned outputs.
+3. Apply reviewed scores with `score --check` first, then `score --scores`.
+4. Re-run `validate-result` after scoring.
+5. Generate the comparison report.
+6. Read **Publish Readiness Notes** and **Publication evidence summary**.
+
 ## Generate a comparison report
 
 Compare two or more result directories:

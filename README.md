@@ -118,6 +118,11 @@ Validate the result:
 
     uv run llmgauge validate-result results/<generated-run-directory>
 
+Validation checks artifact structure, not model quality. For public-facing
+evidence, follow the checklist in [Public reporting](docs/PUBLIC_REPORTING.md):
+run, validate, inspect outputs, `score --check`, apply scores, re-validate,
+review **Publish Readiness Notes**, then compare or export-index as needed.
+
 See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
 ## Source-checkout usage vs installed CLI usage
