@@ -297,6 +297,22 @@ For serious scoring runs, generate a template first:
 
 Before interpreting results, classify the evidence tier. See `docs/EVALUATION_TIERS.md`. Current small practical suites should be treated as Tier 1 smoke evidence unless a suite explicitly declares a stronger evaluation tier.
 
+### Reviewer workflow reminder
+
+Before applying scores:
+
+1. Read the prompt and suite metadata for the run.
+2. Inspect `cleaned/` output first for the scoring pass.
+3. Open `raw/` output when truncation, formatting, or cleaning artifacts matter.
+4. Decide whether the answer is scoreable. Use `needs_review` when evidence is
+   insufficient for a stable pass/mixed/fail call.
+5. Do not copy auto-draft verdicts or averages mechanically into final public
+   conclusions. Review `auto-scores.yaml` as triage only unless you have checked
+   each label and dimension against the artifacts.
+
+Practical Eval v1 scoring guidance lives in `docs/PRACTICAL_EVAL_V1.md` and
+`docs/SCORING_RUBRICS.md`.
+
 Edit `scores.yaml` manually, then validate it without mutating result artifacts:
 
     uv run llmgauge score "$OUT_DIR" --scores "$OUT_DIR/scores.yaml" --check
