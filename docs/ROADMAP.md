@@ -8,9 +8,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.61`
-- Current development line: `v0.62`
-- Current development focus: public report artifact polish
+- Current stable tag: `v0.62`
+- Current development line: `v0.63`
+- Current development focus: result artifact usability / audit polish
 
 ## What LLMGauge is
 
@@ -36,7 +36,7 @@ LLMGauge answers practical local-model questions such as:
 
 ## Current capabilities
 
-After `v0.61`, LLMGauge provides:
+After `v0.62`, LLMGauge provides:
 
 - local-first CLI runs with preserved raw/cleaned outputs and logs
 - artifact validation (`validate-result`, ladder/batch validators)
