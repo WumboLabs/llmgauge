@@ -790,6 +790,14 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
 
     lines.extend(
         [
+            "## Artifact integration",
+            "",
+            "- Per-run `report.md` files remain the authoritative single-run review artifacts.",
+            "- This comparison report summarizes multiple runs; read **Publish Readiness Notes** and **Publication evidence summary** before publication.",
+            "- Regenerate this report after underlying runs are re-scored, re-validated, or otherwise changed.",
+            "- Use `export-index` for machine-readable metadata (including `scoring_status` and publish-readiness fields) when feeding importers or summary workflows.",
+            "- Export index does not replace per-run reports or this comparison report.",
+            "",
             "## Notes",
             "",
             "Scores are manual/local-context review metadata. Speed and VRAM metrics are operational metrics, not quality scores.",

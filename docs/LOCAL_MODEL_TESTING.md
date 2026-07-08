@@ -335,7 +335,13 @@ Key rules:
 - Treat `export-index` output as evidence metadata, not a model recommendation.
 - Do not publish unreviewed `auto-scores.yaml` drafts as final human judgment.
 
-See `docs/PUBLIC_REPORTING.md` for the full checklist and claim boundaries.
+Artifact roles:
+
+- `report.md` — single-run human review artifact; authoritative for prompt-level and score review.
+- `compare.md` — multi-run evidence summary; authoritative for cross-run comparison caveats.
+- Export index JSON — machine-readable metadata for importers; regenerate after scoring or validation changes.
+
+See `docs/PUBLIC_REPORTING.md` and `docs/ARTIFACT_SCHEMAS.md` for the full checklist and schema detail.
 
 ## Manual scoring notes
 

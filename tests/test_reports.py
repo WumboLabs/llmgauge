@@ -90,6 +90,8 @@ def test_build_markdown_report_multiple_prompts() -> None:
     assert "- Cleaned output: `cleaned/one.output.txt`" in report
     assert "- Cleaned output: not available" in report
     assert "- VRAM samples: `vram/one.samples.json`" in report
+    assert "## Artifact integration" in report
+    assert "single-run human review artifact" in report
 
 
 def test_build_markdown_report_with_scores() -> None:

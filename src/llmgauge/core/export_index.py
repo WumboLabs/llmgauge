@@ -172,6 +172,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "schema_version": result.get("schema_version"),
         "result_json": str(result_path),
         "report": _optional_path(path / RUN_REPORT_FILENAME),
+        "scores_yaml": _optional_path(path / "scores.yaml"),
         "run_id": run.get("run_id") or path.name,
         "status": run.get("status"),
         "timestamp_utc": run.get("timestamp_utc"),
