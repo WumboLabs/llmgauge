@@ -1,12 +1,10 @@
 # LLMGauge Roadmap
 
-LLMGauge is the evidence engine for practical local model testing on real consumer hardware.
+LLMGauge is a conservative local-first CLI for practical LLM evaluation on real consumer hardware.
 
-The project direction is intentionally conservative: reproducible workflows, preserved artifacts, explicit methodology, honest claim boundaries, and useful model characterization before broad public claims.
+The project produces defensible, reproducible public evidence about usefulness, honesty, correctness, safety, speed, VRAM headroom, and workflow fit under disclosed hardware and runtime conditions.
 
-The point is not to chase every model, build a hosted leaderboard, or declare universal winners. The point is to produce defensible, reproducible public evidence about usefulness, honesty, correctness, safety, speed, VRAM/headroom, and workflow fit under disclosed hardware/runtime conditions.
-
-LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” workflow.
+LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hype.**
 
 ## Current release line
 
@@ -14,9 +12,9 @@ LLMGauge is part of the WumboLabs “Real Hardware. Real Testing. No Hype.” wo
 - Current development line: `v0.61`
 - Current development focus: export/index/report integration polish
 
-## Product identity
+## What LLMGauge is
 
-LLMGauge should answer practical local-model questions such as:
+LLMGauge answers practical local-model questions such as:
 
 - Does this model produce useful answers for real workflows?
 - Does it stay honest when it lacks information or tools?
@@ -26,483 +24,125 @@ LLMGauge should answer practical local-model questions such as:
 - What artifacts support the result?
 - What changed between two model runs, suites, scoring passes, or releases?
 
-LLMGauge should not become:
+## What LLMGauge is not
 
-- a cloud eval service
+- a cloud evaluation service
 - a model downloader
 - a hosted leaderboard
 - an automatic judge that hides review
-- a hardware overclocking/tuning tool
+- a hardware tuning tool
 - a general autonomous agent framework
-- a benchmark result submission tool without explicit user action
-
-## Core principles
-
-1. Local-first
-   - Normal evaluation runs happen on the user’s machine.
-   - No hidden network activity.
-   - No automatic model downloads.
-   - No telemetry.
-
-2. Artifact-first
-   - Raw outputs are preserved.
-   - Cleaned outputs are supplemental, not replacements.
-   - Logs, VRAM samples, command metadata, reports, scores, and validation records are treated as evidence.
-
-3. Reproducibility over hype
-   - Runtime settings that affect results must be visible.
-   - Methodology boundaries must be explicit.
-   - Comparison reports should explain what can and cannot be concluded.
-
-4. Human review remains central
-   - Manual scoring is still the trusted scoring path.
-   - Automatic-rule scoring drafts remain drafts until reviewed/applied.
-   - Provenance must show what was reviewed, what was inferred, and what remains metadata-only.
-
-5. Consumer-hardware usefulness
-   - The project prioritizes practical testing on hardware ordinary local-LLM users can plausibly own.
-   - Speed, VRAM headroom, context fit, and completion reliability matter alongside answer quality.
-
-## Completed release highlights
-
-### v0.50: CLI modularization and model profile management
-
-v0.50 split the previously monolithic CLI into focused command modules and added model-profile management commands.
-
-Completed scope:
-
-- modularized CLI command implementation under `src/llmgauge/commands/`
-- kept `src/llmgauge/cli.py` as the Typer entrypoint
-- added shared CLI helpers in `src/llmgauge/cli_common.py`
-- added `llmgauge model list`
-- added `llmgauge model add`
-- added `llmgauge model update`
-- added `llmgauge model remove`
-- preserved `llmgauge list-model-profiles` as a compatibility command
-- added Pydantic-backed config and model-profile validation
-- preserved unknown model-profile YAML fields on update paths
-- required `--yes` for model-profile removal
-- expanded repository AI-agent guidance
-
-### v0.49: packaged config templates
-
-v0.49 made `llmgauge init` and `init-config` work correctly from installed packages by bundling config templates in the package.
-
-Completed scope:
-
-- packaged config templates
-- kept installed CLI initialization independent of repo-relative paths
-- preserved source-checkout workflows
-
-### v0.48: user-friendly installation and onboarding
-
-v0.48 focused on making LLMGauge easier to start from both a source checkout and an installed CLI.
-
-Completed scope:
-
-- added user-level config initialization with `llmgauge init`
-- kept `llmgauge init-config` compatibility for project-local ignored config
-- added `llmgauge smoke` readiness checks that do not launch `llama.cpp`
-- added built-in suite aliases such as `practical`, `core`, `agent`, and `context`
-- documented source checkout, editable local install, and GitHub install workflows
-
-### v0.47: public repository polish
-
-v0.47 focused on repository trust, version clarity, and public usability.
-
-Completed scope:
-
-- package/CLI version metadata
-- `llmgauge version`
-- global `llmgauge --version`
-- result artifact `llmgauge_version`
-- suite mirror drift guard test
-- roadmap refresh
-
-### v0.53: installed-user workflow polish
-
-v0.53 improved first-run guidance for installed and checkout users.
-
-Completed scope:
-
-- improved `llmgauge doctor` skip/next-step messaging
-- clarified `llmgauge smoke` readiness output and warnings
-- documented installed-user first-run workflow in `INSTALL.md`, `QUICKSTART.md`, and `USAGE.md`
-- preserved network-free, model-download-free setup checks
-
-### v0.52: model profile polish
-
-v0.52 polished model-profile CLI ergonomics and documentation.
-
-Completed scope:
-
-- added `--model-profile-file` as the preferred alias for model profiles YAML paths
-- preserved `--model-profiles` compatibility
-- improved model profile validation and mutation error messages
-- documented model profile lifecycle patterns
-
-### v0.51: documentation and process hardening
-
-v0.51 made the repository easier and safer to work on with human-supervised AI coding tools.
-
-Completed scope:
-
-- refreshed roadmap and agent workflow guidance
-- made `AGENTS.md` the canonical AI-coding runbook
-- documented branch, PR, CI, release metadata, tag, and branch cleanup workflows
-- clarified that tool-specific sidecar files should not be added unless explicitly requested
-
-### v0.54: public repo audit cleanup and clean-clone readiness
-
-v0.54 prepared the public repository for external-style installs and audits.
-
-Completed scope:
-
-- aligned README and public docs with the current release line and first-run workflow
-- hardened ignore rules for local/private artifacts
-- genericized public model-profile templates
-- added `docs/CLEAN_CLONE_TESTING.md`
-- removed tracked local config files and sanitized audit-doc placeholders
-- kept normal runs network-free and model-download-free
-
-### v0.55: clean-clone doc corrections
-
-v0.55 fixed first-run and clean-clone documentation after v0.54 testing.
-
-Completed scope:
-
-- corrected post-init `model add` examples so they do not collide with packaged `example_model`
-- aligned README, INSTALL, QUICKSTART, USAGE, and CLEAN_CLONE_TESTING guidance
-- documented init template profiles and `--force` replacement behavior
-
-### v0.56: comparison and report polish
-
-v0.56 improved comparison-report clarity for public-proof workflows.
-
-Completed scope:
-
-- added **Publish Readiness Notes** to comparison reports
-- expanded interpretation notes and claim-boundary language
-- documented responsible comparison usage in `PUBLIC_REPORTING.md` and `LOCAL_MODEL_TESTING.md`
-- preserved deterministic Markdown output and existing artifact schemas
-
-### v0.46 and earlier: public documentation, suite audit, scoring, fit ladder, and artifact foundations
-
-Earlier releases established the current artifact model, suite structure, validation, scoring, comparison, fit ladder, runtime metadata, public docs, and practical-evaluation methodology.
-
-## Forward roadmap
-
-### v0.57 — Suite and scoring maturity
-
-Primary goal:
-
-Make existing practical suites and scoring guidance more credible, consistent, and publishable.
-
-Likely work:
-
-- review Practical Eval v1 scoring guidance
-- tighten rubric wording where ambiguous
-- add better scoring examples for pass/mixed/fail cases
-- clarify when a result is scoreable vs `needs_review`
-- improve docs around failure labels and good labels
-- check whether existing labels are too broad, duplicated, or under-defined
-- add tests only if scoring metadata or generated templates change
-
-Good outcome:
-
-A human reviewer has clearer guidance for scoring practical local-model outputs, and public comparison claims are easier to defend.
-
-Avoid:
-
-- automatic LLM-as-judge scoring
-- new leaderboard framing
-- changing score meanings casually
-- large suite rewrites
-- adding many new prompts before current rubric quality is stable
-
-### v0.58 — Practical suite polish
-
-Primary goal:
-
-Improve actual prompt suite quality, especially `wumbolabs-practical-v1`.
-
-Likely work:
-
-- audit prompt wording for ambiguity
-- remove or revise prompts that overfit to one environment
-- ensure prompts test useful, real consumer-hardware behavior
-- improve prompt metadata and expected review dimensions
-- confirm each prompt produces enough evidence for scoring
-- add or refine only a small number of prompts if there is a clear gap
-
-Good outcome:
-
-The practical suite becomes a stronger public-proof suite for usefulness, honesty, technical correctness, safety, and real workflow fit.
-
-Avoid:
-
-- expanding prompt count just to expand it
-- agent-heavy framing unless a prompt is explicitly agent-oriented
-- benchmark trivia
-- model-specific prompts
-
-### v0.59 — Scored comparison evidence polish
-
-Primary goal:
-
-Make scored comparisons easier to turn into public WumboLabs proof.
-
-Likely work:
-
-- improve scored comparison docs
-- clarify how to compare same-suite vs cross-suite runs
-- add better examples of bounded public claims
-- improve report language around small score differences
-- possibly add better summary tables if they are deterministic and schema-safe
-
-Good outcome:
-
-A comparison report can be read by an outside person and they can understand what is supported, what is not supported, and why.
-
-Avoid:
-
-- declaring winners automatically
-- ranking models globally
-- hiding caveats behind averages
-
-### v0.60 — Public-proof workflow hardening
-
-Primary goal:
-
-Tighten the full run → validate → inspect → score → compare → publish workflow.
-
-Likely work:
-
-- review docs end-to-end from clean install to public comparison
-- make sure commands are consistent across README, QUICKSTART, USAGE, LOCAL_MODEL_TESTING, and PUBLIC_REPORTING
-- add a concise public-proof checklist
-- add examples of publishable vs non-publishable claims
-- ensure report artifacts, score files, cleaned outputs, and raw outputs are referenced consistently
-
-Good outcome:
-
-The project has a coherent, repeatable public-proof workflow, not just a set of independent CLI commands.
-
-Avoid:
-
-- new major CLI surface
-- packaging churn
-- external website integration before the proof workflow is tight
+- a benchmark submission or telemetry system
+
+## Current capabilities
+
+After `v0.60`, LLMGauge provides:
+
+- local-first CLI runs with preserved raw/cleaned outputs and logs
+- artifact validation (`validate-result`, ladder/batch validators)
+- manual scoring templates and `score --check` / `score --scores` workflow
+- auto-draft scoring as review-required triage only
+- single-run `report.md` generation with **Publish Readiness Notes**
+- comparison reports with publish-readiness and **Publication evidence summary**
+- `export-index` machine-readable metadata for importers
+- model profile onboarding and management commands
+- dry-run and preflight commands (`smoke`, `doctor`)
+- context ladder and fit ladder artifacts with preserved failures
+- public-proof workflow guidance across docs
+- Practical Eval v1 seed suite (`wumbolabs-practical-v1`)
+- artifact schema documentation
+- publish-readiness notes and explicit claim boundaries
+
+## Recently completed releases
+
+Condensed highlights from recent release lines:
+
+| Release | Focus |
+|---|---|
+| v0.57 | Suite and scoring maturity — rubric guidance, scoreability docs |
+| v0.58 | Practical suite polish — prompt audit and metadata |
+| v0.59 | Scored comparison evidence — publish-readiness in reports/compare, export-index scoring fields |
+| v0.60 | Public-proof workflow hardening — end-to-end checklist, CLI next-steps, validate-result artifact messaging |
+
+Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
+
+## Active development line
 
 ### v0.61 — Export/index/report integration polish
 
-Primary goal:
+**Goal:** Make `report.md`, comparison reports, and export-index artifacts work together more coherently in the public-proof workflow.
 
-Improve how downstream tools, website scripts, or Monolith can consume results without changing core semantics.
+**Scope:**
 
-Likely work:
+- align report/compare/export-index terminology across docs and generated output
+- clarify artifact roles and regeneration points
+- improve importer/public-proof metadata guidance
+- keep schemas backward-compatible
 
-- review export-index fields for public-proof completeness
-- improve docs for machine-readable metadata
-- ensure scoring provenance, artifact paths, run metadata, and comparison caveats are visible
-- possibly add small metadata fields only if clearly needed and backward-safe
+**Avoid:** breaking artifact compatibility, major schema migration, external integration coupling.
 
-Good outcome:
+## Near-term roadmap
 
-External reporting tools can consume LLMGauge artifacts without guessing about score state, review state, or artifact completeness.
+### v0.62 — Public report artifact polish
 
-Avoid:
+**Goal:** Make generated artifacts easier to cite in human-facing reports.
 
-- breaking artifact compatibility
-- major schema migration
-- Monolith-specific coupling
+**Possible work:**
 
-### v0.62 — Real-result publication preparation
+- tighten report wording and auditability
+- improve comparison excerpts or summary sections
+- keep claims bounded and hardware-specific
 
-Primary goal:
+**Avoid:** model-specific winner claims, leaderboard framing.
 
-Prepare the first polished public comparison result set.
+### v0.63 — Result artifact usability / audit polish
 
-Likely work:
+**Goal:** Improve reviewer ergonomics without changing the file-based design.
 
-- pick a narrow model set
-- re-run or verify existing practical-use results
-- confirm comparable settings
-- confirm score files are reviewed
-- generate comparison reports
-- prepare public-readable result summaries
-- identify exact artifacts worth publishing
+**Possible work:**
 
-Good outcome:
+- improve artifact navigation guidance
+- improve raw/cleaned output references in docs and reports
+- keep local-first, file-based artifacts as the source of truth
 
-WumboLabs has a clean candidate result set for publication, not just private local testing notes.
+**Avoid:** cloud dashboards, hidden artifact mutation, network dependencies.
 
-Candidate comparison set:
+## Later roadmap / parking lot
 
-- Gemma 4 12B IT QAT UD-Q4_K_XL
-- Mellum2 Instruct Q4_K_M
-- Qwen3.6 35B-A3B UD-IQ2_M
-- Qwen3-14B Q4_K_M
-- possibly Grug-12B Q4_K_M as an additional comparison point
+These are optional or exploratory. They are not core commitments:
 
-The point is not to chase every model. The point is to publish a defensible, bounded comparison.
+- optional website publication helpers
+- optional LocalMaxxing export/submission integration (not core; no default network activity)
+- optional Monolith import/read-only integration (not core)
+- richer comparison summaries when deterministic and schema-safe
+- package/release automation improvements
+- CI/doc automation
+- model profile UX polish
+- context-size and fit-ladder reporting polish
+- optional static report browsing helpers
 
-### v0.63 — Public WumboLabs proof layer
+**Non-goals for later work:**
 
-Primary goal:
+- automatic LLM-as-judge scoring
+- leaderboard or universal ranking
+- network submission by default
+- production-readiness or daily-driver recommendations from scores alone
 
-Move selected results into a public-facing WumboLabs presentation.
+## Release discipline / public-proof rules
 
-Likely work:
-
-- decide website format for result summaries
-- publish bounded claims only
-- include hardware/runtime disclosure
-- include score caveats
-- link or reference relevant artifacts
-- avoid leaderboard framing
-
-Good outcome:
-
-The WumboLabs site can show real local-model evidence under “Real Hardware. Real Testing. No Hype.”
-
-Avoid:
-
-- making the website a benchmark leaderboard
-- hiding failure cases
-- overstating generality
-
-### v0.64+ — Tooling after public proof is credible
-
-Primary goal:
-
-Only after the public-proof loop is working, consider broader tooling improvements.
-
-Possible later lanes:
-
-- better comparison table formatting
-- optional static report generation
-- more robust artifact browsing
-- richer score summaries
-- fit-ladder/report integration polish
-- context-size comparison reporting
-- importer/exporter polish for Monolith
-- more suite aliases
-- better result grouping by model/profile/suite/hardware
-
-These are useful, but they should follow evidence quality, not precede it.
-
-## Strategic priority order
-
-1. v0.57: scoring/rubric maturity
-2. v0.58: practical suite polish
-3. v0.59: scored comparison evidence polish
-4. v0.60: public-proof workflow hardening
-5. v0.61: export/index/report integration polish
-6. v0.62: prepare first public result set
-7. v0.63: publish WumboLabs proof layer
-8. v0.64+: only then add broader tooling polish
+1. Feature branches from `main` with focused commits.
+2. Local full gate before handoff: `uv run pytest`, `uv run ruff check .`, `git diff --check`.
+3. Release metadata (`pyproject.toml`, `__init__.py`, `CHANGELOG.md`, lockfile) in a separate release-prep step — not mixed into feature work.
+4. Annotated tags only after release metadata merges to `main`.
+5. Preserve raw outputs, failed attempts, and scoring provenance in all workflows.
+6. Manual scoring remains the trusted path; auto-drafts stay review-required until applied and reviewed.
+7. Public claims require disclosed hardware, runtime, suite, scoring status, and artifact evidence.
+8. Comparison reports and export index are evidence metadata — not model recommendations.
 
 ## Working rule
 
-For every proposed v0.57+ task, ask:
+For every proposed task, ask:
 
-Does this make LLMGauge better at producing defensible public evidence about local models on real consumer hardware?
+> Does this make LLMGauge better at producing defensible public evidence about local models on real consumer hardware?
 
-If yes, it belongs on the roadmap.
-
-If it is only private progress, model chasing, UI polish, or architecture expansion, park it.
-
-## Later exploration
-
-### Web UI / dashboard direction
-
-A future LLMGauge UI could make local evaluation easier without replacing the CLI.
-
-Potential capabilities:
-
-- browse result artifacts
-- inspect raw and cleaned outputs
-- review and apply scores
-- compare models/runs
-- inspect VRAM and throughput
-- manage model profiles
-- export public-report bundles
-
-Constraints:
-
-- CLI remains the canonical workflow
-- UI should not hide artifact files
-- UI should not require cloud services
-- UI should not mutate artifacts without explicit action
-
-### Context scaling and fit workflows
-
-Continue improving context and fit testing while preserving failure evidence.
-
-Potential direction:
-
-- better fit-ladder summaries
-- clearer failure classification
-- context-size comparison reports
-- bounded adaptive retry only when explicitly requested
-- no silent fallback in normal runs
-
-### LocalMaxxing integration
-
-LLMGauge has permission to explore LocalMaxxing integration, but it must remain optional and staged.
-
-Potential levels:
-
-1. Documentation-only compatibility
-   - map LLMGauge runtime metadata to LocalMaxxing-style fields
-   - clarify claim boundaries
-
-2. Export-only integration
-   - generate a LocalMaxxing-compatible JSON payload
-   - perform no network activity
-
-3. Explicit submit integration
-   - only after API docs are reviewed
-   - require a deliberate user command
-   - preview submitted data
-   - preserve returned submission IDs as supplemental metadata
-
-Constraints:
-
-- no automatic network activity
-- no submission during normal runs
-- no LocalMaxxing dependency for normal users
-- no leaderboard claims from LLMGauge quality scores
-
-## Non-goals
-
-- Do not remove the `uv run` development workflow.
-- Do not require network activity for normal runs.
-- Do not make setup overly magical.
-- Do not bundle unrelated feature work into release metadata.
-- Do not turn LLMGauge into a cloud service, downloader, benchmark leaderboard, automatic judge, or hardware tuning framework.
-- Do not make AI-assisted development autonomous or unsupervised.
-
-## Branch and release discipline
-
-LLMGauge uses `main` as the default branch.
-
-Expected release flow:
-
-1. feature branch from `main`
-2. focused commits
-3. local full gate
-4. push branch only when asked
-5. PR to `main`
-6. PR CI
-7. merge with a merge commit when focused history should be preserved
-8. separate release-prep branch for version metadata
-9. release-prep PR and CI
-10. merge release metadata
-11. final main verification
-12. annotated tag
-13. push tag
-14. cleanup merged branches
-
-Release metadata belongs in a separate release-prep commit unless explicitly directed otherwise.
+If yes, it belongs on the roadmap. If it is only private progress, model chasing, UI polish, or architecture expansion without evidence value, park it.
