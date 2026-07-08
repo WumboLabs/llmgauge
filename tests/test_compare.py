@@ -87,7 +87,10 @@ def test_build_compare_report() -> None:
     )
 
     assert "# LLMGauge Comparison Report" in report
-    assert "This report compares completed local evaluation runs" in report
+    assert "not a universal ranking, model recommendation, or production-readiness proof" in report
+    assert "## Comparison Scope" in report
+    assert "- Like-for-like quality comparison: yes" in report
+    assert "Use this comparison for:" in report
     assert "## Interpretation Notes" in report
     assert "not universal rankings or leaderboards" in report
     assert "## Publish Readiness Notes" in report
@@ -100,7 +103,10 @@ def test_build_compare_report() -> None:
         "| run-a | model-a | core-v1 | completed | 1 | 0 | 1 | 40.0/50.0 | 4.0 | 7535 | 4692 |"
         in report
     )
+    assert "Manual total" in report
+    assert "Manual avg (0-5)" in report
     assert "## Score Summary" in report
+    assert "Manual score totals and averages are review metadata" in report
     assert (
         "| model-a (run-a) | 40.0/50.0 | 4.0 | 1 | 0 | 1 | honesty-unknown-tool (4) | honesty-unknown-tool (4) |"
         in report
@@ -135,6 +141,7 @@ def test_build_compare_report_publish_readiness_warns_for_mixed_suites() -> None
         ]
     )
 
+    assert "- Like-for-like quality comparison: no" in report
     assert "- Mixed suite IDs: yes" in report
     assert "Suite IDs differ across runs" in report
 

@@ -330,7 +330,7 @@ Key rules:
 - `validate-result` checks artifact integrity, not answer quality.
 - Run `score --check` before applying scores.
 - Re-run `validate-result` after applying scores.
-- Read **Publish Readiness Notes** in `report.md` before publication.
+- Read **Report Scope**, **Evidence Summary**, and **Publish Readiness Notes** in `report.md` before publication.
 - Read comparison **Publish Readiness Notes** and **Publication evidence summary** before quality claims.
 - Treat `export-index` output as evidence metadata, not a model recommendation.
 - Do not publish unreviewed `auto-scores.yaml` drafts as final human judgment.
@@ -398,7 +398,7 @@ When comparing two or more result directories, generate a comparison report:
       results/run-b \
       --out results/compare.md
 
-The report includes **Publish Readiness Notes** and a **Publication evidence
+The comparison report includes **Comparison Scope**, **Publish Readiness Notes**, and a **Publication evidence
 summary** with deterministic signals about scored vs unscored runs, reviewed vs
 unreviewed scores, `needs_review` verdicts, missing score rationales, mixed
 suites or suite versions, mixed runtime settings, prompt overlap, and artifact
