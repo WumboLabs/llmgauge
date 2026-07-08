@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.59 - 2026-07-07
+
+- Polished scored comparison reporting for clearer public evidence boundaries.
+- Added publication evidence summaries that separate safer bounded claims from unsupported ranking-style claims.
+- Expanded Publish Readiness Notes with `needs_review` verdict counts, missing score rationales, suite-version checks, and scoring review signals.
+- Added shared scoring evidence helpers for scored, partially scored, review-metadata-only, and unscored result handling.
+- Added export-index scoring evidence fields for report/import workflows.
+- Documented new export-index scoring evidence fields in artifact schema docs.
+- Updated public reporting, scored comparison, local testing, and evaluation-tier docs for comparison publication caveats.
+- Added tests for publish-readiness warnings, review-metadata-only scoring evidence, export-index scoring metadata, and report claim boundaries.
+
 ## v0.58 - 2026-07-07
 
 - Polished the bundled Practical Eval v1 seed suite for clearer public-proof local model evaluation.
