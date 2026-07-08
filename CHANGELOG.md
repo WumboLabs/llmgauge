@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.65 - 2026-07-07
+
+- Added guided first-run setup with `llmgauge setup`.
+- Added read-only setup scanning with `llmgauge setup --scan`.
+- Added non-interactive setup for scripted clean-clone validation with explicit `--llama-cli`, `--model-path`, `--models-dir`, and `--profile-name` options.
+- Added conservative `llama-cli` and GGUF path discovery without downloading models, building runtimes, or launching models automatically.
+- Added setup helpers for config updates, model profile creation, profile-name sanitization, and bounded GGUF scanning.
+- Updated README, install, quickstart, usage, roadmap, and clean-clone testing docs to make guided setup the preferred first-run path while preserving manual `init` fallback.
+- Added tests covering setup scan, non-interactive setup, no-overwrite behavior, doctor/smoke readiness, dry-run readiness, and deterministic setup helpers.
+
 ## v0.64 - 2026-07-07
 
 - Hardened the repo for clean-clone and public-proof readiness before pausing feature work.
