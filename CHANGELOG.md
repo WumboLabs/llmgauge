@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.61 - 2026-07-07
+
+- Polished integration between single-run reports, comparison reports, and export-index artifacts.
+- Added public-proof artifact role guidance for `report.md`, `compare.md`, and export index JSON.
+- Documented source-of-truth and regeneration expectations across report, compare, score, and export workflows.
+- Added export-index support and documentation for `scores_yaml` discovery when `scores.yaml` is present.
+- Added artifact integration notes to generated single-run and comparison reports.
+- Updated Public Reporting, Artifact Schemas, Scored Comparisons, Local Model Testing, Quickstart, and Usage docs for consistent terminology.
+- Refreshed `docs/ROADMAP.md` with a cleaner current-state, active-line, near-term, and parking-lot layout.
+- Added tests for export-index score-file metadata and report/compare artifact integration notes.
+
 ## v0.60 - 2026-07-07
 
 - Hardened the public-proof workflow across docs and CLI guidance.
