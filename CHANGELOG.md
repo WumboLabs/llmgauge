@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.57 - 2026-07-07
+
+- Clarified practical scoring guidance for human reviewers.
+- Added scoreability guidance for deciding when outputs are scoreable vs `needs_review`.
+- Expanded verdict guidance for `pass`, `mixed`, `fail`, and `needs_review`.
+- Documented default-rubric and Practical Eval v1 label usage.
+- Added short scoring examples covering strong passes, mixed unsupported claims, invented/unsafe failures, insufficient evidence, and safe uncertainty.
+- Added Practical Eval v1 reviewer guidance for evidence review, hallucination handling, safe uncertainty, and partial-but-useful answers.
+- Added local model testing workflow reminders before applying scores.
+- Added AGENTS.md guidance requiring temporary review bundles under `tmp/` before final handoff.
+
 ## v0.56 - 2026-07-07
 
 - Added Publish Readiness Notes to comparison reports with deterministic signals for scored/unscored runs, reviewed/unreviewed scores, mixed suites/runtime settings, prompt overlap, and artifact gaps.
