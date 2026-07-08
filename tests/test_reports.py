@@ -74,12 +74,20 @@ def test_build_markdown_report_multiple_prompts() -> None:
     report = build_markdown_report(result)
 
     assert "# LLMGauge Report: test-run" in report
+    assert "not a universal ranking, model recommendation, or production-readiness proof" in report
+    assert "## Report Scope" in report
+    assert "Use this report for:" in report
+    assert "Do not use this report for:" in report
+    assert "## Evidence Summary" in report
+    assert "- Run ID: test-run" in report
+    assert "- Peak VRAM MiB: 7535" in report
     assert "## Publish Readiness Notes" in report
     assert "- Scoring status: unscored" in report
+    assert "## Test Configuration" in report
     assert "- Flash attention: on" in report
     assert "- Runtime label: daily-tuned" in report
     assert (
-        "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
+        "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
         in report
     )
     assert (
@@ -162,9 +170,12 @@ def test_build_markdown_report_with_scores() -> None:
 
     report = build_markdown_report(result)
 
+    assert "## Evidence Summary" in report
+    assert "- Manual score average: 3.6 / 5" in report
     assert "## Publish Readiness Notes" in report
     assert "- Scoring status: scored" in report
     assert "## Score Summary" in report
+    assert "Manual scores are review metadata" in report
     assert "- Manual score average: 3.6 / 5" in report
     assert "## Scored Interpretation" in report
     assert "- Scoring status: scored" in report

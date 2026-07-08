@@ -130,6 +130,89 @@ def _vram_peak_used_mib(prompt_result: dict[str, Any]) -> int | None:
     return peak_used_mib
 
 
+def _build_report_scope_section() -> list[str]:
+    return [
+        "## Report Scope",
+        "",
+        "Use this report for:",
+        "- Bounded public claims about this run under the disclosed model, suite, and runtime settings.",
+        "- Prompt-level output review using the raw and cleaned artifacts cited below.",
+        "- Score and rationale review when scoring is complete and manually reviewed.",
+        "- Operational signals such as speed and VRAM under the tested hardware.",
+        "",
+        "Do not use this report for:",
+        "- Universal model rankings, winner declarations, or production-readiness proof.",
+        "- Quality-ranking claims when scoring is unscored, partial, review-metadata-only, or unreviewed.",
+        "- Publishing automatic-rule drafts as final human judgment without manual review.",
+        "- Claims about untested prompts, hardware, or runtime settings.",
+        "",
+    ]
+
+
+def _result_peak_vram_mib(result: dict[str, Any]) -> int | None:
+    values = [
+        peak
+        for peak in (
+            _vram_peak_used_mib(prompt_result)
+            for prompt_result in result.get("results", [])
+        )
+        if peak is not None
+    ]
+    return max(values) if values else None
+
+
+def _result_min_vram_headroom_mib(result: dict[str, Any]) -> int | None:
+    values = [
+        headroom
+        for headroom in (
+            _vram_headroom_mib(prompt_result)
+            for prompt_result in result.get("results", [])
+        )
+        if headroom is not None
+    ]
+    return min(values) if values else None
+
+
+def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
+    run = result["run"]
+    model = result["model"]
+    runtime = result["runtime"]
+    suite = result["suite"]
+    summary = result["summary"]
+    evidence = scoring_evidence_summary(result)
+
+    peak_vram = _result_peak_vram_mib(result)
+    min_headroom = _result_min_vram_headroom_mib(result)
+
+    lines = [
+        "## Evidence Summary",
+        "",
+        f"- Run ID: {run['run_id']}",
+        f"- Run status: {run['status']}",
+        f"- Timestamp UTC: {run['timestamp_utc']}",
+        f"- Model ID: {model['model_id']}",
+        f"- Suite: {suite['suite_id']} ({suite['suite_version']})",
+        f"- Prompts completed: {summary['completed']} of {suite['prompt_count']}",
+        f"- Prompts failed: {summary['failed']}",
+        f"- Scoring status: {evidence['scoring_status']}",
+        f"- Scored prompts: {evidence['scored_prompt_count']} of {evidence['prompt_count']}",
+        (
+            f"- Manual score average: {summary.get('manual_score_average')} / 5"
+            if summary.get("manual_score_average") is not None
+            else "- Manual score average: None"
+        ),
+        f"- Runtime: {runtime['backend']}, ctx={runtime['ctx_size']}, max_tokens={runtime['max_tokens']}, temp={runtime['temperature']}, top_p={runtime['top_p']}",
+        f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+        f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
+        f"- Peak VRAM MiB: {_fmt_optional_mib(peak_vram)}",
+        f"- Min VRAM headroom MiB: {_fmt_optional_mib(min_headroom)}",
+        "- Inspect raw and cleaned outputs in **Artifact Paths** before publication.",
+        "",
+    ]
+
+    return lines
+
+
 def _completed_prompt_artifact_gaps(result: dict[str, Any]) -> int:
     gaps = 0
     for prompt_result in result.get("results", []):
@@ -234,45 +317,58 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     lines = [
         f"# LLMGauge Report: {run['run_id']}",
         "",
-        "## Run",
-        "",
-        f"- Status: {run['status']}",
-        f"- Timestamp UTC: {run['timestamp_utc']}",
-        f"- Suite: {suite['suite_id']} ({suite['suite_version']})",
-        f"- Prompt count: {suite['prompt_count']}",
-        f"- Completed: {summary['completed']}",
-        f"- Failed: {summary['failed']}",
-        "",
-        "## Model",
-        "",
-        f"- Model ID: {model['model_id']}",
-        f"- Model path policy: {model['model_path_policy']}",
-        "",
-        "## Runtime",
-        "",
-        f"- Backend: {runtime['backend']}",
-        f"- llama-cli: {runtime['llama_cli']}",
-        f"- Context: {runtime['ctx_size']}",
-        f"- Max tokens: {runtime['max_tokens']}",
-        f"- Temperature: {runtime['temperature']}",
-        f"- Top-p: {runtime['top_p']}",
-        f"- Batch: {runtime['batch_size']}",
-        f"- UBatch: {runtime['ubatch_size']}",
-        f"- GPU layers: {runtime['gpu_layers']}",
-        f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
-        f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+        "This report summarizes local evaluation evidence for review. It is not a universal ranking, model recommendation, or production-readiness proof.",
         "",
     ]
 
+    lines.extend(_build_report_scope_section())
+    lines.extend(_build_evidence_summary(result))
+    lines.extend(_build_single_run_publish_readiness_notes(result))
+
+    lines.extend(
+        [
+            "## Test Configuration",
+            "",
+            "### Run",
+            "",
+            f"- Status: {run['status']}",
+            f"- Timestamp UTC: {run['timestamp_utc']}",
+            f"- Suite: {suite['suite_id']} ({suite['suite_version']})",
+            f"- Prompt count: {suite['prompt_count']}",
+            f"- Completed: {summary['completed']}",
+            f"- Failed: {summary['failed']}",
+            "",
+            "### Model",
+            "",
+            f"- Model ID: {model['model_id']}",
+            f"- Model path policy: {model['model_path_policy']}",
+            "",
+            "### Runtime",
+            "",
+            f"- Backend: {runtime['backend']}",
+            f"- llama-cli: {runtime['llama_cli']}",
+            f"- Context: {runtime['ctx_size']}",
+            f"- Max tokens: {runtime['max_tokens']}",
+            f"- Temperature: {runtime['temperature']}",
+            f"- Top-p: {runtime['top_p']}",
+            f"- Batch: {runtime['batch_size']}",
+            f"- UBatch: {runtime['ubatch_size']}",
+            f"- GPU layers: {runtime['gpu_layers']}",
+            f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
+            f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+            "",
+        ]
+    )
+
     failure_labels = summary.get("failure_labels", {})
     good_labels = summary.get("good_labels", {})
-
-    lines.extend(_build_single_run_publish_readiness_notes(result))
 
     if summary.get("scored_prompt_count"):
         lines.extend(
             [
                 "## Score Summary",
+                "",
+                "Manual scores are review metadata on a 0-5 scale, not objective quality proof.",
                 "",
                 f"- Scored prompts: {summary.get('scored_prompt_count')}",
                 f"- Manual score total: {summary.get('manual_score_total')}",
@@ -330,7 +426,9 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         [
             "## Prompt Results",
             "",
-            "| Prompt | Category | Status | Score avg | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |",
+            "Score avg values are manual review metadata when present. Speed and VRAM columns are operational signals.",
+            "",
+            "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |",
             "|---|---|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
@@ -378,6 +476,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     lines.extend(
         [
             "## Artifact Paths",
+            "",
+            "Inspect cleaned outputs for readable review and raw outputs for audit evidence.",
             "",
         ]
     )

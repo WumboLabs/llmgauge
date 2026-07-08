@@ -232,6 +232,90 @@ def _completed_prompt_artifact_gaps(result: dict[str, Any]) -> int:
     return gaps
 
 
+def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
+    suite_ids = _unique_nonempty_values(
+        results, lambda result: result.get("suite", {}).get("suite_id")
+    )
+    suite_versions = _unique_nonempty_values(
+        results, lambda result: result.get("suite", {}).get("suite_version")
+    )
+    model_ids = _unique_nonempty_values(
+        results, lambda result: result.get("model", {}).get("model_id")
+    )
+    ctx_sizes = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("ctx_size")
+    )
+    max_tokens = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("max_tokens")
+    )
+    temperatures = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("temperature")
+    )
+    runtime_labels = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("runtime_label")
+    )
+
+    prompt_sets = [_prompt_id_set(result) for result in results]
+    shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
+    all_prompt_ids = set.union(*prompt_sets) if prompt_sets else set()
+    prompt_sets_differ = len({frozenset(prompt_set) for prompt_set in prompt_sets}) > 1
+
+    mixed_suite = len(suite_ids) > 1
+    mixed_suite_versions = len(suite_versions) > 1
+    mixed_model = len(model_ids) > 1
+    mixed_runtime = any(
+        len(values) > 1 for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
+    )
+
+    like_for_like = (
+        not mixed_suite
+        and not mixed_suite_versions
+        and not mixed_runtime
+        and not prompt_sets_differ
+    )
+
+    lines = [
+        "## Comparison Scope",
+        "",
+        f"- Compared runs: {len(results)}",
+        f"- Model IDs: {', '.join(model_ids) if model_ids else 'None'}",
+        f"- Suite IDs: {', '.join(suite_ids) if suite_ids else 'None'}",
+        f"- Suite versions: {', '.join(str(value) for value in suite_versions) if suite_versions else 'None'}",
+        f"- Shared prompt IDs: {len(shared_prompt_ids)} of {len(all_prompt_ids)}",
+        f"- Like-for-like quality comparison: {'yes' if like_for_like else 'no — see Publish Readiness Notes'}",
+        "",
+        "Use this comparison for:",
+        "- Cross-run evidence review when runs share suite, prompt subset, and runtime settings.",
+        "- Operational comparisons of speed and VRAM under disclosed settings.",
+        "- Bounded public claims backed by reviewed scores and cited artifacts.",
+        "",
+        "Do not use this comparison for:",
+        "- Universal model rankings, winner declarations, or production-readiness proof.",
+        "- Quality-ranking claims across mixed suites, prompt subsets, or runtime settings.",
+        "- Publishing unreviewed automatic-rule drafts as final human judgment.",
+        "",
+    ]
+
+    if not like_for_like:
+        caveats: list[str] = []
+        if mixed_suite:
+            caveats.append("Suite IDs differ across runs.")
+        if mixed_suite_versions:
+            caveats.append("Suite versions differ across runs.")
+        if mixed_model:
+            caveats.append("Model IDs differ across runs (expected for model comparisons).")
+        if mixed_runtime:
+            caveats.append("Runtime settings differ across runs.")
+        if prompt_sets_differ:
+            caveats.append("Prompt sets differ across runs.")
+        if caveats:
+            lines.extend(["Like-for-like caveats:", ""])
+            lines.extend(f"- {caveat}" for caveat in caveats)
+            lines.append("")
+
+    return lines
+
+
 def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     compared_runs = len(results)
     scoring_status_counts: dict[str, int] = {}
@@ -482,27 +566,31 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
     lines = [
         "# LLMGauge Comparison Report",
         "",
-        "This report compares completed local evaluation runs. It does not declare a universal winner.",
-        "",
-        "## Interpretation Notes",
-        "",
-        "- Comparison reports summarize local evidence; they are not universal rankings or leaderboards.",
-        "- Compare runs from the same suite and prompt subset when making quality claims.",
-        "- Manual score averages are review metadata, not objective truth or automatic judgments.",
-        "- Automatic-rule scores are assisted drafts unless reviewed and applied as reviewed metadata.",
-        "- Missing scores mean this report cannot support quality-ranking claims.",
-        "- Failure labels and low-trust prompts matter more than small average-score differences.",
-        "- Speed and VRAM are hardware/runtime-specific operational metrics, not answer-quality scores.",
-        "- Mixed suites, models, contexts, token budgets, or temperatures require careful interpretation.",
-        "- Inspect raw and cleaned artifacts before making model-selection or public-proof decisions.",
+        "This report compares local evaluation runs for review. It is not a universal ranking, model recommendation, or production-readiness proof.",
         "",
     ]
+    lines.extend(_build_comparison_scope(results))
+    lines.extend(
+        [
+            "## Interpretation Notes",
+            "",
+            "- Comparison reports summarize local evidence; they are not universal rankings or leaderboards.",
+            "- Compare like-for-like runs (same suite, prompt subset, context, token budget, temperature) for quality claims.",
+            "- Manual score averages are review metadata, not objective truth or automatic judgments.",
+            "- Automatic-rule scores are assisted drafts unless reviewed and applied as reviewed metadata.",
+            "- Missing scores mean this report cannot support quality-ranking claims.",
+            "- Failure labels and low-trust prompts matter more than small average-score differences.",
+            "- Speed and VRAM are hardware/runtime-specific operational metrics, not answer-quality scores.",
+            "- Inspect raw and cleaned artifacts before making public-proof decisions.",
+            "",
+        ]
+    )
     lines.extend(_build_publish_readiness_notes(results))
     lines.extend(
         [
             "## Runs",
             "",
-            "| Run | Model | Suite | Status | Completed | Failed | Scored | Score total | Avg score | Peak VRAM MiB | Min VRAM Headroom MiB |",
+            "| Run | Model | Suite | Status | Completed | Failed | Scored | Manual total | Manual avg (0-5) | Peak VRAM MiB | Min VRAM Headroom MiB |",
             "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
@@ -533,7 +621,9 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             "",
             "## Score Summary",
             "",
-            "| Run | Score total | Avg score | Scored prompts | Failure labels | Good labels | Lowest prompt | Highest prompt |",
+            "Manual score totals and averages are review metadata, not objective quality proof.",
+            "",
+            "| Run | Manual total | Manual avg (0-5) | Scored prompts | Failure labels | Good labels | Lowest prompt | Highest prompt |",
             "|---|---:|---:|---:|---:|---:|---|---|",
         ]
     )
@@ -557,7 +647,7 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             "",
             "## Quality Signals",
             "",
-            "| Run | Avg score | Verdict counts | Failure label count | Good label count | Lowest prompt |",
+            "| Run | Manual avg (0-5) | Verdict counts | Failure label count | Good label count | Lowest prompt |",
             "|---|---:|---|---:|---:|---|",
         ]
     )

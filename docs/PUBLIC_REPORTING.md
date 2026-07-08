@@ -116,21 +116,37 @@ A public report should not claim:
 - safety outside the tested prompts
 - performance on untested hardware or runtime settings
 
+## Generated report sections
+
+Single-run `report.md` files include:
+
+- **Report Scope** — what the report is and is not for
+- **Evidence Summary** — cite-friendly run, model, suite, runtime, and scoring snapshot
+- **Publish Readiness Notes** — deterministic publish-readiness signals
+- **Test Configuration** — detailed run, model, and runtime metadata
+- **Artifact Paths** — raw and cleaned output references for audit
+
+Comparison `compare.md` files add:
+
+- **Comparison Scope** — like-for-like check and supported/unsupported comparison uses
+- **Publication evidence summary** — safer vs unsupported public claims
+
 ## Useful public-report structure
 
-A concise public report should include:
+When writing a human-facing WumboLabs report, cite material from the generated
+sections above. A concise public writeup should include:
 
-1. Test setup
+1. Test setup (from Evidence Summary / Test Configuration)
 2. Suite and evidence tier
 3. Runtime and hardware
-4. Score summary
+4. Score summary (manual review metadata only)
 5. Verdict counts
 6. Strengths
 7. Failure modes
 8. Representative examples from cleaned output
 9. Operational performance
-10. Claim boundary
-11. Comparison publish-readiness notes when multiple runs are summarized
+10. Claim boundary (from Report Scope / Publish Readiness Notes)
+11. Comparison scope and publish-readiness notes when multiple runs are summarized
 
 ## Comparison reports
 

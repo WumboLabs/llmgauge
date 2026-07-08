@@ -42,10 +42,16 @@ For installed CLI usage:
       results/run-b \
       --out results/compare.md
 
+## Comparison Scope
+
+Comparison reports open with **Comparison Scope**, including a like-for-like
+quality check, model/suite/prompt overlap, and explicit use/do-not-use guidance.
+Read this section before interpreting score tables or making public claims.
+
 ## Publish Readiness Notes
 
-Comparison reports include **Publish Readiness Notes** near the top of the
-report. Read this section before publishing or importing comparison evidence.
+Comparison reports include **Publish Readiness Notes** after the scope and
+interpretation notes. Read this section before publishing or importing comparison evidence.
 
 It summarizes deterministic signals such as:
 
