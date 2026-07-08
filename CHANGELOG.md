@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.63 - 2026-07-07
+
+- Polished result artifact auditability for reviewers inspecting run directories.
+- Added single-run **Audit Checklist** guidance for validation, output inspection, log review, score rationale review, and artifact retention.
+- Added single-run **Prompt Artifact Audit** with per-prompt raw output, cleaned output, stderr log, VRAM sample, score, verdict, labels, rationale, and review-status details.
+- Clarified that raw prompts and raw outputs are source audit evidence, cleaned outputs are derived review aids, logs are diagnostic evidence, and VRAM samples are local operational telemetry.
+- Updated Artifact Schemas, Local Model Testing, Public Reporting, and Usage docs with result-directory audit guidance.
+- Preserved existing artifact compatibility without changing export-index schema or validation behavior.
+- Added tests locking the new audit checklist, prompt artifact audit, path presentation, score rationale, and telemetry wording.
+
 ## v0.62 - 2026-07-07
 
 - Polished generated public report artifacts for clearer citation, review, and audit use.
