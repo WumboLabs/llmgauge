@@ -51,9 +51,9 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.64
+Current stable tag: v0.65
 
-Current development line: v0.65 guided setup / first-run onboarding
+Current development line: paused after v0.65 for clean-clone validation and model testing
 
 See [Roadmap](docs/ROADMAP.md).
 

@@ -8,9 +8,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.64`
-- Current development line: `v0.65` guided setup / first-run onboarding
-- Current development focus: reduce first-run setup friction before clean-clone testing and real model validation
+- Current stable tag: `v0.65`
+- Current development line: paused after `v0.65` for clean-clone validation and model testing
+- Current development focus: paused for guided-setup clean-clone validation, real model testing, website update, and first public post preparation
 
 ## What LLMGauge is
 
@@ -36,7 +36,7 @@ LLMGauge answers practical local-model questions such as:
 
 ## Current capabilities
 
-After `v0.64`, LLMGauge provides:
+After `v0.65`, LLMGauge provides:
 
 - local-first CLI runs with preserved raw/cleaned outputs and logs
 - artifact validation (`validate-result`, ladder/batch validators)
