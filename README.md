@@ -51,12 +51,12 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.63
+Current stable tag: v0.64
 
-Current development line: v0.64
+Current development line: paused after v0.64
 
-v0.64 is the final feature-polish line before pausing for clean-clone testing,
-real model validation, and WumboLabs publication prep. See [Roadmap](docs/ROADMAP.md).
+Feature work is paused after v0.64 for clean-clone testing, real model validation,
+and WumboLabs publication prep. See [Roadmap](docs/ROADMAP.md).
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 

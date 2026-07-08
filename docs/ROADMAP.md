@@ -8,9 +8,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.63`
-- Current development line: `v0.64`
-- Current development focus: repo-wide review, cleanup, clean-clone readiness, and final pre-public-proof hardening
+- Current stable tag: `v0.64`
+- Current development line: paused after `v0.64`
+- Current development focus: paused for clean-clone testing, real model validation, website update, and first public post preparation
 
 ## What LLMGauge is
 
@@ -36,7 +36,7 @@ LLMGauge answers practical local-model questions such as:
 
 ## Current capabilities
 
-After `v0.63`, LLMGauge provides:
+After `v0.64`, LLMGauge provides:
 
 - local-first CLI runs with preserved raw/cleaned outputs and logs
 - artifact validation (`validate-result`, ladder/batch validators)
@@ -91,17 +91,15 @@ Earlier foundations (v0.46–v0.56 and before) established artifact schemas, val
 
 **Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
 
-## After v0.64 — pause feature work for validation and publication prep
+## After v0.64 — feature pause for validation and publication prep
 
-Planned sequence after v0.64 merges and tags:
+Current planned sequence after v0.64:
 
-1. v0.64 release-prep (version metadata only)
-2. merge, tag, and push `v0.64`
-3. clean local branches
-4. manual clean-clone test per `docs/CLEAN_CLONE_TESTING.md`
-5. real model test pass on selected hardware (user-provided `llama.cpp` and GGUF models)
-6. WumboLabs website update with bounded claims
-7. first public X post draft about LLMGauge
+1. clean local release branches
+2. manual clean-clone test per `docs/CLEAN_CLONE_TESTING.md`
+3. real model test pass on selected hardware (user-provided `llama.cpp` and GGUF models)
+4. WumboLabs website update with bounded claims
+5. first public X post draft about LLMGauge
 
 Clean-clone testing validates installation and CLI readiness. It does not prove model quality. Real model testing and website/social work happen after v0.64.
 
