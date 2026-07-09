@@ -9,8 +9,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.65`
-- Current development line: paused after `v0.65` for clean-clone validation and model testing
-- Current development focus: paused for guided-setup clean-clone validation, real model testing, website update, and first public post preparation
+- Current development line: `v0.66` runtime reproducibility and reasoning-mode metadata
+- Current development focus: exact llama.cpp command capture, model source clarity, and reasoning-mode metadata for public-proof interpretation
 
 ## What LLMGauge is
 
@@ -70,6 +70,29 @@ Condensed highlights from recent release lines:
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
 ## Active development line
+
+### v0.66 — Runtime reproducibility and reasoning-mode metadata
+
+**Goal:** Make LLMGauge artifacts clearer for public-proof reproduction and
+reasoning-model interpretation.
+
+**Scope:**
+
+- structured `runtime-command.json` artifact with redacted `command_argv`
+- `model_source` metadata (`model_profile` or `direct_model_path`)
+- `reasoning_mode` metadata and bounded `--reasoning-mode` control
+- dry-run, `report.md`, and `export-index` visibility for command metadata
+
+**Exit criteria:**
+
+- each run stores resolved llama.cpp command metadata when executed
+- dry-run shows reasoning mode and command preview
+- export-index reports command metadata availability
+- existing v0.65 workflows remain compatible
+- full local gate passes
+
+**Avoid:** arbitrary llama.cpp passthrough, profiler automation, model downloads,
+network behavior, automatic scoring, leaderboards.
 
 ### v0.65 — Guided setup / first-run onboarding
 

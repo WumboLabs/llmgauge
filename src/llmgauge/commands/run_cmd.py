@@ -104,6 +104,11 @@ def run(
         "--runtime-label",
         help="Runtime methodology label, such as stock-reference or daily-tuned",
     ),
+    reasoning_mode: str | None = typer.Option(
+        None,
+        "--reasoning-mode",
+        help="Reasoning mode: off, on, auto, default, or unknown",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output result directory"),
     auto_name: bool = typer.Option(
         False,
@@ -143,6 +148,7 @@ def run(
         gpu_layers=gpu_layers,
         flash_attn=flash_attn,
         runtime_label=runtime_label,
+        reasoning_mode=reasoning_mode,
     )
 
     if dry_run:

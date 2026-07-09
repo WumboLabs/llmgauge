@@ -202,7 +202,9 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
             else "- Manual score average: None"
         ),
         f"- Runtime: {runtime['backend']}, ctx={runtime['ctx_size']}, max_tokens={runtime['max_tokens']}, temp={runtime['temperature']}, top_p={runtime['top_p']}",
+        f"- Model source: {model.get('model_source') or 'unknown'}",
         f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+        f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
         f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
         f"- Peak VRAM MiB: {_fmt_optional_mib(peak_vram)}",
         f"- Min VRAM headroom MiB: {_fmt_optional_mib(min_headroom)}",
@@ -536,6 +538,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             "### Model",
             "",
             f"- Model ID: {model['model_id']}",
+            f"- Model source: {model.get('model_source') or 'unknown'}",
+            f"- Model profile: {model.get('model_profile') or 'None'}",
             f"- Model path policy: {model['model_path_policy']}",
             "",
             "### Runtime",
@@ -551,6 +555,17 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"- GPU layers: {runtime['gpu_layers']}",
             f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
             f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+            f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
+            (
+                "- Command metadata: captured"
+                if runtime.get("runtime_command_captured")
+                else "- Command metadata: missing"
+            ),
+            (
+                f"- Command artifact: `{runtime['runtime_command_path']}`"
+                if runtime.get("runtime_command_path")
+                else "- Command artifact: not recorded"
+            ),
             "",
         ]
     )

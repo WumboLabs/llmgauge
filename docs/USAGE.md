@@ -162,6 +162,7 @@ Preview one exact prompt without launching `llama.cpp`:
       --max-tokens 800 \
       --flash-attn auto \
       --runtime-label stock-reference \
+      --reasoning-mode off \
       --dry-run
 
 Preview a category:
@@ -215,6 +216,21 @@ Record the run methodology:
     --runtime-label experimental
 
 Runtime labels are manual metadata. They do not change hardware settings.
+
+Record reasoning intent for reasoning-capable models:
+
+    --reasoning-mode off
+    --reasoning-mode on
+    --reasoning-mode auto
+    --reasoning-mode default
+    --reasoning-mode unknown
+
+`default` and `unknown` are metadata-only modes that do not add a llama.cpp
+`--reasoning` flag. When omitted, LLMGauge defaults to `off` to preserve prior
+behavior.
+
+Dry-run output shows `model_source`, `reasoning_mode`, a normalized command
+preview, and where `runtime-command.json` would be written for a real run.
 
 ## Validation
 

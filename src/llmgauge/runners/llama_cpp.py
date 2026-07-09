@@ -8,6 +8,12 @@ from typing import Any
 from llmgauge.core.vram import sample_nvidia_smi_memory, summarize_vram_samples
 
 
+def reasoning_flag_for_mode(mode: str) -> str | None:
+    if mode in {"off", "on", "auto"}:
+        return mode
+    return None
+
+
 @dataclass(frozen=True)
 class LlamaCppRunConfig:
     llama_cli: Path
@@ -20,6 +26,7 @@ class LlamaCppRunConfig:
     ubatch_size: int
     gpu_layers: int
     flash_attn: str = "auto"
+    reasoning_mode: str = "off"
 
 
 @dataclass(frozen=True)
@@ -33,7 +40,7 @@ class LlamaCppRunResult:
 
 
 def build_llama_command(config: LlamaCppRunConfig, prompt: str) -> list[str]:
-    return [
+    command = [
         str(config.llama_cli),
         "--model",
         str(config.model_path),
@@ -47,21 +54,29 @@ def build_llama_command(config: LlamaCppRunConfig, prompt: str) -> list[str]:
         str(config.gpu_layers),
         "-fa",
         config.flash_attn,
-        "--reasoning",
-        "off",
-        "--no-mmproj",
-        "--no-display-prompt",
-        "--simple-io",
-        "--single-turn",
-        "--temp",
-        str(config.temperature),
-        "--top-p",
-        str(config.top_p),
-        "--n-predict",
-        str(config.max_tokens),
-        "-p",
-        prompt,
     ]
+
+    reasoning_flag = reasoning_flag_for_mode(config.reasoning_mode)
+    if reasoning_flag is not None:
+        command.extend(["--reasoning", reasoning_flag])
+
+    command.extend(
+        [
+            "--no-mmproj",
+            "--no-display-prompt",
+            "--simple-io",
+            "--single-turn",
+            "--temp",
+            str(config.temperature),
+            "--top-p",
+            str(config.top_p),
+            "--n-predict",
+            str(config.max_tokens),
+            "-p",
+            prompt,
+        ]
+    )
+    return command
 
 
 def _capture_vram_sample(

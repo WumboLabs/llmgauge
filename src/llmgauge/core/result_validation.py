@@ -205,6 +205,31 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
         if model_path != "redacted":
             errors.append("model.model_path must be redacted")
 
+    runtime = data.get("runtime", {})
+    if isinstance(runtime, dict) and runtime.get("runtime_command_captured"):
+        command_path_value = runtime.get("runtime_command_path")
+        if not isinstance(command_path_value, str) or not command_path_value:
+            errors.append("runtime.runtime_command_path must be set when command metadata is captured")
+        else:
+            command_path = result_dir / command_path_value
+            if not command_path.exists():
+                errors.append(
+                    f"runtime command artifact missing: {command_path_value}"
+                )
+            else:
+                try:
+                    command_data = json.loads(command_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    errors.append(
+                        f"runtime command artifact is not valid JSON: {command_path_value}"
+                    )
+                else:
+                    if command_data.get("schema_version") != "llmgauge.runtime_command.v0":
+                        errors.append(
+                            "runtime command artifact schema_version must be "
+                            "llmgauge.runtime_command.v0"
+                        )
+
     return errors
 
 

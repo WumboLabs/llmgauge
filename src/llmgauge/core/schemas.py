@@ -24,6 +24,7 @@ class ModelProfileEntry(BaseModel):
     gpu_layers: int | None = None
     flash_attn: str | bool | None = None
     runtime_label: str | None = None
+    reasoning_mode: str | None = None
     recommended_contexts: list[int] | None = None
 
     @field_validator("path")
@@ -78,6 +79,7 @@ class DefaultsConfig(BaseModel):
     gpu_layers: int | None = None
     flash_attn: str | bool | None = None
     runtime_label: str | None = None
+    reasoning_mode: str | None = None
 
 
 class LlmgaugeConfigDocument(BaseModel):

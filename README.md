@@ -53,7 +53,7 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 Current stable tag: v0.65
 
-Current development line: paused after v0.65 for clean-clone validation and model testing
+Current development line: v0.66 — runtime reproducibility and reasoning-mode metadata
 
 See [Roadmap](docs/ROADMAP.md).
 
