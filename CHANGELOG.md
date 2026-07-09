@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.66 - 2026-07-08
+
+- Added `runtime-command.json` run artifacts with structured, redacted llama.cpp command metadata for reproducibility review.
+- Added bounded `reasoning_mode` metadata and `--reasoning-mode` CLI support for explicit reasoning-model run interpretation.
+- Added `model_source` metadata to distinguish profile-backed runs from direct model-path runs.
+- Updated dry-run output, run reports, and export-index metadata to surface model source, reasoning mode, and runtime command capture status.
+- Updated result validation to check command metadata artifacts when captured while preserving compatibility with older result directories.
+- Updated docs and tests for runtime reproducibility and reasoning-mode metadata.
+
 ## v0.65 - 2026-07-07
 
 - Added guided first-run setup with `llmgauge setup`.
