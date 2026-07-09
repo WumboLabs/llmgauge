@@ -154,3 +154,24 @@ def test_build_llama_command_includes_flash_attention_mode() -> None:
 
     assert "-fa" in command
     assert command[command.index("-fa") + 1] == "on"
+    assert command[command.index("--reasoning") + 1] == "off"
+
+
+def test_build_llama_command_default_reasoning_mode_omits_flag() -> None:
+    config = LlamaCppRunConfig(
+        llama_cli=Path("/bin/llama-cli"),
+        model_path=Path("/models/model.gguf"),
+        ctx_size=8192,
+        max_tokens=100,
+        temperature=0.2,
+        top_p=0.95,
+        batch_size=1024,
+        ubatch_size=256,
+        gpu_layers=999,
+        flash_attn="on",
+        reasoning_mode="default",
+    )
+
+    command = llama_cpp.build_llama_command(config, "hello")
+
+    assert "--reasoning" not in command

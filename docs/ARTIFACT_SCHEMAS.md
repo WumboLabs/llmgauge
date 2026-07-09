@@ -59,6 +59,7 @@ checklist.
 A normal run directory contains:
 
     llmgauge-result.json
+    runtime-command.json
     report.md
     raw/
     cleaned/
@@ -85,6 +86,10 @@ Optional operational telemetry:
 
     vram/
 
+Optional runtime reproducibility artifact (v0.66+):
+
+    runtime-command.json
+
 ## Auditing a result directory
 
 When reviewing or publishing from a result directory, inspect in this order:
@@ -107,6 +112,7 @@ Authoritative vs derived:
 | `cleaned/*` | Derived review aid |
 | `vram/*` | Operational telemetry captured locally |
 | `llmgauge-result.json` | Applied score and run metadata source |
+| `runtime-command.json` | Structured resolved llama.cpp command metadata |
 | `report.md` | Regenerable human review summary |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
@@ -157,6 +163,7 @@ Notes:
 Expected fields:
 
     model_id
+    model_source
     model_profile
     label
     family
@@ -170,6 +177,7 @@ Privacy policy:
 - `model_path` should be `redacted`.
 - `model_path_policy` should describe redaction.
 - Importers should not require the original local GGUF path.
+- `model_source` is `model_profile` or `direct_model_path`.
 
 ### runtime
 
@@ -184,6 +192,11 @@ Expected fields:
     batch_size
     ubatch_size
     gpu_layers
+    flash_attn
+    runtime_label
+    reasoning_mode
+    runtime_command_captured
+    runtime_command_path
     command
     config_path
     model_profiles_path
@@ -191,9 +204,49 @@ Expected fields:
 Notes:
 
 - `backend` is currently `llama.cpp`.
-- `command` should redact the model path.
+- `reasoning_mode` is one of `off`, `on`, `auto`, `default`, or `unknown`.
+- `command` should redact the model path (legacy inline summary).
+- `runtime_command_path` points to `runtime-command.json` when captured.
 - `config_path` and `model_profiles_path` may be local-machine specific.
 - Future hardening may add stronger path redaction for public exports.
+
+## Schema: llmgauge.runtime_command.v0
+
+Primary file:
+
+    runtime-command.json
+
+Expected fields:
+
+    schema_version
+    command_argv
+    executable
+    model_path
+    model_source
+    model_id
+    model_profile
+    suite_id
+    suite_version
+    ctx
+    max_tokens
+    temperature
+    top_p
+    batch
+    ubatch
+    gpu_layers
+    flash_attn
+    runtime_label
+    reasoning_mode
+    prompt_placeholder
+    prompt_source_note
+    created_at
+
+Notes:
+
+- `command_argv` is structured argv, not a shell string.
+- Model paths in `command_argv` are redacted.
+- The prompt argument uses a placeholder; per-prompt text lives under `raw/*.prompt.md`.
+- Older runs may omit this file; `runtime.runtime_command_captured` records availability.
 
 ### suite
 

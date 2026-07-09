@@ -66,6 +66,7 @@ A public model report should state:
 Public claims should be backed by validated artifacts:
 
 - `llmgauge-result.json`
+- `runtime-command.json` when present (resolved llama.cpp command metadata)
 - `report.md`
 - `scores.yaml` when manually scored
 - cleaned outputs for readable review

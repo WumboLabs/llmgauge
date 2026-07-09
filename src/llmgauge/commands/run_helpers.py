@@ -30,6 +30,13 @@ from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
+from llmgauge.core.runtime_command import (
+    RUNTIME_COMMAND_FILENAME,
+    build_runtime_command_document,
+    format_command_preview,
+    resolve_model_source,
+    resolve_reasoning_mode,
+)
 from llmgauge.core.suite import load_suite
 from llmgauge.core.suite_paths import resolve_suite_path
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
@@ -177,6 +184,7 @@ def resolve_run_options(
     gpu_layers: int | None,
     flash_attn: str | None = None,
     runtime_label: str | None = None,
+    reasoning_mode: str | None = None,
 ) -> dict[str, Any]:
     resolved_config_path = config_path or default_existing_path(
         DEFAULT_LOCAL_CONFIG,
@@ -302,6 +310,13 @@ def resolve_run_options(
     if resolved_runtime_label == "":
         resolved_runtime_label = None
 
+    resolved_reasoning_mode = resolve_reasoning_mode(
+        cli_value=reasoning_mode,
+        profile=profile,
+        config_data=config_data,
+    )
+    resolved_model_source = resolve_model_source(model_profile=model_profile)
+
     resolved_vram_min_headroom_warn_mib = optional_nonnegative_int(
         get_config_value(config_data, "vram.min_headroom_warn_mib"),
         field_name="vram.min_headroom_warn_mib",
@@ -330,6 +345,8 @@ def resolve_run_options(
         "gpu_layers": resolved_gpu_layers,
         "flash_attn": resolved_flash_attn,
         "runtime_label": resolved_runtime_label,
+        "reasoning_mode": resolved_reasoning_mode,
+        "model_source": resolved_model_source,
         "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
     }
 
@@ -373,6 +390,7 @@ def print_run_preflight(
     table.add_row("Selection", selection)
     table.add_row("Prompt count", str(len(selected_prompts)))
     table.add_row("Model ID", str(resolved["model_id"]))
+    table.add_row("Model source", str(resolved["model_source"]))
     table.add_row("Model profile", str(resolved["model_profile"]))
     table.add_row("Config", str(resolved["config_path"]))
     table.add_row("Model profiles", str(resolved["model_profiles_path"]))
@@ -387,7 +405,45 @@ def print_run_preflight(
     table.add_row("GPU layers", str(resolved["gpu_layers"]))
     table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Runtime label", str(resolved["runtime_label"] or "unknown"))
+    table.add_row("Reasoning mode", str(resolved["reasoning_mode"]))
     table.add_row("Output plan", output_plan)
+
+    preview_config = LlamaCppRunConfig(
+        llama_cli=resolved["llama_cli"],
+        model_path=resolved["model_path"],
+        ctx_size=resolved["ctx"],
+        max_tokens=resolved["max_tokens"],
+        temperature=resolved["temp"],
+        top_p=resolved["top_p"],
+        batch_size=resolved["batch"],
+        ubatch_size=resolved["ubatch"],
+        gpu_layers=resolved["gpu_layers"],
+        flash_attn=resolved["flash_attn"],
+        reasoning_mode=resolved["reasoning_mode"],
+    )
+    preview_document = build_runtime_command_document(
+        config=preview_config,
+        resolved=resolved,
+        suite_id=str(loaded_suite.get("suite_id", suite)),
+        suite_version=str(loaded_suite.get("suite_version", "unknown")),
+    )
+    table.add_row(
+        "Command preview",
+        format_command_preview(preview_document["command_argv"]),
+    )
+    if out is not None:
+        runtime_command_path = str(out / RUNTIME_COMMAND_FILENAME)
+    elif auto_name:
+        default_run_name = f"{resolved['model_id']}-{suite.name}"
+        runtime_command_path = (
+            f"{runs_root}/<auto-named-run>/{RUNTIME_COMMAND_FILENAME} "
+            f"(run name {run_name or default_run_name})"
+        )
+    else:
+        runtime_command_path = (
+            f"<result-dir>/{RUNTIME_COMMAND_FILENAME} for real runs with --out or --auto-name"
+        )
+    table.add_row("Runtime command artifact", runtime_command_path)
 
     console.print(table)
 
@@ -438,9 +494,19 @@ def execute_run(
         ubatch_size=resolved["ubatch"],
         gpu_layers=resolved["gpu_layers"],
         flash_attn=resolved["flash_attn"],
+        reasoning_mode=resolved["reasoning_mode"],
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
+    runtime_command_document = build_runtime_command_document(
+        config=config,
+        resolved=resolved,
+        suite_id=loaded_suite["suite_id"],
+        suite_version=str(loaded_suite["suite_version"]),
+        timestamp_utc=timestamp,
+    )
+    runtime_command_path = out / RUNTIME_COMMAND_FILENAME
+    write_json(runtime_command_path, runtime_command_document)
     run_id = out.name
     prompt_results: list[dict] = []
     redacted_command: list[str] | None = None
@@ -543,6 +609,7 @@ def execute_run(
         },
         "model": {
             "model_id": resolved["model_id"],
+            "model_source": resolved["model_source"],
             "model_profile": resolved["model_profile"],
             "label": profile.get("label"),
             "family": profile.get("family"),
@@ -563,6 +630,11 @@ def execute_run(
             "gpu_layers": resolved["gpu_layers"],
             "flash_attn": resolved["flash_attn"],
             "runtime_label": resolved["runtime_label"],
+            "reasoning_mode": resolved["reasoning_mode"],
+            "runtime_command_captured": True,
+            "runtime_command_path": str(
+                runtime_command_path.relative_to(out)
+            ),
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
             "command": redacted_command or [],
             "config_path": str(resolved["config_path"])

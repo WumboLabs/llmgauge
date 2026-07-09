@@ -9,6 +9,7 @@ from llmgauge.core.batch_validation import validate_batch_dir
 from llmgauge.core.fit_ladder_validation import validate_fit_ladder_dir
 from llmgauge.core.ladder_validation import validate_ladder_dir
 from llmgauge.core.result_validation import validate_result_dir
+from llmgauge.core.runtime_command import RUNTIME_COMMAND_FILENAME
 from llmgauge.core.scoring import scoring_evidence_summary
 
 
@@ -159,6 +160,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
 
     run = result.get("run", {})
     model = result.get("model", {})
+    runtime = result.get("runtime", {})
     suite = result.get("suite", {})
     summary = result.get("summary", {})
     results = result.get("results", [])
@@ -180,6 +182,12 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "suite_version": suite.get("suite_version"),
         "model_id": model.get("model_id"),
         "model_profile": model.get("model_profile"),
+        "model_source": model.get("model_source"),
+        "reasoning_mode": runtime.get("reasoning_mode"),
+        "runtime_command_captured": bool(runtime.get("runtime_command_captured")),
+        "runtime_command_path": _optional_path(path / RUNTIME_COMMAND_FILENAME)
+        if runtime.get("runtime_command_captured")
+        else runtime.get("runtime_command_path"),
         "prompt_count": summary.get("prompt_count")
         or suite.get("prompt_count")
         or len(results),

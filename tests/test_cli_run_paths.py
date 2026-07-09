@@ -57,6 +57,8 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
             "gpu_layers": 999,
             "flash_attn": "auto",
             "runtime_label": None,
+            "reasoning_mode": "off",
+            "model_source": "model_profile",
             "vram_min_headroom_warn_mib": None,
         },
         out=tmp_path / "result",
@@ -64,6 +66,9 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
     )
 
     assert result["llmgauge_version"] == __version__
+    assert result["model"]["model_source"] == "model_profile"
+    assert result["runtime"]["runtime_command_captured"] is True
+    assert (tmp_path / "result" / "runtime-command.json").exists()
     assert result["run"]["status"] == "completed"
     assert result["suite"]["suite_id"] == "agent-backend-v1"
     assert result["summary"]["completed"] == 1
@@ -153,6 +158,8 @@ def test_execute_run_records_vram_guardrail_warning(
             "gpu_layers": 999,
             "flash_attn": "auto",
             "runtime_label": None,
+            "reasoning_mode": "off",
+            "model_source": "model_profile",
             "vram_min_headroom_warn_mib": 1000,
         },
         out=tmp_path / "result",
@@ -222,6 +229,8 @@ def test_execute_run_records_vram_guardrail_ok(
             "gpu_layers": 999,
             "flash_attn": "auto",
             "runtime_label": None,
+            "reasoning_mode": "off",
+            "model_source": "model_profile",
             "vram_min_headroom_warn_mib": 1000,
         },
         out=tmp_path / "result",
@@ -279,6 +288,8 @@ def test_run_batch_uses_manifest_model_profiles(
             "gpu_layers": 999,
             "flash_attn": "auto",
             "runtime_label": None,
+            "reasoning_mode": "off",
+            "model_source": "model_profile",
             "vram_min_headroom_warn_mib": None,
         }
 
@@ -375,6 +386,10 @@ models:
     assert "LLMGauge Run Dry Run" in result.output
     assert "Dry run complete" in result.output
     assert "example_model" in result.output
+    assert "model_profile" in result.output
+    assert "Reasoning mode" in result.output
+    assert "Command preview" in result.output
+    assert "runtime-command.json" in result.output
     assert "honesty-unknown-tool" in result.output
     assert not Path("results").exists()
 

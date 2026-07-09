@@ -82,6 +82,11 @@ def fit_ladder(
         "--runtime-label",
         help="Runtime methodology label, such as stock-reference or daily-tuned",
     ),
+    reasoning_mode: str | None = typer.Option(
+        None,
+        "--reasoning-mode",
+        help="Reasoning mode: off, on, auto, default, or unknown",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output fit-ladder directory"),
     auto_name: bool = typer.Option(
         False,
@@ -124,6 +129,7 @@ def fit_ladder(
         gpu_layers=gpu_layers,
         flash_attn=flash_attn,
         runtime_label=runtime_label,
+        reasoning_mode=reasoning_mode,
     )
 
     try:
@@ -335,6 +341,11 @@ def run_ladder(
         "--runtime-label",
         help="Runtime methodology label, such as stock-reference or daily-tuned",
     ),
+    reasoning_mode: str | None = typer.Option(
+        None,
+        "--reasoning-mode",
+        help="Reasoning mode: off, on, auto, default, or unknown",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output ladder directory"),
     auto_name: bool = typer.Option(
         False,
@@ -387,6 +398,7 @@ def run_ladder(
             gpu_layers=gpu_layers,
             flash_attn=flash_attn,
             runtime_label=runtime_label,
+            reasoning_mode=reasoning_mode,
         )
         run_helpers.print_ladder_preflight(
             suite=resolved_suite,
@@ -438,6 +450,8 @@ def run_ladder(
                 ubatch=ubatch,
                 gpu_layers=gpu_layers,
                 flash_attn=flash_attn,
+                runtime_label=runtime_label,
+                reasoning_mode=reasoning_mode,
             )
 
             result = run_helpers.execute_run(
