@@ -2,9 +2,51 @@
 
 Guidance for AI coding tools, assistants, and automated editors working on LLMGauge.
 
-LLMGauge is a conservative local-LLM evaluation tool for real consumer hardware. The project values reproducibility, artifact integrity, clear command behavior, and stable local workflows over clever automation or broad rewrites.
+LLMGauge is a conservative local-model evaluation tool for real consumer hardware. The project values evaluation quality, reproducibility, artifact integrity, stable command behavior, and defensible evidence over feature volume, architectural novelty, or broad automation.
 
-`AGENTS` refers to the current AI coding tool, model, assistant, or automated editor reading this file. Keep this file self-contained and current so the same guardrails apply across different agent harnesses and models.
+`AGENT` refers to the coding tool, model, assistant, or automated editor currently working in this repository. This file is intentionally self-contained so the same guardrails apply across different agent harnesses.
+
+## Project identity
+
+LLMGauge is primarily:
+
+- a local-model evaluation engine
+- an artifact-preserving evaluation bench
+- a reproducibility and public-evidence system
+- a CLI-first tool for real consumer hardware and constrained VRAM
+
+LLMGauge evaluates dimensions such as:
+
+- usefulness
+- honesty and truthfulness
+- technical correctness
+- safety
+- instruction following
+- completion quality
+- speed
+- VRAM use and headroom
+- reproducibility
+- real workflow fit
+
+LLMGauge is not:
+
+- a cloud evaluation service
+- a hosted leaderboard
+- a universal model-ranking system
+- a model downloader
+- a hardware tuning tool
+- an agent framework
+- a hidden automatic judge
+- a telemetry or data-collection service
+- a hosted multi-user platform
+
+Structural validation is not answer-quality validation.
+
+Manual scores are review metadata, not universal truth.
+
+Comparison reports are evidence summaries, not global recommendations.
+
+Auto-draft scoring is review-required triage.
 
 ## Project structure
 
@@ -19,491 +61,739 @@ LLMGauge is a Python CLI project using a `src/` layout.
 - Bundled prompt suites live in `src/llmgauge/builtin_suites/`.
 - Editable suite examples live in `suites/`.
 - Local configuration templates live in `examples/configs/`.
-- Tests live in `tests/` and should mirror behavior with focused `test_*.py` files.
-- User-facing docs live in `docs/`.
-
-## Mission and non-goals
-
-LLMGauge supports practical, reproducible local LLM evaluation on real consumer hardware.
-
-It is not:
-
-- a cloud evaluation service
-- a model downloader
-- a hosted leaderboard
-- an automatic judge that hides review
-- a hardware tuning tool
-- a general autonomous agent framework
-- a telemetry system
+- Tests live in `tests/`.
+- User-facing documentation lives in `docs/`.
+- Temporary local review artifacts belong under ignored `tmp/`.
+- Generated evaluation artifacts normally belong under ignored `results/`.
 
 ## Absolute rules
 
-- Make small, reviewable changes.
-- Prefer boring, explicit, deterministic code.
-- Do not introduce network calls, telemetry, model downloads, cloud services, background agents, or external execution frameworks.
+- Inspect repository state before making changes.
+- Read this file before editing.
+- Make small, focused, reviewable changes.
+- Prefer explicit, deterministic code over clever abstractions.
+- Do not broaden scope merely because adjacent code is visible.
+- Do not perform unrelated cleanup.
+- Do not silently commit unrelated files.
+- Do not introduce network behavior by default.
+- Do not introduce telemetry, model downloads, cloud services, background agents, or external execution frameworks.
+- Do not add an automatic LLM judge.
+- Do not add arbitrary llama.cpp argument passthrough.
+- Do not create abstractions solely for hypothetical future backends.
 - Do not change public CLI behavior accidentally.
 - Do not hide failures, retries, OOMs, missing files, validation errors, or nonzero exits.
-- Do not mutate user-owned config files, result artifacts, scores, or reports unless the command explicitly exists to do that.
-- Preserve raw outputs and original artifacts whenever possible.
+- Do not silently repair or reinterpret user-owned artifacts.
+- Preserve raw outputs and original evidence.
 - Treat generated evaluation artifacts as records, not scratch files.
-- Avoid broad refactors unless the task is explicitly a refactor and tests cover compatibility.
+- Do not automatically delete user-created result artifacts.
+- Avoid broad refactors unless the requested task is explicitly a refactor and compatibility is covered by tests.
 - Do not add dependencies unless they are necessary, lightweight, and justified.
-- Do not add harness-specific configuration files unless the user explicitly asks for that specific tool.
+- Do not add tool-specific sidecar files unless explicitly requested.
+- Never expose secrets in reports, fixtures, command output, or public artifacts.
+- Never assume public redaction is perfect; public exports must still require human review.
 
-## Standard branch workflow
+## Scope discipline
 
-Follow this order for normal branches.
+Before editing, define:
 
-1. Start from `main`.
+1. the requested scope
+2. the smallest safe implementation slice
+3. the files likely to change
+4. the tests needed
+5. adjacent work that will remain deferred
 
-   ```bash
-   git switch main
-   git pull --ff-only origin main
-   git switch -c descriptive-branch-name
-   ```
+Do not expand a focused task into:
 
-2. Inspect state.
+- a broad architecture rewrite
+- unrelated documentation cleanup
+- speculative backend support
+- model downloading
+- hardware tuning
+- automatic scoring
+- TUI work
+- release work
+- PR or CI ceremony
 
-   ```bash
-   git status --short --branch
-   git log --oneline --decorate --graph --max-count=12
-   uv run llmgauge --version
-   ```
+unless the user explicitly requests that scope.
 
-3. Read guidance.
+When a milestone contains several dependent features, implement them in focused slices rather than one uncontrolled commit.
 
-   ```bash
-   sed -n '1,260p' AGENTS.md
-   ```
+## Starting every repository task
 
-4. Inspect task-relevant files before editing.
+At the start of every substantial repository task:
 
-5. Patch the smallest safe set of files.
+1. Read `AGENTS.md`.
+2. Inspect the current branch and HEAD.
+3. Inspect the working tree.
+4. Inspect recent history.
+5. Compare local `main` with `origin/main` when remote state matters.
+6. Restate the requested scope.
+7. Identify likely files and modules.
+8. Identify targeted tests and full gates.
+9. Identify whether real operator validation will be required.
+10. Identify any existing untracked artifacts that must be preserved.
 
-6. Run targeted tests first when behavior changed.
-
-7. Run the full gate.
-
-   ```bash
-   uv run pytest
-   uv run ruff check .
-   git diff --check
-   ```
-
-8. Review the diff.
-
-   ```bash
-   git diff --stat
-   git diff --name-status
-   git diff
-   ```
-
-9. Commit focused work.
-
-10. Verify post-commit state.
-
-    ```bash
-    git status --short --branch
-    git log --oneline --decorate --graph --max-count=12
-    ```
-
-11. Stop and report.
-
-Do not push, merge, tag, delete branches, or rewrite history unless explicitly asked.
-
-## AGENTS operating rules
-
-AGENTS should operate as supervised coding assistants, not autonomous maintainers.
-
-At the start of every AGENTS task:
-
-1. read `AGENTS.md`
-2. report current branch and HEAD
-3. report whether the working tree is clean
-4. restate the requested scope
-5. identify likely files to change
-6. identify planned targeted tests and full gates
-
-AGENTS may write review notes under `tmp/` when explicitly requested, but those reports should not be committed.
-
-AGENTS must not add tool-specific configuration files such as `.cursor/`, `.cursorrules`, `CLAUDE.md`, `GEMINI.md`, or other harness sidecar files unless the user explicitly requests that exact integration.
-
-AGENTS must stop after completing the requested scope and report:
-
-- branch name
-- final HEAD
-- files changed
-- commands run
-- test results
-- ruff result
-- diff-check result
-- working tree status
-- risks or follow-up items
-
-
-## Local development expectations
-
-Use the existing project tooling.
-
-Common commands:
+Suggested read-only commands:
 
 ```bash
-uv sync
-uv run llmgauge --help
-uv run llmgauge validate-suite suites/core-v1
+git status --short --branch
+git rev-parse HEAD
+git log --oneline --decorate --graph --max-count=20
+git tag --points-at HEAD
+git diff --check
+uv run llmgauge --version
+```
+
+Do not invent repository state. Inspect it.
+
+## Branch workflow
+
+Work on a focused feature branch rather than directly on `main`.
+
+Before creating a branch, confirm that the working tree is safe and that existing untracked files will not be disturbed.
+
+Typical owner workflow:
+
+```bash
+git switch main
+git pull --ff-only origin main
+git switch -c feature/descriptive-name
+```
+
+A coding agent must not pull, fetch, switch branches, or create a branch blindly when local changes may be present.
+
+When remote synchronization is not explicitly authorized, inspect rather than mutate:
+
+```bash
+git status --short --branch
+git rev-parse main
+git rev-parse origin/main
+git log --oneline --decorate --graph --max-count=20
+```
+
+Do not use destructive Git operations such as:
+
+- `git reset --hard`
+- forced branch updates
+- history rewriting
+- aggressive cleanup
+- unreviewed branch deletion
+
+unless explicitly approved.
+
+## Implementation workflow
+
+For normal feature work:
+
+1. Inspect task-relevant code and tests.
+2. Define the smallest approved change.
+3. Patch only relevant files.
+4. Run focused tests.
+5. Inspect generated artifacts when behavior changes.
+6. Run the full local gate.
+7. Review the complete diff.
+8. Create the required untracked review report.
+9. Commit focused work only when requested or when the task explicitly includes committing.
+10. Stop and report.
+
+Recommended checks:
+
+```bash
 uv run pytest
 uv run ruff check .
 git diff --check
 ```
 
-For targeted changes, run focused tests first, then the full gate.
+Review before committing:
 
 ```bash
-uv run pytest tests/test_cli_model_commands.py tests/test_model_profiles_store.py -vv
-uv run pytest
-uv run ruff check .
-git diff --check
+git diff --stat
+git diff --name-status
+git diff
+git status --short --branch
 ```
 
-## Git workflow
+## Commit rules
 
-- Work on a feature branch, not directly on `main`.
 - Keep commits focused.
-- Do not mix release metadata with feature work.
-- Do not create tags unless explicitly asked.
-- Do not push unless explicitly asked.
-- Do not rewrite public history unless explicitly asked.
-- Do not delete branches unless explicitly asked.
-- Do not include private machine paths, local model paths, benchmark artifacts, database files, secrets, `.env` files, generated `results/` data, or personal notes in commits unless intentionally adding fixtures.
+- Do not mix feature work with release metadata.
+- Do not commit generated `results/`.
+- Do not commit temporary `tmp/` review artifacts.
+- Do not commit private machine paths, secrets, `.env` files, local databases, caches, or personal notes.
+- Do not silently stage unrelated files.
+- Review the exact staged diff before committing.
 
-Preferred commit shape:
+Use explicit, noninteractive commit messages:
 
-1. implementation
-2. tests
-3. docs, if needed
-4. release metadata only when preparing a release
+```bash
+git commit -m "Add cached model provenance"
+```
 
-Commit subjects should be concise, imperative, and specific, for example:
+Do not invoke an interactive editor or assume `vi` is installed or configured.
 
-- `Harden model profile mutations`
-- `Add model profile management commands`
-- `Set v0.50 release metadata`
-- `Expand repository agent guidance`
+Commit subjects should be concise, imperative, and specific.
 
-## Release metadata workflow
+Examples:
 
-Only update these during an explicit release-prep step:
+- `Add cached model provenance`
+- `Harden public export redaction`
+- `Document schema compatibility policy`
+- `Set v0.70.0 release metadata`
+
+## Owner merge workflow
+
+Pull requests are optional and are not the default owner workflow.
+
+The normal owner workflow is:
+
+1. Complete the focused feature branch.
+2. Run targeted tests.
+3. Run the full local gate.
+4. Create and inspect the untracked review report.
+5. Review the branch locally.
+6. Switch to `main`.
+7. Confirm `main` is synchronized and clean.
+8. Merge with a merge commit:
+
+```bash
+git merge --no-ff feature/descriptive-name -m "Merge descriptive feature"
+```
+
+9. Run the final local gate on `main`.
+10. Perform any required real operator smoke.
+11. Create release metadata separately when preparing a release.
+12. Tag and push only when explicitly requested.
+
+Do not merge automatically merely because tests pass.
+
+Do not delete the feature branch until merge, release, and tag state have been verified and the user approves cleanup.
+
+## Pull request workflow
+
+PRs are optional.
+
+Only create or use a pull request when explicitly requested.
+
+When asked to create a PR:
+
+1. Verify branch state.
+2. Confirm the branch contains only intended commits.
+3. Push the branch.
+4. Create the PR.
+5. Inspect the PR diff and metadata.
+6. Inspect checks when checks actually exist.
+7. Report the PR number, URL, checks, and mergeability.
+
+Do not assume CI exists or has run.
+
+LLMGauge currently treats local validation as authoritative. CI may be added later when contributor volume, packaging complexity, or multi-environment testing justifies it.
+
+When a PR has no checks, say so plainly rather than treating missing checks as success.
+
+## Release workflow
+
+Release metadata must remain separate from feature work.
+
+Only update release metadata during an explicit release-preparation step.
+
+Typical release files include:
 
 - `pyproject.toml`
 - `src/llmgauge/__init__.py`
 - `uv.lock`
 - `CHANGELOG.md`
-- release/version language in docs
+- release/version language in documentation
 
-Do not bump `__version__` just because a feature branch starts.
+Do not bump the package version merely because a feature branch starts.
 
-Release-prep branch order:
+Release preparation should:
 
-1. branch from current `main`
-2. update version metadata
-3. update lockfile with `uv lock`
-4. add changelog entry
-5. verify version
+1. Start after feature work is merged.
+2. Update version metadata.
+3. Update the lockfile when required.
+4. Update the changelog.
+5. Verify package and CLI versions.
+6. Run the full local gate.
+7. Commit release metadata separately.
+8. Merge release metadata into `main`.
+9. Run final gates.
+10. Create an annotated tag.
+11. Push `main` and the tag only when explicitly requested.
 
-   ```bash
-   grep '^version' pyproject.toml
-   grep '__version__' src/llmgauge/__init__.py
-   uv run llmgauge --version
-   ```
-
-6. run full gate
-7. commit release metadata
-8. push and PR only when asked
-9. merge only when asked
-10. tag only after release metadata is merged to `main`
-
-## PR and CI workflow
-
-When asked to create a PR:
-
-1. verify branch state
-2. push branch
-3. create PR
-4. inspect PR
-5. watch checks
-6. report PR number, URL, CI result, and mergeability
-
-Use explicit PR numbers with `gh` when using `--repo`.
+Version checks:
 
 ```bash
-gh pr view 1 --repo WumboLabs/llmgauge
-gh pr checks 1 --repo WumboLabs/llmgauge --watch
-```
-
-CI runs automatically for pull requests and pushes to `main`. Feature branch pushes may not trigger CI unless manually dispatched.
-
-## Merge workflow
-
-When asked to merge a PR:
-
-1. confirm checks passed
-2. confirm `mergeable` is `MERGEABLE`
-3. use merge commit when preserving focused branch history matters
-4. update local `main`
-5. run final local gate
-
-```bash
-git switch main
-git pull --ff-only origin main
-uv run pytest
-uv run ruff check .
-git diff --check
-```
-
-## Tag workflow
-
-Only create a release tag after the release metadata merge is on `main`.
-
-Pre-tag checks:
-
-```bash
-git status --short --branch
-git rev-parse HEAD
+grep '^version' pyproject.toml
+grep '__version__' src/llmgauge/__init__.py
 uv run llmgauge --version
-uv run pytest
-uv run ruff check .
-git diff --check
 ```
 
-Create annotated tags:
+Annotated tag example:
 
 ```bash
-git tag -a vX.YY -m "LLMGauge vX.YY"
-git push origin refs/tags/vX.YY:refs/tags/vX.YY
+git tag -a v0.70.0 -m "LLMGauge v0.70.0"
+git push origin refs/tags/v0.70.0:refs/tags/v0.70.0
 ```
 
-Use full tag refs if a branch and tag share the same name.
+Use semantic version tags.
 
-## Branch cleanup workflow
+Do not create nonstandard release tags such as:
 
-Only clean up after merge and tag verification.
+- `v0.70-final`
+- `v0.70-fix2`
+- `v0.71a`
 
-Preferred cleanup:
+## Required review report
 
-```bash
-git branch -d branch-name
-git push origin --delete branch-name
-git fetch --prune origin
-```
+Every substantial feature, documentation, process, audit, validation, or release-preparation task must produce an untracked Markdown report under `tmp/`.
 
-Keep backup branches until the user explicitly confirms they can be removed.
-
-
-## Review bundle workflow
-
-For every feature, docs, process, or release-prep branch, create a Markdown review bundle before final handoff.
+Small read-only inspections do not require a report unless requested.
 
 Required path pattern:
 
-    tmp/<branch-name>-review-bundle.md
+```text
+tmp/<task-or-branch-name>-review-report.md
+```
 
-The review bundle is a temporary local artifact. It must remain untracked and must not be written under `docs/`, `results/`, or another tracked path.
+The report must remain untracked.
 
-The bundle should include:
+Do not place it under:
 
-- current git status
-- recent git log
+- `docs/`
+- `results/`
+- another tracked directory
+
+The report should include:
+
+- branch and HEAD
+- requested scope
+- explicit scope boundaries
+- files changed
 - branch commits relative to `main`
-- diff stat relative to `main`
-- changed files relative to `main`
-- version check
-- task-relevant grep or ripgrep search output
-- public/private safety searches
-- full diff relative to `main`
-- working tree diff, if any
-- targeted test output
-- full gate output when run
-- final git status
+- diff stat and changed files
+- commands run
+- targeted tests
+- full gate results
+- real operator validation, when relevant
+- generated artifacts inspected
+- public/private safety checks
+- known limitations
+- deferred work
+- untracked artifacts created
+- final working-tree status
+- readiness recommendation
 
-Always print the absolute review-bundle path at the end of the task.
+Print the absolute report path at the end of the task.
 
-Standard shell pattern:
+A report is intended to make the agent’s work easy to inspect after the turn. It is not a substitute for concise final reporting.
 
-    mkdir -p tmp
-    OUT="tmp/$(git branch --show-current)-review-bundle.md"
+## Final task report
 
-    {
-      printf '# Review bundle\n\n'
-      date
+After completing the requested scope, report:
 
-      printf '\n\n## Current state\n\n'
-      git status --short --branch
+- branch name
+- final HEAD
+- requested scope
+- files changed
+- commands run
+- targeted test results
+- full pytest result
+- Ruff result
+- `git diff --check` result
+- real-run validation, when applicable
+- known limitations
+- deferred work
+- untracked artifacts
+- working-tree status
+- readiness recommendation
+- absolute review-report path
 
-      printf '\n\n## Recent log\n\n'
-      git log --oneline --decorate --graph --max-count=32
-
-      printf '\n\n## Branch commits relative to main\n\n'
-      git log --oneline --decorate main..HEAD || true
-
-      printf '\n\n## Diff stat relative to main\n\n'
-      git diff --stat main..HEAD || true
-
-      printf '\n\n## Changed files relative to main\n\n'
-      git diff --name-status main..HEAD || true
-
-      printf '\n\n## Version check\n\n'
-      grep '^version' pyproject.toml || true
-      grep '__version__' src/llmgauge/__init__.py || true
-      uv run llmgauge --version || true
-
-      printf '\n\n## Public/private safety searches\n\n'
-      git grep -n "WumboJetsII" || true
-      git grep -n "cheez" || true
-      git grep -n "/home/cheez" || true
-      git grep -n "Projects/local-llm" || true
-      git grep -n "/mnt/data" || true
-      git grep -n "kdick518" || true
-      git grep -n "icloud.com" || true
-
-      printf '\n\n## Full diff relative to main\n\n'
-      git diff --no-ext-diff main..HEAD || true
-
-      printf '\n\n## Working tree diff if any\n\n'
-      git diff --no-ext-diff || true
-
-      printf '\n\n## Final state\n\n'
-      git status --short --branch
-    } > "$OUT" 2>&1
-
-    printf '\nReview bundle written to:\n%s\n' "$PWD/$OUT"
-    ls -lh "$OUT"
-
-Use this pattern unless the user explicitly asks for a different review artifact.
-
+Do not bury failures or partial validation.
 
 ## CLI compatibility
 
-LLMGauge is a CLI-first tool. Preserve existing command names, aliases, option names, exit codes, and dry-run behavior unless the task explicitly asks to change them.
+LLMGauge is CLI-first.
 
-When changing CLI code:
+Preserve existing:
+
+- command names
+- aliases
+- option names
+- defaults
+- exit codes
+- dry-run behavior
+- output artifact contracts
+
+unless the task explicitly changes them.
+
+When changing CLI behavior:
 
 - Add or update CLI tests.
-- Check help output manually when adding commands.
+- Inspect `--help` output manually.
 - Preserve compatibility aliases where practical.
-- Keep destructive commands explicit.
-- Prefer `--dry-run`, `--check`, `--yes`, or `--force` semantics for commands that validate, preview, remove, overwrite, or mutate files.
-- Use hyphenated command and option names for user-facing CLI surfaces.
-
-## Config and profile files
-
-User-owned YAML files must be treated carefully.
-
-When writing config/model-profile commands:
-
-- Do not silently drop unknown fields.
-- Do not silently remove user data.
-- Avoid destructive operations without explicit confirmation such as `--yes`.
-- Reject ambiguous mutation requests.
-- Validate input before writing.
+- Keep destructive behavior explicit.
+- Prefer bounded options over arbitrary passthrough.
+- Use `--dry-run`, `--check`, `--yes`, or `--force` where appropriate.
+- Use hyphenated user-facing command and option names.
 - Keep errors clear and actionable.
-- Do not hard-code model locations, llama.cpp binary paths, or host-specific VRAM assumptions in source or tests.
+- Do not silently change defaults with compatibility implications.
 
-Known acceptable limitation: YAML comments may not be preserved by structured write operations unless comment-preserving YAML support is intentionally added.
+## Configuration and model profiles
 
-Machine-specific paths belong in ignored local files such as `examples/configs/llmgauge.local.yaml` and `examples/configs/model-profiles.local.yaml`.
+User-owned YAML must be treated carefully.
+
+When reading or writing config and model-profile files:
+
+- Preserve unknown fields.
+- Do not silently remove user data.
+- Validate before writing.
+- Reject ambiguous mutation requests.
+- Avoid destructive changes without explicit confirmation.
+- Do not hard-code private machine paths.
+- Do not hard-code model locations.
+- Do not hard-code GPU or VRAM assumptions.
+- Preserve `extra="allow"` behavior where user-owned configuration models rely on it.
+- Keep setup and config behavior local-first.
+- Do not download models or build llama.cpp automatically.
+
+Known acceptable limitation:
+
+YAML comments may not be preserved by structured writes unless comment-preserving YAML support is deliberately introduced.
+
+Machine-specific paths belong in ignored local configuration files.
 
 ## Result artifacts
 
-Result directories are evidence. Do not mutate them unless a command explicitly applies scoring, validation, export, or report update.
+Result directories are evidence.
+
+Do not mutate them unless an explicit command applies:
+
+- scoring
+- validation
+- reporting
+- export
+- another documented artifact operation
+
+Preserve:
+
+- raw prompts
+- raw model output
+- cleaned output
+- stderr logs
+- VRAM telemetry
+- scheduler traces when explicitly captured
+- runtime metadata
+- failed attempts
+- scores
+- reports
 
 Rules:
 
-- Preserve raw output.
-- Preserve cleaned output.
-- Preserve stderr logs.
-- Preserve VRAM sample data.
-- Preserve original command metadata with model paths redacted.
-- Never convert failed runs into successful runs.
-- Never hide failed attempts in fit-ladder or retry workflows.
-- Validation should report problems, not silently repair artifacts.
+- Raw output is authoritative source evidence.
+- Cleaned output is a derived review aid.
+- Do not convert failed runs into successful runs.
+- Do not hide failed attempts.
+- Do not rewrite original runtime settings.
+- Validation should report problems rather than silently repair artifacts.
+- Public export must not mutate the source result.
+- Missing optional provenance must not invalidate otherwise usable legacy artifacts unless the schema explicitly requires it.
+
+## Local and public artifact boundaries
+
+Local evidence and public exports have different disclosure requirements.
+
+Local result artifacts may retain information needed for debugging and reproduction, subject to existing schema redaction rules.
+
+Public artifacts must be copied into a separate export and sanitized.
+
+Public export must:
+
+- never mutate the original result
+- redact usernames and home-directory paths by default
+- redact hostnames
+- redact model directories
+- redact executable directories
+- omit unrelated environment data
+- avoid duplicated full prompts in command metadata
+- preserve evaluation-relevant settings
+- produce a redaction summary
+- validate the exported result
+- warn that human review is still required
+
+Never intentionally capture or export:
+
+- API keys
+- authentication tokens
+- passwords
+- credential-bearing URLs
+- unrelated environment secrets
+
+Shortened public fingerprints are display identifiers, not substitutes for full cryptographic identity.
+
+## Schema compatibility
+
+Prefer additive schema changes.
+
+Non-breaking changes generally include:
+
+- optional fields
+- optional artifacts
+- warnings
+- additional report sections
+- new enum values that older readers can treat as unknown
+- more informative validation that does not reject previously valid artifacts
+
+Breaking changes include:
+
+- new required fields
+- renamed or removed fields
+- changed field types
+- changed field semantics
+- moved required artifacts
+- changed score semantics
+- making previously valid legacy results fail
+
+Older valid v0.x result directories should remain supported through 1.0 unless they are:
+
+- corrupted
+- unsafe
+- technically impossible to interpret
+
+Do not build a large migration framework without a demonstrated user or integration need.
 
 ## Model execution
 
-Do not launch real model runs in tests.
+Do not launch real models during normal unit tests.
 
-For code paths that would call `llama-cli`:
+Use:
 
-- Use dry-run tests where possible.
-- Mock runner behavior in unit tests.
-- Keep model paths redacted in artifacts where expected.
-- Do not assume a specific GPU, CUDA version, llama.cpp build, or model file exists.
+- dry-run validation
+- mocked runner behavior
+- temporary fixtures
+- controlled integration tests
 
-## Fit ladder and retry behavior
+when possible.
 
-Fit/retry workflows must be explicit and artifact-preserving.
+Before launching a real operator smoke, print and inspect:
+
+- llama.cpp executable path
+- model path or model profile
+- suite
+- prompt selector
+- context size
+- maximum tokens
+- temperature
+- batch
+- ubatch
+- GPU layers
+- flash-attention mode
+- reasoning mode
+- runtime label
+- output directory
+
+Do not launch a model until the command and paths are resolved and reviewed.
+
+Do not invent a model path.
+
+Do not assume a specific GPU, CUDA version, llama.cpp build, or GGUF exists.
+
+Public/reference artifacts should use disclosed stock methodology unless a tuned configuration is explicitly part of the evaluation.
+
+## Runtime command construction
+
+Use structured argv.
+
+Do not construct shell command strings for execution.
+
+Do not add arbitrary shell passthrough.
+
+Bound user-facing runtime controls through explicit validated options.
+
+Runtime metadata should distinguish:
+
+- requested behavior
+- observed behavior
+- unavailable or unknown behavior
+
+Do not claim an effective reasoning mode merely from a requested option.
+
+## Provenance and fingerprints
+
+When implementing provenance:
+
+- Use full SHA-256 locally.
+- Use shortened fingerprints for public display where configured.
+- Do not treat shortened fingerprints as full identities.
+- Cache expensive hashes only with file-identity validation.
+- Cache identity should include path, size, modification time, and inode or equivalent identity where available.
+- Rehash when file identity changes.
+- Mark unavailable provenance as unknown rather than failing usable runs unnecessarily.
+- Prefer GGUF metadata over filename inference.
+- Mark inferred architecture or quantization clearly.
+- Keep mutable review artifacts out of immutable run fingerprints.
+
+Do not implement a whole-result-directory hash manifest unless the product decision explicitly changes.
+
+## Hardware metadata
+
+Hardware capture must remain optional.
+
+A result is valid when hardware metadata is disabled.
+
+Hardware capture modes may include:
+
+- `off`
+- `minimal`
+- `full`
+
+Do not capture privacy-sensitive machine identity by default.
+
+Exclude or redact:
+
+- hostname
+- username
+- serial numbers
+- private paths
+- unnecessary PCI identifiers
+
+Reports must state plainly when hardware disclosure was not captured.
+
+## Fit ladders and retries
+
+Fit and retry workflows must remain explicit and artifact-preserving.
 
 - Do not make adaptive fallback the default for normal runs.
-- Record every failed attempt.
+- Preserve every failed attempt.
 - Classify failures honestly.
-- Preserve failed attempt directories.
-- Report the selected working configuration clearly.
-- Do not hide the originally requested context/settings.
+- Preserve requested settings.
+- Report the selected working configuration.
+- Do not hide OOMs or runtime failures.
+- Do not silently reinterpret a fallback as the originally requested run.
 
-## Scoring behavior
+## Scoring
 
-Manual scoring remains review-oriented.
+Manual scoring remains authoritative.
 
 - Do not overwrite reviewed scores without explicit user intent.
-- Auto scoring drafts must remain drafts unless explicitly applied.
-- Keep provenance fields accurate.
-- Keep unreviewed/metadata-only score states visible.
+- Auto-draft scores must remain review-required drafts until deliberately applied.
+- Keep scoring provenance accurate.
+- Keep reviewed and unreviewed states visible.
+- Do not silently calculate a full quality claim from partially reviewed repeated trials.
+- Deterministic output checks may provide evidence but must not silently determine final manual scores.
 
-## Testing guidelines
+## Testing
 
 Tests use `pytest`.
 
 - Add or update tests whenever behavior changes.
-- Prioritize artifact schemas, CLI validation, suite loading, report generation, path handling, and mutation safety.
+- Run focused tests before the full suite.
 - Keep tests deterministic.
-- Avoid requiring real local models unless explicitly testing runner integration.
-- Use focused assertions against generated files, parsed YAML/JSON, or command output rather than broad snapshots.
+- Avoid real model dependencies in normal tests.
+- Prefer temporary directories and fixtures.
+- Assert against generated JSON, YAML, files, command output, and exit behavior.
+- Avoid broad snapshots when focused assertions are clearer.
+- Test backward compatibility when schemas change.
+- Test cache invalidation when caching file hashes.
+- Test path redaction and privacy boundaries.
+- Test that public export does not mutate source artifacts.
+- Test older artifacts when validation behavior changes.
 
-## Documentation style
+Full gate:
 
-Docs should be practical and precise.
+```bash
+uv run pytest
+uv run ruff check .
+git diff --check
+```
+
+## Documentation
+
+Documentation should be practical, precise, and reproducible.
 
 - Avoid hype.
-- Avoid leaderboard claims unless backed by artifacts.
-- Prefer reproducible commands.
+- Avoid universal ranking claims.
+- Avoid unsupported currentness claims.
 - State limitations plainly.
-- Keep examples local-first and source-checkout friendly.
-- Do not recommend cloud workflows as the default path.
-- Keep public docs free of private project memory, private machine paths, and local-only benchmark conclusions.
+- Distinguish structural validation from quality review.
+- Distinguish manual scores from objective truth.
+- Keep commands copy/paste safe.
+- Keep examples local-first.
+- Do not expose private paths or personal notes.
+- Do not describe optional future features as current capabilities.
+- Keep release state, roadmap state, and CLI behavior synchronized.
 
 ## Code style
 
 - Target Python 3.11 or newer.
 - Use 4-space indentation.
 - Use type hints for public helpers.
-- Use clear names.
-- Prefer simple functions over clever abstractions.
+- Prefer clear names.
+- Prefer simple functions over speculative abstractions.
 - Keep imports minimal and explicit.
 - Avoid broad exception swallowing.
-- Raise clear `ValueError`, `typer.BadParameter`, or `typer.Exit` where appropriate.
-- Keep schema changes backward-compatible where practical.
-- Preserve `extra="allow"` behavior in Pydantic models that load user-owned YAML.
+- Raise clear `ValueError`, `typer.BadParameter`, or `typer.Exit` errors where appropriate.
+- Preserve backward compatibility.
+- Keep privacy and artifact behavior explicit.
+- Avoid hidden side effects.
 
-## Review checklist
+## Safety and privacy checks
 
-Before presenting work as complete, verify:
+Before presenting work as complete, inspect for:
 
+- home-directory paths
+- usernames
+- hostnames
+- local model directories
+- llama.cpp executable directories
+- API keys
+- tokens
+- secrets
+- credential-bearing URLs
+- `.env` content
+- generated result artifacts
+- caches
+- local databases
+- unrelated personal notes
+
+Use generic searches rather than embedding unnecessary personal identifiers in tracked project guidance.
+
+Examples:
+
+```bash
+git grep -n "/home/" || true
+git grep -n "/Users/" || true
+git grep -ni "api[_-]key" || true
+git grep -ni "token" || true
+git grep -ni "secret" || true
+git grep -ni "password" || true
+git grep -n "Projects/local-llm" || true
+git status --short --branch
+```
+
+Interpret matches carefully. A matching word in documentation or a test fixture is not automatically a leak.
+
+## Completion checklist
+
+Before presenting work as ready:
+
+- Requested scope is complete.
+- Unrequested work was not added.
 - Tests pass.
 - Ruff passes.
 - `git diff --check` passes.
-- CLI help still renders.
+- CLI help renders where relevant.
 - Existing aliases still work.
-- No unexpected release/version bump was included.
-- No user data, model paths, result artifacts, caches, or secrets were staged.
+- Backward compatibility was tested where relevant.
+- No unexpected version bump was included.
+- No unrelated files were staged.
+- No generated results were committed.
+- No temporary review reports were committed.
+- No secrets or private paths were introduced.
+- User-owned YAML fields remain preserved.
 - Destructive behavior requires explicit confirmation.
-- User-owned YAML unknown fields are preserved by update paths.
-- Branch, PR, CI, release, and tag steps were not performed unless explicitly requested.
+- Original result artifacts remain preserved.
+- Public export does not mutate its source.
+- Real operator validation was performed when required.
+- The review report exists and remains untracked.
+- The final working-tree state is clearly reported.
+- PR, merge, push, release, tag, and cleanup actions were performed only when explicitly requested.
