@@ -26,7 +26,10 @@ from llmgauge.core.config import (
     resolve_model_profile,
 )
 from llmgauge.core.fit_ladder import build_fit_attempt_record
-from llmgauge.core.identity import collect_model_provenance
+from llmgauge.core.identity import (
+    collect_backend_provenance,
+    collect_model_provenance,
+)
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
@@ -508,6 +511,9 @@ def execute_run(
     )
     runtime_command_path = out / RUNTIME_COMMAND_FILENAME
     write_json(runtime_command_path, runtime_command_document)
+    backend_provenance = collect_backend_provenance(resolved["llama_cli"])
+    if backend_provenance["status"] == "unavailable":
+        console.print(f"[yellow]{backend_provenance['warning']}[/yellow]")
     run_id = out.name
     prompt_results: list[dict] = []
     redacted_command: list[str] | None = None
@@ -651,6 +657,7 @@ def execute_run(
             "model_profiles_path": str(resolved["model_profiles_path"])
             if resolved["model_profiles_path"]
             else None,
+            "backend_provenance": backend_provenance,
         },
         "suite": {
             "suite_id": loaded_suite["suite_id"],
@@ -924,4 +931,3 @@ def print_fit_ladder_preflight(
         "[bold green]Fit ladder dry run complete[/bold green]: llama.cpp was not "
         "launched and no fit-ladder directories were created."
     )
-

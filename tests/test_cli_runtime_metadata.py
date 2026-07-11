@@ -4,6 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from llmgauge.cli import app
+from llmgauge.commands import run_helpers
 from llmgauge.core.export_index import build_run_index_item
 from llmgauge.core.reports import build_markdown_report
 
@@ -25,6 +26,15 @@ def test_run_dry_run_shows_reasoning_mode_and_command_preview(
 
     model_path = tmp_path / "model.gguf"
     model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    def fail_if_hashing_executable(path: Path):
+        raise AssertionError("dry-run must not collect executable provenance")
+
+    monkeypatch.setattr(
+        run_helpers,
+        "collect_backend_provenance",
+        fail_if_hashing_executable,
+    )
 
     (examples_dir / "llmgauge.local.yaml").write_text(
         f"""schema_version: llmgauge.config.v0

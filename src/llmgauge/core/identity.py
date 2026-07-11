@@ -139,13 +139,14 @@ def _write_hash_cache(path: Path, data: dict[str, Any]) -> None:
             temporary_path.unlink()
 
 
-def hash_model_file(
+def hash_file(
     path: Path,
     *,
     cache_path: Path | None = None,
     force_rehash: bool = False,
+    file_label: str = "file",
 ) -> tuple[int, str]:
-    """Hash a local file, using an identity-validated cache unless bypassed."""
+    """Hash a local file with identity-validated cache reuse."""
 
     resolved_path = path.expanduser().resolve()
     identity = _file_identity(resolved_path)
@@ -165,7 +166,7 @@ def hash_model_file(
 
     final_identity = _file_identity(resolved_path)
     if final_identity != identity:
-        raise OSError("model file changed while it was being hashed")
+        raise OSError(f"{file_label} changed while it was being hashed")
 
     sha256 = digest.hexdigest()
     entries[cache_key] = {
@@ -180,6 +181,53 @@ def hash_model_file(
         # The full hash remains valid even when the optional cache is unavailable.
         pass
     return identity["size"], sha256
+
+
+def hash_model_file(
+    path: Path,
+    *,
+    cache_path: Path | None = None,
+    force_rehash: bool = False,
+) -> tuple[int, str]:
+    """Backward-compatible model-file hashing wrapper."""
+
+    return hash_file(
+        path,
+        cache_path=cache_path,
+        force_rehash=force_rehash,
+        file_label="model file",
+    )
+
+
+def _collect_file_hash_provenance(
+    path: Path,
+    *,
+    cache_path: Path | None,
+    force_rehash: bool,
+    file_label: str,
+) -> dict[str, Any]:
+    try:
+        file_size, sha256 = hash_file(
+            path,
+            cache_path=cache_path,
+            force_rehash=force_rehash,
+            file_label=file_label.lower(),
+        )
+    except (OSError, ValueError) as exc:
+        return {
+            "status": "unavailable",
+            "file_size_bytes": None,
+            "sha256": None,
+            "public_fingerprint": None,
+            "warning": f"{file_label} provenance unavailable: {exc}",
+        }
+
+    return {
+        "status": "available",
+        "file_size_bytes": file_size,
+        "sha256": sha256,
+        "public_fingerprint": public_model_fingerprint(sha256),
+    }
 
 
 def collect_model_provenance(
@@ -199,29 +247,42 @@ def collect_model_provenance(
         "sha256": None,
         "public_fingerprint": None,
     }
-    try:
-        file_size, sha256 = hash_model_file(
+    provenance.update(
+        _collect_file_hash_provenance(
             resolved_path,
             cache_path=cache_path,
             force_rehash=force_rehash,
+            file_label="Model",
         )
-    except (OSError, ValueError) as exc:
-        provenance.update(
-            {
-                "status": "unavailable",
-                "warning": f"Model provenance unavailable: {exc}",
-            }
-        )
-        return provenance
-
-    provenance.update(
-        {
-            "status": "available",
-            "file_size_bytes": file_size,
-            "sha256": sha256,
-            "public_fingerprint": public_model_fingerprint(sha256),
-        }
     )
+    return provenance
+
+
+def collect_backend_provenance(
+    path: Path,
+    *,
+    cache_path: Path | None = None,
+    force_rehash: bool = False,
+) -> dict[str, Any]:
+    """Collect additive provenance for the resolved llama.cpp executable."""
+
+    resolved_path = path.expanduser().resolve()
+    file_provenance = _collect_file_hash_provenance(
+        resolved_path,
+        cache_path=cache_path,
+        force_rehash=force_rehash,
+        file_label="Executable",
+    )
+    provenance = {
+        "backend_name": "llama.cpp",
+        "executable_filename": resolved_path.name,
+        "executable_file_size_bytes": file_provenance.pop("file_size_bytes"),
+        "executable_sha256": file_provenance.pop("sha256"),
+        "public_executable_fingerprint": file_provenance.pop(
+            "public_fingerprint"
+        ),
+    }
+    provenance.update(file_provenance)
     return provenance
 
 
