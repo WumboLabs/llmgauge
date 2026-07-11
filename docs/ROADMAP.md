@@ -8,10 +8,10 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.66`
+- Current stable tag: `v0.70`
 - Current package version: `0.70.0`
-- Current release line: `v0.70.0` release preparation; not yet tagged or published
-- Current focus: local packaging and installed-CLI validation
+- Current release line: `v0.70.0`
+- Current focus: public reporting, reproducible evidence, and practical model comparisons
 
 ## What LLMGauge is
 
@@ -106,10 +106,10 @@ The following v0.70 foundations are complete on `main`:
 - llama.cpp executable provenance
 - bounded llama.cpp build identity discovery
 
-Release metadata is now prepared as `0.70.0`. Local wheel, sdist, and isolated
-installed-CLI validation remain part of this release-preparation step. The
-`v0.66` tag remains the latest validated released install until a v0.70.0 tag
-and publication are explicitly completed.
+The v0.70 release completed local wheel, source-distribution, isolated
+installed-CLI, real-artifact compatibility, privacy, and source-integrity
+validation. `v0.70` is the current validated released install. PyPI availability
+is not claimed.
 
 ### v0.65 — Guided setup / first-run onboarding
 
@@ -155,9 +155,9 @@ metadata on the feature branch, real model launches during setup.
 
 **Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
 
-## Current release-preparation validation
+## v0.70 release validation
 
-The bounded release-preparation sequence is:
+The completed v0.70 release-validation sequence was:
 
 1. packaging audit
 2. installed-CLI validation
