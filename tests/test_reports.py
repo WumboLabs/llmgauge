@@ -1,6 +1,172 @@
 from llmgauge.core.reports import build_markdown_report
 
 
+def _result_with_metrics(metrics: dict[str, object]) -> dict[str, object]:
+    return {
+        "run": {
+            "run_id": "metrics-run",
+            "status": "completed",
+            "timestamp_utc": "2026-06-16T00:00:00+00:00",
+        },
+        "model": {
+            "model_id": "test-model",
+            "model_path_policy": "redacted",
+        },
+        "runtime": {
+            "backend": "llama.cpp",
+            "llama_cli": "/tmp/llama-cli",
+            "ctx_size": 8192,
+            "max_tokens": 600,
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "batch_size": 256,
+            "ubatch_size": 64,
+            "gpu_layers": 999,
+        },
+        "suite": {
+            "suite_id": "core-v1",
+            "suite_version": "0.1.0",
+            "prompt_count": 1,
+        },
+        "summary": {
+            "completed": 1,
+            "failed": 0,
+        },
+        "results": [
+            {
+                "prompt_id": "metrics",
+                "category": "speed",
+                "status": "completed",
+                "raw_prompt_path": "raw/metrics.prompt.md",
+                "raw_output_path": "raw/metrics.output.txt",
+                "stderr_log_path": "logs/metrics.stderr.log",
+                "exit_status": 0,
+                "metrics": metrics,
+            },
+        ],
+    }
+
+
+def _prompt_results_row(report: str, prompt_id: str = "metrics") -> str:
+    for line in report.splitlines():
+        if line.startswith(f"| {prompt_id} |"):
+            return line
+    raise AssertionError(f"missing prompt results row for {prompt_id}")
+
+
+def test_build_markdown_report_handles_missing_prompt_eval_tps() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "generation_tps": 50.0,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | - | 50.0 | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_handles_missing_generation_tps() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": 100.0,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | 100.0 | - | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_handles_missing_throughput_metrics() -> None:
+    report = build_markdown_report(_result_with_metrics({}))
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | - | - | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_renders_none_prompt_eval_tps_as_unavailable() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": None,
+                "generation_tps": 50.0,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | - | 50.0 | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_renders_none_generation_tps_as_unavailable() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": 100.0,
+                "generation_tps": None,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | 100.0 | - | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_preserves_present_throughput_formatting() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": 100.0,
+                "generation_tps": 50.0,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | 100.0 | 50.0 | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_renders_zero_throughput_as_zero() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": 0,
+                "generation_tps": 0.0,
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | 0 | 0.0 | - | - | 0 |"
+    )
+
+
+def test_build_markdown_report_handles_malformed_throughput_values() -> None:
+    report = build_markdown_report(
+        _result_with_metrics(
+            {
+                "prompt_eval_tps": "fast",
+                "generation_tps": {"value": 50.0},
+            }
+        )
+    )
+
+    assert _prompt_results_row(report) == (
+        "| metrics | speed | completed | None | - | - | - | - | 0 |"
+    )
+    assert "fast" not in report
+    assert "{'value': 50.0}" not in report
+
+
 def test_build_markdown_report_multiple_prompts() -> None:
     result = {
         "run": {
@@ -101,7 +267,7 @@ def test_build_markdown_report_multiple_prompts() -> None:
         "| one | honesty | completed | None | 100.0 | 50.0 | 7535 | 4692 | 0 |"
         in report
     )
-    assert "| two | docker | completed | None | None | None | - | - | 0 |" in report
+    assert "| two | docker | completed | None | - | - | - | - | 0 |" in report
     assert "## Audit Checklist" in report
     assert "validate-result" in report
     assert "## Prompt Artifact Audit" in report

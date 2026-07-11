@@ -8,9 +8,23 @@ from llmgauge.core.scoring import (
     scoring_status_for_result,
 )
 
+_MISSING = object()
+
 
 def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
+
+
+def _fmt_optional_throughput(value: Any = _MISSING) -> str:
+    if value is _MISSING:
+        return "-"
+    if value is None:
+        return "-"
+    if isinstance(value, bool):
+        return "-"
+    if isinstance(value, int | float):
+        return str(value)
+    return "-"
 
 
 def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
@@ -656,15 +670,17 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     )
 
     for prompt_result in result["results"]:
-        metrics = prompt_result["metrics"]
+        metrics = prompt_result.get("metrics")
+        if not isinstance(metrics, dict):
+            metrics = {}
         lines.append(
             "| "
             f"{prompt_result['prompt_id']} | "
             f"{prompt_result.get('category') or ''} | "
             f"{prompt_result['status']} | "
             f"{_fmt(_score_average(prompt_result))} | "
-            f"{_fmt(metrics['prompt_eval_tps'])} | "
-            f"{_fmt(metrics['generation_tps'])} | "
+            f"{_fmt_optional_throughput(metrics.get('prompt_eval_tps', _MISSING))} | "
+            f"{_fmt_optional_throughput(metrics.get('generation_tps', _MISSING))} | "
             f"{_fmt_optional_mib(_vram_peak_used_mib(prompt_result))} | "
             f"{_fmt_optional_mib(_vram_headroom_mib(prompt_result))} | "
             f"{prompt_result['exit_status']} |"
