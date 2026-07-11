@@ -75,23 +75,23 @@ It must not replace preserved raw artifacts.
 
 ### Model provenance
 
-Future result metadata should record model provenance under an optional
-`model.provenance` object while preserving existing `model` fields. Planned
-fields:
+New runs record model provenance under an additive optional `model.provenance`
+object while preserving existing `model` fields. Current fields are:
 
 - `source_type`: `model_profile` or `direct_model_path`
 - `filename`
 - `file_size_bytes`
 - `sha256`: full local GGUF SHA-256 when available
 - `public_fingerprint`: shortened display fingerprint for public reports
-- `architecture`
-- `architecture_source`: `metadata`, `inferred`, or `unknown`
-- `quantization`
-- `quantization_source`: `metadata`, `inferred`, or `unknown`
-- `gguf_metadata_fingerprint`
+- `status`: `available` or `unavailable`
+- `warning`: collection warning when unavailable
 
-Unavailable provenance should be recorded as unknown rather than making an
-otherwise usable run invalid.
+The public fingerprint is the deterministic `sha256:` prefix followed by the
+first 16 lowercase hexadecimal characters of the full SHA-256. It contains no
+local path data. Architecture, quantization, and GGUF metadata are deferred.
+
+Unavailable provenance is recorded explicitly rather than making an otherwise
+usable run invalid.
 
 ### Backend provenance
 
@@ -115,9 +115,10 @@ public fingerprints or build identifiers.
 
 ### Hash cache design
 
-Future file hashing may cache expensive hashes under a user-owned LLMGauge cache
-directory such as `$XDG_CACHE_HOME/llmgauge/hash-cache-v0.json`. Cache entries
-must include:
+File hashing caches expensive hashes under the user-owned
+`$XDG_CACHE_HOME/llmgauge/hash-cache-v0.json` directory, or
+`~/.cache/llmgauge/hash-cache-v0.json` when `XDG_CACHE_HOME` is unset. Cache
+entries include:
 
 - path
 - size
@@ -125,7 +126,7 @@ must include:
 - inode and device, or platform-equivalent file identity when available
 - hash algorithm
 - full hash
-- creation/update timestamp
+- update timestamp
 
 A cached hash must never be trusted when any available file identity field
 changes. If inode/device-equivalent identity is unavailable, cache validation

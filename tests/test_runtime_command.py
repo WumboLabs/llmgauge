@@ -107,6 +107,9 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     from llmgauge.commands import run_helpers
 
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    model_path = tmp_path / "model.bin"
+    model_path.write_bytes(b"test model")
 
     def fake_run_llama_cpp(config, prompt):
         return SimpleNamespace(
@@ -125,7 +128,7 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         "profile": {"label": "Test Model"},
         "config_path": None,
         "model_profiles_path": None,
-        "model_path": Path("/models/test.gguf"),
+        "model_path": model_path,
         "llama_cli": Path("/bin/llama-cli"),
         "ctx": 8192,
         "max_tokens": 64,
@@ -157,6 +160,9 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     assert command_data["model_source"] == "model_profile"
 
     assert result["model"]["model_source"] == "model_profile"
+    assert result["model"]["provenance"]["status"] == "available"
+    assert result["model"]["provenance"]["filename"] == "model.bin"
+    assert result["model"]["provenance"]["sha256"]
     assert result["runtime"]["reasoning_mode"] == "off"
     assert result["runtime"]["runtime_command_captured"] is True
     assert result["runtime"]["runtime_command_path"] == RUNTIME_COMMAND_FILENAME
