@@ -130,9 +130,10 @@ llmgauge model list
 llmgauge smoke
 ```
 
-The validated released tag is `v0.66` and reports package/CLI version `0.66.0`.
-The current `main` branch contains unreleased v0.70 development, and no v0.70
-tag exists yet. Do not use a future tag until it has been published.
+The validated released tag remains `v0.66` and reports package/CLI version
+`0.66.0`. The v0.70.0 release metadata is being prepared locally; no v0.70.0
+tag exists yet, and no package publication or PyPI availability is claimed.
+Do not use a future tag until it has been published.
 
 Reinstall a tagged version with the validated `uv tool` command:
 

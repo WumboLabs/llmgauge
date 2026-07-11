@@ -53,13 +53,14 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 Current stable tag: v0.66
 
-Current package version: 0.66.0
+Current package version: 0.70.0
 
-Current development line: unreleased v0.70 development on `main`
+Current release line: v0.70.0 release preparation; the tag and package publication
+are not yet complete.
 
-The released installed-user workflow uses the tagged GitHub install documented
-in [Installation](docs/INSTALL.md). Current `main` development uses
-`uv run llmgauge ...`; it is unreleased v0.70 work.
+The latest validated installed-user workflow remains the v0.66 tagged GitHub
+install documented in [Installation](docs/INSTALL.md). The v0.70.0 release
+metadata is prepared locally; no v0.70.0 tag or package publication is claimed.
 
 See [Roadmap](docs/ROADMAP.md).
 

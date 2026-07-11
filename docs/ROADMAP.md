@@ -9,9 +9,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.66`
-- Current package version: `0.66.0`
-- Current development line: `v0.70` unreleased development on `main`
-- Current development focus: packaging audit and installed-CLI validation
+- Current package version: `0.70.0`
+- Current release line: `v0.70.0` release preparation; not yet tagged or published
+- Current focus: local packaging and installed-CLI validation
 
 ## What LLMGauge is
 
@@ -97,7 +97,7 @@ reasoning-model interpretation.
 network behavior, automatic scoring, leaderboards.
 
 
-### v0.70 - Identity and provenance foundations complete
+### v0.70 - Identity, provenance, and public-export foundations
 
 The following v0.70 foundations are complete on `main`:
 
@@ -106,9 +106,10 @@ The following v0.70 foundations are complete on `main`:
 - llama.cpp executable provenance
 - bounded llama.cpp build identity discovery
 
-Next immediate phase: **packaging audit and installed-CLI validation**. This is
-validation work, not v0.70 release preparation; package metadata remains at
-`0.66.0` until formal release preparation.
+Release metadata is now prepared as `0.70.0`. Local wheel, sdist, and isolated
+installed-CLI validation remain part of this release-preparation step. The
+`v0.66` tag remains the latest validated released install until a v0.70.0 tag
+and publication are explicitly completed.
 
 ### v0.65 — Guided setup / first-run onboarding
 
@@ -154,9 +155,9 @@ metadata on the feature branch, real model launches during setup.
 
 **Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
 
-## Next phase - packaging and installed-CLI validation
+## Current release-preparation validation
 
-The immediate development sequence is:
+The bounded release-preparation sequence is:
 
 1. packaging audit
 2. installed-CLI validation
@@ -164,7 +165,7 @@ The immediate development sequence is:
 4. bounded publication preparation after validation
 
 Packaging and clean-clone checks validate installation and CLI readiness. They
-do not prove model quality. Formal v0.70 release preparation remains separate.
+do not prove model quality or establish PyPI availability.
 
 ## Later roadmap / parking lot
 
