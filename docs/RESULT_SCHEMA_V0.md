@@ -24,6 +24,10 @@ Raw artifacts must be preserved:
 - runner logs
 - stderr/stdout where useful
 
+The local run directory is the canonical private evidence. A public export is a
+sanitized derivative created by `llmgauge export-public`; it must not modify the
+source run and is not a substitute for private raw evidence or manual review.
+
 Quality scores are separate from runtime metrics.
 
 Runtime metrics include:

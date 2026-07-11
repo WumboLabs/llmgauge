@@ -2,7 +2,18 @@ from __future__ import annotations
 
 import typer
 
-from llmgauge.commands import batch, ladders, models, run_cmd, run_helpers, scoring, setup, suites, validate_cmd
+from llmgauge.commands import (
+    batch,
+    export_public,
+    ladders,
+    models,
+    run_cmd,
+    run_helpers,
+    scoring,
+    setup,
+    suites,
+    validate_cmd,
+)
 
 app = typer.Typer(
     name="llmgauge",
@@ -45,6 +56,7 @@ app.command("validate-ladder")(validate_cmd.validate_ladder)
 app.command("validate-result")(validate_cmd.validate_result)
 app.command()(scoring.score)
 app.command("export-index")(scoring.export_index_command)
+app.command("export-public")(export_public.export_public_command)
 app.command("baseline-check")(scoring.baseline_check_command)
 app.command()(scoring.compare)
 

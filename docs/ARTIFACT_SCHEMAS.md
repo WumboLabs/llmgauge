@@ -92,6 +92,10 @@ Optional runtime reproducibility artifact (v0.66+):
 
     runtime-command.json
 
+Optional public single-run derivative:
+
+    public-export-manifest.json
+
 ## Auditing a result directory
 
 When reviewing or publishing from a result directory, inspect in this order:
@@ -118,6 +122,27 @@ Authoritative vs derived:
 | `report.md` | Regenerable human review summary |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
+
+## Public single-run export
+
+`llmgauge export-public RUN_DIR --out OUTPUT_DIR` creates a derived public
+review directory from one structurally valid run. The source run remains the
+canonical private evidence and is never modified. The output directory must be
+new or empty.
+
+The export policy preserves known report, prompt, output, score, VRAM, log, and
+machine-readable artifacts after explicit text or JSON sanitization. It omits
+unknown files by default. Absolute local paths, secret-like metadata, credential
+URLs, full local SHA-256 values, and legacy inline prompt duplication are
+redacted or removed. Relative artifact references and shortened public
+fingerprints remain usable. Stderr logs are transformed under the same bounded
+text policy so exported result references remain structurally valid.
+
+`public-export-manifest.json` uses schema `llmgauge.public_export.v0` and records
+the source artifact type, copied/transformed/omitted relative files, redaction
+categories, export timestamp, and the claim boundary that sanitization is not
+answer-quality validation. Users must review the export before publication;
+the policy is conservative but does not guarantee complete secret removal.
 
 ## Schema: llmgauge.result.v0
 

@@ -285,6 +285,16 @@ They are not automatic LLM judgments. Do not publish auto-drafts as final review
 
 ## Compare and export
 
+Create a sanitized public derivative of one completed run:
+
+    uv run llmgauge export-public results/<run-directory> --out public/<run-directory>
+
+`export-public` validates the source run, preserves safe relative evidence,
+redacts private paths and secret-like metadata, omits unknown files, and writes
+`public-export-manifest.json`. It never modifies the source run and refuses a
+non-empty output directory. Review the derived export before publication;
+sanitization is not answer-quality validation.
+
 Compare two or more runs:
 
     uv run llmgauge compare \
