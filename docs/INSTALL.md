@@ -2,8 +2,8 @@
 
 LLMGauge can be used two ways:
 
-1. source checkout, recommended for contributors and early testers
-2. installed CLI, recommended when you want to run `llmgauge ...` directly
+1. installed CLI, for users who want to run `llmgauge ...` directly
+2. source checkout, for contributors and unreleased development work
 
 LLMGauge does not download models, install GPU drivers, modify CUDA, change
 system packages, tune hardware settings, or submit results to a service. You
@@ -75,7 +75,7 @@ The source-checkout form is:
 uv run llmgauge ...
 ```
 
-## Installed CLI from a local checkout
+## Installed CLI from a local checkout (development)
 
 Use this path when you want the `llmgauge` command available directly from your
 shell while still working from a local checkout.
@@ -96,8 +96,8 @@ llmgauge model list
 llmgauge smoke
 ```
 
-Editable installs are useful during local development because command changes
-track the checkout.
+This editable install is a development workflow. Command changes track the
+checkout, and it is not the released installed-user path.
 
 Update an editable install by pulling the checkout:
 
@@ -113,11 +113,11 @@ uv tool uninstall llmgauge
 
 ## Installed CLI from GitHub
 
-Use this path when you want to install from the GitHub repository without
-manually working inside a checkout.
+Use the released Git tag when you want the installed user CLI without working
+inside a checkout:
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.66
 ```
 
 Then run:
@@ -130,10 +130,14 @@ llmgauge model list
 llmgauge smoke
 ```
 
-Update a GitHub install by reinstalling the tool:
+The validated released tag is `v0.66` and reports package/CLI version `0.66.0`.
+The current `main` branch contains unreleased v0.70 development, and no v0.70
+tag exists yet. Do not use a future tag until it has been published.
+
+Reinstall a tagged version with the validated `uv tool` command:
 
 ```bash
-uv tool install --force git+https://github.com/WumboLabs/llmgauge
+uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.66
 ```
 
 Remove the installed command when you no longer need it:
@@ -177,7 +181,10 @@ Manual fallback: `llmgauge init` and `llmgauge model add` still work.
 `doctor` and `smoke` are inspection-only. They do not launch `llama.cpp` and do
 not create result artifacts.
 
-## Configuration discovery
+PyPI installation is not yet the validated public path. Do not use
+`uv tool install llmgauge` as the documented installation command.
+
+## Configuration and cache locations
 
 LLMGauge resolves config in this order:
 
@@ -185,10 +192,14 @@ LLMGauge resolves config in this order:
    `--model-profiles`)
 2. project-local files under `examples/configs/*.local.yaml` relative to the
    current working directory
-3. user config under `~/.config/llmgauge/`
+3. user config under `$XDG_CONFIG_HOME/llmgauge/`, or
+   `~/.config/llmgauge/` when `XDG_CONFIG_HOME` is unset
 
 `XDG_CONFIG_HOME` is respected. For example, if `XDG_CONFIG_HOME=/tmp/config`,
 LLMGauge looks under `/tmp/config/llmgauge/`.
+
+The user-owned hash cache is stored under `$XDG_CACHE_HOME/llmgauge/`, or
+`~/.cache/llmgauge/` when `XDG_CACHE_HOME` is unset.
 
 Project-local files are intended for source-checkout contributor workflows. An
 installed CLI user running from `$HOME` or another directory will normally see
