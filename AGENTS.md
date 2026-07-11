@@ -387,6 +387,72 @@ Print the absolute report path at the end of the task.
 
 A report is intended to make the agent’s work easy to inspect after the turn. It is not a substitute for concise final reporting.
 
+## Chat response discipline
+
+Keep interactive chat output concise.
+
+The untracked review report is the authoritative detailed record of repository work. Do not duplicate its full contents in chat.
+
+During a task, only send an update when:
+
+- a blocker requires user input
+- a destructive or externally visible action requires approval
+- a real model command requires review before launch
+- a significant defect or scope conflict is discovered
+- the requested scope cannot be completed as written
+
+Do not narrate routine:
+
+- file inspection
+- repository orientation
+- successful commands
+- passing tests
+- repeated status checks
+- implementation details already captured in the review report
+
+Do not paste full test output, diffs, logs, or generated artifacts into chat unless the user requests them or a failure needs diagnosis.
+
+Normal progress updates should be short and decision-oriented.
+
+The final chat response should summarize only:
+
+- what was completed
+- important findings
+- failures or limitations
+- repository state
+- readiness recommendation
+- absolute review-report path
+
+Avoid repeating:
+
+- the original task
+- the project identity
+- settled product decisions
+- complete command histories
+- full test lists
+- full file lists already present in the review report
+
+## Context and usage discipline
+
+Use repository context economically.
+
+- Do not use subagents, delegated scouts, or parallel agent tasks unless the user explicitly authorizes them.
+- Read only files directly relevant to the requested change.
+- Do not reread broad project documentation when `AGENTS.md` and the task provide sufficient context.
+- Do not repeat settled product decisions in analysis, reports, or chat.
+- Stop repository orientation once the relevant implementation path and tests are identified.
+- Do not produce speculative designs for explicitly deferred features.
+- Do not inspect every potentially related module merely for completeness.
+- Prefer one focused implementation objective per turn.
+- Run targeted tests while developing and the full suite once before final handoff.
+- Do not rerun successful full gates without a concrete reason.
+- Keep review reports concise and evidence-oriented.
+- Summarize commands and results rather than pasting complete successful output.
+- Record only decisions made during the current task; link or reference existing documentation for established policy.
+- Treat token and tool usage as project resources. Additional investigation must have a clear expected effect on correctness.
+
+Unless the task requires more detail, review reports should stay under approximately 150 lines.
+
 ## Final task report
 
 After completing the requested scope, report:
