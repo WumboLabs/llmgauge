@@ -6,6 +6,7 @@ from llmgauge.core.runtime_command import (
     build_runtime_command_document,
     resolve_model_source,
     resolve_reasoning_mode,
+    resolve_reasoning_mode_requested_from_metadata,
 )
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, build_llama_command
 
@@ -54,6 +55,23 @@ def test_resolve_reasoning_mode_cli_overrides_profile() -> None:
         config_data={"defaults": {"reasoning_mode": "auto"}},
     )
     assert resolved == "default"
+
+
+def test_reasoning_mode_requested_metadata_prefers_additive_field() -> None:
+    runtime = {
+        "reasoning_mode": "off",
+        "reasoning_mode_requested": "auto",
+    }
+
+    assert resolve_reasoning_mode_requested_from_metadata(runtime) == "auto"
+
+
+def test_reasoning_mode_requested_metadata_accepts_legacy_and_missing_values() -> None:
+    assert (
+        resolve_reasoning_mode_requested_from_metadata({"reasoning_mode": "default"})
+        == "default"
+    )
+    assert resolve_reasoning_mode_requested_from_metadata({}) == "unknown"
 
 
 def test_build_llama_command_off_includes_reasoning_flag() -> None:

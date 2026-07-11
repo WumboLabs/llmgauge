@@ -16,6 +16,9 @@ PROMPT_PLACEHOLDER = "__PROMPT_FROM_RAW_ARTIFACT__"
 
 ReasoningMode = Literal["off", "on", "auto", "default", "unknown"]
 ModelSource = Literal["model_profile", "direct_model_path"]
+REASONING_MODE_FIELD = "reasoning_mode"
+REASONING_MODE_REQUESTED_FIELD = "reasoning_mode_requested"
+
 
 REASONING_MODES: frozenset[str] = frozenset(
     {"off", "on", "auto", "default", "unknown"}
@@ -52,6 +55,17 @@ def resolve_reasoning_mode(
         get_config_value(config_data, "defaults.reasoning_mode"),
         "off",
     )
+    return normalize_reasoning_mode(raw)
+
+
+def resolve_reasoning_mode_requested_from_metadata(
+    runtime: dict[str, Any],
+) -> ReasoningMode:
+    raw = runtime.get(REASONING_MODE_REQUESTED_FIELD)
+    if raw is None:
+        raw = runtime.get(REASONING_MODE_FIELD)
+    if raw is None:
+        return "unknown"
     return normalize_reasoning_mode(raw)
 
 

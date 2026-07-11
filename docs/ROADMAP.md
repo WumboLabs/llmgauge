@@ -9,8 +9,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.66`
-- Current development line: paused after `v0.66` for release validation and follow-up model testing
-- Current development focus: exact llama.cpp command capture, model source clarity, and reasoning-mode metadata for public-proof interpretation
+- Current development line: v0.70 design after completed v0.66 post-release validation
+- Current development focus: schema compatibility policy and canonical evaluation identity design
 
 ## What LLMGauge is
 
@@ -94,6 +94,34 @@ reasoning-model interpretation.
 
 **Avoid:** arbitrary llama.cpp passthrough, profiler automation, model downloads,
 network behavior, automatic scoring, leaderboards.
+
+
+### v0.70 Slice 1 — Schema compatibility and canonical identity design
+
+**Goal:** Define additive schema evolution rules and canonical identity inputs
+before implementing provenance, caching, public export, or run fingerprints.
+
+**Scope:**
+
+- compatibility policy for non-breaking and breaking v0.x result schema changes
+- canonical JSON/content hashing helper
+- prompt-definition and suite-definition identity helpers
+- model and backend provenance placement design
+- hash-cache invalidation design
+- run fingerprint input boundaries
+- additive reasoning-mode requested semantics
+
+**Exit criteria:**
+
+- older valid v0.x result directories remain valid when optional fields are absent
+- identity hashes are stable across YAML mapping key order
+- prompt identity includes rubric and output-contract content
+- suite identity includes prompt definitions
+- docs distinguish local reproduction data from public-export redaction needs
+
+**Avoid:** GGUF hashing, hash-cache writes, GGUF metadata extraction, executable
+hashing, llama.cpp version discovery, public export, hardware capture, reasoning
+trace detection, new backends, or release metadata.
 
 ### v0.65 — Guided setup / first-run onboarding
 

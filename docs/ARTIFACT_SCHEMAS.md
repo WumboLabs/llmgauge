@@ -49,8 +49,10 @@ checklist.
 - Downstream tools may import artifacts, but LLMGauge does not write to external application databases.
 - Raw prompt, output, and log files remain audit evidence.
 - Cleaned outputs are derived review artifacts and do not replace raw outputs.
+- `llmgauge.result.v0` evolves additively through 1.0 where practical.
 - JSON schemas should evolve additively where possible.
-- Importers should check `schema_version` before trusting a file.
+- Importers should check `schema_version` before trusting a file and tolerate
+  unknown optional fields.
 - Relative artifact paths inside result JSON are relative to the result directory.
 - Absolute local model paths should not be exposed in public result metadata.
 
@@ -179,6 +181,26 @@ Privacy policy:
 - Importers should not require the original local GGUF path.
 - `model_source` is `model_profile` or `direct_model_path`.
 
+Future v0.70-compatible additions may include optional `model.provenance`
+metadata for full local GGUF identity and public display fingerprints. Absence
+of this object does not invalidate older results.
+
+Planned `model.provenance` fields:
+
+    source_type
+    filename
+    file_size_bytes
+    sha256
+    public_fingerprint
+    architecture
+    architecture_source
+    quantization
+    quantization_source
+    gguf_metadata_fingerprint
+
+`architecture_source` and `quantization_source` distinguish metadata-backed
+values from inferred or unknown values.
+
 ### runtime
 
 Expected fields:
@@ -209,6 +231,25 @@ Notes:
 - `runtime_command_path` points to `runtime-command.json` when captured.
 - `config_path` and `model_profiles_path` may be local-machine specific.
 - Future hardening may add stronger path redaction for public exports.
+
+Future v0.70-compatible additions may include optional backend provenance under
+`runtime.backend_provenance` or `runtime.llama_cpp`. LLMGauge remains
+llama.cpp-first; this is not a generic backend abstraction.
+
+Planned backend provenance fields:
+
+    backend_name
+    executable_path
+    executable_sha256
+    public_executable_fingerprint
+    reported_version
+    commit
+    build_number
+    build_metadata
+    build_type
+
+Unavailable fields should be explicit `unknown` or `unavailable` values when
+recorded.
 
 ## Schema: llmgauge.runtime_command.v0
 
@@ -247,6 +288,7 @@ Notes:
 - Model paths in `command_argv` are redacted.
 - The prompt argument uses a placeholder; per-prompt text lives under `raw/*.prompt.md`.
 - Older runs may omit this file; `runtime.runtime_command_captured` records availability.
+
 
 ### suite
 
@@ -330,6 +372,36 @@ Notes:
 - `missing_score_rationale_count` counts applied score entries without a non-empty `score_rationale`.
 - `rubric_id`, `rubric_version`, and `score_schema_version` are copied from applied prompt scores when present.
 - These fields are public-proof metadata for report generation and importers. They are not automated judgments.
+
+## Canonical identity and fingerprints
+
+Canonical identity metadata is additive. Older result directories that lack
+identity fields remain valid.
+
+Canonical JSON serialization sorts mapping keys and uses deterministic UTF-8 JSON
+bytes. YAML mapping order must not affect hashes. Sequence order remains
+meaningful when it affects prompt or suite semantics.
+
+Prompt identity combines the evaluation-relevant prompt definition:
+
+- prompt text
+- system text
+- output contract
+- scoring rubric reference or embedded rubric
+- evaluation-relevant prompt metadata
+- template-specific instructions
+
+Suite identity combines canonical suite content and prompt definition identities.
+
+A future run fingerprint should include immutable evidence and resolved settings:
+full model and executable hashes when available, LLMGauge version, suite hash,
+prompt hashes, resolved runtime configuration, requested reasoning mode, raw
+prompts, raw outputs, runtime command metadata, source telemetry used as
+evidence, and completion/failure states.
+
+The run fingerprint must exclude mutable or regenerated artifacts such as
+`report.md`, `scores.yaml`, comparison reports, export indexes, cleaned output,
+and manually edited review metadata. It is not a whole-directory hash manifest.
 
 ## Context ladder directory
 
