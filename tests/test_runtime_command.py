@@ -122,6 +122,18 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         )
 
     monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
+    monkeypatch.setattr(
+        run_helpers,
+        "discover_llama_runtime_identity",
+        lambda path: {
+            "reported_version": "b1234",
+            "commit": "abcdef1",
+            "build_number": "1234",
+            "build_type": "Release",
+            "build_metadata": "gcc 13.2.0",
+            "discovery_status": "available",
+        },
+    )
 
     resolved = {
         "model_id": "test-model",
@@ -171,6 +183,11 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         == "llama-cli"
     )
     assert result["runtime"]["backend_provenance"]["executable_sha256"]
+    assert (
+        result["runtime"]["backend_provenance"]["reported_version"] == "b1234"
+    )
+    assert result["runtime"]["backend_provenance"]["commit"] == "abcdef1"
+    assert str(tmp_path) not in str(result["runtime"]["backend_provenance"])
     assert result["runtime"]["reasoning_mode"] == "off"
     assert result["runtime"]["runtime_command_captured"] is True
     assert result["runtime"]["runtime_command_path"] == RUNTIME_COMMAND_FILENAME

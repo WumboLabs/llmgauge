@@ -106,9 +106,17 @@ Current fields are:
   lowercase hexadecimal characters of the full digest
 - `status`: `available` or `unavailable`
 - `warning`: collection warning when unavailable
+- `reported_version`: concise reported version text when available
+- `commit`: clearly labeled commit identifier when available
+- `build_number`: clearly labeled build number when available
+- `build_type`: clearly labeled build type when available
+- `build_metadata`: concise compiler/build metadata when available
+- `discovery_status`: `available`, `partial`, or `unavailable`
+- `discovery_warning`: probe or parsing warning when needed
 
 The public executable fingerprint contains no local path data. Executable path,
-version, commit, build number, build metadata, and build type remain deferred.
+version probe command output, and unrestricted subprocess output are not stored.
+Unrecognized commit, build number, build type, and build metadata remain null.
 
 ### Hash cache design
 

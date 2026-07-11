@@ -35,6 +35,11 @@ def test_run_dry_run_shows_reasoning_mode_and_command_preview(
         "collect_backend_provenance",
         fail_if_hashing_executable,
     )
+    monkeypatch.setattr(
+        run_helpers,
+        "discover_llama_runtime_identity",
+        fail_if_hashing_executable,
+    )
 
     (examples_dir / "llmgauge.local.yaml").write_text(
         f"""schema_version: llmgauge.config.v0
