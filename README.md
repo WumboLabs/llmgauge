@@ -57,10 +57,18 @@ Current package version: 0.66.0
 
 Current development line: unreleased v0.70 development on `main`
 
-The repository checkout workflow uses `uv run llmgauge ...`; installed-CLI
-usage remains a separate validation target before v0.70 release preparation.
+The released installed-user workflow uses the tagged GitHub install documented
+in [Installation](docs/INSTALL.md). Current `main` development uses
+`uv run llmgauge ...`; it is unreleased v0.70 work.
 
 See [Roadmap](docs/ROADMAP.md).
+
+Install the latest formal release:
+
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.66
+
+Then use `llmgauge ...` directly. Contributors working from a checkout should
+use `uv sync` and `uv run llmgauge ...` instead.
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
