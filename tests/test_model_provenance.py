@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import llmgauge.core.identity as identity
@@ -232,6 +233,108 @@ def test_backend_provenance_reports_missing_executable(tmp_path: Path) -> None:
     assert provenance["executable_filename"] == "missing-llama-cli"
     assert provenance["executable_sha256"] is None
     assert provenance["warning"].startswith("Executable provenance unavailable:")
+
+
+def test_parse_llama_version_output_extracts_reliable_fields() -> None:
+    parsed = identity.parse_llama_version_output(
+        "version: b1234 (commit abcdef123456)\n"
+        "build type: Release\n"
+        "built with: gcc 13.2.0\n"
+    )
+
+    assert parsed == {
+        "reported_version": "b1234 (commit abcdef123456)",
+        "commit": "abcdef123456",
+        "build_number": "1234",
+        "build_type": "Release",
+        "build_metadata": "gcc 13.2.0",
+        "discovery_status": "available",
+    }
+
+
+def test_parse_llama_version_output_allows_partial_metadata() -> None:
+    parsed = identity.parse_llama_version_output(
+        "commit: abcdef1\ncompiler: unknown\n"
+    )
+
+    assert parsed["commit"] == "abcdef1"
+    assert parsed["reported_version"] is None
+    assert parsed["discovery_status"] == "partial"
+    assert parsed["discovery_warning"]
+
+
+def test_parse_llama_version_output_rejects_unrecognized_text() -> None:
+    parsed = identity.parse_llama_version_output("llama started successfully")
+
+    assert parsed["discovery_status"] == "unavailable"
+    assert parsed["reported_version"] is None
+    assert parsed["commit"] is None
+
+
+def test_discover_llama_runtime_identity_uses_bounded_argv_and_both_streams(
+    tmp_path: Path, monkeypatch
+) -> None:
+    executable_path = tmp_path / "llama-cli"
+    executable_path.write_bytes(b"executable")
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="version: b12\n",
+            stderr="build type: Release\n",
+        )
+
+    monkeypatch.setattr(identity.subprocess, "run", fake_run)
+    result = identity.discover_llama_runtime_identity(executable_path)
+
+    assert result["reported_version"] == "b12"
+    assert result["build_type"] == "Release"
+    assert calls[0][0] == ([str(executable_path.resolve()), "--version"],)
+    assert calls[0][1]["shell"] is False
+    assert calls[0][1]["timeout"] == identity.LLAMA_VERSION_TIMEOUT_SECONDS
+    assert calls[0][1]["capture_output"] is True
+
+
+def test_discover_llama_runtime_identity_handles_timeout_and_nonzero(
+    tmp_path: Path, monkeypatch
+) -> None:
+    executable_path = tmp_path / "llama-cli"
+    executable_path.write_bytes(b"executable")
+
+    def timeout_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+
+    monkeypatch.setattr(identity.subprocess, "run", timeout_run)
+    timed_out = identity.discover_llama_runtime_identity(executable_path)
+    assert timed_out["discovery_status"] == "unavailable"
+    assert "timed out" in timed_out["discovery_warning"]
+
+    monkeypatch.setattr(
+        identity.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=args[0],
+            returncode=2,
+            stdout="version: b12\n",
+            stderr="unsupported flag\n",
+        ),
+    )
+    nonzero = identity.discover_llama_runtime_identity(executable_path)
+    assert nonzero["discovery_status"] == "partial"
+    assert nonzero["reported_version"] == "b12"
+    assert "status 2" in nonzero["discovery_warning"]
+
+
+def test_discover_llama_runtime_identity_handles_missing_executable(
+    tmp_path: Path,
+) -> None:
+    result = identity.discover_llama_runtime_identity(tmp_path / "missing-llama")
+
+    assert result["discovery_status"] == "unavailable"
+    assert "not found" in result["discovery_warning"]
 
 
 def test_hash_model_file_rejects_file_identity_change_during_hash(

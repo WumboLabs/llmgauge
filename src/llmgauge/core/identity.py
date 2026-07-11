@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import subprocess
 import tempfile
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
@@ -14,6 +16,9 @@ PROMPT_IDENTITY_VERSION = "llmgauge.prompt_identity.v0"
 SUITE_IDENTITY_VERSION = "llmgauge.suite_identity.v0"
 MODEL_HASH_CACHE_VERSION = "llmgauge.model_hash_cache.v0"
 PUBLIC_FINGERPRINT_LENGTH = 16
+LLAMA_VERSION_TIMEOUT_SECONDS = 5.0
+MAX_REPORTED_VERSION_LENGTH = 256
+MAX_BUILD_METADATA_LENGTH = 256
 
 _JSON_SCALAR_TYPES = (str, int, float, bool, type(None))
 
@@ -284,6 +289,112 @@ def collect_backend_provenance(
     }
     provenance.update(file_provenance)
     return provenance
+
+
+def parse_llama_version_output(stdout: str, stderr: str = "") -> dict[str, Any]:
+    """Parse clearly labeled llama.cpp version metadata without guessing."""
+
+    combined = "\n".join(value for value in (stdout, stderr) if value)
+    version_match = re.search(
+        r"(?im)^\s*(?:llama\.cpp\s+)?version\s*:\s*(\S(?:.*?\S)?)\s*$",
+        combined,
+    )
+    commit_match = re.search(
+        r"(?i)\bcommit\s*[:=]?\s*([0-9a-f]{7,40})\b", combined
+    )
+    build_number_match = re.search(
+        r"(?i)\bbuild(?:\s+number)?\s*[:=]\s*(\d+)\b", combined
+    )
+    if build_number_match is None:
+        build_number_match = re.search(r"(?i)\bversion\s*:\s*b(\d+)\b", combined)
+    build_type_match = re.search(
+        r"(?im)^\s*build\s+type\s*:\s*(\S(?:.*?\S)?)\s*$", combined
+    )
+    build_metadata_match = re.search(
+        r"(?im)^\s*built\s+with\s*:\s*(\S(?:.*?\S)?)\s*$", combined
+    )
+
+    result: dict[str, Any] = {
+        "reported_version": (
+            version_match.group(1)[:MAX_REPORTED_VERSION_LENGTH]
+            if version_match
+            else None
+        ),
+        "commit": commit_match.group(1) if commit_match else None,
+        "build_number": build_number_match.group(1) if build_number_match else None,
+        "build_type": (
+            build_type_match.group(1)[:MAX_BUILD_METADATA_LENGTH]
+            if build_type_match
+            else None
+        ),
+        "build_metadata": (
+            build_metadata_match.group(1)[:MAX_BUILD_METADATA_LENGTH]
+            if build_metadata_match
+            else None
+        ),
+    }
+    recognized = any(value is not None for value in result.values())
+    if not recognized:
+        result.update(
+            {
+                "discovery_status": "unavailable",
+                "discovery_warning": "llama.cpp version output was unrecognized",
+            }
+        )
+    elif result["reported_version"] is not None:
+        result["discovery_status"] = "available"
+    else:
+        result.update(
+            {
+                "discovery_status": "partial",
+                "discovery_warning": (
+                    "llama.cpp version output contained partial recognized metadata"
+                ),
+            }
+        )
+    return result
+
+
+def discover_llama_runtime_identity(path: Path) -> dict[str, Any]:
+    """Run a bounded, non-model llama.cpp version probe and parse its output."""
+
+    resolved_path = path.expanduser().resolve()
+    try:
+        completed = subprocess.run(
+            [str(resolved_path), "--version"],
+            capture_output=True,
+            check=False,
+            shell=False,
+            text=True,
+            timeout=LLAMA_VERSION_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError:
+        return {
+            "discovery_status": "unavailable",
+            "discovery_warning": "llama.cpp version probe executable was not found",
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "discovery_status": "unavailable",
+            "discovery_warning": "llama.cpp version probe timed out",
+        }
+    except OSError as exc:
+        return {
+            "discovery_status": "unavailable",
+            "discovery_warning": f"llama.cpp version probe failed: {exc}",
+        }
+
+    parsed = parse_llama_version_output(completed.stdout, completed.stderr)
+    if completed.returncode != 0:
+        warning = f"llama.cpp version probe exited with status {completed.returncode}"
+        parsed["discovery_warning"] = (
+            f"{parsed['discovery_warning']}; {warning}"
+            if parsed.get("discovery_warning")
+            else warning
+        )
+        if parsed["discovery_status"] == "available":
+            parsed["discovery_status"] = "partial"
+    return parsed
 
 
 def prompt_definition_payload(

@@ -242,10 +242,18 @@ Current backend provenance fields:
     public_executable_fingerprint
     status
     warning
+    reported_version
+    commit
+    build_number
+    build_type
+    build_metadata
+    discovery_status
+    discovery_warning
 
 When unavailable, executable size, full hash, and public fingerprint are null
-and `warning` explains the collection failure. The executable path and runtime
-version/build discovery remain out of scope.
+and `warning` explains the collection failure. Discovery fields remain null or
+absent when the bounded version probe is unavailable or unparseable. The full
+executable path and unrestricted probe output are not stored.
 
 ## Schema: llmgauge.runtime_command.v0
 

@@ -29,6 +29,7 @@ from llmgauge.core.fit_ladder import build_fit_attempt_record
 from llmgauge.core.identity import (
     collect_backend_provenance,
     collect_model_provenance,
+    discover_llama_runtime_identity,
 )
 from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
@@ -514,6 +515,11 @@ def execute_run(
     backend_provenance = collect_backend_provenance(resolved["llama_cli"])
     if backend_provenance["status"] == "unavailable":
         console.print(f"[yellow]{backend_provenance['warning']}[/yellow]")
+    backend_provenance.update(
+        discover_llama_runtime_identity(resolved["llama_cli"])
+    )
+    if backend_provenance.get("discovery_warning"):
+        console.print(f"[yellow]{backend_provenance['discovery_warning']}[/yellow]")
     run_id = out.name
     prompt_results: list[dict] = []
     redacted_command: list[str] | None = None
