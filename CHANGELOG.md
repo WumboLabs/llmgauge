@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - v0.70 development
+
+- Added the canonical evaluation identity foundation, including prompt and suite identity helpers.
+- Documented additive v0.x result compatibility policy and identity/provenance boundaries.
+- Added model-file SHA-256 provenance with an identity-validated shared hash cache.
+- Added additive `model.provenance` metadata for new runs.
+- Added llama.cpp executable provenance and additive `runtime.backend_provenance` metadata.
+- Added bounded llama.cpp version and build identity discovery with conservative unavailable states.
+- Added agent context and usage-discipline guidance for supervised repository work.
+
 ## v0.66 - 2026-07-08
 
 - Added `runtime-command.json` run artifacts with structured, redacted llama.cpp command metadata for reproducibility review.
