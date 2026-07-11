@@ -59,6 +59,11 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
         """
 {
   "schema_version": "llmgauge.result.v0",
+  "run_fingerprint": {
+    "schema_version": "llmgauge.run_fingerprint.v0",
+    "algorithm": "sha256",
+    "value": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
   "run": {
     "run_id": "run-a",
     "timestamp_utc": "2026-06-16T06:00:00+00:00",
@@ -109,6 +114,9 @@ def test_build_export_index_for_run(tmp_path: Path) -> None:
     assert index["schema_version"] == "llmgauge.export_index.v0"
     assert index["item_count"] == 1
     assert item["artifact_type"] == "run"
+    assert item["run_fingerprint"]["value"] == (
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    )
     assert item["run_id"] == "run-a"
     assert item["suite_id"] == "agent-backend-v1"
     assert item["model_id"] == "test-model"

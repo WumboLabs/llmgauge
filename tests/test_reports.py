@@ -34,6 +34,11 @@ def test_build_markdown_report_multiple_prompts() -> None:
             "completed": 2,
             "failed": 0,
         },
+        "run_fingerprint": {
+            "schema_version": "llmgauge.run_fingerprint.v0",
+            "algorithm": "sha256",
+            "value": "sha256:" + "1" * 64,
+        },
         "results": [
             {
                 "prompt_id": "one",
@@ -81,6 +86,8 @@ def test_build_markdown_report_multiple_prompts() -> None:
     assert "## Evidence Summary" in report
     assert "- Run ID: test-run" in report
     assert "- Peak VRAM MiB: 7535" in report
+    assert "- Run evidence fingerprint: `sha256:" + "1" * 64 + "`" in report
+    assert "canonical private source evidence" in report
     assert "## Publish Readiness Notes" in report
     assert "- Scoring status: unscored" in report
     assert "## Test Configuration" in report

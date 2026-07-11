@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.run_fingerprint import verify_run_fingerprint
+
 
 REQUIRED_TOP_LEVEL_KEYS = [
     "schema_version",
@@ -229,6 +231,8 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                             "runtime command artifact schema_version must be "
                             "llmgauge.runtime_command.v0"
                         )
+
+    errors.extend(verify_run_fingerprint(result_dir, data))
 
     return errors
 

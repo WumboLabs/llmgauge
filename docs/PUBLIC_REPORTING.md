@@ -90,6 +90,11 @@ scores, telemetry, and sanitized machine-readable metadata. It transforms
 private paths, secrets, full local hashes, and prompt duplication; unknown files
 are omitted and recorded in the export manifest.
 
+When available, the export manifest includes `source_run_fingerprint`, the
+fingerprint of the canonical private source evidence. It helps reviewers cite
+which private run the export came from, but it does not verify or authenticate
+transformed public-export bytes.
+
 ## Claim boundaries
 
 Manual scores are review metadata. They are not automatic judgments and are not universal model rankings.
@@ -129,6 +134,8 @@ A public report may say that a model performed well or poorly on a specific suit
 A public report should not claim:
 
 - universal best-model status
+- that a run fingerprint proves model quality, authorship, hardware identity, or
+  transformed public-export byte integrity
 - broad recommendations from one run
 - daily-driver reliability from Tier 2 alone
 - safety outside the tested prompts

@@ -144,6 +144,11 @@ categories, export timestamp, and the claim boundary that sanitization is not
 answer-quality validation. Users must review the export before publication;
 the policy is conservative but does not guarantee complete secret removal.
 
+When the source run has a canonical run fingerprint, the manifest records it as
+`source_run_fingerprint`. This labels the fingerprint of the canonical private
+source evidence only; it does not verify or authenticate transformed
+public-export bytes.
+
 ## Schema: llmgauge.result.v0
 
 Primary file:
@@ -422,15 +427,24 @@ Prompt identity combines the evaluation-relevant prompt definition:
 
 Suite identity combines canonical suite content and prompt definition identities.
 
-A future run fingerprint should include immutable evidence and resolved settings:
-full model and executable hashes when available, LLMGauge version, suite hash,
-prompt hashes, resolved runtime configuration, requested reasoning mode, raw
-prompts, raw outputs, runtime command metadata, source telemetry used as
-evidence, and completion/failure states.
+New finalized single-run results may include an optional top-level
+`run_fingerprint` object:
 
-The run fingerprint must exclude mutable or regenerated artifacts such as
-`report.md`, `scores.yaml`, comparison reports, export indexes, cleaned output,
-and manually edited review metadata. It is not a whole-directory hash manifest.
+    schema_version: llmgauge.run_fingerprint.v0
+    algorithm: sha256
+    value: sha256:<64 lowercase hex characters>
+
+The run fingerprint identifies canonical private evidence, not model quality,
+publication readiness, a unique execution instance, or transformed public-export
+bytes. Its canonical payload includes strong model/backend provenance when
+available, suite identity, ordered prompt identities, material runtime settings,
+per-prompt execution status and exit status, and SHA-256 values for
+authoritative raw prompt, raw output, stderr, and VRAM sample artifacts.
+
+It excludes run ID, run timestamp, local paths, reports, cleaned output, scores,
+reviewer metadata, comparison reports, export indexes, and public-export
+manifests. Validation accepts legacy results without the optional field; when
+present, it recomputes and checks the fingerprint without rewriting it.
 
 ## Context ladder directory
 

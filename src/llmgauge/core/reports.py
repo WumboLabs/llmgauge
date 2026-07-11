@@ -183,6 +183,12 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
 
     peak_vram = _result_peak_vram_mib(result)
     min_headroom = _result_min_vram_headroom_mib(result)
+    run_fingerprint = result.get("run_fingerprint")
+    fingerprint_value = (
+        run_fingerprint.get("value")
+        if isinstance(run_fingerprint, dict)
+        else None
+    )
 
     lines = [
         "## Evidence Summary",
@@ -208,6 +214,12 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
         f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
         f"- Peak VRAM MiB: {_fmt_optional_mib(peak_vram)}",
         f"- Min VRAM headroom MiB: {_fmt_optional_mib(min_headroom)}",
+        (
+            f"- Run evidence fingerprint: `{fingerprint_value}`"
+            if fingerprint_value
+            else "- Run evidence fingerprint: not recorded"
+        ),
+        "- Fingerprint boundary: identifies canonical private source evidence, not model quality or a unique execution instance.",
         "- Inspect raw and cleaned outputs in **Prompt Artifact Audit** before publication.",
         "",
     ]

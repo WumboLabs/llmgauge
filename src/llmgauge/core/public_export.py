@@ -11,6 +11,7 @@ from typing import Any
 
 from llmgauge.core.artifacts import write_json, write_text
 from llmgauge.core.result_validation import load_result_json, validate_result_dir
+from llmgauge.core.run_fingerprint import RUN_FINGERPRINT_FIELD
 
 PUBLIC_EXPORT_SCHEMA_VERSION = "llmgauge.public_export.v0"
 PUBLIC_EXPORT_MANIFEST_FILENAME = "public-export-manifest.json"
@@ -153,6 +154,7 @@ def _sanitize_result_json(path: Path, output_path: Path, categories: set[str]) -
     sanitized = _remove_full_hashes(_sanitize_structured(data, categories), categories)
 
     if isinstance(sanitized, dict):
+        sanitized.pop(RUN_FINGERPRINT_FIELD, None)
         runtime = sanitized.get("runtime")
         if isinstance(runtime, dict):
             runtime["command"] = _sanitize_command_argv(runtime.get("command"), categories)
@@ -293,6 +295,7 @@ def _build_public_export(source_dir: Path, output_dir: Path) -> dict[str, Any]:
     manifest = {
         "schema_version": PUBLIC_EXPORT_SCHEMA_VERSION,
         "source_artifact_type": source_result.get("schema_version"),
+        "source_run_fingerprint": source_result.get(RUN_FINGERPRINT_FIELD),
         "files_copied": sorted(copied),
         "files_transformed": sorted(transformed),
         "files_omitted": sorted(omitted),
@@ -301,6 +304,10 @@ def _build_public_export(source_dir: Path, output_dir: Path) -> dict[str, Any]:
         "claim_boundary": (
             "Export sanitization is not answer-quality validation. Review the "
             "public export before publication."
+        ),
+        "source_run_fingerprint_boundary": (
+            "The source run fingerprint identifies the canonical private evidence. "
+            "It does not authenticate transformed public-export bytes."
         ),
     }
     write_json(output_dir / PUBLIC_EXPORT_MANIFEST_FILENAME, manifest)

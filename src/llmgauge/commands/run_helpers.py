@@ -35,6 +35,7 @@ from llmgauge.core.metrics import parse_llama_metrics
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
+from llmgauge.core.run_fingerprint import attach_run_fingerprint
 from llmgauge.core.runtime_command import (
     RUNTIME_COMMAND_FILENAME,
     build_runtime_command_document,
@@ -683,6 +684,7 @@ def execute_run(
         },
     }
 
+    attach_run_fingerprint(out, result)
     write_json(out / "llmgauge-result.json", result)
     write_text(out / "report.md", build_markdown_report(result))
 

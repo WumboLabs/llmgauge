@@ -164,21 +164,40 @@ prompt semantics.
 
 ### Canonical run fingerprint
 
-A future run fingerprint should include immutable evidence and resolved
-evaluation settings:
+New finalized single-run results may include an optional top-level
+`run_fingerprint` object:
 
-- full model hash when available
-- full backend executable hash when available
-- LLMGauge version
-- suite hash
-- prompt hashes
-- resolved runtime configuration
-- reasoning mode requested
-- raw prompts
-- raw model outputs
-- runtime command metadata
-- source telemetry used as evidence
-- completion and failure states
+    {
+      "schema_version": "llmgauge.run_fingerprint.v0",
+      "algorithm": "sha256",
+      "value": "sha256:<64 lowercase hex characters>"
+    }
+
+The fingerprint identifies canonical private evidence for one single-run
+result. It is an evidence-integrity identifier, not a quality score, signature,
+authorship proof, hardware attestation, or whole-directory manifest.
+
+The v0 payload includes stable private evidence:
+
+- result schema version and LLMGauge version
+- model source type, model filename, provenance status, and full model SHA-256
+  when locally available
+- backend name, executable filename, executable SHA-256, and bounded
+  llama.cpp version/build identity when locally available
+- suite identity fields
+- ordered prompt identities from the result schema
+- material generation/runtime settings
+- per-prompt status and exit status
+- SHA-256 of authoritative referenced artifacts: raw prompt, raw output, stderr
+  log, and VRAM samples when recorded
+
+The payload uses relative artifact references only and hashes artifact bytes
+rather than embedding artifact contents. JSON serialization uses deterministic
+UTF-8 JSON with sorted mapping keys and compact separators.
+
+Run ID and run timestamp are excluded. The same immutable evidence can therefore
+produce the same fingerprint in a different result directory or at a different
+timestamp; this is evidence equivalence, not unique execution-instance identity.
 
 The fingerprint must exclude mutable or regenerated review artifacts:
 
@@ -188,8 +207,13 @@ The fingerprint must exclude mutable or regenerated review artifacts:
 - export indexes
 - cleaned output
 - manually edited review metadata
+- local result-directory paths, config paths, model paths, executable paths,
+  home-directory paths, and temporary paths
 
-Do not implement a whole-result-directory hash manifest for v0.70 Slice 1.
+Validation preserves legacy compatibility when `run_fingerprint` is absent. When
+present, validation checks schema version, algorithm, value format, referenced
+artifact availability, and recomputes the canonical SHA-256. Validation reports
+mismatches but never rewrites the fingerprint.
 
 ### Reasoning-mode compatibility
 
