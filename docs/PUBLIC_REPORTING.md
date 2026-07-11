@@ -18,12 +18,18 @@ For public-facing evidence, prefer this order:
 10. `compare` only like-for-like scored runs when making quality claims.
 11. Read comparison **Publish Readiness Notes** and **Publication evidence summary**.
 12. `export-index` when an importer or summary workflow needs metadata.
-13. Write bounded claims with hardware, runtime, suite, and scoring disclosure.
-14. Retain raw/cleaned artifacts for audit.
+13. `export-public` one completed run when preparing a sanitized publication derivative.
+14. Review the public export before publication.
+15. Write bounded claims with hardware, runtime, suite, and scoring disclosure.
+16. Retain the private local run and its raw/cleaned artifacts for audit.
 
 Validation confirms artifact shape and references. It does not prove model
 quality, safety, or publication readiness. Auto-drafts are triage only until a
 reviewer applies reviewed scores.
+
+Export sanitization is not a guarantee that every private value has been
+removed. Users must inspect the public export before publication and keep the
+original local run unchanged for audit.
 
 ## Artifact roles in the workflow
 
@@ -32,6 +38,7 @@ reviewer applies reviewed scores.
 | Single-run review | `report.md` | **Audit Checklist**, **Prompt Artifact Audit**, score/rationale review, **Publish Readiness Notes** |
 | Multi-run review | `compare.md` | Cross-run comparison, **Publish Readiness Notes**, **Publication evidence summary** |
 | Importer metadata | Export index JSON | Discovery, `scoring_status`, scoring evidence fields, validation status |
+| Public derivative | `export-public` directory | Sanitized single-run artifacts for publication review |
 
 Regenerate `report.md` after applying scores. Regenerate `compare.md` when
 underlying runs change. Regenerate export index after scoring, validation, or
@@ -72,6 +79,16 @@ Public claims should be backed by validated artifacts:
 - cleaned outputs for readable review
 - raw outputs for audit evidence
 - export index when summarizing multiple artifacts or feeding a report/import workflow
+
+For a single-run public derivative, use:
+
+    uv run llmgauge export-public results/<run-directory> --out public/<run-directory>
+
+The local run directory remains the canonical private evidence. The public
+export is a derived copy that preserves selected reports, prompts, outputs,
+scores, telemetry, and sanitized machine-readable metadata. It transforms
+private paths, secrets, full local hashes, and prompt duplication; unknown files
+are omitted and recorded in the export manifest.
 
 ## Claim boundaries
 
