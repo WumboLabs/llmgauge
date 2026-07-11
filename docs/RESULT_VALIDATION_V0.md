@@ -35,6 +35,30 @@
 - `score` is either null or a mapping with valid dimensions, label lists, and string metadata fields.
 - `model.model_path` remains redacted.
 
+
+## Compatibility expectations
+
+Validation must remain additive for the v0.x result schema line. Missing
+optional provenance, identity, fingerprint, runtime-command, or future public
+export fields must not invalidate an older result directory that otherwise
+passes structural validation.
+
+Unknown optional fields are tolerated where the containing object is already a
+free-form artifact object. This preserves forward compatibility for importers
+and avoids forcing migrations for older local evidence.
+
+Validation may add warnings or more specific diagnostics, but it should not make
+previously valid v0.x artifacts fail unless the artifact is corrupted, unsafe to
+interpret, or technically impossible to interpret.
+
+Reasoning-mode metadata is compatibility-sensitive:
+
+- v0.66 artifacts may contain `runtime.reasoning_mode`
+- future artifacts may add `runtime.reasoning_mode_requested`
+- older artifacts may omit both
+- readers must not treat requested reasoning mode as observed or effective
+  behavior
+
 ## Non-goals
 
 - Full JSON Schema validation.

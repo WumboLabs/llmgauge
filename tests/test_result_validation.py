@@ -66,6 +66,30 @@ def test_validate_result_dir_success(tmp_path: Path) -> None:
     assert validate_result_dir(result_dir) == []
 
 
+def test_validate_result_dir_accepts_missing_v070_optional_fields(tmp_path: Path) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validate_result_data_tolerates_unknown_optional_fields(tmp_path: Path) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+    data = _valid_result()
+    data["model"]["provenance"] = {
+        "sha256": "unknown",
+        "source_type": "model_profile",
+    }
+    data["runtime"]["backend_provenance"] = {
+        "backend_name": "llama.cpp",
+        "executable_sha256": "unknown",
+    }
+    data["runtime"]["unexpected_future_field"] = {"kept": True}
+
+    errors = validate_result_data(result_dir, data)
+
+    assert errors == []
+
+
 def test_validate_result_data_rejects_missing_top_level_key(tmp_path: Path) -> None:
     data = _valid_result()
     del data["runtime"]
