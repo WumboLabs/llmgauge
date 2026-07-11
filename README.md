@@ -53,7 +53,12 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 Current stable tag: v0.66
 
-Current development line: paused after v0.66 for release validation and follow-up model testing
+Current package version: 0.66.0
+
+Current development line: unreleased v0.70 development on `main`
+
+The repository checkout workflow uses `uv run llmgauge ...`; installed-CLI
+usage remains a separate validation target before v0.70 release preparation.
 
 See [Roadmap](docs/ROADMAP.md).
 

@@ -9,8 +9,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.66`
-- Current development line: v0.70 design after completed v0.66 post-release validation
-- Current development focus: schema compatibility policy and canonical evaluation identity design
+- Current package version: `0.66.0`
+- Current development line: `v0.70` unreleased development on `main`
+- Current development focus: packaging audit and installed-CLI validation
 
 ## What LLMGauge is
 
@@ -96,32 +97,18 @@ reasoning-model interpretation.
 network behavior, automatic scoring, leaderboards.
 
 
-### v0.70 Slice 1 — Schema compatibility and canonical identity design
+### v0.70 - Identity and provenance foundations complete
 
-**Goal:** Define additive schema evolution rules and canonical identity inputs
-before implementing provenance, caching, public export, or run fingerprints.
+The following v0.70 foundations are complete on `main`:
 
-**Scope:**
+- canonical identity and additive compatibility policy
+- model provenance and identity-validated hash caching
+- llama.cpp executable provenance
+- bounded llama.cpp build identity discovery
 
-- compatibility policy for non-breaking and breaking v0.x result schema changes
-- canonical JSON/content hashing helper
-- prompt-definition and suite-definition identity helpers
-- model and backend provenance placement design
-- hash-cache invalidation design
-- run fingerprint input boundaries
-- additive reasoning-mode requested semantics
-
-**Exit criteria:**
-
-- older valid v0.x result directories remain valid when optional fields are absent
-- identity hashes are stable across YAML mapping key order
-- prompt identity includes rubric and output-contract content
-- suite identity includes prompt definitions
-- docs distinguish local reproduction data from public-export redaction needs
-
-**Avoid:** GGUF hashing, hash-cache writes, GGUF metadata extraction, executable
-hashing, llama.cpp version discovery, public export, hardware capture, reasoning
-trace detection, new backends, or release metadata.
+Next immediate phase: **packaging audit and installed-CLI validation**. This is
+validation work, not v0.70 release preparation; package metadata remains at
+`0.66.0` until formal release preparation.
 
 ### v0.65 — Guided setup / first-run onboarding
 
@@ -167,17 +154,17 @@ metadata on the feature branch, real model launches during setup.
 
 **Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
 
-## After v0.64 — feature pause for validation and publication prep
+## Next phase - packaging and installed-CLI validation
 
-Current planned sequence after v0.64:
+The immediate development sequence is:
 
-1. clean local release branches
-2. manual clean-clone test per `docs/CLEAN_CLONE_TESTING.md`
-3. real model test pass on selected hardware (user-provided `llama.cpp` and GGUF models)
-4. WumboLabs website update with bounded claims
-5. first public X post draft about LLMGauge
+1. packaging audit
+2. installed-CLI validation
+3. real model test pass on selected hardware, using user-provided `llama.cpp` and GGUF models
+4. bounded publication preparation after validation
 
-Clean-clone testing validates installation and CLI readiness. It does not prove model quality. Real model testing and website/social work happen after v0.64.
+Packaging and clean-clone checks validate installation and CLI readiness. They
+do not prove model quality. Formal v0.70 release preparation remains separate.
 
 ## Later roadmap / parking lot
 
