@@ -117,7 +117,7 @@ Use the released Git tag when you want the installed user CLI without working
 inside a checkout:
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.66
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
 ```
 
 Then run:
@@ -130,15 +130,14 @@ llmgauge model list
 llmgauge smoke
 ```
 
-The validated released tag remains `v0.66` and reports package/CLI version
-`0.66.0`. The v0.70.0 release metadata is being prepared locally; no v0.70.0
-tag exists yet, and no package publication or PyPI availability is claimed.
-Do not use a future tag until it has been published.
+The validated released tag is `v0.70` and reports package/CLI version
+`0.70.0`. PyPI availability is not claimed; use the tagged GitHub install
+workflow documented below.
 
 Reinstall a tagged version with the validated `uv tool` command:
 
 ```bash
-uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.66
+uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.70
 ```
 
 Remove the installed command when you no longer need it:

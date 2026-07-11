@@ -51,22 +51,20 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.66
+Current stable tag: v0.70
 
 Current package version: 0.70.0
 
-Current release line: v0.70.0 release preparation; the tag and package publication
-are not yet complete.
+Current release line: v0.70.0.
 
-The latest validated installed-user workflow remains the v0.66 tagged GitHub
-install documented in [Installation](docs/INSTALL.md). The v0.70.0 release
-metadata is prepared locally; no v0.70.0 tag or package publication is claimed.
+The validated installed-user workflow uses the v0.70 tagged GitHub install
+documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
 
 See [Roadmap](docs/ROADMAP.md).
 
 Install the latest formal release:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.66
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
 
 Then use `llmgauge ...` directly. Contributors working from a checkout should
 use `uv sync` and `uv run llmgauge ...` instead.
