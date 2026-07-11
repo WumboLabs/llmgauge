@@ -181,25 +181,23 @@ Privacy policy:
 - Importers should not require the original local GGUF path.
 - `model_source` is `model_profile` or `direct_model_path`.
 
-Future v0.70-compatible additions may include optional `model.provenance`
-metadata for full local GGUF identity and public display fingerprints. Absence
-of this object does not invalidate older results.
+New v0.70-compatible results may include optional `model.provenance` metadata
+for local model identity and public display fingerprints. Absence of this
+object does not invalidate older results.
 
-Planned `model.provenance` fields:
+Current `model.provenance` fields:
 
     source_type
     filename
     file_size_bytes
     sha256
     public_fingerprint
-    architecture
-    architecture_source
-    quantization
-    quantization_source
-    gguf_metadata_fingerprint
+    status
+    warning
 
-`architecture_source` and `quantization_source` distinguish metadata-backed
-values from inferred or unknown values.
+`status` is `available` or `unavailable`. When unavailable, `sha256`,
+`file_size_bytes`, and `public_fingerprint` are null and `warning` explains
+the collection failure. The current slice does not parse GGUF metadata.
 
 ### runtime
 
