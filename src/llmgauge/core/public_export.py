@@ -28,6 +28,10 @@ _SECRET_VALUE_RE = re.compile(
 _CREDENTIAL_URL_RE = re.compile(r"(?i)https?://[^\s/@]+:[^\s/@]+@[^\s]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/(?!/)[^\s\"'<>`]+")
 _WINDOWS_PATH_RE = re.compile(r"(?i)(?<![A-Za-z0-9])(?:[a-z]:\\|\\\\)[^\s\"'<>`]+")
+_FULL_HASH_SEGMENT_RE = re.compile(
+    r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])", re.IGNORECASE
+)
+_PROVENANCE_FILENAME_KEYS = {"filename", "executable_filename"}
 
 
 def _utc_timestamp() -> str:
@@ -66,6 +70,12 @@ def _sanitize_structured(
     if key is not None and _SECRET_KEY_RE.match(key):
         categories.add("secret_like_metadata")
         return "REDACTED_SECRET"
+
+    if key in _PROVENANCE_FILENAME_KEYS and isinstance(value, str):
+        sanitized, count = _FULL_HASH_SEGMENT_RE.subn("REDACTED_FULL_HASH", value)
+        if count:
+            categories.add("filename_full_sha256")
+        return sanitized
 
     if isinstance(value, Mapping):
         sanitized: dict[str, Any] = {}
