@@ -11,7 +11,13 @@ from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.run_fingerprint import attach_run_fingerprint
 
 
-def _write_run(tmp_path: Path, *, with_provenance: bool = True) -> Path:
+def _write_run(
+    tmp_path: Path,
+    *,
+    with_provenance: bool = True,
+    model_filename: str = "model.gguf",
+    executable_filename: str = "llama-cli",
+) -> Path:
     result_dir = tmp_path / "source-run"
     (result_dir / "raw").mkdir(parents=True)
     (result_dir / "cleaned").mkdir()
@@ -28,7 +34,7 @@ def _write_run(tmp_path: Path, *, with_provenance: bool = True) -> Path:
     if with_provenance:
         model["provenance"] = {
             "source_type": "model_profile",
-            "filename": "model.gguf",
+            "filename": model_filename,
             "file_size_bytes": 123,
             "sha256": "a" * 64,
             "public_fingerprint": "sha256:aaaaaaaaaaaaaaaa",
@@ -55,7 +61,7 @@ def _write_run(tmp_path: Path, *, with_provenance: bool = True) -> Path:
             "command": ["/private-home/llama-cli", "-p", "SYSTEM: private prompt"],
             "backend_provenance": {
                 "backend_name": "llama.cpp",
-                "executable_filename": "llama-cli",
+                "executable_filename": executable_filename,
                 "executable_sha256": "b" * 64,
                 "public_executable_fingerprint": "sha256:bbbbbbbbbbbbbbbb",
                 "reported_version": "b1234",
@@ -187,6 +193,90 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     assert "REDACTED_SECRET" in (
         output_dir / "raw" / "honesty-unknown-tool.output.txt"
     ).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("model_filename", "executable_filename", "expected_model", "expected_executable"),
+    [
+        (
+            f'{"a" * 64}.gguf',
+            "llama-cli",
+            "REDACTED_FULL_HASH.gguf",
+            "llama-cli",
+        ),
+        (
+            f'model-{"b" * 64}-Q4_K_M.gguf',
+            "llama-cli",
+            "model-REDACTED_FULL_HASH-Q4_K_M.gguf",
+            "llama-cli",
+        ),
+        (
+            "model.gguf",
+            f'{"C" * 64}-LLAMA-CLI',
+            "model.gguf",
+            "REDACTED_FULL_HASH-LLAMA-CLI",
+        ),
+        ("ordinary-model.gguf", "llama-cli", "ordinary-model.gguf", "llama-cli"),
+        ("a" * 63, "b" * 65, "a" * 63, "b" * 65),
+    ],
+)
+def test_public_export_redacts_only_bounded_filename_hashes(
+    tmp_path: Path,
+    model_filename: str,
+    executable_filename: str,
+    expected_model: str,
+    expected_executable: str,
+) -> None:
+    source_dir = _write_run(
+        tmp_path,
+        model_filename=model_filename,
+        executable_filename=executable_filename,
+    )
+    output_dir = tmp_path / "public-export"
+
+    manifest = export_public_run(source_dir, output_dir)
+    exported = json.loads(
+        (output_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    model_provenance = exported["model"]["provenance"]
+    backend_provenance = exported["runtime"]["backend_provenance"]
+
+    assert model_provenance["filename"] == expected_model
+    assert backend_provenance["executable_filename"] == expected_executable
+    assert model_provenance["public_fingerprint"] == "sha256:aaaaaaaaaaaaaaaa"
+    assert backend_provenance["public_executable_fingerprint"] == (
+        "sha256:bbbbbbbbbbbbbbbb"
+    )
+    if any(
+        "REDACTED_FULL_HASH" in expected
+        for expected in (expected_model, expected_executable)
+    ):
+        assert "filename_full_sha256" in manifest["redaction_categories"]
+    else:
+        assert "filename_full_sha256" not in manifest["redaction_categories"]
+
+
+def test_public_export_filename_hashes_are_absent_from_structured_metadata(
+    tmp_path: Path,
+) -> None:
+    model_hash = "a" * 64
+    backend_hash = "b" * 64
+    source_dir = _write_run(
+        tmp_path,
+        model_filename=f"model-{model_hash}.gguf",
+        executable_filename=f"llama-{backend_hash}",
+    )
+    output_dir = tmp_path / "public-export"
+
+    export_public_run(source_dir, output_dir)
+    exported = json.loads(
+        (output_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    assert model_hash not in json.dumps(exported)
+    assert backend_hash not in json.dumps(exported)
+    assert "sha256" not in exported["model"]["provenance"]
+    assert "executable_sha256" not in exported["runtime"]["backend_provenance"]
+    assert validate_result_dir(output_dir) == []
 
 
 def test_public_export_manifest_is_deterministic_except_timestamp(tmp_path: Path) -> None:
