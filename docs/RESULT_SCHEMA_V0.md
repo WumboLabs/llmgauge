@@ -95,23 +95,20 @@ usable run invalid.
 
 ### Backend provenance
 
-LLMGauge remains llama.cpp-first. Future backend provenance should be additive
-under `runtime.backend_provenance` or `runtime.llama_cpp`, not a generic backend
-framework. Planned fields:
+New real-run results may include additive `runtime.backend_provenance` metadata.
+Current fields are:
 
-- `backend_name`: currently `llama.cpp`
-- `executable_path`: local path for local reproduction
+- `backend_name`: `llama.cpp`
+- `executable_filename`
+- `executable_file_size_bytes`
 - `executable_sha256`: full local executable SHA-256 when available
-- `public_executable_fingerprint`: shortened public display fingerprint
-- `reported_version`
-- `commit`
-- `build_number`
-- `build_metadata`
-- `build_type`
-- explicit `unknown` or `unavailable` states where data cannot be collected
+- `public_executable_fingerprint`: deterministic `sha256:` plus the first 16
+  lowercase hexadecimal characters of the full digest
+- `status`: `available` or `unavailable`
+- `warning`: collection warning when unavailable
 
-Public exports must redact local executable paths and expose only intentional
-public fingerprints or build identifiers.
+The public executable fingerprint contains no local path data. Executable path,
+version, commit, build number, build metadata, and build type remain deferred.
 
 ### Hash cache design
 

@@ -230,24 +230,22 @@ Notes:
 - `config_path` and `model_profiles_path` may be local-machine specific.
 - Future hardening may add stronger path redaction for public exports.
 
-Future v0.70-compatible additions may include optional backend provenance under
-`runtime.backend_provenance` or `runtime.llama_cpp`. LLMGauge remains
-llama.cpp-first; this is not a generic backend abstraction.
+New v0.70-compatible results may include optional `runtime.backend_provenance`.
+LLMGauge remains llama.cpp-first; this is not a generic backend abstraction.
 
-Planned backend provenance fields:
+Current backend provenance fields:
 
     backend_name
-    executable_path
+    executable_filename
+    executable_file_size_bytes
     executable_sha256
     public_executable_fingerprint
-    reported_version
-    commit
-    build_number
-    build_metadata
-    build_type
+    status
+    warning
 
-Unavailable fields should be explicit `unknown` or `unavailable` values when
-recorded.
+When unavailable, executable size, full hash, and public fingerprint are null
+and `warning` explains the collection failure. The executable path and runtime
+version/build discovery remain out of scope.
 
 ## Schema: llmgauge.runtime_command.v0
 

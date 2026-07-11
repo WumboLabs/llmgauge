@@ -110,6 +110,8 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     model_path = tmp_path / "model.bin"
     model_path.write_bytes(b"test model")
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_bytes(b"test executable")
 
     def fake_run_llama_cpp(config, prompt):
         return SimpleNamespace(
@@ -129,7 +131,7 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         "config_path": None,
         "model_profiles_path": None,
         "model_path": model_path,
-        "llama_cli": Path("/bin/llama-cli"),
+        "llama_cli": llama_cli,
         "ctx": 8192,
         "max_tokens": 64,
         "temp": 0.2,
@@ -163,6 +165,12 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     assert result["model"]["provenance"]["status"] == "available"
     assert result["model"]["provenance"]["filename"] == "model.bin"
     assert result["model"]["provenance"]["sha256"]
+    assert result["runtime"]["backend_provenance"]["status"] == "available"
+    assert (
+        result["runtime"]["backend_provenance"]["executable_filename"]
+        == "llama-cli"
+    )
+    assert result["runtime"]["backend_provenance"]["executable_sha256"]
     assert result["runtime"]["reasoning_mode"] == "off"
     assert result["runtime"]["runtime_command_captured"] is True
     assert result["runtime"]["runtime_command_path"] == RUNTIME_COMMAND_FILENAME

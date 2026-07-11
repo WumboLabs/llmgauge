@@ -123,6 +123,117 @@ def test_model_provenance_has_explicit_unavailable_state(tmp_path: Path) -> None
     assert provenance["warning"].startswith("Model provenance unavailable:")
 
 
+def test_backend_provenance_hashes_executable_with_shared_cache(tmp_path: Path) -> None:
+    model_path = tmp_path / "model.bin"
+    executable_path = tmp_path / "llama-cli"
+    cache_path = tmp_path / "cache.json"
+    model_path.write_bytes(b"model")
+    executable_path.write_bytes(b"executable")
+
+    model_size, model_digest = identity.hash_model_file(
+        model_path, cache_path=cache_path
+    )
+    backend = identity.collect_backend_provenance(
+        executable_path, cache_path=cache_path
+    )
+
+    assert model_size == 5
+    assert model_digest == hashlib.sha256(b"model").hexdigest()
+    assert backend["status"] == "available"
+    assert backend["backend_name"] == "llama.cpp"
+    assert backend["executable_filename"] == "llama-cli"
+    assert backend["executable_file_size_bytes"] == len(b"executable")
+    assert backend["executable_sha256"] == hashlib.sha256(b"executable").hexdigest()
+
+
+def test_backend_provenance_cache_hit_and_invalidation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    executable_path = tmp_path / "llama-cli"
+    cache_path = tmp_path / "cache.json"
+    executable_path.write_bytes(b"first")
+    original_sha256 = identity.hashlib.sha256
+    calls = 0
+
+    def counted_sha256(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_sha256(*args, **kwargs)
+
+    monkeypatch.setattr(identity.hashlib, "sha256", counted_sha256)
+
+    first = identity.collect_backend_provenance(
+        executable_path, cache_path=cache_path
+    )
+    second = identity.collect_backend_provenance(
+        executable_path, cache_path=cache_path
+    )
+    executable_path.write_bytes(b"second executable")
+    changed = identity.collect_backend_provenance(
+        executable_path, cache_path=cache_path
+    )
+
+    assert second["executable_sha256"] == first["executable_sha256"]
+    assert changed["executable_sha256"] != first["executable_sha256"]
+    assert calls == 2
+
+
+def test_backend_public_fingerprint_is_deterministic_and_path_free(
+    tmp_path: Path,
+) -> None:
+    executable_path = tmp_path / "private" / "llama-cli"
+    executable_path.parent.mkdir()
+    executable_path.write_bytes(b"executable")
+
+    first = identity.collect_backend_provenance(
+        executable_path, cache_path=tmp_path / "one.json"
+    )
+    second = identity.collect_backend_provenance(
+        executable_path, cache_path=tmp_path / "two.json"
+    )
+
+    assert first["public_executable_fingerprint"] == second[
+        "public_executable_fingerprint"
+    ]
+    assert str(tmp_path) not in first["public_executable_fingerprint"]
+
+
+def test_backend_provenance_reports_identity_change_during_hash(
+    tmp_path: Path, monkeypatch
+) -> None:
+    executable_path = tmp_path / "llama-cli"
+    executable_path.write_bytes(b"executable")
+    original_file_identity = identity._file_identity
+    initial_identity = original_file_identity(executable_path)
+    changed_identity = {**initial_identity, "mtime_ns": initial_identity["mtime_ns"] + 1}
+    calls = 0
+
+    def changing_file_identity(path: Path) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return initial_identity if calls == 1 else changed_identity
+
+    monkeypatch.setattr(identity, "_file_identity", changing_file_identity)
+    provenance = identity.collect_backend_provenance(
+        executable_path, cache_path=tmp_path / "cache.json"
+    )
+
+    assert provenance["status"] == "unavailable"
+    assert "changed while it was being hashed" in provenance["warning"]
+
+
+def test_backend_provenance_reports_missing_executable(tmp_path: Path) -> None:
+    provenance = identity.collect_backend_provenance(
+        tmp_path / "missing-llama-cli",
+        cache_path=tmp_path / "cache.json",
+    )
+
+    assert provenance["status"] == "unavailable"
+    assert provenance["executable_filename"] == "missing-llama-cli"
+    assert provenance["executable_sha256"] is None
+    assert provenance["warning"].startswith("Executable provenance unavailable:")
+
+
 def test_hash_model_file_rejects_file_identity_change_during_hash(
     tmp_path: Path, monkeypatch
 ) -> None:
