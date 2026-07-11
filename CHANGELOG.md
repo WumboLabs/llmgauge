@@ -1,14 +1,25 @@
 # Changelog
 
-## Unreleased - v0.70 development
+## v0.70.0 - 2026-07-11
 
-- Added the canonical evaluation identity foundation, including prompt and suite identity helpers.
-- Documented additive v0.x result compatibility policy and identity/provenance boundaries.
-- Added model-file SHA-256 provenance with an identity-validated shared hash cache.
-- Added additive `model.provenance` metadata for new runs.
-- Added llama.cpp executable provenance and additive `runtime.backend_provenance` metadata.
-- Added bounded llama.cpp version and build identity discovery with conservative unavailable states.
-- Added agent context and usage-discipline guidance for supervised repository work.
+### Added
+
+- Added canonical evaluation identity with prompt and suite identity helpers.
+- Added model-file provenance with identity-validated shared SHA-256 caching and shortened public fingerprints.
+- Added llama.cpp executable provenance with bounded version and build identity discovery.
+- Added canonical evidence-equivalence fingerprints with validation, reporting, and export-index integration.
+- Added sanitized single-run public export with transactional staging, source protection, source-fingerprint references, and transformed-byte trust boundaries.
+- Added release and installed-user Git-tag workflow documentation.
+
+### Fixed
+
+- Preserved additive v0.x compatibility for legacy results without newer identity, provenance, or fingerprint fields.
+- Handled missing or malformed optional throughput metrics without breaking report generation.
+- Redacted full SHA-256 values embedded in public model and executable filename metadata.
+
+### Validation
+
+- Validated v0.70 against a real provenance-bearing result, including fingerprint recomputation, result validation, export-index generation, public export, privacy scanning, and source-integrity checks.
 
 ## v0.66 - 2026-07-08
 
