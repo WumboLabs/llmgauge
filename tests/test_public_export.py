@@ -8,6 +8,7 @@ import pytest
 
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.result_validation import validate_result_dir
+from llmgauge.core.run_fingerprint import attach_run_fingerprint
 
 
 def _write_run(tmp_path: Path, *, with_provenance: bool = True) -> Path:
@@ -123,6 +124,10 @@ def _write_run(tmp_path: Path, *, with_provenance: bool = True) -> Path:
         "reviewer_notes: safe review\n", encoding="utf-8"
     )
     (result_dir / "unknown-private.db").write_bytes(b"private")
+    attach_run_fingerprint(result_dir, result)
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+    )
     return result_dir
 
 
@@ -144,6 +149,12 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     }
     assert before == after
     assert manifest["source_artifact_type"] == "llmgauge.result.v0"
+    assert manifest["source_run_fingerprint"]["schema_version"] == (
+        "llmgauge.run_fingerprint.v0"
+    )
+    assert "canonical private evidence" in manifest[
+        "source_run_fingerprint_boundary"
+    ]
     assert "unknown-private.db" in manifest["files_omitted"]
     assert validate_result_dir(output_dir) == []
 
@@ -154,6 +165,7 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     assert "private-home" not in exported_json
     assert "a" * 64 not in exported_json
     assert "b" * 64 not in exported_json
+    assert "run_fingerprint" not in exported_result
     assert exported_result["model"]["provenance"]["public_fingerprint"]
     assert exported_result["runtime"]["backend_provenance"][
         "public_executable_fingerprint"
@@ -314,3 +326,13 @@ def test_public_export_supports_legacy_result_without_provenance(tmp_path: Path)
 
     assert manifest["source_artifact_type"] == "llmgauge.result.v0"
     assert validate_result_dir(tmp_path / "legacy-export") == []
+
+
+def test_public_export_docs_do_not_claim_transformed_byte_authentication() -> None:
+    reporting_doc = Path("docs/PUBLIC_REPORTING.md").read_text(encoding="utf-8")
+    normalized_doc = " ".join(reporting_doc.split())
+
+    assert (
+        "does not verify or authenticate transformed public-export bytes"
+        in normalized_doc
+    )

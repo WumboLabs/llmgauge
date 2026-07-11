@@ -376,6 +376,12 @@ See `docs/PUBLIC_REPORTING.md` for the full checklist. Short form:
 
 Read **Report Scope**, **Evidence Summary**, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes** in `report.md` before publication. Use `compare.md` **Comparison Scope** for multi-run caveats. See `docs/ARTIFACT_SCHEMAS.md` for auditing a result directory.
 
+New single-run results may include a canonical run fingerprint. It identifies
+the immutable private evidence for that run, excluding run ID, timestamp, local
+paths, reports, cleaned output, and scores. `validate-result` verifies the
+fingerprint when present, but the fingerprint is not a quality score, signature,
+or proof that transformed public-export bytes match the private run.
+
 ## Claim boundary
 
 A single run proves only that a model produced output under the recorded settings.

@@ -172,6 +172,7 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "artifact_type": "run",
         "path": str(path),
         "schema_version": result.get("schema_version"),
+        "run_fingerprint": result.get("run_fingerprint"),
         "result_json": str(result_path),
         "report": _optional_path(path / RUN_REPORT_FILENAME),
         "scores_yaml": _optional_path(path / "scores.yaml"),
