@@ -25,3 +25,10 @@ Non-goals for the first pass:
 - no SQLite dependency
 - no external application database migration
 - no migration of unrelated legacy internals
+
+## Accepted architecture contracts
+
+- [Initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md) —
+  externally managed, loopback-only, text-only OpenAI-compatible server
+  integration. This is an accepted architecture boundary, not a statement that
+  the backend is implemented.

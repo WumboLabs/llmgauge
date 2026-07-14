@@ -54,6 +54,15 @@ After `v0.66`, LLMGauge provides:
 - artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
 
+## Accepted architecture work
+
+The [initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md)
+defines a future externally managed, loopback-only, text-only server backend.
+It is an architecture decision only: current production execution remains
+`llama.cpp`/GGUF. The next bounded milestone is HTTP transport assessment and
+dependency admission only if the Python standard library cannot satisfy the
+accepted transport and security requirements.
+
 ## Recently completed releases
 
 Condensed highlights from recent release lines:
