@@ -92,15 +92,54 @@ LLMGauge is a Python CLI project using a `src/` layout.
 - Never expose secrets in reports, fixtures, command output, or public artifacts.
 - Never assume public redaction is perfect; public exports must still require human review.
 
+## Agent and human responsibility boundary
+
+Use one agent for each bounded milestone.
+
+The operating rule is:
+
+`One milestone, one branch, one agent, one report, one human Git gate.`
+
+The agent may:
+
+- verify the expected repository baseline
+- create and switch to the explicitly named working branch
+- inspect relevant files and history
+- plan the bounded milestone
+- edit in-scope code, documentation, tests, and local configuration
+- run non-destructive validation
+- inspect and correct its own complete final diff
+- write the required untracked review report
+
+The human retains exclusive control over:
+
+- staging
+- commits
+- merges
+- branch deletion
+- pushes
+- tags
+- releases
+- remote configuration
+- destructive Git operations
+- history rewriting
+
+The agent must leave tracked changes unstaged and uncommitted unless the user
+explicitly overrides this policy for one task.
+
+Do not use subagents, delegated scouts, or parallel agent tasks unless explicitly
+authorized.
+
 ## Scope discipline
 
 Before editing, define:
 
-1. the requested scope
+1. the requested outcome
 2. the smallest safe implementation slice
-3. the files likely to change
-4. the tests needed
-5. adjacent work that will remain deferred
+3. the canonical files or contracts
+4. the observable completion criteria
+5. the required validation
+6. adjacent work that will remain deferred
 
 Do not expand a focused task into:
 
@@ -116,7 +155,82 @@ Do not expand a focused task into:
 
 unless the user explicitly requests that scope.
 
-When a milestone contains several dependent features, implement them in focused slices rather than one uncontrolled commit.
+Each milestone must be independently inspectable, testable, and mergeable.
+
+Keep these as separate milestones when they introduce distinct durable
+boundaries:
+
+- architecture or contract definition
+- dependency admission
+- implementation
+- presentation or integration
+- publication
+- release preparation
+
+Do not combine:
+
+- architecture and implementation
+- dependency admission and production behavior
+- feature work and release metadata
+- unrelated cleanup and a bounded correction
+- several integration layers in one uncontrolled change
+
+When a milestone contains dependent work, implement it in focused slices.
+
+## Architecture-first sequencing
+
+Use architecture-first sequencing when work introduces or changes:
+
+- public APIs
+- CLI contracts
+- result or configuration schemas
+- persistence formats
+- external runtimes or services
+- meaningful dependencies
+- security or permission boundaries
+- lifecycle ownership
+- long-lived integration formats
+
+Preferred sequence:
+
+1. define the contract or ADR
+2. admit any meaningful dependency separately
+3. implement the accepted contract
+4. add presentation or additional integration layers
+5. perform release or publication work separately
+
+Implementation must follow accepted contracts rather than silently reopening
+them.
+
+If implementation reveals a genuine contradiction or missing contract, stop and
+report the exact blocker instead of changing the architecture implicitly.
+
+## Lean handoff standard
+
+Task handoffs should contain only:
+
+- repository and expected baseline
+- branch to create
+- one bounded milestone
+- essential canonical context
+- required observable behavior
+- hard constraints
+- explicit out-of-scope work
+- validation commands
+- report path
+- exact expected next action
+
+Stable workflow rules belong in `AGENTS.md` and should not be repeated in every
+handoff.
+
+Do not include session commands, model-selection commands, `/new`, `/slice`, or
+orchestration instructions inside repository handoffs.
+
+State each instruction once.
+
+Do not over-prescribe implementation details before repository inspection unless
+they are already canonical or required for compatibility, privacy, security, or
+correctness.
 
 ## Starting every repository task
 
@@ -183,62 +297,78 @@ unless explicitly approved.
 
 ## Implementation workflow
 
-For normal feature work:
+For normal milestone work:
 
-1. Inspect task-relevant code and tests.
-2. Define the smallest approved change.
-3. Patch only relevant files.
-4. Run focused tests.
-5. Inspect generated artifacts when behavior changes.
-6. Run the full local gate.
-7. Review the complete diff.
-8. Create the required untracked review report.
-9. Commit focused work only when requested or when the task explicitly includes committing.
-10. Stop and report.
+1. Read `AGENTS.md`.
+2. Verify the expected repository baseline.
+3. Create and switch to the explicitly named branch.
+4. Inspect only task-relevant code, tests, and canonical documentation.
+5. Define the smallest correct change.
+6. Patch only relevant files.
+7. Add or update focused tests.
+8. Run targeted validation.
+9. Inspect generated artifacts when behavior changes.
+10. Run the full project gate when proportional and practical.
+11. Inspect the complete final diff adversarially.
+12. Correct all in-scope findings.
+13. Create the required untracked review report as the final file-writing action.
+14. Leave tracked changes unstaged and uncommitted.
+15. Stop for human review.
+
+Run the full suite once per milestone unless a later production-code correction
+materially invalidates that result.
+
+Documentation-only corrections after a successful full gate normally require
+only proportional documentation, version, lint, and diff validation.
+
+Use timeouts for commands that may hang.
 
 Recommended checks:
 
-```bash
-uv run pytest
-uv run ruff check .
-git diff --check
-```
+- `uv run pytest`
+- `uv run ruff check .`
+- `git diff --check`
 
-Review before committing:
+Before reporting, inspect:
 
-```bash
-git diff --stat
-git diff --name-status
-git diff
-git status --short --branch
-```
+- `git diff --stat`
+- `git diff --name-status`
+- `git diff`
+- `git status --short --branch`
 
-## Commit rules
+## Human Git gate
 
-- Keep commits focused.
-- Do not mix feature work with release metadata.
-- Do not commit generated `results/`.
-- Do not commit temporary `tmp/` review artifacts.
-- Do not commit private machine paths, secrets, `.env` files, local databases, caches, or personal notes.
-- Do not silently stage unrelated files.
-- Review the exact staged diff before committing.
+The agent must not stage or commit work.
 
-Use explicit, noninteractive commit messages:
+After receiving a PASS report, the human:
 
-```bash
-git commit -m "Add cached model provenance"
-```
+1. reads the review report
+2. inspects the complete working-tree diff
+3. stages only the reviewed files
+4. inspects the staged name/status and diff
+5. runs `git diff --cached --check`
+6. runs the required pre-commit validation
+7. commits the bounded milestone
+8. switches to `main`
+9. merges with `--no-ff`
+10. runs post-merge validation
+11. verifies the final repository state
+12. pushes and deletes the branch only when appropriate
 
-Do not invoke an interactive editor or assume `vi` is installed or configured.
+Do not commit:
 
-Commit subjects should be concise, imperative, and specific.
+- generated `results/`
+- temporary `tmp/` reports or audit data
+- private machine paths
+- secrets or `.env` files
+- caches
+- local databases
+- personal notes
+- unrelated files
 
-Examples:
+Commit subjects should be concise, imperative, and milestone-specific.
 
-- `Add cached model provenance`
-- `Harden public export redaction`
-- `Document schema compatibility policy`
-- `Set v0.70.0 release metadata`
+The agent may recommend a commit message in its report but must not execute it.
 
 ## Owner merge workflow
 
@@ -331,8 +461,8 @@ uv run llmgauge --version
 Annotated tag example:
 
 ```bash
-git tag -a v0.70.0 -m "LLMGauge v0.70.0"
-git push origin refs/tags/v0.70.0:refs/tags/v0.70.0
+git tag -a v0.70 -m "LLMGauge v0.70"
+git push origin refs/tags/v0.70:refs/tags/v0.70
 ```
 
 Use semantic version tags.
@@ -345,15 +475,15 @@ Do not create nonstandard release tags such as:
 
 ## Required review report
 
-Every substantial feature, documentation, process, audit, validation, or release-preparation task must produce an untracked Markdown report under `tmp/`.
+Every substantial feature, documentation, process, audit, validation, or
+release-preparation milestone must produce an untracked Markdown report under
+`tmp/`.
 
 Small read-only inspections do not require a report unless requested.
 
 Required path pattern:
 
-```text
-tmp/<task-or-branch-name>-review-report.md
-```
+`tmp/<milestone>-review-report.md`
 
 The report must remain untracked.
 
@@ -363,29 +493,137 @@ Do not place it under:
 - `results/`
 - another tracked directory
 
-The report should include:
+The report must include:
 
-- branch and HEAD
-- requested scope
-- explicit scope boundaries
-- files changed
-- branch commits relative to `main`
-- diff stat and changed files
-- commands run
-- targeted tests
-- full gate results
-- real operator validation, when relevant
+- explicit `PASS` or `FAIL`
+- readiness for human commit review
+- exact recommended next action
+- verified starting branch and HEAD
+- working branch and current HEAD
+- staged or unstaged state
+- requested scope and explicit boundaries
+- files added, modified, and removed
+- complete diff stat
+- decisions made
+- implementation or documentation summary
+- compatibility impact
+- exact validation commands and actual results
+- targeted-test results
+- full-project gate result
+- Ruff result
+- `git diff --check` result
+- self-review findings
+- corrections made
+- remaining Critical findings
+- remaining High findings
+- remaining Medium findings
+- residual risks
+- external assumptions
+- unsupported cases
+- real operator validation when relevant
 - generated artifacts inspected
-- public/private safety checks
-- known limitations
+- source-artifact integrity when relevant
+- privacy findings when relevant
 - deferred work
 - untracked artifacts created
 - final working-tree status
-- readiness recommendation
+
+A milestone must not receive PASS with unresolved Critical, High, or Medium
+findings.
+
+The report must clearly distinguish:
+
+- completed work
+- deferred work
+- blocked work
+- future recommendations
+
+Do not include:
+
+- secrets
+- private usernames
+- unnecessary absolute private paths
+- full private hashes
+- raw prompts
+- raw model outputs
+- oversized logs
+- complete successful test output
+
+Approximately 150 lines is the normal upper bound unless the milestone genuinely
+requires more.
 
 Print the absolute report path at the end of the task.
 
-A report is intended to make the agent’s work easy to inspect after the turn. It is not a substitute for concise final reporting.
+The report is the authoritative detailed record of the milestone. It is not a
+substitute for a concise final response.
+
+## Investigation and evidence discipline
+
+Distinguish completed capability from:
+
+- prototypes
+- partial implementation
+- documentation-only work
+- mocks
+- special-case success
+- unresolved reductions
+- moved or renamed problems
+
+Do not claim completion unless the stated observable criteria are satisfied.
+
+When blocked by a missing contract, unavailable capability, unresolved
+dependency, unproved assumption, external requirement, or security or
+compatibility contradiction:
+
+- record the exact blocker
+- preserve the evidence
+- stop retrying equivalent approaches
+- recommend the smallest materially different next milestone
+
+Ground conclusions in exact files, commands, observed results, reproduction
+cases, tests, corrections, residual risks, and remaining gaps.
+
+Avoid vague claims such as:
+
+- `looks good`
+- `should work`
+- `mostly complete`
+- `appears safe`
+- `probably compatible`
+
+Do not treat documenting, wrapping, renaming, moving, or abstracting an unresolved
+problem as solving it.
+
+## Adversarial self-review
+
+Before reporting, inspect the complete final diff for:
+
+- scope expansion
+- contract violations
+- duplicated authority
+- compatibility regressions
+- unsafe defaults
+- missing validation
+- stale documentation
+- unrelated changes
+- hidden dependency assumptions
+- secret or error leakage
+- resource or process leaks
+- partial-output behavior
+- insufficient failure handling
+
+Apply checks specific to the changed boundary.
+
+Examples:
+
+- CLI: parsing, stdout/stderr ownership, exit codes, signals, partial output
+- API: malformed inputs, bounds, timeouts, cancellation, redaction
+- persistence: atomicity, rollback, reopen behavior, identity mismatch
+- runtime integration: lifecycle ownership, readiness, request isolation,
+  cancellation, telemetry semantics, startup versus request evidence
+- public artifacts: source immutability, redaction, provenance, trust boundaries
+
+Correct all in-scope findings before assigning PASS.
 
 ## Chat response discipline
 
@@ -436,45 +674,54 @@ Avoid repeating:
 
 Use repository context economically.
 
-- Do not use subagents, delegated scouts, or parallel agent tasks unless the user explicitly authorizes them.
 - Read only files directly relevant to the requested change.
-- Do not reread broad project documentation when `AGENTS.md` and the task provide sufficient context.
+- Do not reread broad project documentation when `AGENTS.md` and the task provide
+  sufficient context.
 - Do not repeat settled product decisions in analysis, reports, or chat.
-- Stop repository orientation once the relevant implementation path and tests are identified.
+- Stop repository orientation once the implementation path and tests are known.
 - Do not produce speculative designs for explicitly deferred features.
 - Do not inspect every potentially related module merely for completeness.
-- Prefer one focused implementation objective per turn.
-- Run targeted tests while developing and the full suite once before final handoff.
+- Prefer one focused implementation objective per milestone.
+- Run targeted tests while developing and the full suite once before final
+  handoff when proportional.
 - Do not rerun successful full gates without a concrete reason.
 - Keep review reports concise and evidence-oriented.
 - Summarize commands and results rather than pasting complete successful output.
-- Record only decisions made during the current task; link or reference existing documentation for established policy.
-- Treat token and tool usage as project resources. Additional investigation must have a clear expected effect on correctness.
+- Record only decisions made during the current task.
+- Treat token and tool usage as project resources.
+- Use large context only for a concrete repository-wide need.
+- Keep numeric model context limits and billing thresholds out of tracked
+  repository policy; those belong in operator configuration.
 
-Unless the task requires more detail, review reports should stay under approximately 150 lines.
+## Unattended-run discipline
 
-## Final task report
+Before substantive work, inspect the planned workflow for commands likely to
+trigger approval.
 
-After completing the requested scope, report:
+For unattended runs:
 
-- branch name
-- final HEAD
-- requested scope
-- files changed
-- commands run
-- targeted test results
-- full pytest result
-- Ruff result
-- `git diff --check` result
-- real-run validation, when applicable
-- known limitations
-- deferred work
-- untracked artifacts
-- working-tree status
-- readiness recommendation
-- absolute review-report path
+- use repository-local paths
+- use existing project dependencies
+- prefer offline commands
+- avoid network access
+- avoid writes outside the repository
+- avoid package installation
+- avoid privileged or host-modifying commands
+- avoid destructive Git operations
+- use noninteractive command forms
+- request unavoidable approval before implementation begins
 
-Do not bury failures or partial validation.
+Do not begin a long run that is predictably unable to finish under the current
+permission policy.
+
+When an unexpected approval interruption occurs, record:
+
+- the exact command
+- the reason approval was requested
+- whether it is a normal project operation
+- whether the task or permission profile should change
+
+Do not recommend unrestricted permissions without a bounded operational need.
 
 ## CLI compatibility
 
