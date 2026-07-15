@@ -4,21 +4,28 @@
 
 ### Documentation
 
+- Recorded completed first bounded llama.cpp-versus-vLLM cross-runtime
+  comparison evidence (`docs/VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md`):
+  Qwen2.5-3B-Instruct family, one `agent-backend-v1` prompt, matched requested
+  generation settings, GPU-contention failure preserved, clean-GPU llama.cpp
+  and vLLM completions validated, reviewed manual scores, runtime-native
+  metrics without throughput equivalence, and strict claim boundaries.
+- Updated roadmap and design notes so comparison execution is marked complete;
+  next bounded vLLM work prioritizes server/version fingerprint capture (plus
+  optional second-prompt replication).
 - Added the first bounded llama.cpp-versus-vLLM cross-runtime comparison
   methodology (`docs/VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md`): matched
   suite and generation settings, template/tokenization disclosure,
   runtime-native metrics without tokens-per-second equivalence, warm-up and
   failure rules, claim boundaries, and a recommended first Qwen2.5-3B-Instruct
-  experiment (documentation only; comparison not executed).
-- Updated roadmap and design notes so methodology is marked complete and the
-  next bounded vLLM work is executing that first comparison (plus deferred
-  server/version fingerprint capture).
+  experiment.
 - Recorded completed external vLLM live integration smoke evidence for one
   fitting model and one prompt on an operator-managed local server
   (`docs/VLLM_LIVE_SMOKE_EVIDENCE.md`).
 - Preserved claim boundaries: runtime compatibility and adapter execution are
   distinct from answer quality and publication readiness; generated private
-  results and public-export derivatives remain untracked.
+  results, scores, comparison outputs, and public-export derivatives remain
+  untracked.
 
 ## v0.70.0 - 2026-07-11
 
