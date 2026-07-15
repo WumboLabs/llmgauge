@@ -61,6 +61,8 @@ The validated installed-user workflow uses the v0.70 tagged GitHub install
 documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
 
 See [Roadmap](docs/ROADMAP.md).
+The current vLLM capability, evidence, limitations, and next-step decision are
+consolidated in the [vLLM evidence roadmap](docs/ROADMAP.md#vllm-evidence-track).
 
 Install the latest formal release:
 

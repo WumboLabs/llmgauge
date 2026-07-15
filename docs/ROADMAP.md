@@ -54,145 +54,84 @@ After `v0.66`, LLMGauge provides:
 - artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
 
-## Accepted architecture work
+## vLLM evidence track
 
-The [initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md)
-defines an externally managed, loopback-only, text-only server backend.
+The vLLM work is intentionally bounded to an externally managed local
+integration and evidence collection. The accepted [runtime contract](VLLM_RUNTIME_CONTRACT.md)
+and [HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) define a
+loopback-only, text-only backend using the Python standard library. LLMGauge
+does not install, start, supervise, or otherwise own the vLLM server lifecycle;
+`llama.cpp`/GGUF remains the default runtime.
 
-The [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md)
-accepts the Python standard library for that backend’s initial loopback HTTP
-client and does not admit a third-party HTTP dependency.
+### Implemented capability
 
-The first production slice of the externally managed vLLM adapter is
-implemented under those contracts: bounded readiness and served-model checks,
-one non-streaming chat-completions request per prompt, additive request/runtime
-evidence, validation, reporting, and public-export sanitization. Server
-lifecycle remains operator-owned. Default production execution remains
-`llama.cpp`/GGUF unless `backend=vllm` is selected.
+- External local vLLM adapter with sequential, non-streaming requests to an
+  operator-managed loopback server.
+- Bounded readiness and served-model checks; no remote, authenticated, streaming,
+  concurrent, or server-lifecycle management support.
+- Additive runtime evidence for server `/version`, API-readiness state, optional
+  `system_fingerprint`, and ordered-unique run-level fingerprints, with
+  backward-compatible validation, reporting, and export handling.
 
-### Completed: fitting-model vLLM integration smoke
+### Validated evidence
 
-A real external-vLLM integration smoke on WumboJetsII is recorded in
-[VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md):
+- [Live external-vLLM smoke](VLLM_LIVE_SMOKE_EVIDENCE.md): real
+  Qwen2.5-3B-Instruct server, successful readiness/request/validation/reporting;
+  historical pre-fingerprint evidence remains authoritative for that point in
+  time.
+- [Fingerprint live verification](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md):
+  vLLM `0.25.1`, `server_state=ready`,
+  `server_state_meaning=api_ready_observation`, and
+  `vllm-0.25.1-eb488855` agreed across request, prompt, and run-level artifacts.
+- [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md):
+  runtime-native metrics, input/template disclosure, and bounded claim rules.
+- [First prompt comparison](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md):
+  `tool-honesty/fake-tool-resistance`; vLLM 31/50 (average 3.1, mixed) and
+  llama.cpp 25/50 (average 2.5, fail).
+- [Second prompt comparison](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md):
+  `shell-safety/failed-command-recovery`; vLLM 32/50 (average 3.2, mixed) and
+  llama.cpp 19/50 (average 1.9, fail). The direction replicated, but these
+  two prompt-specific observations are not a benchmark or runtime ranking.
 
-- vLLM 0.25.1, RTX 5070 12 GB, operator-managed loopback server
-- Serving `Qwen/Qwen2.5-3B-Instruct` as `llmgauge-qwen25-3b-smoke` at context 8192
-- Direct `/v1/models` and `/v1/chat/completions` succeeded
-- LLMGauge dry run and real `run` for `agent-backend-v1` /
-  `tool-honesty/fake-tool-resistance` completed
-- Private result validation and public export validation passed
-- Source artifact immutability confirmed for the export
+### Closed investigation
 
-**Claim boundary:** this proves one fitting Hugging Face model and one prompt
-through an externally managed local vLLM server. It does not prove arbitrary
-models, remote endpoints, streaming, concurrency, batching, ladders,
-long-context behavior, answer quality, or publication readiness without human
-review.
+- [Gemma 4 12B NVFP4 CPU-offload audit](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md):
+  one checkpoint, one vLLM environment, one RTX 5070 host, and one controlled
+  attempt. Mixed FP8/NVFP4 recognition was verified, but requested 4 GiB CPU
+  offload had no successful observed offload before a construction-time BF16
+  `ParallelLMHead` CUDA OOM. The server never reached readiness.
+  Classification: `not_viable` for the disclosed configuration only.
 
-### Completed: cross-runtime comparison methodology
+### Active limitations
 
-The [cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md)
-defines the minimum rules for one credible llama.cpp-versus-vLLM comparison:
-shared suite and prompt text, matched requested generation settings,
-explicit template/tokenization recording, runtime-native metrics with no
-tokens-per-second equivalence claim, hardware and server disclosures, warm-up
-and run-order rules, failure handling, and a strict claim boundary.
+- No remote, authentication, streaming, or concurrency support; no
+  LLMGauge-owned vLLM lifecycle.
+- vLLM VRAM is not captured.
+- Throughput and token fields remain runtime-native and non-equivalent.
+- F16 GGUF and BF16 Transformers weights are not proven bit-identical, and
+  prompt rendering/input forms are not proven identical.
+- Manual scores are reviewer judgment, not objective truth; two scored prompts
+  do not establish general runtime superiority.
+- Server version and fingerprint are unauthenticated metadata. Fingerprint
+  equality does not prove identical runtime state, and `server_state=ready`
+  means API readiness only.
+- Startup success or failure does not establish answer quality. The Gemma
+  `not_viable` result does not generalize to another checkpoint, runtime, host,
+  offload implementation, or quantization.
 
-Recommended first experiment shape: Qwen2.5-3B-Instruct, `agent-backend-v1`
-subset `tool-honesty/fake-tool-resistance`, context 8192, sequential
-execution only.
+### Current decision
 
-### Completed: first bounded cross-runtime comparison
+The bounded vLLM evidence track is complete enough for the present release line.
+No immediate production feature expansion is justified solely by the current
+evidence. Future vLLM work requires a concrete product or evidence need.
 
-The [cross-runtime comparison evidence](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md)
-records the executed first llama.cpp-versus-vLLM pair under that methodology:
+### Selected next bounded project milestone
 
-- Model family Qwen2.5-3B-Instruct (F16 GGUF vs BF16 Transformers weights;
-  not proven bit-identical)
-- Shared suite prompt `tool-honesty/fake-tool-resistance` at ctx 8192,
-  max tokens 512, temp 0.2, top-p 0.95
-- vLLM completed and validated (reviewed manual score 31/50, verdict mixed)
-- First llama.cpp attempt failed from GPU contention with a resident vLLM
-  server (preserved as admission evidence, not model incompatibility)
-- Clean-GPU llama.cpp F16 run completed and validated (reviewed manual score
-  25/50, verdict fail)
-- Comparison report marks the pair not like-for-like on runtime identity
-- Runtime-native throughput and VRAM fields are not treated as equivalent
-
-**Claim boundary:** on this one prompt under reviewed manual scoring, the vLLM
-answer was stronger; that does not prove general runtime superiority, model-
-family quality, or metric equivalence across backends.
-
-### Completed: server/version fingerprint capture and live verification
-
-Fingerprint capture is implemented in the adapter evidence path and was verified
-live against one operator-managed external vLLM server. Durable record:
-[VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md).
-
-- Server `GET /version` → `vllm_version` with `vllm_version_source`
-- API-ready `server_state` and `server_state_meaning` after readiness/model checks
-- Per-request `system_fingerprint` / `system_fingerprint_status` when present
-- Ordered-unique run-level `observed_system_fingerprints`
-- Live smoke: Qwen2.5-3B-Instruct alias
-  `llmgauge-qwen25-3b-fingerprint-smoke`, suite `agent-backend-v1` prompt
-  `tool-honesty/fake-tool-resistance`, ctx 8192, max tokens 128; run completed;
-  `validate-result` passed; report rendered; intentionally unscored
-- Observed: `vllm_version` `0.25.1`, `server_state` `ready`, fingerprint
-  `vllm-0.25.1-eb488855` agreed across request, prompt, and run-level summary
-
-**Claim boundary:** field capture and artifact integration against one real
-loopback server only. Does not authenticate the server, prove version truthfulness,
-make runs reproducible, imply identical runtime state from fingerprint equality,
-or establish answer quality. `server_state=ready` is API readiness only.
-`finish_reason=length` was the bounded token-budget outcome, not a metadata failure.
-
-### Completed: second-prompt cross-runtime replication
-
-The [second-prompt replication evidence](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md)
-records a completed second llama.cpp-versus-vLLM pair under the same methodology:
-
-- Same model family and requested generation settings as the first comparison
-  (Qwen2.5-3B-Instruct F16 GGUF vs BF16 Transformers weights; same GGUF file
-  identity as the first comparison)
-- Shared suite prompt `shell-safety/failed-command-recovery` at ctx 8192,
-  max tokens 512, temp 0.2, top-p 0.95; sequential execution with exclusive
-  GPU ownership for llama.cpp
-- vLLM completed and validated (reviewed manual score 32/50, verdict mixed)
-- llama.cpp completed and validated (reviewed manual score 19/50, verdict fail)
-- Quality-gap **direction** matched the first prompt (vLLM stronger reviewed
-  answer on both); gap widened; failure modes differed
-- Runtime-native throughput and VRAM fields remain non-equivalent; no combined
-  multi-prompt score or runtime ranking
-
-**Claim boundary:** two prompt-specific observations only. Directional
-replication is suggestive evidence, not a benchmark, averaged runtime score, or
-proof of general vLLM superiority over llama.cpp.
-
-### Completed: Gemma 4 12B NVFP4 CPU-offload audit
-
-The [Gemma CPU-offload evidence record](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md)
-closes one controlled admission audit for one local checkpoint copy, one vLLM
-0.25.1 environment, and one RTX 5070 host:
-
-- Runtime configuration and kernel markers verified mixed FP8/NVFP4
-  compressed-tensors recognition for applicable layers
-- Requested 4 GiB CPU offload produced no evidence of successful offloaded
-  admission before a construction-time BF16 LM-head CUDA OOM
-- The server never reached readiness; no direct request or LLMGauge prompt ran
-- Classification: `not_viable` for the disclosed configuration
-- No production integration work is justified for this checkpoint track
-
-**Claim boundary:** startup-failure evidence only. This does not establish
-general Gemma NVFP4 incompatibility, general vLLM CPU-offload behavior, model
-quality, or a result for another checkpoint, runtime, offload implementation,
-quantization, or host.
-
-### Next bounded vLLM work
-
-1. **Review and consolidate the vLLM evidence roadmap** — reconcile the
-   completed runtime, fingerprint, comparison, replication, and Gemma admission
-   records into a concise current-state sequence without opening a replacement
-   model experiment.
+**Produce and review one real end-to-end Fit Ladder validation artifact.**
+This is the strongest existing project-level next step because Fit Ladder is
+already implemented and documented, and a preserved-failure artifact directly
+advances LLMGauge as a practical local-model evaluation engine without
+speculative vLLM expansion or another random model experiment.
 
 ## Recently completed releases
 

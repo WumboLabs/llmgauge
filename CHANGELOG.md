@@ -15,6 +15,9 @@
   and control-character bounds; older artifacts without the fields remain valid.
 
 ### Documentation
+- Consolidated the vLLM roadmap into implemented capability, validated evidence,
+  closed investigation, active limitations, and the selected next bounded
+  milestone (a real end-to-end Fit Ladder validation artifact).
 
 - Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit
   (`docs/GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md`): mixed FP8/NVFP4 runtime
