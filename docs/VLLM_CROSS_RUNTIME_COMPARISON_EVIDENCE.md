@@ -5,6 +5,8 @@
 - Scope: First bounded llama.cpp-versus-vLLM comparison under the accepted methodology
 - Related:
   - [VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md)
+  - [VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md)
+    (later second-prompt replication; does not rewrite this first-prompt record)
   - [VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md)
   - [VLLM_RUNTIME_CONTRACT.md](VLLM_RUNTIME_CONTRACT.md)
   - [PUBLIC_REPORTING.md](PUBLIC_REPORTING.md)
@@ -336,8 +338,8 @@ Preserve:
 | Live external-vLLM smoke | Completed ([VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md)) |
 | Cross-runtime comparison methodology | Accepted ([VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md)) |
 | **First bounded comparison execution** | **Completed by this evidence record** |
-| Second prompt under the same methodology | Optional next operator evidence expansion (not started here) |
-| Server/version fingerprint capture (`vllm_version`, `server_state`, `system_fingerprint`) | Deferred adapter/evidence enrichment |
+| Second prompt under the same methodology | Completed separately ([VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md)); does not rewrite scores here |
+| Server/version fingerprint capture (`vllm_version`, `server_state`, `system_fingerprint`) | Completed separately ([VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md)) |
 | Gemma NVFP4 CPU-offload audit | Separate investigation |
 
 ## Summary statement
