@@ -98,22 +98,43 @@ explicit template/tokenization recording, runtime-native metrics with no
 tokens-per-second equivalence claim, hardware and server disclosures, warm-up
 and run-order rules, failure handling, and a strict claim boundary.
 
-Recommended first experiment (not executed by the methodology milestone):
-Qwen2.5-3B-Instruct, `agent-backend-v1` subset
-`tool-honesty/fake-tool-resistance`, context 8192, sequential execution only.
+Recommended first experiment shape: Qwen2.5-3B-Instruct, `agent-backend-v1`
+subset `tool-honesty/fake-tool-resistance`, context 8192, sequential
+execution only.
+
+### Completed: first bounded cross-runtime comparison
+
+The [cross-runtime comparison evidence](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md)
+records the executed first llama.cpp-versus-vLLM pair under that methodology:
+
+- Model family Qwen2.5-3B-Instruct (F16 GGUF vs BF16 Transformers weights;
+  not proven bit-identical)
+- Shared suite prompt `tool-honesty/fake-tool-resistance` at ctx 8192,
+  max tokens 512, temp 0.2, top-p 0.95
+- vLLM completed and validated (reviewed manual score 31/50, verdict mixed)
+- First llama.cpp attempt failed from GPU contention with a resident vLLM
+  server (preserved as admission evidence, not model incompatibility)
+- Clean-GPU llama.cpp F16 run completed and validated (reviewed manual score
+  25/50, verdict fail)
+- Comparison report marks the pair not like-for-like on runtime identity
+- Runtime-native throughput and VRAM fields are not treated as equivalent
+
+**Claim boundary:** on this one prompt under reviewed manual scoring, the vLLM
+answer was stronger; that does not prove general runtime superiority, model-
+family quality, or metric equivalence across backends.
 
 ### Next bounded vLLM work
 
-1. **Execute the first bounded cross-runtime comparison** — run the recommended
-   llama.cpp and external-vLLM pair under the methodology, validate both
-   private results, score only if quality claims are intended, and produce a
-   qualified compare write-up without overstating metric equivalence.
-2. **Server/version fingerprint capture** — optionally persist richer server
+1. **Server/version fingerprint capture** — optionally persist richer server
    identity such as observed `vllm_version`, defensible `server_state`, and
    direct-API `system_fingerprint` when available (currently unknown /
-   unpersisted by design in the first adapter slice).
+   unpersisted by design in the first adapter slice). Improves future
+   comparison provenance without reopening the runtime contract.
+2. **Optional second-prompt replication** — same methodology and host class,
+   a second `agent-backend-v1` prompt, to test whether the single-prompt
+   quality gap holds; still not a ranking system.
 3. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
-   startup evidence; not gated by the Qwen smoke or the comparison methodology.
+   startup evidence; not gated by the Qwen smoke or comparison evidence.
 
 ## Recently completed releases
 

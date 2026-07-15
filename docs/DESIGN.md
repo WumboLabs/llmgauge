@@ -47,4 +47,8 @@ Non-goals for the first pass:
 - [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md) —
   minimum rules for one credible llama.cpp-versus-vLLM comparison under existing
   capabilities; token counts and throughput remain non-equivalent across
-  runtimes; first recommended experiment is documentation-only until executed.
+  runtimes.
+- [Cross-runtime comparison evidence](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md) —
+  completed first bounded llama.cpp-versus-vLLM comparison (one model family,
+  one prompt, reviewed manual scores); private results remain untracked;
+  throughput and weight formats stay non-equivalent across runtimes.
