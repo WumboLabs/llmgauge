@@ -408,7 +408,7 @@ Preserve:
 | First bounded comparison (prompt 1) | Completed ([VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md)) |
 | Server/version fingerprint capture + live smoke | Completed ([VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md)) |
 | **Second-prompt replication (this record)** | **Completed** |
-| Gemma NVFP4 CPU-offload audit | Recommended next bounded milestone (separate track; not started here) |
+| Gemma NVFP4 CPU-offload audit | Completed after this record ([GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md)) |
 
 ## Summary statement
 

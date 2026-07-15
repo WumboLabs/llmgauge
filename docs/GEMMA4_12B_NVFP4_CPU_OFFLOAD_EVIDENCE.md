@@ -220,4 +220,4 @@ The evidence does not establish that Gemma 4 NVFP4 is universally unsupported, t
 
 The immutable checkpoint revision is unknown, sampled resource observations are approximate, and no ready-state behavior exists to assess. A materially different runtime, offload implementation, checkpoint, or quantization would require a separately scoped investigation.
 
-This record closes the roadmap's bounded Gemma NVFP4 CPU-offload audit with `not_viable` for the disclosed configuration. The next bounded milestone is to review and consolidate the vLLM evidence roadmap; it is not to begin an unselected replacement-model experiment.
+This record closes the roadmap's bounded Gemma NVFP4 CPU-offload audit with `not_viable` for the disclosed configuration. Subsequent roadmap consolidation and Fit Ladder real-workflow evidence are recorded separately; the current selected project milestone is public practical-evidence packaging, not an unselected replacement-model experiment.

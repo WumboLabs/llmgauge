@@ -6,9 +6,9 @@ It is opt-in and does not silently change a normal run.
 
 ## Goal
 
-Answer a practical local-hardware question:
+Answer a practical local-hardware question within an operator-supplied ladder:
 
-    What is the largest useful configuration this model can run on this machine?
+    What is the highest planned configuration that completes within this bounded ladder on this machine?
 
 Example:
 
@@ -23,9 +23,11 @@ The final report must clearly say:
     65536 failed with OOM
     selected working context 32768
 
+Fit Ladder does **not** prove the globally largest useful configuration. Success at a fallback context does not prove optimality. Contexts that were planned but skipped after an earlier success were not evaluated. Sampled VRAM is approximate. Fit Ladder validates fit and orchestration, not answer quality.
+
 ## Design rules
 
-Fit Ladder should be:
+Fit Ladder is:
 
 - opt-in
 - bounded
@@ -36,84 +38,17 @@ Fit Ladder should be:
 
 It must not hide the original failure.
 
-## Default fallback order
+## Current command
 
-The conservative fallback order should be:
-
-1. lower context size
-2. lower batch / ubatch if configured
-3. reduce GPU layers only with explicit opt-in
-
-GPU-layer reduction changes performance characteristics substantially, so it should not be part of the default fallback policy.
-
-## User-visible progress
-
-When an OOM or fit failure is detected, LLMGauge should print a clear status message such as:
-
-    OOM detected at ctx=65536; retrying at ctx=32768
-
-or:
-
-    Fit attempt failed at ctx=32768 batch=256 ubatch=64; retrying with ctx=16384
-
-## Attempt artifacts
-
-Each attempt should preserve enough information for review:
-
-- attempted context size
-- batch and ubatch
-- GPU layers
-- status
-- exit code
-- failure classification
-- stderr excerpt
-- VRAM samples when available
-- child result directory when a normal result artifact exists
-
-## Summary artifact
-
-A future Fit Ladder run should produce a parent summary containing:
-
-- requested settings
-- retry policy
-- attempt ladder
-- selected working settings
-- final status
-- failed attempts
-- completed attempt if any
-- whether OOM was detected
-- whether fallback changed context, batch, ubatch, or GPU layers
-
-## Claim boundary
-
-A completed Fit Ladder result may say that a model fits under the selected fallback settings on the tested hardware/runtime.
-
-It should not claim that the originally requested settings worked if they failed.
-
-It should not compare quality across attempts unless equivalent prompts, scoring, and review were performed.
-
-## v0.33 foundation
-
-The initial implementation layer defines helper logic only:
-
-- context-first fallback attempt planning
-- fit-attempt records
-- OOM, process-killed, and generic runtime failure classification
-- parent fit-ladder summary structures
-
-This foundation does not yet execute retries. Normal `run` and `run-ladder` behavior must remain unchanged unless a future Fit Ladder command or option is explicitly invoked.
-
-## v0.34 execution loop
-
-The initial execution loop is explicit and context-only:
-
-    uv run llmgauge fit-ladder \
-      --suite core-v1 \
-      --include honesty \
-      --model-profile example_model \
-      --ctx 65536 \
-      --fallback-contexts 8192,32768 \
-      --out results/example-fit-ladder
+```bash
+uv run llmgauge fit-ladder \
+  --suite core-v1 \
+  --include honesty \
+  --model-profile example_model \
+  --ctx 65536 \
+  --fallback-contexts 8192,32768 \
+  --out results/example-fit-ladder
+```
 
 Behavior:
 
@@ -126,10 +61,75 @@ Behavior:
 - execution stops at the first completed attempt
 - failed attempt directories are preserved
 - parent summary is written to `fit-ladder-summary.json`
+- human-readable summary is written to `fit-ladder-report.md`
+- `llmgauge fit-ladder` prints the generated `fit-ladder-report.md` path after
+  completed or failed runs
 - GPU-layer fallback remains explicit-only and is not automatically applied
 - the parent `attempts` list records executed attempts only; a lower context
   skipped after success is inferred from the retry policy, attempt count, and
   absent child directory rather than an explicit `skipped` record
+- Fit Ladder does not support `backend=vllm` in this release line; use
+  `llmgauge run --backend vllm` for the external server adapter
+
+Related validation and indexing:
+
+- `validate-fit-ladder` validates summary shape, attempt records, counts,
+  selected working settings, and completed child result artifacts
+- `export-index` detects Fit Ladder directories and records fit-specific metadata
+
+## Default fallback order
+
+The conservative fallback order is:
+
+1. lower context size
+2. lower batch / ubatch if configured
+3. reduce GPU layers only with explicit opt-in
+
+GPU-layer reduction changes performance characteristics substantially, so it is not part of the default fallback policy.
+
+## User-visible progress
+
+When an OOM or fit failure is detected, LLMGauge prints a clear status message such as:
+
+    OOM detected at ctx=65536; retrying at ctx=32768
+
+or:
+
+    Fit attempt failed at ctx=32768 batch=256 ubatch=64; retrying with ctx=16384
+
+## Attempt artifacts
+
+Each attempt preserves enough information for review:
+
+- attempted context size
+- batch and ubatch
+- GPU layers
+- status
+- exit code
+- failure classification
+- stderr excerpt
+- VRAM samples when available
+- child result directory when a normal result artifact exists
+
+## Summary artifacts
+
+A Fit Ladder run produces a parent summary containing:
+
+- requested settings
+- retry policy
+- attempt ladder
+- selected working settings
+- final status
+- failed attempts
+- completed attempt if any
+- whether OOM was detected
+- whether fallback changed context, batch, ubatch, or GPU layers
+
+Primary parent artifacts:
+
+- `fit-ladder-summary.json` stores requested settings, retry policy, selected working settings, and attempts
+- `fit-ladder-report.md` provides a human-readable summary, including a VRAM summary table when attempt-level VRAM data is available
+- empty report fields render as `—` instead of `None`
 
 ## Operational artifact semantics
 
@@ -144,27 +144,62 @@ Behavior:
   for bounded operator validation of total-failure and success-after-fallback
   terminal paths.
 
-## v0.36 report polish
+## Claim boundary
 
-v0.36 improves the human-facing Fit Ladder report without changing Fit Ladder
+A completed Fit Ladder result may say that a model fits under the selected fallback settings on the tested hardware/runtime.
+
+It should not claim that the originally requested settings worked if they failed.
+
+It should not claim global optimality or that skipped lower contexts were evaluated.
+
+It should not compare quality across attempts unless equivalent prompts, scoring, and review were performed.
+
+## Implementation history
+
+Historical release notes below record how Fit Ladder was introduced. They are not current limitations.
+
+### v0.33 foundation
+
+The initial implementation layer defined helper logic only:
+
+- context-first fallback attempt planning
+- fit-attempt records
+- OOM, process-killed, and generic runtime failure classification
+- parent fit-ladder summary structures
+
+At that point the foundation did not yet execute retries. Normal `run` and
+`run-ladder` behavior remained unchanged until the explicit Fit Ladder command
+was added.
+
+### v0.34 execution loop
+
+The initial execution loop was explicit and context-only. Requested context was
+attempted first, then lower fallback contexts from largest to smallest, stopping
+at the first completed attempt and preserving failed attempt directories. The
+parent summary was written to `fit-ladder-summary.json`. GPU-layer fallback
+remained explicit-only.
+
+### v0.35 artifact polish
+
+Fit Ladder artifacts became first-class review artifacts:
+
+- `fit-ladder-summary.json` stored requested settings, retry policy, selected working settings, and attempts
+- `fit-ladder-report.md` provided a human-readable summary
+- `validate-fit-ladder` validated summary shape, attempt records, counts, selected working settings, and completed child result artifacts
+- `export-index` detected Fit Ladder directories and recorded fit-specific metadata
+
+Claim boundary was preserved: selected fallback settings may be reported as working on the tested hardware/runtime, but failed requested settings must not be described as successful.
+
+### v0.36 report polish
+
+v0.36 improved the human-facing Fit Ladder report without changing Fit Ladder
 execution behavior:
 
-- `llmgauge fit-ladder` prints the generated `fit-ladder-report.md` path after
-  completed or failed runs.
-- Empty report fields render as `—` instead of `None`.
-- `fit-ladder-report.md` includes a VRAM summary table when attempt-level VRAM
-  data is available.
+- `llmgauge fit-ladder` printed the generated `fit-ladder-report.md` path after
+  completed or failed runs
+- empty report fields rendered as `—` instead of `None`
+- `fit-ladder-report.md` included a VRAM summary table when attempt-level VRAM
+  data was available
 
-Fit Ladder remains explicit and opt-in. GPU-layer fallback remains
+Fit Ladder remained explicit and opt-in. GPU-layer fallback remained
 explicit-only.
-
-## v0.35 artifact polish
-
-Fit Ladder artifacts are first-class review artifacts:
-
-- `fit-ladder-summary.json` stores requested settings, retry policy, selected working settings, and attempts.
-- `fit-ladder-report.md` provides a human-readable summary.
-- `validate-fit-ladder` validates summary shape, attempt records, counts, selected working settings, and completed child result artifacts.
-- `export-index` detects Fit Ladder directories and records fit-specific metadata.
-
-Fit Ladder reports preserve the core claim boundary: the selected fallback settings may be reported as working on the tested hardware/runtime, but failed requested settings must not be described as successful.

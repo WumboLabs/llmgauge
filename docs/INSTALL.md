@@ -1,9 +1,13 @@
 # Installation
 
-LLMGauge can be used two ways:
+LLMGauge install paths depend on audience:
 
-1. installed CLI, for users who want to run `llmgauge ...` directly
-2. source checkout, for contributors and unreleased development work
+1. installed end users: validated tagged GitHub install (`v0.70`), then run
+   `llmgauge ...` directly
+2. contributors and unreleased development: source checkout with
+   `uv run llmgauge ...`
+3. editable local install: development convenience only, not the formal
+   released-user workflow
 
 LLMGauge does not download models, install GPU drivers, modify CUDA, change
 system packages, tune hardware settings, or submit results to a service. You
@@ -181,7 +185,7 @@ Manual fallback: `llmgauge init` and `llmgauge model add` still work.
 `doctor` and `smoke` are inspection-only. They do not launch `llama.cpp` and do
 not create result artifacts.
 
-PyPI installation is not yet the validated public path. Do not use
+PyPI installation is not the validated public path. Do not use
 `uv tool install llmgauge` as the documented installation command.
 
 ## Configuration and cache locations

@@ -37,22 +37,26 @@ LLMGauge answers practical local-model questions such as:
 
 ## Current capabilities
 
-After `v0.66`, LLMGauge provides:
+LLMGauge currently provides:
 
 - local-first CLI runs with preserved raw/cleaned outputs and logs
-- artifact validation (`validate-result`, ladder/batch validators)
+- default `llama.cpp` / GGUF runtime plus optional external local vLLM adapter
+  (`backend=vllm`; operator-managed, loopback-only, sequential, non-streaming)
+- artifact validation (`validate-result`, ladder/batch/fit-ladder validators)
 - manual scoring templates and `score --check` / `score --scores` workflow
 - auto-draft scoring as review-required triage only
 - single-run `report.md` with **Report Scope**, **Evidence Summary**, **Audit Checklist**, **Prompt Artifact Audit**, and **Publish Readiness Notes**
 - comparison reports with **Comparison Scope**, publish-readiness, and **Publication evidence summary**
 - `export-index` machine-readable metadata for importers
+- sanitized single-run `export-public` derivatives with source protection
 - model profile onboarding and management commands
-- dry-run and preflight commands (`smoke`, `doctor`)
+- dry-run and preflight commands (`smoke`, `doctor`, guided `setup`)
 - context ladder and fit ladder artifacts with preserved failures
 - public-proof workflow guidance across docs
 - Practical Eval v1 seed suite (`wumbolabs-practical-v1`)
 - artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
+- identity, provenance, and evidence-equivalence fingerprint foundations
 
 ## vLLM evidence track
 
@@ -156,50 +160,37 @@ source-integrity and human-review findings. It must not publish automatically,
 rescore results, generalize beyond the selected evidence, or add network
 behavior.
 
+Constraints:
+
+- no new model run
+- no rescoring
+- sanitized derived artifacts only
+- no automatic publication
+- source-integrity review
+- human claim review
+- no generalized conclusions
+
 ## Recently completed releases
 
-Condensed highlights from recent release lines:
+Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGELOG.md).
 
 | Release | Focus |
 |---|---|
+| v0.70 | Identity, provenance, evidence-equivalence fingerprints, and sanitized public export foundations; validated released install tag |
 | v0.66 | Runtime reproducibility — command metadata, reasoning-mode metadata, model-source reporting |
-| v0.57 | Suite and scoring maturity — rubric guidance, scoreability docs |
-| v0.58 | Practical suite polish — prompt audit and metadata |
-| v0.59 | Scored comparison evidence — publish-readiness in reports/compare, export-index scoring fields |
-| v0.60 | Public-proof workflow hardening — end-to-end checklist, CLI next-steps, validate-result artifact messaging |
-| v0.61 | Export/index/report integration — artifact roles, export-index scoring fields, roadmap cleanup |
+| v0.65 | Guided setup / first-run onboarding (`setup`, scan, non-interactive modes) |
+| v0.64 | Clean-clone readiness and pre-public-proof documentation hardening |
+| v0.63 | Result artifact audit polish — Audit Checklist, Prompt Artifact Audit |
 | v0.62 | Public report artifact polish — Report Scope, Evidence Summary, Comparison Scope |
-| v0.63 | Result artifact audit polish — Audit Checklist, Prompt Artifact Audit, auditing docs |
+| v0.61 | Export/index/report integration — artifact roles, export-index scoring fields |
+| v0.60 | Public-proof workflow hardening — checklist, CLI guidance, validation caveats |
+| v0.59 | Scored comparison evidence — publish-readiness and export-index scoring fields |
+| v0.58 | Practical suite polish — prompt audit and metadata |
+| v0.57 | Suite and scoring maturity — rubric guidance, scoreability docs |
 
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
-## Recent development details
-
-### v0.66 — Runtime reproducibility and reasoning-mode metadata
-
-**Goal:** Make LLMGauge artifacts clearer for public-proof reproduction and
-reasoning-model interpretation.
-
-**Scope:**
-
-- structured `runtime-command.json` artifact with redacted `command_argv`
-- `model_source` metadata (`model_profile` or `direct_model_path`)
-- `reasoning_mode` metadata and bounded `--reasoning-mode` control
-- dry-run, `report.md`, and `export-index` visibility for command metadata
-
-**Exit criteria:**
-
-- each run stores resolved llama.cpp command metadata when executed
-- dry-run shows reasoning mode and command preview
-- export-index reports command metadata availability
-- existing v0.65 workflows remain compatible
-- full local gate passes
-
-**Avoid:** arbitrary llama.cpp passthrough, profiler automation, model downloads,
-network behavior, automatic scoring, leaderboards.
-
-
-### v0.70 - Identity, provenance, and public-export foundations
+### v0.70 release notes (current)
 
 The following v0.70 foundations are complete on `main`:
 
@@ -207,67 +198,23 @@ The following v0.70 foundations are complete on `main`:
 - model provenance and identity-validated hash caching
 - llama.cpp executable provenance
 - bounded llama.cpp build identity discovery
+- sanitized single-run public export with source protection
 
 The v0.70 release completed local wheel, source-distribution, isolated
 installed-CLI, real-artifact compatibility, privacy, and source-integrity
 validation. `v0.70` is the current validated released install. PyPI availability
 is not claimed.
 
-### v0.65 — Guided setup / first-run onboarding
-
-**Goal:** Reduce first-run friction without downloading models, building
-llama.cpp, or launching models automatically.
-
-**Scope:**
-
-- `llmgauge setup` command with `--scan` and `--non-interactive` modes
-- conservative `llama-cli` and GGUF path discovery
-- config and model profile write helpers that preserve existing fields
-- docs and tests for guided setup and manual fallback
-
-**Exit criteria:**
-
-- `llmgauge setup --scan` is read-only and exits 0
-- `llmgauge setup --non-interactive` can create valid config/profile with
-  placeholder executable and GGUF for dry-run validation
-- `doctor`, `smoke`, and `run --dry-run` pass after setup-created config
-- manual `init` workflow still works
-- full local gate passes
-
-**Avoid:** model downloads, network behavior, schema-breaking changes, release
-metadata on the feature branch, real model launches during setup.
-
-### v0.64 — Repo review, clean-clone readiness, and pre-public-proof hardening
-
-**Goal:** Final conservative hardening before pausing feature work for real-world validation.
-
-**Scope:**
-
-- repo-wide doc consistency (README, INSTALL, QUICKSTART, USAGE, artifact docs)
-- clean-clone readiness checklist and claim-boundary review
-- stale reference cleanup and public/private safety searches
-- small test or CLI help fixes only when audit finds real gaps
-
-**Exit criteria:**
-
-- docs agree on install, smoke, validate, score, report, compare, and export-index workflow
-- clean-clone checklist is copy/paste-safe and does not assume private paths
-- full local gate passes (`uv run pytest`, `uv run ruff check .`)
-- repo is ready for v0.64 release-prep, then clean-clone test and model testing
-
-**Avoid:** new features, schema churn, release metadata on the feature branch, real model runs in CI.
-
-## v0.70 release validation
-
-The completed v0.70 release-validation sequence was:
-
-1. packaging audit
-2. installed-CLI validation
-3. real model test pass on selected hardware, using user-provided `llama.cpp` and GGUF models
-4. bounded publication preparation after validation
-
 Packaging and clean-clone checks validate installation and CLI readiness. They
 do not prove model quality or establish PyPI availability.
+
+### Selected earlier release context
+
+- **v0.66** added structured `runtime-command.json`, bounded `reasoning_mode`
+  metadata, and `model_source` reporting for public-proof reproduction.
+- **v0.65** added `llmgauge setup` as the preferred first-run path while
+  preserving manual `init` fallback; no model downloads or automatic launches.
+- **v0.64** hardened docs and clean-clone readiness before real-world validation.
 
 ## Later roadmap / parking lot
 

@@ -7,7 +7,7 @@ It grew out of earlier local evaluation workflows, but it must remain independen
 Core goals:
 
 - practical local LLM evaluation
-- llama.cpp / GGUF first
+- llama.cpp / GGUF first, with optional external local vLLM
 - raw prompt and raw output preservation
 - reproducible run metadata
 - Markdown reports for humans
@@ -16,7 +16,7 @@ Core goals:
 - context-scaling support
 - portable artifacts for optional downstream tooling later
 
-Non-goals for the first pass:
+Current non-goals / deliberate project boundaries:
 
 - no web UI
 - no model downloads
