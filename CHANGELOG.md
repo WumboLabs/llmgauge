@@ -16,6 +16,14 @@
 
 ### Documentation
 
+- Recorded post-merge live external-vLLM fingerprint smoke evidence
+  (`docs/VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md`): server `/version`
+  `0.25.1`, API-ready `server_state`, opaque fingerprint
+  `vllm-0.25.1-eb488855` agreed across request/prompt/run-level artifacts,
+  `validate-result` and report rendering, intentionally unscored; claim
+  boundaries preserved (no answer quality, authentication, or reproducibility
+  claims). Updated roadmap, design discoverability, and a brief historical
+  forward link from the pre-fingerprint live smoke record.
 - Documented version/fingerprint field sources, optional/unknown behavior, and
   claim boundaries in `docs/VLLM_RUNTIME_CONTRACT.md` and
   `docs/ARTIFACT_SCHEMAS.md`; updated roadmap after fingerprint-capture work.
