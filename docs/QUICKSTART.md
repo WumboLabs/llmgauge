@@ -16,7 +16,11 @@ After installing the CLI into your environment, use:
 
     llmgauge ...
 
-The current recommended path for early users and contributors is the source-checkout workflow with `uv run llmgauge ...`. See [Installation](INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
+Audience split: installed end users should use the validated tagged GitHub
+install (`v0.70`) documented in [Installation](INSTALL.md); contributors and
+unreleased development should use a source checkout with `uv run llmgauge ...`;
+editable installation is a development convenience, not the formal released-user
+workflow.
 
 ## 1. Install from a checkout
 

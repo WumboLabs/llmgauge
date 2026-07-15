@@ -2,7 +2,7 @@
 
 Practical local LLM evaluation on real consumer hardware.
 
-LLMGauge is a local-first CLI for running reproducible prompt suites against local GGUF models through `llama.cpp`. It is designed for workstation testing, constrained VRAM, preserved artifacts, manual review, and practical model comparison.
+LLMGauge is a local-first CLI for running reproducible prompt suites on real consumer hardware. The default runtime is local GGUF models through `llama.cpp`. An optional, externally managed local vLLM backend is also supported for bounded text-only evaluation. LLMGauge is designed for workstation testing, constrained VRAM, preserved artifacts, manual review, and practical model comparison.
 
 It helps answer questions like:
 
@@ -22,7 +22,8 @@ LLMGauge is an artifact-preserving local model evaluation bench.
 
 It can:
 
-- run built-in or custom prompt suites against local `llama.cpp` / GGUF models
+- run built-in or custom prompt suites against local `llama.cpp` / GGUF models by default
+- optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming; no remote, auth, concurrency, or lifecycle management; runtime-native metrics are not equivalent to llama.cpp)
 - preview run plans before launching a model
 - preserve raw prompts, raw outputs, cleaned review outputs, and stderr logs
 - capture runtime metadata such as context size, batch settings, flash-attention mode, and runtime methodology labels
@@ -61,15 +62,17 @@ The validated installed-user workflow uses the v0.70 tagged GitHub install
 documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
 
 See [Roadmap](docs/ROADMAP.md).
-The current vLLM capability, evidence, limitations, and next-step decision are
-consolidated in the [vLLM evidence roadmap](docs/ROADMAP.md#vllm-evidence-track).
+The current vLLM capability, evidence, and limitations are consolidated in the
+[vLLM evidence roadmap](docs/ROADMAP.md#vllm-evidence-track).
 
 Install the latest formal release:
 
     uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
 
-Then use `llmgauge ...` directly. Contributors working from a checkout should
-use `uv sync` and `uv run llmgauge ...` instead.
+Then use `llmgauge ...` directly. That tagged GitHub install is the validated
+path for installed end users. Contributors and unreleased development should
+use a source checkout with `uv sync` and `uv run llmgauge ...`. Editable
+installation is a development convenience, not the formal released-user workflow.
 
 LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
 
@@ -153,15 +156,23 @@ See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
 ## Source-checkout usage vs installed CLI usage
 
+Audience split:
+
+- installed end users: validated tagged GitHub install (`v0.70`), then `llmgauge ...`
+- contributors and unreleased development: source checkout with `uv run llmgauge ...`
+- editable local install: development convenience only
+
 Use this form when running from a cloned checkout:
 
     uv run llmgauge ...
 
-Use this form only after installing the CLI into your environment:
+Use this form after installing the released CLI into your environment:
 
     llmgauge ...
 
-Current development and documentation examples prefer `uv run llmgauge ...` unless they are explicitly discussing installed CLI behavior.
+Documentation examples often use `uv run llmgauge ...` for contributor
+workflows. Installed end users should follow the tagged GitHub install path in
+[Installation](docs/INSTALL.md).
 
 Configuration discovery checks explicit CLI paths first, then project-local
 `examples/configs/*.local.yaml` relative to the current working directory, then

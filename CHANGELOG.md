@@ -22,8 +22,8 @@
   This is orchestration and artifact evidence, not a model-quality claim.
 - Consolidated the vLLM roadmap into implemented capability, validated evidence,
   closed investigation, active limitations, and the selected next bounded
-  milestone (a real end-to-end Fit Ladder validation artifact).
-
+  project milestone at that time (real end-to-end Fit Ladder validation).
+  Fit Ladder real-workflow evidence has since been recorded separately.
 - Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit
   (`docs/GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md`): mixed FP8/NVFP4 runtime
   recognition, requested-versus-observed offload distinction, construction-time
@@ -57,9 +57,10 @@
   generation settings, GPU-contention failure preserved, clean-GPU llama.cpp
   and vLLM completions validated, reviewed manual scores, runtime-native
   metrics without throughput equivalence, and strict claim boundaries.
-- Updated roadmap and design notes so comparison execution is marked complete;
-  next bounded vLLM product work prioritizes optional second-prompt replication
-  (plus Gemma NVFP4 audit as a separate track).
+- Updated roadmap and design notes so comparison execution is marked complete.
+  At that point, optional second-prompt replication and a separate Gemma NVFP4
+  audit track were the remaining near-term vLLM evidence options; both are now
+  completed and recorded.
 - Added the first bounded llama.cpp-versus-vLLM cross-runtime comparison
   methodology (`docs/VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md`): matched
   suite and generation settings, template/tokenization disclosure,
@@ -122,7 +123,8 @@
 - Updated roadmap state to reflect v0.64 as the final pre-validation hardening line.
 - Clarified that clean-clone testing validates installation and CLI readiness, not model quality.
 - Preserved docs-only feature scope with no code, schema, export-index, or validation behavior changes.
-- Confirmed the next phase: clean-clone test, real model test pass, website update, and first public X post draft.
+- Recorded the then-current next phase after v0.64 hardening: clean-clone test,
+  real model test pass, website update, and first public X post draft.
 
 ## v0.63 - 2026-07-07
 
