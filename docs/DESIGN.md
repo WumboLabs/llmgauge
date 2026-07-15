@@ -60,3 +60,7 @@ Non-goals for the first pass:
   completed second-prompt replication under the same methodology
   (`shell-safety/failed-command-recovery`); directional quality-gap
   replication only; not a combined runtime ranking.
+- [Gemma 4 12B NVFP4 CPU-offload evidence](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md) —
+  completed one-checkpoint, one-host admission audit; `not_viable` for the
+  disclosed configuration after a construction-time BF16 LM-head CUDA OOM;
+  runtime format recognition does not imply successful offload or admission.

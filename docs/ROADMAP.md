@@ -168,11 +168,31 @@ records a completed second llama.cpp-versus-vLLM pair under the same methodology
 replication is suggestive evidence, not a benchmark, averaged runtime score, or
 proof of general vLLM superiority over llama.cpp.
 
+### Completed: Gemma 4 12B NVFP4 CPU-offload audit
+
+The [Gemma CPU-offload evidence record](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md)
+closes one controlled admission audit for one local checkpoint copy, one vLLM
+0.25.1 environment, and one RTX 5070 host:
+
+- Runtime configuration and kernel markers verified mixed FP8/NVFP4
+  compressed-tensors recognition for applicable layers
+- Requested 4 GiB CPU offload produced no evidence of successful offloaded
+  admission before a construction-time BF16 LM-head CUDA OOM
+- The server never reached readiness; no direct request or LLMGauge prompt ran
+- Classification: `not_viable` for the disclosed configuration
+- No production integration work is justified for this checkpoint track
+
+**Claim boundary:** startup-failure evidence only. This does not establish
+general Gemma NVFP4 incompatibility, general vLLM CPU-offload behavior, model
+quality, or a result for another checkpoint, runtime, offload implementation,
+quantization, or host.
+
 ### Next bounded vLLM work
 
-1. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
-   startup evidence; not gated by the Qwen smoke, comparison, fingerprint, or
-   second-prompt evidence.
+1. **Review and consolidate the vLLM evidence roadmap** — reconcile the
+   completed runtime, fingerprint, comparison, replication, and Gemma admission
+   records into a concise current-state sequence without opening a replacement
+   model experiment.
 
 ## Recently completed releases
 
