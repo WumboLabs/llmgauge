@@ -1018,10 +1018,12 @@ def execute_vllm_run(
 
     readiness = check_readiness_and_model(vllm_config)
     endpoint_identity = readiness.endpoint_identity or {}
+    observed_fingerprints: list[str] = []
     runtime_evidence = build_runtime_evidence_document(
         config=vllm_config,
         readiness=readiness,
         endpoint_identity=endpoint_identity,
+        observed_system_fingerprints=observed_fingerprints,
     )
     runtime_evidence_path = out / VLLM_RUNTIME_EVIDENCE_FILENAME
     write_json(runtime_evidence_path, runtime_evidence)
@@ -1142,6 +1144,9 @@ def execute_vllm_run(
                 },
             )
 
+            if request_result.system_fingerprint:
+                observed_fingerprints.append(request_result.system_fingerprint)
+
             # incomplete_usage_metadata: output may still be usable; mark completed
             # with explicit incomplete usage rather than inventing token counts.
             if request_result.success:
@@ -1157,39 +1162,55 @@ def execute_vllm_run(
                 exit_status = 1
                 error = request_result.failure_detail or request_result.failure_class
 
-            prompt_results.append(
-                {
-                    "prompt_id": prompt_id,
-                    "title": prompt_meta.get("title", prompt_id),
-                    "category": prompt_meta.get("category"),
-                    "status": status,
-                    "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
-                    "raw_output_path": str(raw_output_path.relative_to(out)),
-                    "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
-                    "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                    "request_evidence_path": str(
-                        request_evidence_path.relative_to(out)
-                    ),
-                    "metrics": build_vllm_metrics(request_result),
-                    "vram": None,
-                    "vram_samples_path": None,
-                    "vram_guardrails": None,
-                    "score": None,
-                    "failure_labels": [],
-                    "notes": "",
-                    "exit_status": exit_status,
-                    "error": error,
-                    "failure_class": request_result.failure_class,
-                    "failure_detail": request_result.failure_detail,
-                    "finish_reason": request_result.finish_reason,
-                    "observed_served_model": request_result.observed_model,
-                }
-            )
+            prompt_entry: dict[str, Any] = {
+                "prompt_id": prompt_id,
+                "title": prompt_meta.get("title", prompt_id),
+                "category": prompt_meta.get("category"),
+                "status": status,
+                "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+                "raw_output_path": str(raw_output_path.relative_to(out)),
+                "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
+                "stderr_log_path": str(stderr_log_path.relative_to(out)),
+                "request_evidence_path": str(
+                    request_evidence_path.relative_to(out)
+                ),
+                "metrics": build_vllm_metrics(request_result),
+                "vram": None,
+                "vram_samples_path": None,
+                "vram_guardrails": None,
+                "score": None,
+                "failure_labels": [],
+                "notes": "",
+                "exit_status": exit_status,
+                "error": error,
+                "failure_class": request_result.failure_class,
+                "failure_detail": request_result.failure_detail,
+                "finish_reason": request_result.finish_reason,
+                "observed_served_model": request_result.observed_model,
+            }
+            if request_result.system_fingerprint is not None:
+                prompt_entry["system_fingerprint"] = request_result.system_fingerprint
+            if request_result.system_fingerprint_status is not None:
+                prompt_entry["system_fingerprint_status"] = (
+                    request_result.system_fingerprint_status
+                )
+            prompt_results.append(prompt_entry)
+
+    # Rewrite runtime evidence with ordered-unique observed fingerprints.
+    runtime_evidence = build_runtime_evidence_document(
+        config=vllm_config,
+        readiness=readiness,
+        endpoint_identity=endpoint_identity,
+        observed_system_fingerprints=observed_fingerprints,
+    )
+    write_json(runtime_evidence_path, runtime_evidence)
 
     completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
     failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
     run_status = "completed" if failed_count == 0 else "failed"
     profile = resolved["profile"]
+    observed_vllm_version = runtime_evidence.get("vllm_version") or "unknown"
+    observed_server_state = runtime_evidence.get("server_state") or "unknown"
 
     # Never feed a local path into GGUF provenance for vLLM; directory-model
     # provenance remains deferred and must not misrepresent the served model.
@@ -1208,21 +1229,41 @@ def execute_vllm_run(
         "provenance_kind": "served_model_only",
     }
 
+    discovery_warning: str | None
+    if readiness.success and observed_vllm_version != "unknown":
+        discovery_warning = (
+            "vLLM version observed from server /version; kernel, device, and "
+            "launch-configuration metadata remain unknown for this slice"
+        )
+        discovery_status = "partial"
+    elif readiness.success:
+        discovery_warning = (
+            "Server /version was unavailable or unparseable; kernel and device "
+            "metadata remain unknown for this slice"
+        )
+        discovery_status = "partial"
+    else:
+        discovery_warning = readiness.failure_detail or readiness.failure_class
+        discovery_status = "unavailable"
+
     backend_provenance = {
         "backend_name": "vllm",
         "lifecycle_ownership": "external_operator",
         "endpoint_identity": endpoint_identity,
         "requested_served_model": resolved["served_model"],
         "observed_served_model": readiness.observed_model,
-        "vllm_version": "unknown",
+        "vllm_version": observed_vllm_version,
+        "vllm_version_source": runtime_evidence.get("vllm_version_source"),
+        "server_state": observed_server_state,
+        "observed_system_fingerprints": list(
+            runtime_evidence.get("observed_system_fingerprints") or []
+        ),
         "status": "available" if readiness.success else "unavailable",
         "warning": None
         if readiness.success
         else (readiness.failure_detail or readiness.failure_class),
-        "discovery_status": "partial",
-        "discovery_warning": (
-            "Server version and kernel metadata are unknown for this slice"
-        ),
+        "discovery_status": discovery_status,
+        "discovery_warning": discovery_warning,
     }
 
     result = {
@@ -1267,6 +1308,11 @@ def execute_vllm_run(
             "vllm_runtime_evidence_captured": True,
             "vllm_runtime_evidence_path": str(
                 runtime_evidence_path.relative_to(out)
+            ),
+            "vllm_version": observed_vllm_version,
+            "server_state": observed_server_state,
+            "observed_system_fingerprints": list(
+                runtime_evidence.get("observed_system_fingerprints") or []
             ),
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
             "command": [],

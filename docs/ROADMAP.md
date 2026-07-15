@@ -125,11 +125,11 @@ family quality, or metric equivalence across backends.
 
 ### Next bounded vLLM work
 
-1. **Server/version fingerprint capture** — optionally persist richer server
-   identity such as observed `vllm_version`, defensible `server_state`, and
-   direct-API `system_fingerprint` when available (currently unknown /
-   unpersisted by design in the first adapter slice). Improves future
-   comparison provenance without reopening the runtime contract.
+1. **Server/version fingerprint capture** — completed in the adapter evidence
+   path: server `GET /version` → `vllm_version`, API-ready `server_state`,
+   per-request `system_fingerprint`, and ordered-unique run-level fingerprint
+   summary. Claim boundaries preserved (opaque fingerprint; version does not
+   prove launch configuration; lifecycle remains operator-owned).
 2. **Optional second-prompt replication** — same methodology and host class,
    a second `agent-backend-v1` prompt, to test whether the single-prompt
    quality gap holds; still not a ranking system.

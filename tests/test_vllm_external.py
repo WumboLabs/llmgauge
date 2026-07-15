@@ -15,10 +15,16 @@ from llmgauge.core.public_export import export_public_run
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_data, validate_result_dir
 from llmgauge.runners.vllm_external import (
+    MAX_SYSTEM_FINGERPRINT_LENGTH,
     VllmExternalConfig,
+    build_runtime_evidence_document,
     build_vllm_metrics,
     check_readiness_and_model,
+    extract_system_fingerprint,
+    fetch_vllm_version,
     format_failure_log,
+    ordered_unique_fingerprints,
+    parse_bounded_server_string,
     run_chat_completion,
 )
 
@@ -30,7 +36,35 @@ class _VllmHandler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path.endswith("/models") or self.path == "/v1/models":
+        path = self.path.split("?", 1)[0]
+        if path == "/version" or path.endswith("/version"):
+            mode = self.state.get("version_mode", "ok")
+            if mode == "missing":
+                self.send_response(404)
+                self.end_headers()
+                return
+            if mode == "error":
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(b"error")
+                return
+            if mode == "malformed":
+                body = b'{"version":{"nested":true}}'
+            elif mode == "empty":
+                body = b'{"version":""}'
+            elif mode == "control":
+                body = json.dumps({"version": "0.1\n0"}).encode()
+            else:
+                version = self.state.get("vllm_version", "0.25.1")
+                body = json.dumps({"version": version}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if path.endswith("/models") or path == "/v1/models":
             mode = self.state.get("models_mode", "ok")
             if mode == "mismatch":
                 body = json.dumps(
@@ -131,25 +165,39 @@ class _VllmHandler(BaseHTTPRequestHandler):
             return
 
         model = self.state.get("model_id", "test-model")
-        body = json.dumps(
-            {
-                "id": "chatcmpl-1",
-                "object": "chat.completion",
-                "model": model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": "hello from vllm"},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": 10,
-                    "completion_tokens": 4,
-                    "total_tokens": 14,
-                },
-            }
-        ).encode()
+        payload: dict[str, Any] = {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "hello from vllm"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 4,
+                "total_tokens": 14,
+            },
+        }
+        fingerprint_mode = self.state.get("fingerprint_mode", "present")
+        if fingerprint_mode == "present":
+            payload["system_fingerprint"] = self.state.get(
+                "system_fingerprint", "vllm-0.25.1-testfp"
+            )
+        elif fingerprint_mode == "absent":
+            pass
+        elif fingerprint_mode == "null":
+            payload["system_fingerprint"] = None
+        elif fingerprint_mode == "wrong_type":
+            payload["system_fingerprint"] = 12345
+        elif fingerprint_mode == "too_long":
+            payload["system_fingerprint"] = "x" * 300
+        elif fingerprint_mode == "control":
+            payload["system_fingerprint"] = "bad\x00fp"
+        body = json.dumps(payload).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -163,7 +211,15 @@ def vllm_server():
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    _VllmHandler.state = {"model_id": "test-model", "models_mode": "ok", "chat_mode": "ok"}
+    _VllmHandler.state = {
+        "model_id": "test-model",
+        "models_mode": "ok",
+        "chat_mode": "ok",
+        "version_mode": "ok",
+        "vllm_version": "0.25.1",
+        "fingerprint_mode": "present",
+        "system_fingerprint": "vllm-0.25.1-testfp",
+    }
     yield f"http://127.0.0.1:{port}", _VllmHandler.state
     server.shutdown()
     server.server_close()
@@ -190,6 +246,37 @@ def test_successful_readiness_check(vllm_server) -> None:
     assert "test-model" in result.served_models
     assert result.endpoint_identity["scheme"] == "http"
     assert "url" not in result.endpoint_identity
+    assert result.server_state == "ready"
+    assert result.vllm_version == "0.25.1"
+    assert result.evidence["server_state"] == "ready"
+    assert result.evidence["readiness_status"] == "ready"
+    assert result.evidence["vllm_version"] == "0.25.1"
+
+
+def test_version_capture_success(vllm_server) -> None:
+    url, state = vllm_server
+    state["vllm_version"] = "0.26.0"
+    assert fetch_vllm_version(_config(url)) == "0.26.0"
+
+
+def test_version_endpoint_missing(vllm_server) -> None:
+    url, state = vllm_server
+    state["version_mode"] = "missing"
+    assert fetch_vllm_version(_config(url)) == "unknown"
+    readiness = check_readiness_and_model(_config(url))
+    assert readiness.success is True
+    assert readiness.vllm_version == "unknown"
+    assert readiness.server_state == "ready"
+
+
+def test_version_payload_malformed(vllm_server) -> None:
+    url, state = vllm_server
+    state["version_mode"] = "malformed"
+    assert fetch_vllm_version(_config(url)) == "unknown"
+    state["version_mode"] = "empty"
+    assert fetch_vllm_version(_config(url)) == "unknown"
+    state["version_mode"] = "control"
+    assert fetch_vllm_version(_config(url)) == "unknown"
 
 
 def test_served_model_mismatch(vllm_server) -> None:
@@ -198,6 +285,7 @@ def test_served_model_mismatch(vllm_server) -> None:
     result = check_readiness_and_model(_config(url))
     assert result.success is False
     assert result.failure_class == "served_model_mismatch"
+    assert result.server_state == "unknown"
 
 
 def test_successful_chat_completion(vllm_server) -> None:
@@ -228,6 +316,61 @@ def test_successful_chat_completion(vllm_server) -> None:
     assert result.request_evidence["user_text"] == "Say hello"
     assert result.request_evidence["request_messages"] == body["messages"]
     assert result.request_evidence["input_form"] == "chat_messages"
+    assert result.system_fingerprint == "vllm-0.25.1-testfp"
+    assert result.system_fingerprint_status == "present"
+    assert result.request_evidence["system_fingerprint"] == "vllm-0.25.1-testfp"
+
+
+def test_system_fingerprint_absent(vllm_server) -> None:
+    url, state = vllm_server
+    state["fingerprint_mode"] = "absent"
+    result = run_chat_completion(_config(url), prompt="x")
+    assert result.success is True
+    assert result.system_fingerprint is None
+    assert result.system_fingerprint_status == "absent"
+    assert "system_fingerprint" not in result.request_evidence
+
+
+def test_system_fingerprint_invalid_type(vllm_server) -> None:
+    url, state = vllm_server
+    state["fingerprint_mode"] = "wrong_type"
+    result = run_chat_completion(_config(url), prompt="x")
+    assert result.success is True
+    assert result.generated_text == "hello from vllm"
+    assert result.system_fingerprint is None
+    assert result.system_fingerprint_status == "invalid"
+    assert "system_fingerprint" not in result.request_evidence
+
+
+def test_system_fingerprint_too_long_or_control(vllm_server) -> None:
+    url, state = vllm_server
+    state["fingerprint_mode"] = "too_long"
+    result = run_chat_completion(_config(url), prompt="x")
+    assert result.success is True
+    assert result.system_fingerprint is None
+    assert result.system_fingerprint_status == "invalid"
+    state["fingerprint_mode"] = "control"
+    result = run_chat_completion(_config(url), prompt="x")
+    assert result.success is True
+    assert result.system_fingerprint is None
+    assert result.system_fingerprint_status == "invalid"
+
+
+def test_parse_bounded_server_string_helpers() -> None:
+    assert parse_bounded_server_string("ok", max_length=8) == "ok"
+    assert parse_bounded_server_string("", max_length=8) is None
+    assert parse_bounded_server_string("a" * 9, max_length=8) is None
+    assert parse_bounded_server_string("a\nb", max_length=8) is None
+    assert parse_bounded_server_string(12, max_length=8) is None
+    fp, status = extract_system_fingerprint({"system_fingerprint": "abc"})
+    assert fp == "abc" and status == "present"
+    fp, status = extract_system_fingerprint({})
+    assert fp is None and status == "absent"
+    fp, status = extract_system_fingerprint(
+        {"system_fingerprint": "x" * (MAX_SYSTEM_FINGERPRINT_LENGTH + 1)}
+    )
+    assert fp is None and status == "invalid"
+    assert ordered_unique_fingerprints(["a", "b", "a", "c"]) == ["a", "b", "c"]
 
 
 def test_chat_completion_ordered_roles_without_claiming_combined_parity(
@@ -333,6 +476,8 @@ def test_vllm_result_validation_and_report(tmp_path: Path) -> None:
             },
             "finish_reason": "stop",
             "request_wall_time_seconds": 0.5,
+            "system_fingerprint": "vllm-0.25.1-testfp",
+            "system_fingerprint_status": "present",
         },
     )
     write_json(
@@ -348,6 +493,9 @@ def test_vllm_result_validation_and_report(tmp_path: Path) -> None:
             },
             "requested_served_model": "test-model",
             "observed_served_model": "test-model",
+            "vllm_version": "0.25.1",
+            "server_state": "ready",
+            "observed_system_fingerprints": ["vllm-0.25.1-testfp"],
         },
     )
 
@@ -355,6 +503,151 @@ def test_vllm_result_validation_and_report(tmp_path: Path) -> None:
         "schema_version": "llmgauge.result.v0",
         "llmgauge_version": "0.70.0",
         "run": {"run_id": "vllm-result", "status": "completed", "timestamp_utc": "t"},
+        "model": {
+            "model_id": "test-model",
+            "model_path": "redacted",
+            "model_path_policy": "redacted",
+            "served_model": "test-model",
+        },
+        "runtime": {
+            "backend": "vllm",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": {
+                "scheme": "http",
+                "loopback_class": "ipv4_loopback",
+                "port": 8000,
+            },
+            "requested_served_model": "test-model",
+            "observed_served_model": "test-model",
+            "ctx_size": 8192,
+            "max_tokens": 32,
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "runtime_command_captured": False,
+            "vllm_runtime_evidence_captured": True,
+            "vllm_runtime_evidence_path": "vllm-runtime-evidence.json",
+            "proxy_bypass_policy": "stdlib_http_client_no_env_proxy",
+            "vllm_version": "0.25.1",
+            "server_state": "ready",
+            "observed_system_fingerprints": ["vllm-0.25.1-testfp"],
+        },
+        "suite": {"suite_id": "core-v1", "suite_version": "1", "prompt_count": 1},
+        "summary": {"completed": 1, "failed": 0},
+        "results": [
+            {
+                "prompt_id": "p1",
+                "category": "test",
+                "status": "completed",
+                "raw_prompt_path": "raw/p1.prompt.md",
+                "raw_output_path": "raw/p1.output.txt",
+                "stderr_log_path": "logs/p1.stderr.log",
+                "request_evidence_path": "request/p1.json",
+                "exit_status": 0,
+                "finish_reason": "stop",
+                "system_fingerprint": "vllm-0.25.1-testfp",
+                "metrics": {
+                    "prompt_eval_tokens": 10,
+                    "generation_tokens": 4,
+                    "prompt_eval_tps": None,
+                    "generation_tps": None,
+                    "request_wall_time_seconds": 0.5,
+                    "end_to_end_completion_tps": 8.0,
+                    "finish_reason": "stop",
+                },
+            }
+        ],
+    }
+    write_json(result_dir / "llmgauge-result.json", data)
+
+    assert validate_result_dir(result_dir) == []
+    report = build_markdown_report(data)
+    assert "Backend: vllm" in report
+    assert "Endpoint identity:" in report
+    assert "Requested served model: test-model" in report
+    assert "End-to-end completion" in report or "E2E completion" in report
+    assert "not claimed equivalent" in report
+    assert "vLLM version (server /version): 0.25.1" in report
+    assert "Server state (API readiness observation): ready" in report
+    assert "system_fingerprint (opaque backend metadata)" in report
+    assert "vllm-0.25.1-testfp" in report
+    assert "Claim boundary:" in report
+
+    public_dir = tmp_path / "public"
+    source_before = (result_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    export_public_run(result_dir, public_dir)
+    source_after = (result_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    assert source_before == source_after
+    public_result = json.loads(
+        (public_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    identity = public_result["runtime"]["endpoint_identity"]
+    assert set(identity.keys()) <= {
+        "scheme",
+        "loopback_class",
+        "port",
+        "proxy_bypass_policy",
+    }
+    assert "url" not in identity
+    assert public_result["runtime"]["vllm_version"] == "0.25.1"
+    assert public_result["runtime"]["server_state"] == "ready"
+    assert public_result["runtime"]["observed_system_fingerprints"] == [
+        "vllm-0.25.1-testfp"
+    ]
+    public_request = json.loads(
+        (public_dir / "request/p1.json").read_text(encoding="utf-8")
+    )
+    assert public_request["system_fingerprint"] == "vllm-0.25.1-testfp"
+    public_runtime_ev = json.loads(
+        (public_dir / "vllm-runtime-evidence.json").read_text(encoding="utf-8")
+    )
+    assert public_runtime_ev["vllm_version"] == "0.25.1"
+    assert public_runtime_ev["server_state"] == "ready"
+
+
+def test_old_vllm_artifacts_without_fingerprint_fields_still_validate(
+    tmp_path: Path,
+) -> None:
+    """Additive fields are optional; pre-fingerprint artifacts remain valid."""
+    result_dir = tmp_path / "legacy-vllm"
+    (result_dir / "raw").mkdir(parents=True)
+    (result_dir / "logs").mkdir(parents=True)
+    (result_dir / "request").mkdir(parents=True)
+    write_text(result_dir / "raw/p1.prompt.md", "prompt")
+    write_text(result_dir / "raw/p1.output.txt", "output")
+    write_text(result_dir / "logs/p1.stderr.log", "ok")
+    write_json(
+        result_dir / "request/p1.json",
+        {
+            "schema_version": "llmgauge.vllm_request_evidence.v0",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": {
+                "scheme": "http",
+                "loopback_class": "ipv4_loopback",
+                "port": 8000,
+            },
+        },
+    )
+    write_json(
+        result_dir / "vllm-runtime-evidence.json",
+        {
+            "schema_version": "llmgauge.vllm_runtime_evidence.v0",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": {
+                "scheme": "http",
+                "loopback_class": "ipv4_loopback",
+                "port": 8000,
+            },
+            "requested_served_model": "test-model",
+            "observed_served_model": "test-model",
+            # Pre-slice default placeholders without new claim fields.
+            "vllm_version": "unknown",
+            "server_state": "unknown",
+        },
+    )
+    data = {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": "0.70.0",
+        "run": {"run_id": "legacy-vllm", "status": "completed", "timestamp_utc": "t"},
         "model": {
             "model_id": "test-model",
             "model_path": "redacted",
@@ -392,45 +685,94 @@ def test_vllm_result_validation_and_report(tmp_path: Path) -> None:
                 "stderr_log_path": "logs/p1.stderr.log",
                 "request_evidence_path": "request/p1.json",
                 "exit_status": 0,
-                "finish_reason": "stop",
-                "metrics": {
-                    "prompt_eval_tokens": 10,
-                    "generation_tokens": 4,
-                    "prompt_eval_tps": None,
-                    "generation_tps": None,
-                    "request_wall_time_seconds": 0.5,
-                    "end_to_end_completion_tps": 8.0,
-                    "finish_reason": "stop",
-                },
+                "metrics": {},
             }
         ],
     }
     write_json(result_dir / "llmgauge-result.json", data)
-
     assert validate_result_dir(result_dir) == []
     report = build_markdown_report(data)
-    assert "Backend: vllm" in report
-    assert "Endpoint identity:" in report
-    assert "Requested served model: test-model" in report
-    assert "End-to-end completion" in report or "E2E completion" in report
-    assert "not claimed equivalent" in report
+    assert "vLLM version (server /version): unknown" in report
+    assert "Server state (API readiness observation): unknown" in report
+    assert "system_fingerprint (opaque backend metadata)" not in report
 
-    public_dir = tmp_path / "public"
-    source_before = (result_dir / "llmgauge-result.json").read_text(encoding="utf-8")
-    export_public_run(result_dir, public_dir)
-    source_after = (result_dir / "llmgauge-result.json").read_text(encoding="utf-8")
-    assert source_before == source_after
-    public_result = json.loads(
-        (public_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+
+def test_invalid_fingerprint_in_artifact_rejected(tmp_path: Path) -> None:
+    result_dir = tmp_path / "bad-fp"
+    (result_dir / "raw").mkdir(parents=True)
+    (result_dir / "logs").mkdir(parents=True)
+    (result_dir / "request").mkdir(parents=True)
+    write_text(result_dir / "raw/p1.prompt.md", "p")
+    write_text(result_dir / "raw/p1.output.txt", "o")
+    write_text(result_dir / "logs/p1.stderr.log", "e")
+    write_json(
+        result_dir / "request/p1.json",
+        {
+            "schema_version": "llmgauge.vllm_request_evidence.v0",
+            "system_fingerprint": "bad\x00value",
+        },
     )
-    identity = public_result["runtime"]["endpoint_identity"]
-    assert set(identity.keys()) <= {
-        "scheme",
-        "loopback_class",
-        "port",
-        "proxy_bypass_policy",
+    write_json(
+        result_dir / "vllm-runtime-evidence.json",
+        {
+            "schema_version": "llmgauge.vllm_runtime_evidence.v0",
+            "lifecycle_ownership": "external_operator",
+        },
+    )
+    data = {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": "0.70.0",
+        "run": {"run_id": "bad-fp", "status": "completed", "timestamp_utc": "t"},
+        "model": {
+            "model_id": "m",
+            "model_path": "redacted",
+            "model_path_policy": "redacted",
+        },
+        "runtime": {
+            "backend": "vllm",
+            "lifecycle_ownership": "external_operator",
+            "vllm_runtime_evidence_captured": True,
+            "vllm_runtime_evidence_path": "vllm-runtime-evidence.json",
+            "ctx_size": 1,
+            "max_tokens": 1,
+            "temperature": 0,
+            "top_p": 1,
+        },
+        "suite": {"suite_id": "s", "suite_version": "1", "prompt_count": 1},
+        "summary": {"completed": 1, "failed": 0},
+        "results": [
+            {
+                "prompt_id": "p1",
+                "category": "t",
+                "status": "completed",
+                "raw_prompt_path": "raw/p1.prompt.md",
+                "raw_output_path": "raw/p1.output.txt",
+                "stderr_log_path": "logs/p1.stderr.log",
+                "request_evidence_path": "request/p1.json",
+                "exit_status": 0,
+                "metrics": {},
+            }
+        ],
     }
-    assert "url" not in identity
+    write_json(result_dir / "llmgauge-result.json", data)
+    errors = validate_result_dir(result_dir)
+    assert any("control characters" in err for err in errors)
+
+
+def test_build_runtime_evidence_document_ready_state(vllm_server) -> None:
+    url, _state = vllm_server
+    readiness = check_readiness_and_model(_config(url))
+    doc = build_runtime_evidence_document(
+        config=_config(url),
+        readiness=readiness,
+        endpoint_identity=readiness.endpoint_identity,
+        observed_system_fingerprints=["fp-a", "fp-b", "fp-a"],
+    )
+    assert doc["server_state"] == "ready"
+    assert doc["readiness_status"] == "ready"
+    assert doc["vllm_version"] == "0.25.1"
+    assert doc["observed_system_fingerprints"] == ["fp-a", "fp-b"]
+    assert doc["server_state_meaning"] == "api_ready_observation"
 
 
 def test_legacy_llama_result_still_valid(tmp_path: Path) -> None:

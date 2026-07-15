@@ -283,13 +283,24 @@ Expected fields (optional values may be `unknown` or null):
     request_timeout_seconds
     max_response_bytes
     vllm_version
+    vllm_version_source
     server_state
+    server_state_meaning
+    observed_system_fingerprints
+    system_fingerprint_claim
     streaming
     authentication
 
 `endpoint_identity` records only scheme, loopback class, port, and proxy-bypass
 policy. Raw URLs, credentials, headers, and proxy environment values are not
 stored.
+
+Optional fields are additive: older artifacts without them remain valid.
+
+- `vllm_version`: bounded string from server `GET /version`, or `unknown`.
+- `server_state`: API readiness observation (`ready` or `unknown`), not process
+  ownership or cold/warm lifecycle history.
+- `observed_system_fingerprints`: ordered unique opaque fingerprints from the run.
 
 ## Schema: llmgauge.vllm_request_evidence.v0
 
@@ -299,6 +310,17 @@ Primary files:
 
 Bounded per-request evidence for non-streaming chat-completions. Does not store
 full response bodies, arbitrary headers, or raw endpoint URLs.
+
+Optional additive fields when present:
+
+    system_fingerprint
+    system_fingerprint_status
+    system_fingerprint_claim
+
+`system_fingerprint` is opaque backend metadata from the chat response when the
+value is a bounded non-empty string without control characters. Status may be
+`present`, `absent`, or `invalid`. Invalid optional fingerprint metadata must not
+discard an otherwise valid model answer.
 
 New v0.70-compatible results may include optional `runtime.backend_provenance`.
 LLMGauge remains llama.cpp-first; this is not a generic backend abstraction.

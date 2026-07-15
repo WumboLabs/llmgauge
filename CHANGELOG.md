@@ -2,8 +2,23 @@
 
 ## Unreleased
 
+### Added
+
+- Capture bounded vLLM server metadata for the external adapter: `vllm_version`
+  from server `GET /version`, API-ready `server_state` after successful
+  readiness and served-model checks, per-request OpenAI-compatible
+  `system_fingerprint` when present and well-formed, and ordered-unique
+  `observed_system_fingerprints` at run level.
+- Surface version, server-state, and fingerprint evidence in reports with claim
+  boundaries; preserve safe fields in public export without mutating sources.
+- Additive validation for optional fingerprint/version fields with type, length,
+  and control-character bounds; older artifacts without the fields remain valid.
+
 ### Documentation
 
+- Documented version/fingerprint field sources, optional/unknown behavior, and
+  claim boundaries in `docs/VLLM_RUNTIME_CONTRACT.md` and
+  `docs/ARTIFACT_SCHEMAS.md`; updated roadmap after fingerprint-capture work.
 - Recorded completed first bounded llama.cpp-versus-vLLM cross-runtime
   comparison evidence (`docs/VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md`):
   Qwen2.5-3B-Instruct family, one `agent-backend-v1` prompt, matched requested
@@ -11,8 +26,8 @@
   and vLLM completions validated, reviewed manual scores, runtime-native
   metrics without throughput equivalence, and strict claim boundaries.
 - Updated roadmap and design notes so comparison execution is marked complete;
-  next bounded vLLM work prioritizes server/version fingerprint capture (plus
-  optional second-prompt replication).
+  next bounded vLLM product work prioritizes optional second-prompt replication
+  (plus Gemma NVFP4 audit as a separate track).
 - Added the first bounded llama.cpp-versus-vLLM cross-runtime comparison
   methodology (`docs/VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md`): matched
   suite and generation settings, template/tokenization disclosure,

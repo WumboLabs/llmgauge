@@ -42,12 +42,30 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
     lines = [f"- Backend: {backend}"]
 
     if backend == "vllm":
+        fingerprints = runtime.get("observed_system_fingerprints")
+        if isinstance(fingerprints, list) and fingerprints:
+            fingerprint_summary = ", ".join(
+                str(item) for item in fingerprints if isinstance(item, str) and item
+            )
+            if not fingerprint_summary:
+                fingerprint_summary = "none observed"
+        else:
+            fingerprint_summary = "none observed"
         lines.extend(
             [
                 f"- Lifecycle ownership: {runtime.get('lifecycle_ownership') or 'external_operator'}",
                 f"- Endpoint identity: {_fmt_endpoint_identity(runtime.get('endpoint_identity'))}",
                 f"- Requested served model: {runtime.get('requested_served_model') or 'unknown'}",
                 f"- Observed served model: {runtime.get('observed_served_model') or 'unknown'}",
+                (
+                    f"- vLLM version (server /version): "
+                    f"{runtime.get('vllm_version') or 'unknown'}"
+                ),
+                (
+                    f"- Server state (API readiness observation): "
+                    f"{runtime.get('server_state') or 'unknown'}"
+                ),
+                f"- Observed system fingerprints (ordered unique): {fingerprint_summary}",
                 f"- Connect timeout s: {runtime.get('connect_timeout_seconds', 'unknown')}",
                 f"- Request timeout s: {runtime.get('request_timeout_seconds', 'unknown')}",
                 f"- Max response bytes: {runtime.get('max_response_bytes', 'unknown')}",
@@ -72,6 +90,9 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
                 ),
                 "- Command metadata: not used for vLLM (HTTP request evidence is separate)",
                 "- Cross-runtime note: token counts and throughput are not claimed equivalent to llama.cpp.",
+                "- Claim boundary: server /version does not prove full launch configuration; "
+                "`system_fingerprint` is opaque backend metadata; equality does not prove "
+                "identical runtime state; inequality must not be overinterpreted.",
             ]
         )
         return lines
@@ -520,6 +541,11 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
             finish_reason = metrics.get("finish_reason")
         if finish_reason:
             lines.append(f"- Finish reason: {finish_reason}")
+        system_fingerprint = prompt_result.get("system_fingerprint")
+        if isinstance(system_fingerprint, str) and system_fingerprint:
+            lines.append(
+                f"- system_fingerprint (opaque backend metadata): `{system_fingerprint}`"
+            )
         failure_class = prompt_result.get("failure_class")
         if failure_class:
             lines.append(f"- Failure class: {failure_class}")

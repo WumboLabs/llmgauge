@@ -157,18 +157,41 @@ request, complete response or classified failure, wall time, usage, finish
 reason, request-time telemetry, and raw prompt/output artifacts. It must not
 claim to measure server startup or model loading.
 
-Server-state terminology is conservative:
+Server-state terminology is conservative and multi-purpose. Distinguish:
 
-- `cold`: direct evidence shows this is the first evaluation request after a
-  fresh server start or fresh model admission. The label does not move startup
-  duration into request latency.
-- `warm`: direct evidence shows the same server/model admission has already
-  completed at least one successful request. It does not claim cache state,
-  cache reuse, or identical server load.
-- `unknown`: the default when lifecycle history is not observed by LLMGauge.
+1. **API readiness observation** (runtime evidence `server_state` for the
+   external adapter):
+   - `ready`: the bounded readiness request succeeded, the models payload was
+     structurally valid, and the requested served model was listed. This is not
+     process ownership, PID state, GPU state, warmth, or launch configuration.
+   - `unknown`: readiness did not establish that observation (default for failed
+     readiness or older artifacts without the field).
+   - `readiness_status` remains separate (`ready` / `failed`) and must not be
+     collapsed into cold/warm claims.
 
-A server being ready is not enough to label a request warm. A first request is
-not enough to label it cold without evidence of a fresh lifecycle.
+2. **Request warmth labels** (reserved; not inferred from API readiness alone):
+   - `cold`: direct evidence shows this is the first evaluation request after a
+     fresh server start or fresh model admission. The label does not move startup
+     duration into request latency.
+   - `warm`: direct evidence shows the same server/model admission has already
+     completed at least one successful request. It does not claim cache state,
+     cache reuse, or identical server load.
+   - `unknown`: the default when lifecycle history is not observed by LLMGauge.
+
+A server being API-ready is not enough to label a request warm. A first request
+is not enough to label it cold without evidence of a fresh lifecycle.
+
+### Observed version and `system_fingerprint`
+
+| Field | Source | Meaning and claim boundary |
+|---|---|---|
+| `vllm_version` | Server `GET /version` (`version` string) when available | Bounded server-reported version string, or `unknown`. Not inferred from runtime labels, model names, client Python packages, or `system_fingerprint`. Does not prove full launch configuration, kernels, or devices. |
+| `system_fingerprint` | Optional top-level OpenAI-compatible chat response field | Opaque backend-provided metadata, stored only when present and within type/length/character bounds. Absence is allowed. Malformed optional fingerprint metadata is omitted without discarding an otherwise valid answer. Equality does not prove identical runtime state; inequality must not be overinterpreted. Not a stable server, build, model, hardware, or reproducibility identity. |
+| `observed_system_fingerprints` | Ordered unique fingerprints from completed requests in the run | Run-level summary only; does not replace per-request evidence. Multiple values preserve disagreement rather than silently choosing one. |
+
+Older artifacts without these fields remain valid. Server lifecycle remains
+operator-owned; version and fingerprint capture do not start, stop, or supervise
+the server.
 
 ## Directory-model provenance
 
@@ -247,7 +270,7 @@ separate evidence sources. The desired backend record includes:
 
 | Metadata | Contract |
 |---|---|
-| vLLM version | Observed version and evidence source; `unknown` if the OpenAI-compatible API does not expose it. |
+| vLLM version | Observed from server `GET /version` when available, with `vllm_version_source`; `unknown` if unavailable, unsupported, or malformed. Never inferred from client environment, labels, or fingerprint. |
 | Python, PyTorch, CUDA runtime, Transformers | Observed version values with source, never inferred from the client environment. |
 | compressed-tensors | Record observed version when relevant; otherwise `not_applicable` or `unknown`, not an invented version. |
 | Served model name | Preserve requested name and model-list or response-observed name separately; mismatch is a failure. |
@@ -423,19 +446,22 @@ is a decision, not a presumed outcome.
    Hugging Face model and one prompt on an operator-managed local server. Unit
    tests alone do not establish integration; this smoke is the first recorded
    real-runtime proof for the adapter slice.
-4. **Cross-runtime comparison methodology.** Define which prompts, token budgets,
-   templates, sampling settings, metrics, and server-state disclosures permit a
-   bounded llama.cpp/vLLM comparison. Do not assume token or throughput
-   equivalence. This is the exact recommended next product milestone.
-5. **Gemma NVFP4 CPU-offload audit.** Keep this a separate investigation with
+4. **Cross-runtime comparison methodology.** Completed:
+   [VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md).
+5. **Cross-runtime comparison evidence.** Completed:
+   [VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md).
+6. **Server/version fingerprint capture.** Implemented in the external adapter:
+   bounded `GET /version` capture, API-ready `server_state`, per-request
+   `system_fingerprint`, and optional ordered-unique run-level fingerprint
+   summary. Lifecycle remains operator-owned.
+7. **Gemma NVFP4 CPU-offload audit.** Keep this a separate investigation with
    preserved startup evidence. It may evaluate whether CPU offload changes the
    12 GB fit result, but it must not gate the generic adapter or reinterpret the
    original full-GPU failure.
 
-The fifth milestone is intentionally separate from backend implementation and
-may be scheduled independently after the contract. Its outcome is a fit result
-for one checkpoint, runtime build, configuration, and device—not a general model
-support claim.
+The NVFP4 audit is intentionally separate from backend implementation and may be
+scheduled independently. Its outcome is a fit result for one checkpoint, runtime
+build, configuration, and device—not a general model support claim.
 
 ## Consequences
 
