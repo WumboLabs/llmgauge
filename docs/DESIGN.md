@@ -40,3 +40,7 @@ Non-goals for the first pass:
   server. Does not install, start, or supervise vLLM. llama.cpp remains the
   default backend. Token counts and throughput are not claimed equivalent
   across runtimes.
+- [vLLM live integration smoke evidence](VLLM_LIVE_SMOKE_EVIDENCE.md) —
+  completed real-runtime smoke for one fitting model and one prompt on an
+  external local server; records environment, metrics, validation, public
+  export, and explicit claim boundaries.

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Recorded completed external vLLM live integration smoke evidence for one
+  fitting model and one prompt on an operator-managed local server
+  (`docs/VLLM_LIVE_SMOKE_EVIDENCE.md`).
+- Updated roadmap, design notes, and vLLM runtime contract follow-on milestones
+  so the smoke is marked complete and the next bounded vLLM work is
+  cross-runtime comparison methodology (plus deferred server/version
+  fingerprint capture).
+- Preserved claim boundaries: runtime compatibility and adapter execution are
+  distinct from answer quality and publication readiness; generated private
+  results and public-export derivatives remain untracked.
+
 ## v0.70.0 - 2026-07-11
 
 ### Added

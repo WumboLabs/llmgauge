@@ -414,19 +414,19 @@ is a decision, not a presumed outcome.
    Python standard library is admitted for the initial loopback transport; no
    third-party HTTP client is required. Reopen dependency admission only if a
    later implementation proves a documented gap.
-2. **Externally managed vLLM adapter.** Implement the text-only, single-request,
-   non-streaming boundary plus additive schema, validator, report, and
-   public-export support, using the accepted standard-library transport
-   approach. Do not manage the server. This is the exact recommended next
-   milestone.
-3. **Fitting-model integration smoke.** Against an operator-reviewed local
-   server and a checkpoint known to fit, verify admission evidence, one request,
-   artifacts, metrics, failure handling, and public sanitization. This is the
-   first real-runtime proof; unit tests alone do not establish integration.
+2. **Externally managed vLLM adapter.** Completed on `main`: text-only,
+   single-request, non-streaming boundary plus additive schema, validator,
+   report, and public-export support using the accepted standard-library
+   transport approach. Server lifecycle remains operator-owned.
+3. **Fitting-model integration smoke.** Completed and recorded in
+   [VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md) for one fitting
+   Hugging Face model and one prompt on an operator-managed local server. Unit
+   tests alone do not establish integration; this smoke is the first recorded
+   real-runtime proof for the adapter slice.
 4. **Cross-runtime comparison methodology.** Define which prompts, token budgets,
    templates, sampling settings, metrics, and server-state disclosures permit a
    bounded llama.cpp/vLLM comparison. Do not assume token or throughput
-   equivalence.
+   equivalence. This is the exact recommended next product milestone.
 5. **Gemma NVFP4 CPU-offload audit.** Keep this a separate investigation with
    preserved startup evidence. It may evaluate whether CPU offload changes the
    12 GB fit result, but it must not gate the generic adapter or reinterpret the

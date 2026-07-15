@@ -27,6 +27,12 @@ Validation confirms artifact shape and references. It does not prove model
 quality, safety, or publication readiness. Auto-drafts are triage only until a
 reviewer applies reviewed scores.
 
+For the completed external vLLM live integration smoke (one model, one prompt,
+operator-managed loopback server), see
+[VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md). That record documents
+runtime compatibility and adapter execution boundaries; it is not a scored
+public model report.
+
 Export sanitization is not a guarantee that every private value has been
 removed. Users must inspect the public export before publication and keep the
 original local run unchanged for audit.
