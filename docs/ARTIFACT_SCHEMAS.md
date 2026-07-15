@@ -123,6 +123,35 @@ Authoritative vs derived:
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
+## Fit Ladder parent directory
+
+A Fit Ladder parent contains:
+
+    fit-ladder-summary.json
+    fit-ladder-report.md
+    attempt-NN-ctx-NNNN/
+
+`fit-ladder-summary.json` uses `llmgauge.fit_ladder.v0`. Its `retry_policy`
+records the ascending CLI `fallback_contexts` list and stop policy, while its
+`attempts` list contains executed attempts only. Therefore
+`summary.attempted` and export-index `attempt_count` count executed attempts,
+not every context in the requested plan.
+
+`selected_working_settings`, when present, identifies the first completed child
+by `attempt_id` and records its selected settings. Each attempt's `result_dir`
+references its independently reviewable single-run child directory.
+`fallback_changed_context` is true only when a completed selected context exists
+and differs from the requested context. It is false on total failure because
+there is no selected context, even if fallback retries occurred.
+
+The current schema does not create explicit records for planned contexts skipped
+after the first completion. Such a skip is inferred from the retry policy,
+executed-attempt count, stop policy, and absence of another child directory.
+This is a description of the existing schema, not a schema revision.
+
+Validate the parent with `validate-fit-ladder` and each child with
+`validate-result`. Score a completed child result directory, never the parent.
+
 ## Public single-run export
 
 `llmgauge export-public RUN_DIR --out OUTPUT_DIR` creates a derived public
@@ -847,6 +876,7 @@ Supported `artifact_type` values:
 
     run
     ladder
+    fit_ladder
     batch
 
 ## Export index item: run

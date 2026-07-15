@@ -1,8 +1,8 @@
 # Fit Ladder / Adaptive Fit
 
-Fit Ladder is a planned LLMGauge feature for finding a working local runtime configuration when a requested model/context setting fails, especially due to out-of-memory conditions.
+Fit Ladder is an explicit LLMGauge workflow for finding a working local runtime configuration when a requested model/context setting fails, especially due to out-of-memory conditions.
 
-This feature is not enabled by default and should not silently change a normal run.
+It is opt-in and does not silently change a normal run.
 
 ## Goal
 
@@ -117,6 +117,8 @@ The initial execution loop is explicit and context-only:
 
 Behavior:
 
+- `--fallback-contexts` values must be supplied from smallest to largest, for
+  example `8192,32768`
 - requested context is attempted first
 - lower fallback contexts are attempted from largest to smallest
 - retry continues only for retryable fit failures such as OOM or process-killed failures
@@ -125,6 +127,22 @@ Behavior:
 - failed attempt directories are preserved
 - parent summary is written to `fit-ladder-summary.json`
 - GPU-layer fallback remains explicit-only and is not automatically applied
+- the parent `attempts` list records executed attempts only; a lower context
+  skipped after success is inferred from the retry policy, attempt count, and
+  absent child directory rather than an explicit `skipped` record
+
+## Operational artifact semantics
+
+- `fallback_changed_context=true` means a completed selected context differs
+  from the requested context.
+- On total failure, `fallback_changed_context=false` means there is no completed
+  selected context to compare. It does not mean that no fallback retries ran.
+- A Fit Ladder parent is not a single-run scoring target. Score the selected
+  completed child directory instead. A total-failure parent has no completed
+  child to score.
+- See [Fit Ladder real-workflow evidence](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
+  for bounded operator validation of total-failure and success-after-fallback
+  terminal paths.
 
 ## v0.36 report polish
 

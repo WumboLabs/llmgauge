@@ -286,6 +286,7 @@ Start here:
 - [Scoring rubrics](docs/SCORING_RUBRICS.md)
 - [Scored comparisons](docs/SCORED_COMPARISONS.md)
 - [Fit Ladder](docs/FIT_LADDER.md)
+- [Fit Ladder real-workflow evidence](docs/FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
 - [VRAM capture](docs/VRAM_CAPTURE.md)
 - [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
 - [Public reporting guidance](docs/PUBLIC_REPORTING.md)

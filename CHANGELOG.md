@@ -15,6 +15,11 @@
   and control-character bounds; older artifacts without the fields remain valid.
 
 ### Documentation
+- Recorded real operator validation of both Fit Ladder terminal paths
+  (`docs/FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md`): preserved OOM attempts,
+  success-child selection with stop-on-first-success, parent/child validation,
+  export-index representation, and parent-versus-child score-target behavior.
+  This is orchestration and artifact evidence, not a model-quality claim.
 - Consolidated the vLLM roadmap into implemented capability, validated evidence,
   closed investigation, active limitations, and the selected next bounded
   milestone (a real end-to-end Fit Ladder validation artifact).
