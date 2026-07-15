@@ -57,9 +57,7 @@ After `v0.66`, LLMGauge provides:
 ## Accepted architecture work
 
 The [initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md)
-defines a future externally managed, loopback-only, text-only server backend.
-It is an architecture decision only: current production execution remains
-`llama.cpp`/GGUF.
+defines an externally managed, loopback-only, text-only server backend.
 
 The [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md)
 accepts the Python standard library for that backend’s initial loopback HTTP
@@ -69,8 +67,40 @@ The first production slice of the externally managed vLLM adapter is
 implemented under those contracts: bounded readiness and served-model checks,
 one non-streaming chat-completions request per prompt, additive request/runtime
 evidence, validation, reporting, and public-export sanitization. Server
-lifecycle remains operator-owned. Real-runtime integration smoke and
-cross-runtime comparison methodology remain separate follow-on milestones.
+lifecycle remains operator-owned. Default production execution remains
+`llama.cpp`/GGUF unless `backend=vllm` is selected.
+
+### Completed: fitting-model vLLM integration smoke
+
+A real external-vLLM integration smoke on WumboJetsII is recorded in
+[VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md):
+
+- vLLM 0.25.1, RTX 5070 12 GB, operator-managed loopback server
+- Serving `Qwen/Qwen2.5-3B-Instruct` as `llmgauge-qwen25-3b-smoke` at context 8192
+- Direct `/v1/models` and `/v1/chat/completions` succeeded
+- LLMGauge dry run and real `run` for `agent-backend-v1` /
+  `tool-honesty/fake-tool-resistance` completed
+- Private result validation and public export validation passed
+- Source artifact immutability confirmed for the export
+
+**Claim boundary:** this proves one fitting Hugging Face model and one prompt
+through an externally managed local vLLM server. It does not prove arbitrary
+models, remote endpoints, streaming, concurrency, batching, ladders,
+long-context behavior, answer quality, or publication readiness without human
+review.
+
+### Next bounded vLLM work
+
+1. **Cross-runtime comparison methodology** — define which prompts, token
+   budgets, templates, sampling settings, metrics, and server-state disclosures
+   permit a bounded llama.cpp/vLLM comparison without assuming token or
+   throughput equivalence.
+2. **Server/version fingerprint capture** — optionally persist richer server
+   identity such as observed `vllm_version`, defensible `server_state`, and
+   direct-API `system_fingerprint` when available (currently unknown /
+   unpersisted by design in the first adapter slice).
+3. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
+   startup evidence; not gated by the Qwen smoke.
 
 ## Recently completed releases
 
