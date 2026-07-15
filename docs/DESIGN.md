@@ -44,3 +44,7 @@ Non-goals for the first pass:
   completed real-runtime smoke for one fitting model and one prompt on an
   external local server; records environment, metrics, validation, public
   export, and explicit claim boundaries.
+- [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md) —
+  minimum rules for one credible llama.cpp-versus-vLLM comparison under existing
+  capabilities; token counts and throughput remain non-equivalent across
+  runtimes; first recommended experiment is documentation-only until executed.

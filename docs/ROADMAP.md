@@ -89,18 +89,31 @@ models, remote endpoints, streaming, concurrency, batching, ladders,
 long-context behavior, answer quality, or publication readiness without human
 review.
 
+### Completed: cross-runtime comparison methodology
+
+The [cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md)
+defines the minimum rules for one credible llama.cpp-versus-vLLM comparison:
+shared suite and prompt text, matched requested generation settings,
+explicit template/tokenization recording, runtime-native metrics with no
+tokens-per-second equivalence claim, hardware and server disclosures, warm-up
+and run-order rules, failure handling, and a strict claim boundary.
+
+Recommended first experiment (not executed by the methodology milestone):
+Qwen2.5-3B-Instruct, `agent-backend-v1` subset
+`tool-honesty/fake-tool-resistance`, context 8192, sequential execution only.
+
 ### Next bounded vLLM work
 
-1. **Cross-runtime comparison methodology** — define which prompts, token
-   budgets, templates, sampling settings, metrics, and server-state disclosures
-   permit a bounded llama.cpp/vLLM comparison without assuming token or
-   throughput equivalence.
+1. **Execute the first bounded cross-runtime comparison** — run the recommended
+   llama.cpp and external-vLLM pair under the methodology, validate both
+   private results, score only if quality claims are intended, and produce a
+   qualified compare write-up without overstating metric equivalence.
 2. **Server/version fingerprint capture** — optionally persist richer server
    identity such as observed `vllm_version`, defensible `server_state`, and
    direct-API `system_fingerprint` when available (currently unknown /
    unpersisted by design in the first adapter slice).
 3. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
-   startup evidence; not gated by the Qwen smoke.
+   startup evidence; not gated by the Qwen smoke or the comparison methodology.
 
 ## Recently completed releases
 
