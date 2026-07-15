@@ -90,10 +90,14 @@ Direct `/v1/chat/completions` against the same loopback server succeeded with:
 | `total_tokens` | 41 |
 | `system_fingerprint` | `vllm-0.25.1-eb488855` |
 
-Note: the adapter does **not** currently persist `system_fingerprint` into
-LLMGauge artifacts. Capture of `system_fingerprint`, `vllm_version`, and richer
-`server_state` is deferred future evidence work, not a defect of this smoke
-documentation slice.
+Note: at the time of this historical smoke, the adapter did **not** persist
+`system_fingerprint` into LLMGauge artifacts. Capture of `system_fingerprint`,
+`vllm_version`, and richer `server_state` was deferred work for that slice, not
+a defect of this smoke documentation. Post-merge live verification of those
+fields is recorded separately in
+[VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md);
+this document remains the pre-fingerprint evidence record and is not rewritten
+to imply those fields existed here.
 
 ## Phase 3: LLMGauge dry run
 
@@ -172,13 +176,15 @@ Public export remains a sanitized derivative requiring human review before any
 publication. Structural validation and a clean scan do not equal publication
 readiness.
 
-## Evidence limitations (current)
+## Evidence limitations (this historical smoke)
 
 - Single host, single GPU class, single vLLM version, single model, single
   prompt, single context size.
 - Server lifecycle and admission logs remain operator-owned outside LLMGauge.
-- `vllm_version` and `server_state` in LLMGauge runtime evidence are `unknown`.
-- Direct-API `system_fingerprint` is not persisted by the adapter today.
+- For **this** pre-fingerprint smoke, `vllm_version` and `server_state` in
+  LLMGauge runtime evidence are `unknown`, and direct-API `system_fingerprint`
+  was not persisted by the adapter. Later capture and live verification are
+  documented in [VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md).
 - No manual scoring, comparison, ladder, batch, or multi-prompt suite expansion.
 - No remote endpoint, streaming, concurrency, or authentication exercise.
 

@@ -43,7 +43,11 @@ Non-goals for the first pass:
 - [vLLM live integration smoke evidence](VLLM_LIVE_SMOKE_EVIDENCE.md) —
   completed real-runtime smoke for one fitting model and one prompt on an
   external local server; records environment, metrics, validation, public
-  export, and explicit claim boundaries.
+  export, and explicit claim boundaries (historical pre-fingerprint slice).
+- [vLLM fingerprint live smoke evidence](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md) —
+  post-merge live verification of server `/version`, API-ready `server_state`,
+  and opaque `system_fingerprint` capture against one operator-managed loopback
+  server; field capture and artifact integration only.
 - [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md) —
   minimum rules for one credible llama.cpp-versus-vLLM comparison under existing
   capabilities; token counts and throughput remain non-equivalent across

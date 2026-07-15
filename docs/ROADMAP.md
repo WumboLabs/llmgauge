@@ -123,18 +123,37 @@ records the executed first llama.cpp-versus-vLLM pair under that methodology:
 answer was stronger; that does not prove general runtime superiority, model-
 family quality, or metric equivalence across backends.
 
+### Completed: server/version fingerprint capture and live verification
+
+Fingerprint capture is implemented in the adapter evidence path and was verified
+live against one operator-managed external vLLM server. Durable record:
+[VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md).
+
+- Server `GET /version` → `vllm_version` with `vllm_version_source`
+- API-ready `server_state` and `server_state_meaning` after readiness/model checks
+- Per-request `system_fingerprint` / `system_fingerprint_status` when present
+- Ordered-unique run-level `observed_system_fingerprints`
+- Live smoke: Qwen2.5-3B-Instruct alias
+  `llmgauge-qwen25-3b-fingerprint-smoke`, suite `agent-backend-v1` prompt
+  `tool-honesty/fake-tool-resistance`, ctx 8192, max tokens 128; run completed;
+  `validate-result` passed; report rendered; intentionally unscored
+- Observed: `vllm_version` `0.25.1`, `server_state` `ready`, fingerprint
+  `vllm-0.25.1-eb488855` agreed across request, prompt, and run-level summary
+
+**Claim boundary:** field capture and artifact integration against one real
+loopback server only. Does not authenticate the server, prove version truthfulness,
+make runs reproducible, imply identical runtime state from fingerprint equality,
+or establish answer quality. `server_state=ready` is API readiness only.
+`finish_reason=length` was the bounded token-budget outcome, not a metadata failure.
+
 ### Next bounded vLLM work
 
-1. **Server/version fingerprint capture** — completed in the adapter evidence
-   path: server `GET /version` → `vllm_version`, API-ready `server_state`,
-   per-request `system_fingerprint`, and ordered-unique run-level fingerprint
-   summary. Claim boundaries preserved (opaque fingerprint; version does not
-   prove launch configuration; lifecycle remains operator-owned).
-2. **Optional second-prompt replication** — same methodology and host class,
-   a second `agent-backend-v1` prompt, to test whether the single-prompt
-   quality gap holds; still not a ranking system.
-3. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
-   startup evidence; not gated by the Qwen smoke or comparison evidence.
+1. **Optional second-prompt cross-runtime replication** — same methodology and
+   host class, a second `agent-backend-v1` prompt, to test whether the
+   single-prompt quality gap holds; still not a ranking system.
+2. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
+   startup evidence; not gated by the Qwen smoke, comparison, or fingerprint
+   evidence.
 
 ## Recently completed releases
 
