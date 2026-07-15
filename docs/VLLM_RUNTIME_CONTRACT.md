@@ -409,15 +409,16 @@ The following remain explicitly deferred:
 The proposed sequence is accepted with one qualification: dependency admission
 is a decision, not a presumed outcome.
 
-1. **HTTP transport assessment and dependency admission, if needed.** Prove
-   whether the Python standard library can satisfy loopback validation, proxy
-   bypass, redirect rejection, bounded connect/request timeouts, cancellation,
-   bounded JSON handling, and deterministic tests. Add a lightweight dependency
-   only if a documented gap remains. This is the exact recommended next
-   milestone.
+1. **HTTP transport assessment and dependency admission, if needed.** Completed
+   by the [HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md): the
+   Python standard library is admitted for the initial loopback transport; no
+   third-party HTTP client is required. Reopen dependency admission only if a
+   later implementation proves a documented gap.
 2. **Externally managed vLLM adapter.** Implement the text-only, single-request,
    non-streaming boundary plus additive schema, validator, report, and
-   public-export support. Do not manage the server.
+   public-export support, using the accepted standard-library transport
+   approach. Do not manage the server. This is the exact recommended next
+   milestone.
 3. **Fitting-model integration smoke.** Against an operator-reviewed local
    server and a checkpoint known to fit, verify admission evidence, one request,
    artifacts, metrics, failure handling, and public sanitization. This is the

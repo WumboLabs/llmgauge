@@ -59,9 +59,13 @@ After `v0.66`, LLMGauge provides:
 The [initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md)
 defines a future externally managed, loopback-only, text-only server backend.
 It is an architecture decision only: current production execution remains
-`llama.cpp`/GGUF. The next bounded milestone is HTTP transport assessment and
-dependency admission only if the Python standard library cannot satisfy the
-accepted transport and security requirements.
+`llama.cpp`/GGUF.
+
+The [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md)
+accepts the Python standard library for that backend’s initial loopback HTTP
+client and does not admit a third-party HTTP dependency. The next bounded
+milestone is the externally managed vLLM adapter implementation under those
+contracts.
 
 ## Recently completed releases
 

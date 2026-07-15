@@ -32,3 +32,7 @@ Non-goals for the first pass:
   externally managed, loopback-only, text-only OpenAI-compatible server
   integration. This is an accepted architecture boundary, not a statement that
   the backend is implemented.
+- [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) —
+  standard-library HTTP transport is admitted for the initial vLLM client;
+  no third-party HTTP dependency is required for the accepted loopback
+  contract.
