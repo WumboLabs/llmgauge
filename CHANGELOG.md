@@ -16,6 +16,12 @@
 
 ### Documentation
 
+- Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit
+  (`docs/GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md`): mixed FP8/NVFP4 runtime
+  recognition, requested-versus-observed offload distinction, construction-time
+  BF16 LM-head CUDA OOM, `not_viable` for the disclosed configuration, cleanup
+  verification, and narrow non-generalized claim boundaries. Updated roadmap
+  completion status and design discoverability.
 - Recorded completed second-prompt llama.cpp-versus-vLLM cross-runtime
   replication evidence
   (`docs/VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md`): same methodology and
