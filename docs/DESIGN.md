@@ -57,3 +57,6 @@ Non-goals for the first pass:
 - [Gemma 4 12B NVFP4 CPU-offload evidence](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md) —
   completed one-checkpoint, one-host admission audit; `not_viable` only for the
   disclosed configuration after a construction-time BF16 LM-head CUDA OOM.
+- [Fit Ladder real-workflow evidence](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md) —
+  completed operator validation of total-failure and success-after-fallback
+  terminal paths; orchestration and artifact evidence only, not model quality.

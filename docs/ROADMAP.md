@@ -125,13 +125,36 @@ The bounded vLLM evidence track is complete enough for the present release line.
 No immediate production feature expansion is justified solely by the current
 evidence. Future vLLM work requires a concrete product or evidence need.
 
+## Fit Ladder real-workflow evidence
+
+The [real-workflow evidence record](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
+completes bounded operator validation of both principal Fit Ladder terminal
+paths:
+
+- total failure after all planned contexts produced preserved, retryable OOM
+  attempts, with no selected child;
+- success after fallback, with one preserved OOM, one completed selected child,
+  and stop before the remaining lower context.
+
+Both parents, every executed child, and both export-index records validated.
+Parent scoring was rejected in both paths; the completed selected child was
+admitted as a normal single-run scoring target. These results validate
+orchestration and artifact handling on one host, binary, and prompt. They do not
+establish model quality, optimal context, a hardware support matrix, or a
+cross-model ranking.
+
 ### Selected next bounded project milestone
 
-**Produce and review one real end-to-end Fit Ladder validation artifact.**
-This is the strongest existing project-level next step because Fit Ladder is
-already implemented and documented, and a preserved-failure artifact directly
-advances LLMGauge as a practical local-model evaluation engine without
-speculative vLLM expansion or another random model experiment.
+**Produce one review-ready public practical evidence package from existing
+validated and manually reviewed artifacts.**
+
+This advances the current public-reporting focus without another model run or
+runtime expansion. The milestone should select one already validated and
+manually scored bounded result set, prepare only sanitized derived public
+artifacts, exercise the documented publish-readiness checklist, and record
+source-integrity and human-review findings. It must not publish automatically,
+rescore results, generalize beyond the selected evidence, or add network
+behavior.
 
 ## Recently completed releases
 
