@@ -12,6 +12,7 @@ from typing import Any
 
 from llmgauge.runners.vllm_http import (
     PROXY_BYPASS_POLICY,
+    ValidatedEndpoint,
     VllmTransportError,
     decode_json_object,
     http_request,
@@ -26,6 +27,15 @@ VLLM_RUNTIME_EVIDENCE_FILENAME = "vllm-runtime-evidence.json"
 DEFAULT_CONNECT_TIMEOUT = 5.0
 DEFAULT_REQUEST_TIMEOUT = 120.0
 DEFAULT_MAX_RESPONSE_BYTES = 2_000_000
+
+# Bounded untrusted server metadata (version endpoint + OpenAI-compatible fields).
+MAX_VLLM_VERSION_LENGTH = 64
+MAX_SYSTEM_FINGERPRINT_LENGTH = 256
+SERVER_STATE_READY = "ready"
+SERVER_STATE_UNKNOWN = "unknown"
+SYSTEM_FINGERPRINT_STATUS_PRESENT = "present"
+SYSTEM_FINGERPRINT_STATUS_ABSENT = "absent"
+SYSTEM_FINGERPRINT_STATUS_INVALID = "invalid"
 
 FAILURE_CLASSES = frozenset(
     {
@@ -42,6 +52,64 @@ FAILURE_CLASSES = frozenset(
         "model_admission_load_failure",
     }
 )
+
+
+def _contains_control_characters(value: str) -> bool:
+    """True if any C0 control character or DEL is present."""
+    return any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+
+
+def parse_bounded_server_string(
+    value: Any,
+    *,
+    max_length: int,
+) -> str | None:
+    """Accept a non-empty string within length and character bounds, else None.
+
+    Treats server-supplied metadata as untrusted. Does not raise; callers map
+    None to unknown/absent/invalid without embedding raw payloads.
+    """
+    if not isinstance(value, str):
+        return None
+    if not value or len(value) > max_length:
+        return None
+    if _contains_control_characters(value):
+        return None
+    return value
+
+
+def extract_system_fingerprint(
+    payload: dict[str, Any],
+) -> tuple[str | None, str]:
+    """Extract optional top-level system_fingerprint from a chat response.
+
+    Returns (fingerprint_or_none, status) where status is present|absent|invalid.
+    Invalid metadata never includes the raw value and does not fail the response.
+    """
+    if "system_fingerprint" not in payload:
+        return None, SYSTEM_FINGERPRINT_STATUS_ABSENT
+    raw = payload.get("system_fingerprint")
+    if raw is None:
+        return None, SYSTEM_FINGERPRINT_STATUS_ABSENT
+    parsed = parse_bounded_server_string(
+        raw,
+        max_length=MAX_SYSTEM_FINGERPRINT_LENGTH,
+    )
+    if parsed is None:
+        return None, SYSTEM_FINGERPRINT_STATUS_INVALID
+    return parsed, SYSTEM_FINGERPRINT_STATUS_PRESENT
+
+
+def ordered_unique_fingerprints(values: list[str]) -> list[str]:
+    """Preserve first-seen order of non-empty fingerprint strings."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
 
 
 @dataclass(frozen=True)
@@ -77,6 +145,8 @@ class VllmRequestResult:
     endpoint_identity: dict[str, Any] = field(default_factory=dict)
     request_evidence: dict[str, Any] = field(default_factory=dict)
     incomplete_usage: bool = False
+    system_fingerprint: str | None = None
+    system_fingerprint_status: str | None = None
 
 
 @dataclass
@@ -90,6 +160,8 @@ class VllmReadinessResult:
     http_status: int | None = None
     wall_time_seconds: float | None = None
     evidence: dict[str, Any] = field(default_factory=dict)
+    vllm_version: str = "unknown"
+    server_state: str = SERVER_STATE_UNKNOWN
 
 
 def build_endpoint_identity(url: str) -> dict[str, Any]:
@@ -184,6 +256,55 @@ def _server_error_class(status: int) -> str:
     if status >= 400:
         return "server_request_error"
     return "malformed_response"
+
+
+def _version_path_for_endpoint(endpoint_path: str) -> str:
+    """vLLM exposes version at server root `/version`, not under `/v1`."""
+    _ = endpoint_path  # endpoint base path does not relocate /version
+    return "/version"
+
+
+def fetch_vllm_version(
+    config: VllmExternalConfig,
+    *,
+    endpoint: ValidatedEndpoint | None = None,
+) -> str:
+    """GET /version on the local server; return a bounded version string or unknown.
+
+    Never fails the evaluation run. Does not store raw response bodies on parse
+    failure. Does not infer version from labels, model names, packages, or
+    system_fingerprint.
+    """
+    try:
+        if endpoint is None:
+            endpoint = validate_vllm_endpoint(config.endpoint_url)
+        response = http_request(
+            endpoint,
+            method="GET",
+            path=_version_path_for_endpoint(endpoint.path),
+            body=None,
+            connect_timeout=config.connect_timeout,
+            request_timeout=min(config.request_timeout, config.connect_timeout + 15.0),
+            max_response_bytes=min(config.max_response_bytes, 64_000),
+        )
+    except VllmTransportError:
+        return "unknown"
+
+    if response.status != 200:
+        return "unknown"
+
+    try:
+        payload = decode_json_object(response.body)
+    except VllmTransportError:
+        return "unknown"
+
+    version = parse_bounded_server_string(
+        payload.get("version"),
+        max_length=MAX_VLLM_VERSION_LENGTH,
+    )
+    if version is None:
+        return "unknown"
+    return version
 
 
 def check_readiness_and_model(
@@ -300,15 +421,24 @@ def check_readiness_and_model(
                 "failure_class": "served_model_mismatch",
                 "failure_detail": "requested_model_not_listed",
                 "endpoint_identity": response.endpoint_identity or identity,
+                "vllm_version": "unknown",
+                # Distinct from readiness_status: no API-ready observation.
+                "server_state": SERVER_STATE_UNKNOWN,
             },
         )
 
+    # Version is best-effort after a successful models list + model presence check.
+    vllm_version = fetch_vllm_version(config, endpoint=endpoint)
+    # server_state=ready means only: models GET succeeded, payload valid, and
+    # requested served model is listed. Not process state, PID, GPU, or warmth.
     return VllmReadinessResult(
         success=True,
         endpoint_identity=response.endpoint_identity or identity,
         served_models=served,
         observed_model=requested,
         wall_time_seconds=wall,
+        vllm_version=vllm_version,
+        server_state=SERVER_STATE_READY,
         evidence={
             "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
             "lifecycle_ownership": "external_operator",
@@ -318,8 +448,11 @@ def check_readiness_and_model(
             "observed_served_model": requested,
             "readiness_status": "ready",
             "endpoint_identity": response.endpoint_identity or identity,
-            "vllm_version": "unknown",
-            "server_state": "unknown",
+            "vllm_version": vllm_version,
+            "server_state": SERVER_STATE_READY,
+            "vllm_version_source": (
+                "server_/version" if vllm_version != "unknown" else "unavailable"
+            ),
         },
     )
 
@@ -480,6 +613,9 @@ def run_chat_completion(
             wall_time=wall,
         )
 
+    # Optional opaque backend metadata; invalid values never discard the answer.
+    system_fingerprint, fingerprint_status = extract_system_fingerprint(payload)
+
     observed_model = payload.get("model")
     if not isinstance(observed_model, str):
         observed_model = None
@@ -505,7 +641,7 @@ def run_chat_completion(
     system_text = (
         system_prompt if isinstance(system_prompt, str) and system_prompt else None
     )
-    evidence = {
+    evidence: dict[str, Any] = {
         "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
         "lifecycle_ownership": "external_operator",
         "streaming": False,
@@ -533,7 +669,14 @@ def run_chat_completion(
         "proxy_bypass_policy": PROXY_BYPASS_POLICY,
         "max_tokens_field": "max_tokens",
         "incomplete_usage_metadata": incomplete_usage,
+        "system_fingerprint_status": fingerprint_status,
     }
+    if system_fingerprint is not None:
+        evidence["system_fingerprint"] = system_fingerprint
+        evidence["system_fingerprint_claim"] = (
+            "opaque backend-provided metadata; not a stable server, build, "
+            "model, hardware, or reproducibility identity"
+        )
 
     return VllmRequestResult(
         success=True,
@@ -551,6 +694,8 @@ def run_chat_completion(
         incomplete_usage=incomplete_usage,
         failure_class="incomplete_usage_metadata" if incomplete_usage else None,
         failure_detail="usage_fields_incomplete" if incomplete_usage else None,
+        system_fingerprint=system_fingerprint,
+        system_fingerprint_status=fingerprint_status,
     )
 
 
@@ -583,8 +728,16 @@ def build_runtime_evidence_document(
     config: VllmExternalConfig,
     readiness: VllmReadinessResult,
     endpoint_identity: dict[str, Any],
+    observed_system_fingerprints: list[str] | None = None,
 ) -> dict[str, Any]:
-    return {
+    """Build run-level vLLM evidence. server_state is API-ready observation only."""
+    vllm_version = readiness.vllm_version if readiness.success else "unknown"
+    if readiness.success:
+        server_state = readiness.server_state or SERVER_STATE_READY
+    else:
+        server_state = SERVER_STATE_UNKNOWN
+    fingerprints = ordered_unique_fingerprints(observed_system_fingerprints or [])
+    doc: dict[str, Any] = {
         "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
         "lifecycle_ownership": "external_operator",
         "backend": "vllm",
@@ -600,11 +753,27 @@ def build_runtime_evidence_document(
         "connect_timeout_seconds": config.connect_timeout,
         "request_timeout_seconds": config.request_timeout,
         "max_response_bytes": config.max_response_bytes,
-        "vllm_version": "unknown",
-        "server_state": "unknown",
+        "vllm_version": vllm_version,
+        "vllm_version_source": (
+            "server_/version" if vllm_version != "unknown" else "unavailable"
+        ),
+        # Distinct from readiness_status: ready only after successful models check
+        # and served-model presence. Not process ownership, cold/warm, or GPU state.
+        "server_state": server_state,
+        "server_state_meaning": (
+            "api_ready_observation"
+            if server_state == SERVER_STATE_READY
+            else "unavailable"
+        ),
         "streaming": False,
         "authentication": "none",
+        "observed_system_fingerprints": fingerprints,
+        "system_fingerprint_claim": (
+            "opaque backend-provided metadata when present; equality does not "
+            "prove identical runtime state; inequality must not be overinterpreted"
+        ),
     }
+    return doc
 
 
 def format_failure_log(result: VllmRequestResult | VllmReadinessResult) -> str:

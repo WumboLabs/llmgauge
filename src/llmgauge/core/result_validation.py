@@ -33,6 +33,108 @@ REQUIRED_PROMPT_RESULT_KEYS = [
     "metrics",
 ]
 
+# Bounds for optional untrusted vLLM server metadata (additive fields).
+_MAX_VLLM_VERSION_LENGTH = 64
+_MAX_SYSTEM_FINGERPRINT_LENGTH = 256
+_ALLOWED_SERVER_STATES = frozenset({"ready", "unknown", "cold", "warm"})
+_ALLOWED_FINGERPRINT_STATUSES = frozenset({"present", "absent", "invalid"})
+
+
+def _contains_control_characters(value: str) -> bool:
+    return any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+
+
+def _validate_bounded_optional_string(
+    value: Any,
+    *,
+    label: str,
+    max_length: int,
+    allow_unknown: bool = False,
+) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, str):
+        return [f"{label} must be a string when present"]
+    if allow_unknown and value == "unknown":
+        return []
+    if not value:
+        return [f"{label} must be non-empty when present"]
+    if len(value) > max_length:
+        return [f"{label} exceeds maximum length {max_length}"]
+    if _contains_control_characters(value):
+        return [f"{label} must not contain control characters"]
+    return []
+
+
+def _validate_optional_system_fingerprint(
+    mapping: dict[str, Any],
+    *,
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    if "system_fingerprint" in mapping:
+        errors.extend(
+            _validate_bounded_optional_string(
+                mapping.get("system_fingerprint"),
+                label=f"{label}.system_fingerprint",
+                max_length=_MAX_SYSTEM_FINGERPRINT_LENGTH,
+            )
+        )
+    status = mapping.get("system_fingerprint_status")
+    if status is not None:
+        if not isinstance(status, str):
+            errors.append(
+                f"{label}.system_fingerprint_status must be a string when present"
+            )
+        elif status not in _ALLOWED_FINGERPRINT_STATUSES:
+            errors.append(
+                f"{label}.system_fingerprint_status must be one of "
+                "present, absent, invalid"
+            )
+    return errors
+
+
+def _validate_optional_vllm_runtime_metadata(
+    mapping: dict[str, Any],
+    *,
+    label: str,
+) -> list[str]:
+    """Validate optional vLLM version/state/fingerprint fields when present."""
+    errors: list[str] = []
+    if "vllm_version" in mapping:
+        errors.extend(
+            _validate_bounded_optional_string(
+                mapping.get("vllm_version"),
+                label=f"{label}.vllm_version",
+                max_length=_MAX_VLLM_VERSION_LENGTH,
+                allow_unknown=True,
+            )
+        )
+    server_state = mapping.get("server_state")
+    if server_state is not None:
+        if not isinstance(server_state, str):
+            errors.append(f"{label}.server_state must be a string when present")
+        elif server_state not in _ALLOWED_SERVER_STATES:
+            errors.append(
+                f"{label}.server_state must be one of ready, unknown, cold, warm"
+            )
+    fingerprints = mapping.get("observed_system_fingerprints")
+    if fingerprints is not None:
+        if not isinstance(fingerprints, list):
+            errors.append(
+                f"{label}.observed_system_fingerprints must be a list when present"
+            )
+        else:
+            for index, item in enumerate(fingerprints):
+                errors.extend(
+                    _validate_bounded_optional_string(
+                        item,
+                        label=f"{label}.observed_system_fingerprints[{index}]",
+                        max_length=_MAX_SYSTEM_FINGERPRINT_LENGTH,
+                    )
+                )
+    return errors
+
 
 def load_result_json(result_dir: Path) -> dict[str, Any]:
     result_path = result_dir / "llmgauge-result.json"
@@ -299,6 +401,12 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                                         "vLLM runtime evidence endpoint_identity "
                                         f"must not include {forbidden}"
                                     )
+                    errors.extend(
+                        _validate_optional_vllm_runtime_metadata(
+                            evidence_data,
+                            label="vLLM runtime evidence",
+                        )
+                    )
 
             for key in ("endpoint_identity",):
                 value = runtime.get(key)
@@ -315,6 +423,13 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 if value is not None and not isinstance(value, str):
                     errors.append(f"runtime.{key} must be a string when present")
 
+            errors.extend(
+                _validate_optional_vllm_runtime_metadata(
+                    runtime,
+                    label="runtime",
+                )
+            )
+
     # Optional per-prompt vLLM request evidence (additive).
     results = data.get("results")
     if isinstance(results, list):
@@ -324,6 +439,23 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
             prompt_id = prompt_result.get("prompt_id", "prompt")
             request_path_value = prompt_result.get("request_evidence_path")
             if request_path_value is None:
+                # Still validate optional in-result fingerprint fields.
+                errors.extend(
+                    _validate_optional_system_fingerprint(
+                        prompt_result,
+                        label=str(prompt_id),
+                    )
+                )
+                failure_class = prompt_result.get("failure_class")
+                if failure_class is not None and not isinstance(failure_class, str):
+                    errors.append(
+                        f"{prompt_id}.failure_class must be a string when present"
+                    )
+                finish_reason = prompt_result.get("finish_reason")
+                if finish_reason is not None and not isinstance(finish_reason, str):
+                    errors.append(
+                        f"{prompt_id}.finish_reason must be a string when present"
+                    )
                 continue
             if not isinstance(request_path_value, str) or not request_path_value:
                 errors.append(
@@ -354,6 +486,20 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                             f"{prompt_id} request evidence schema_version must be "
                             "llmgauge.vllm_request_evidence.v0"
                         )
+                    else:
+                        errors.extend(
+                            _validate_optional_system_fingerprint(
+                                request_data,
+                                label=f"{prompt_id} request evidence",
+                            )
+                        )
+
+            errors.extend(
+                _validate_optional_system_fingerprint(
+                    prompt_result,
+                    label=str(prompt_id),
+                )
+            )
 
             failure_class = prompt_result.get("failure_class")
             if failure_class is not None and not isinstance(failure_class, str):
