@@ -253,12 +253,52 @@ Expected fields:
 
 Notes:
 
-- `backend` is currently `llama.cpp`.
+- `backend` is `llama.cpp` (default) or `vllm` for the external-server slice.
 - `reasoning_mode` is one of `off`, `on`, `auto`, `default`, or `unknown`.
 - `command` should redact the model path (legacy inline summary).
 - `runtime_command_path` points to `runtime-command.json` when captured.
+- For `backend=vllm`, command metadata is not captured; use
+  `vllm-runtime-evidence.json` and per-prompt `request/*.json` instead.
 - `config_path` and `model_profiles_path` may be local-machine specific.
 - Future hardening may add stronger path redaction for public exports.
+
+## Schema: llmgauge.vllm_runtime_evidence.v0
+
+Primary file:
+
+    vllm-runtime-evidence.json
+
+Expected fields (optional values may be `unknown` or null):
+
+    schema_version
+    lifecycle_ownership
+    backend
+    proxy_bypass_policy
+    endpoint_identity
+    requested_served_model
+    observed_served_model
+    observed_served_models
+    readiness_status
+    connect_timeout_seconds
+    request_timeout_seconds
+    max_response_bytes
+    vllm_version
+    server_state
+    streaming
+    authentication
+
+`endpoint_identity` records only scheme, loopback class, port, and proxy-bypass
+policy. Raw URLs, credentials, headers, and proxy environment values are not
+stored.
+
+## Schema: llmgauge.vllm_request_evidence.v0
+
+Primary files:
+
+    request/<prompt_id>.json
+
+Bounded per-request evidence for non-streaming chat-completions. Does not store
+full response bodies, arbitrary headers, or raw endpoint URLs.
 
 New v0.70-compatible results may include optional `runtime.backend_provenance`.
 LLMGauge remains llama.cpp-first; this is not a generic backend abstraction.

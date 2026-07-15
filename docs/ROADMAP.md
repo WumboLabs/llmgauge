@@ -63,9 +63,14 @@ It is an architecture decision only: current production execution remains
 
 The [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md)
 accepts the Python standard library for that backend’s initial loopback HTTP
-client and does not admit a third-party HTTP dependency. The next bounded
-milestone is the externally managed vLLM adapter implementation under those
-contracts.
+client and does not admit a third-party HTTP dependency.
+
+The first production slice of the externally managed vLLM adapter is
+implemented under those contracts: bounded readiness and served-model checks,
+one non-streaming chat-completions request per prompt, additive request/runtime
+evidence, validation, reporting, and public-export sanitization. Server
+lifecycle remains operator-owned. Real-runtime integration smoke and
+cross-runtime comparison methodology remain separate follow-on milestones.
 
 ## Recently completed releases
 

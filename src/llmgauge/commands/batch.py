@@ -71,6 +71,10 @@ def run_batch(
                 flash_attn=None,
                 runtime_label=None,
             )
+            run_helpers.reject_unsupported_vllm_command(
+                resolved,
+                command="run-batch",
+            )
 
             result = run_helpers.execute_run(
                 suite=suite_path,

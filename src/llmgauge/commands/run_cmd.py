@@ -109,6 +109,36 @@ def run(
         "--reasoning-mode",
         help="Reasoning mode: off, on, auto, default, or unknown",
     ),
+    backend: str | None = typer.Option(
+        None,
+        "--backend",
+        help="Runtime backend: llama.cpp (default) or vllm",
+    ),
+    vllm_endpoint: str | None = typer.Option(
+        None,
+        "--vllm-endpoint",
+        help="Loopback HTTP endpoint for an operator-managed vLLM server",
+    ),
+    served_model: str | None = typer.Option(
+        None,
+        "--served-model",
+        help="Served model name expected from the vLLM OpenAI-compatible API",
+    ),
+    connect_timeout: float | None = typer.Option(
+        None,
+        "--connect-timeout",
+        help="vLLM connect timeout in seconds",
+    ),
+    request_timeout: float | None = typer.Option(
+        None,
+        "--request-timeout",
+        help="vLLM whole-request timeout in seconds",
+    ),
+    max_response_bytes: int | None = typer.Option(
+        None,
+        "--max-response-bytes",
+        help="Maximum vLLM response body size before JSON decode",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output result directory"),
     auto_name: bool = typer.Option(
         False,
@@ -131,7 +161,7 @@ def run(
         help="Resolve and print the run plan without launching llama.cpp",
     ),
 ) -> None:
-    """Run one or more prompts through llama.cpp."""
+    """Run one or more prompts through llama.cpp or an external vLLM server."""
     resolved = run_helpers.resolve_run_options(
         model_id=model_id,
         model_profile=model_profile,
@@ -149,6 +179,12 @@ def run(
         flash_attn=flash_attn,
         runtime_label=runtime_label,
         reasoning_mode=reasoning_mode,
+        backend=backend,
+        vllm_endpoint=vllm_endpoint,
+        served_model=served_model,
+        connect_timeout=connect_timeout,
+        request_timeout=request_timeout,
+        max_response_bytes=max_response_bytes,
     )
 
     if dry_run:

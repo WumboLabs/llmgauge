@@ -97,12 +97,48 @@ local path data. Architecture, quantization, and GGUF metadata are deferred.
 Unavailable provenance is recorded explicitly rather than making an otherwise
 usable run invalid.
 
+### vLLM external-server runtime (additive)
+
+When `runtime.backend` is `vllm`, results may include optional fields and
+artifacts. Missing optional vLLM metadata remains valid and is treated as
+unknown. Legacy llama.cpp and earlier v0.x results remain valid without these
+fields.
+
+This slice supports `llmgauge run` only. Batch, ladder, and fit-ladder reject
+`backend=vllm` fail-closed before evaluation HTTP. Local `--model-path` /
+profile `path` values are rejected for vLLM; directory-model and GGUF
+provenance remain deferred. Model identity is the requested/observed
+served-model name. Chat requests send ordered system and user messages;
+`raw/*.prompt.md` remains a human-readable combined form and is not claimed
+identical to the chat message list.
+
+Optional runtime fields:
+
+- `lifecycle_ownership` (expected: `external_operator`)
+- `endpoint_identity` — sanitized scheme, loopback class, and port only
+- `requested_served_model` / `observed_served_model`
+- `connect_timeout_seconds` / `request_timeout_seconds` / `max_response_bytes`
+- `vllm_runtime_evidence_captured` / `vllm_runtime_evidence_path`
+- `proxy_bypass_policy`, `streaming`, `authentication`
+- `runtime_command_captured` is false; `runtime-command.json` is not used for HTTP evidence
+
+Optional artifacts:
+
+- `vllm-runtime-evidence.json` (`llmgauge.vllm_runtime_evidence.v0`)
+- per-prompt `request/<prompt>.json` (`llmgauge.vllm_request_evidence.v0`) referenced by
+  `results[].request_evidence_path`
+
+Optional per-prompt fields: `failure_class`, `failure_detail`, `finish_reason`,
+`observed_served_model`, and additive metrics such as
+`request_wall_time_seconds` and `end_to_end_completion_tps` (end-to-end, not
+decode-only; not claimed equivalent to llama.cpp `generation_tps`).
+
 ### Backend provenance
 
 New real-run results may include additive `runtime.backend_provenance` metadata.
 Current fields are:
 
-- `backend_name`: `llama.cpp`
+- `backend_name`: `llama.cpp` or `vllm`
 - `executable_filename`
 - `executable_file_size_bytes`
 - `executable_sha256`: full local executable SHA-256 when available

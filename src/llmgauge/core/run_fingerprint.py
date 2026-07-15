@@ -35,7 +35,19 @@ def _sha256_is_available(value: Any) -> bool:
     return isinstance(value, str) and bool(_SHA256_HEX_RE.fullmatch(value))
 
 
-def _artifact_sha256(result_dir: Path, relative_path: Any, *, label: str) -> str:
+def resolve_contained_result_artifact(
+    result_dir: Path,
+    relative_path: Any,
+    *,
+    label: str,
+    require_file: bool = True,
+) -> Path:
+    """Resolve a result-relative artifact path with containment checks.
+
+    Requires a non-empty relative path, rejects absolute paths and ``..``
+    components, walks each path component rejecting symlinks, then confirms the
+    resolved target remains inside the result directory via ``relative_to``.
+    """
     if relative_path is None:
         raise FingerprintUnavailable(f"{label} path is missing")
     if not isinstance(relative_path, str) or not relative_path:
@@ -59,12 +71,18 @@ def _artifact_sha256(result_dir: Path, relative_path: Any, *, label: str) -> str
                     f"{label} artifact path escapes result directory: "
                     f"{relative_path}"
                 )
-        if not cursor.is_file():
-            raise FingerprintUnavailable(
-                f"{label} artifact is missing: {relative_path}"
-            )
-
-        resolved = cursor.resolve(strict=True)
+        if require_file:
+            if not cursor.is_file():
+                raise FingerprintUnavailable(
+                    f"{label} missing artifact: {relative_path}"
+                )
+            resolved = cursor.resolve(strict=True)
+        else:
+            if not cursor.exists():
+                raise FingerprintUnavailable(
+                    f"{label} missing artifact: {relative_path}"
+                )
+            resolved = cursor.resolve(strict=True)
         try:
             resolved.relative_to(boundary)
         except ValueError:
@@ -72,7 +90,23 @@ def _artifact_sha256(result_dir: Path, relative_path: Any, *, label: str) -> str
                 f"{label} artifact path escapes result directory: "
                 f"{relative_path}"
             ) from None
+        return cursor
+    except FingerprintUnavailable:
+        raise
+    except OSError:
+        raise FingerprintUnavailable(
+            f"{label} artifact is unreadable: {relative_path}"
+        ) from None
 
+
+def _artifact_sha256(result_dir: Path, relative_path: Any, *, label: str) -> str:
+    cursor = resolve_contained_result_artifact(
+        result_dir,
+        relative_path,
+        label=label,
+        require_file=True,
+    )
+    try:
         digest = hashlib.sha256()
         with cursor.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):

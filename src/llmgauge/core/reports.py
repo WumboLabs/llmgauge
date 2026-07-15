@@ -27,6 +27,83 @@ def _fmt_optional_throughput(value: Any = _MISSING) -> str:
     return "-"
 
 
+def _fmt_endpoint_identity(identity: Any) -> str:
+    if not isinstance(identity, dict):
+        return "unknown"
+    scheme = identity.get("scheme") or "unknown"
+    loopback = identity.get("loopback_class") or "unknown"
+    port = identity.get("port")
+    port_text = str(port) if port is not None else "unknown"
+    return f"{scheme} loopback_class={loopback} port={port_text}"
+
+
+def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
+    backend = runtime.get("backend") or "unknown"
+    lines = [f"- Backend: {backend}"]
+
+    if backend == "vllm":
+        lines.extend(
+            [
+                f"- Lifecycle ownership: {runtime.get('lifecycle_ownership') or 'external_operator'}",
+                f"- Endpoint identity: {_fmt_endpoint_identity(runtime.get('endpoint_identity'))}",
+                f"- Requested served model: {runtime.get('requested_served_model') or 'unknown'}",
+                f"- Observed served model: {runtime.get('observed_served_model') or 'unknown'}",
+                f"- Connect timeout s: {runtime.get('connect_timeout_seconds', 'unknown')}",
+                f"- Request timeout s: {runtime.get('request_timeout_seconds', 'unknown')}",
+                f"- Max response bytes: {runtime.get('max_response_bytes', 'unknown')}",
+                f"- Context (requested): {runtime.get('ctx_size', 'unknown')}",
+                f"- Max tokens: {runtime.get('max_tokens')}",
+                f"- Temperature: {runtime.get('temperature')}",
+                f"- Top-p: {runtime.get('top_p')}",
+                f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+                f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
+                f"- Streaming: {runtime.get('streaming', False)}",
+                f"- Authentication: {runtime.get('authentication') or 'none'}",
+                f"- Proxy bypass policy: {runtime.get('proxy_bypass_policy') or 'unknown'}",
+                (
+                    "- vLLM runtime evidence: captured"
+                    if runtime.get("vllm_runtime_evidence_captured")
+                    else "- vLLM runtime evidence: missing"
+                ),
+                (
+                    f"- vLLM runtime evidence artifact: `{runtime['vllm_runtime_evidence_path']}`"
+                    if runtime.get("vllm_runtime_evidence_path")
+                    else "- vLLM runtime evidence artifact: not recorded"
+                ),
+                "- Command metadata: not used for vLLM (HTTP request evidence is separate)",
+                "- Cross-runtime note: token counts and throughput are not claimed equivalent to llama.cpp.",
+            ]
+        )
+        return lines
+
+    lines.extend(
+        [
+            f"- llama-cli: {runtime.get('llama_cli', 'unknown')}",
+            f"- Context: {runtime.get('ctx_size')}",
+            f"- Max tokens: {runtime.get('max_tokens')}",
+            f"- Temperature: {runtime.get('temperature')}",
+            f"- Top-p: {runtime.get('top_p')}",
+            f"- Batch: {runtime.get('batch_size')}",
+            f"- UBatch: {runtime.get('ubatch_size')}",
+            f"- GPU layers: {runtime.get('gpu_layers')}",
+            f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
+            f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
+            f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
+            (
+                "- Command metadata: captured"
+                if runtime.get("runtime_command_captured")
+                else "- Command metadata: missing"
+            ),
+            (
+                f"- Command artifact: `{runtime['runtime_command_path']}`"
+                if runtime.get("runtime_command_path")
+                else "- Command artifact: not recorded"
+            ),
+        ]
+    )
+    return lines
+
+
 def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
     score = prompt_result.get("score")
     return score if isinstance(score, dict) else {}
@@ -221,11 +298,15 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
             if summary.get("manual_score_average") is not None
             else "- Manual score average: None"
         ),
-        f"- Runtime: {runtime['backend']}, ctx={runtime['ctx_size']}, max_tokens={runtime['max_tokens']}, temp={runtime['temperature']}, top_p={runtime['top_p']}",
+        f"- Runtime: {runtime['backend']}, ctx={runtime.get('ctx_size', 'unknown')}, max_tokens={runtime['max_tokens']}, temp={runtime['temperature']}, top_p={runtime['top_p']}",
         f"- Model source: {model.get('model_source') or 'unknown'}",
         f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
         f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
-        f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
+        (
+            f"- Flash attention: {runtime.get('flash_attn', 'unknown')}"
+            if runtime.get("backend") != "vllm"
+            else "- Flash attention: not applicable (vLLM external server)"
+        ),
         f"- Peak VRAM MiB: {_fmt_optional_mib(peak_vram)}",
         f"- Min VRAM headroom MiB: {_fmt_optional_mib(min_headroom)}",
         (
@@ -341,8 +422,8 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
         "- VRAM samples are operational telemetry captured locally.",
         "- Scores are review metadata; trace public claims to raw/cleaned outputs and rationales below.",
         "",
-        "| Prompt | Status | Raw output | Cleaned output | Stderr log | VRAM samples |",
-        "|---|---|---|---|---|---|",
+        "| Prompt | Status | Raw output | Cleaned output | Stderr log | Request evidence | VRAM samples |",
+        "|---|---|---|---|---|---|---|",
     ]
 
     for prompt_result in result.get("results", []):
@@ -351,6 +432,7 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
         raw_output = prompt_result.get("raw_output_path")
         cleaned_output = prompt_result.get("cleaned_output_path")
         stderr_log = prompt_result.get("stderr_log_path")
+        request_evidence = prompt_result.get("request_evidence_path")
         vram_samples = prompt_result.get("vram_samples_path")
 
         if status == "completed" and not raw_output:
@@ -372,6 +454,11 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
         else:
             stderr_cell = "missing" if status == "completed" else "n/a"
 
+        if request_evidence:
+            request_cell = f"`{request_evidence}`"
+        else:
+            request_cell = "-"
+
         if vram_samples:
             vram_cell = f"`{vram_samples}`"
         else:
@@ -384,6 +471,7 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
             f"{raw_cell} | "
             f"{cleaned_cell} | "
             f"{stderr_cell} | "
+            f"{request_cell} | "
             f"{vram_cell} |"
         )
 
@@ -418,8 +506,41 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
                     label="Stderr log (diagnostic evidence)",
                     missing_note="missing",
                 ),
+                _artifact_path_line(
+                    prompt_result.get("request_evidence_path"),
+                    label="Request evidence (vLLM HTTP, optional)",
+                    missing_note="not captured",
+                ),
             ]
         )
+
+        finish_reason = prompt_result.get("finish_reason")
+        metrics = prompt_result.get("metrics")
+        if finish_reason is None and isinstance(metrics, dict):
+            finish_reason = metrics.get("finish_reason")
+        if finish_reason:
+            lines.append(f"- Finish reason: {finish_reason}")
+        failure_class = prompt_result.get("failure_class")
+        if failure_class:
+            lines.append(f"- Failure class: {failure_class}")
+        if isinstance(metrics, dict):
+            wall = metrics.get("request_wall_time_seconds")
+            if wall is not None:
+                lines.append(f"- Request wall time s: {wall}")
+            e2e = metrics.get("end_to_end_completion_tps")
+            if e2e is not None:
+                lines.append(
+                    f"- End-to-end completion throughput (tok/s): {e2e} "
+                    "(not decode-only; not claimed equivalent to llama.cpp)"
+                )
+            if metrics.get("prompt_eval_tokens") is not None:
+                lines.append(
+                    f"- Prompt tokens (backend-reported): {metrics.get('prompt_eval_tokens')}"
+                )
+            if metrics.get("generation_tokens") is not None:
+                lines.append(
+                    f"- Completion tokens (backend-reported): {metrics.get('generation_tokens')}"
+                )
 
         vram_samples = prompt_result.get("vram_samples_path")
         if vram_samples:
@@ -570,28 +691,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             "",
             "### Runtime",
             "",
-            f"- Backend: {runtime['backend']}",
-            f"- llama-cli: {runtime['llama_cli']}",
-            f"- Context: {runtime['ctx_size']}",
-            f"- Max tokens: {runtime['max_tokens']}",
-            f"- Temperature: {runtime['temperature']}",
-            f"- Top-p: {runtime['top_p']}",
-            f"- Batch: {runtime['batch_size']}",
-            f"- UBatch: {runtime['ubatch_size']}",
-            f"- GPU layers: {runtime['gpu_layers']}",
-            f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
-            f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
-            f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
-            (
-                "- Command metadata: captured"
-                if runtime.get("runtime_command_captured")
-                else "- Command metadata: missing"
-            ),
-            (
-                f"- Command artifact: `{runtime['runtime_command_path']}`"
-                if runtime.get("runtime_command_path")
-                else "- Command artifact: not recorded"
-            ),
+            *(_runtime_section_lines(runtime)),
             "",
         ]
     )
@@ -664,8 +764,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             "",
             "Score avg values are manual review metadata when present. Speed and VRAM columns are operational signals.",
             "",
-            "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |",
-            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+            "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | E2E completion tok/s | Wall s | Finish | Failure | Peak VRAM MiB | VRAM Headroom MiB | Exit |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|",
         ]
     )
 
@@ -673,6 +773,15 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         metrics = prompt_result.get("metrics")
         if not isinstance(metrics, dict):
             metrics = {}
+        finish = prompt_result.get("finish_reason")
+        if finish is None:
+            finish = metrics.get("finish_reason")
+        failure = prompt_result.get("failure_class") or ""
+        wall = metrics.get("request_wall_time_seconds", _MISSING)
+        if wall is _MISSING or wall is None:
+            wall_cell = "-"
+        else:
+            wall_cell = _fmt(wall)
         lines.append(
             "| "
             f"{prompt_result['prompt_id']} | "
@@ -681,6 +790,10 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             f"{_fmt(_score_average(prompt_result))} | "
             f"{_fmt_optional_throughput(metrics.get('prompt_eval_tps', _MISSING))} | "
             f"{_fmt_optional_throughput(metrics.get('generation_tps', _MISSING))} | "
+            f"{_fmt_optional_throughput(metrics.get('end_to_end_completion_tps', _MISSING))} | "
+            f"{wall_cell} | "
+            f"{finish or '-'} | "
+            f"{failure or '-'} | "
             f"{_fmt_optional_mib(_vram_peak_used_mib(prompt_result))} | "
             f"{_fmt_optional_mib(_vram_headroom_mib(prompt_result))} | "
             f"{prompt_result['exit_status']} |"

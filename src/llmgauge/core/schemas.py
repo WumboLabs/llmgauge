@@ -26,6 +26,13 @@ class ModelProfileEntry(BaseModel):
     runtime_label: str | None = None
     reasoning_mode: str | None = None
     recommended_contexts: list[int] | None = None
+    # Additive vLLM external-server fields (optional; llama.cpp profiles ignore).
+    backend: str | None = None
+    vllm_endpoint: str | None = None
+    served_model: str | None = None
+    connect_timeout: float | None = None
+    request_timeout: float | None = None
+    max_response_bytes: int | None = None
 
     @field_validator("path")
     @classmethod
@@ -33,6 +40,16 @@ class ModelProfileEntry(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("path must not be empty")
         return value
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in {"llama.cpp", "vllm"}:
+            raise ValueError("backend must be one of: llama.cpp, vllm")
+        return normalized
 
 
 class ModelProfilesDocument(BaseModel):
@@ -65,6 +82,22 @@ class RuntimeConfig(BaseModel):
     llama_tokenize: str | None = None
     build_label: str | None = None
     commit: str | None = None
+    # Additive vLLM external-server defaults (optional).
+    vllm_endpoint: str | None = None
+    served_model: str | None = None
+    connect_timeout: float | None = None
+    request_timeout: float | None = None
+    max_response_bytes: int | None = None
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in {"llama.cpp", "vllm"}:
+            raise ValueError("backend must be one of: llama.cpp, vllm")
+        return normalized
 
 
 class DefaultsConfig(BaseModel):

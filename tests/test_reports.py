@@ -64,7 +64,7 @@ def test_build_markdown_report_handles_missing_prompt_eval_tps() -> None:
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | - | 50.0 | - | - | 0 |"
+        "| metrics | speed | completed | None | - | 50.0 | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -78,7 +78,7 @@ def test_build_markdown_report_handles_missing_generation_tps() -> None:
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | 100.0 | - | - | - | 0 |"
+        "| metrics | speed | completed | None | 100.0 | - | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -86,7 +86,7 @@ def test_build_markdown_report_handles_missing_throughput_metrics() -> None:
     report = build_markdown_report(_result_with_metrics({}))
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | - | - | - | - | 0 |"
+        "| metrics | speed | completed | None | - | - | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -101,7 +101,7 @@ def test_build_markdown_report_renders_none_prompt_eval_tps_as_unavailable() -> 
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | - | 50.0 | - | - | 0 |"
+        "| metrics | speed | completed | None | - | 50.0 | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -116,7 +116,7 @@ def test_build_markdown_report_renders_none_generation_tps_as_unavailable() -> N
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | 100.0 | - | - | - | 0 |"
+        "| metrics | speed | completed | None | 100.0 | - | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -131,7 +131,7 @@ def test_build_markdown_report_preserves_present_throughput_formatting() -> None
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | 100.0 | 50.0 | - | - | 0 |"
+        "| metrics | speed | completed | None | 100.0 | 50.0 | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -146,7 +146,7 @@ def test_build_markdown_report_renders_zero_throughput_as_zero() -> None:
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | 0 | 0.0 | - | - | 0 |"
+        "| metrics | speed | completed | None | 0 | 0.0 | - | - | - | - | - | - | 0 |"
     )
 
 
@@ -161,7 +161,7 @@ def test_build_markdown_report_handles_malformed_throughput_values() -> None:
     )
 
     assert _prompt_results_row(report) == (
-        "| metrics | speed | completed | None | - | - | - | - | 0 |"
+        "| metrics | speed | completed | None | - | - | - | - | - | - | - | - | 0 |"
     )
     assert "fast" not in report
     assert "{'value': 50.0}" not in report
@@ -260,20 +260,26 @@ def test_build_markdown_report_multiple_prompts() -> None:
     assert "- Flash attention: on" in report
     assert "- Runtime label: daily-tuned" in report
     assert (
-        "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
+        "| Prompt | Category | Status | Score avg (0-5) | Prompt tok/s | Generation tok/s | E2E completion tok/s | Wall s | Finish | Failure | Peak VRAM MiB | VRAM Headroom MiB | Exit |"
         in report
     )
     assert (
-        "| one | honesty | completed | None | 100.0 | 50.0 | 7535 | 4692 | 0 |"
+        "| one | honesty | completed | None | 100.0 | 50.0 | - | - | - | - | 7535 | 4692 | 0 |"
         in report
     )
-    assert "| two | docker | completed | None | - | - | - | - | 0 |" in report
+    assert (
+        "| two | docker | completed | None | - | - | - | - | - | - | - | - | 0 |"
+        in report
+    )
     assert "## Audit Checklist" in report
     assert "validate-result" in report
     assert "## Prompt Artifact Audit" in report
     assert "Raw output (source audit evidence)" in report
     assert "Cleaned output (derived review aid)" in report
-    assert "| one | completed | `raw/one.output.txt` | `cleaned/one.output.txt` |" in report
+    assert (
+        "| one | completed | `raw/one.output.txt` | `cleaned/one.output.txt` |"
+        in report
+    )
     assert "| two | completed | `raw/two.output.txt` | not available |" in report
     assert "- Score audit: unscored" in report
     assert "- VRAM samples (operational telemetry): `vram/one.samples.json`" in report
@@ -373,7 +379,7 @@ def test_build_markdown_report_with_scores() -> None:
     assert "- Unreviewed scores: 0" in report
     assert "- Scorer IDs: None" in report
     assert (
-        "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | - | - | 0 |"
+        "| honesty-unknown-tool | honesty | completed | 3.6 | 100.0 | 50.0 | - | - | - | - | - | - | 0 |"
         in report
     )
     assert "## Prompt Artifact Audit" in report
