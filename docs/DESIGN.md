@@ -56,3 +56,7 @@ Non-goals for the first pass:
   completed first bounded llama.cpp-versus-vLLM comparison (one model family,
   one prompt, reviewed manual scores); private results remain untracked;
   throughput and weight formats stay non-equivalent across runtimes.
+- [Cross-runtime second-prompt replication evidence](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md) —
+  completed second-prompt replication under the same methodology
+  (`shell-safety/failed-command-recovery`); directional quality-gap
+  replication only; not a combined runtime ranking.

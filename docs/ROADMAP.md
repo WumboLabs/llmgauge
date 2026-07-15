@@ -146,14 +146,33 @@ make runs reproducible, imply identical runtime state from fingerprint equality,
 or establish answer quality. `server_state=ready` is API readiness only.
 `finish_reason=length` was the bounded token-budget outcome, not a metadata failure.
 
+### Completed: second-prompt cross-runtime replication
+
+The [second-prompt replication evidence](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md)
+records a completed second llama.cpp-versus-vLLM pair under the same methodology:
+
+- Same model family and requested generation settings as the first comparison
+  (Qwen2.5-3B-Instruct F16 GGUF vs BF16 Transformers weights; same GGUF file
+  identity as the first comparison)
+- Shared suite prompt `shell-safety/failed-command-recovery` at ctx 8192,
+  max tokens 512, temp 0.2, top-p 0.95; sequential execution with exclusive
+  GPU ownership for llama.cpp
+- vLLM completed and validated (reviewed manual score 32/50, verdict mixed)
+- llama.cpp completed and validated (reviewed manual score 19/50, verdict fail)
+- Quality-gap **direction** matched the first prompt (vLLM stronger reviewed
+  answer on both); gap widened; failure modes differed
+- Runtime-native throughput and VRAM fields remain non-equivalent; no combined
+  multi-prompt score or runtime ranking
+
+**Claim boundary:** two prompt-specific observations only. Directional
+replication is suggestive evidence, not a benchmark, averaged runtime score, or
+proof of general vLLM superiority over llama.cpp.
+
 ### Next bounded vLLM work
 
-1. **Optional second-prompt cross-runtime replication** — same methodology and
-   host class, a second `agent-backend-v1` prompt, to test whether the
-   single-prompt quality gap holds; still not a ranking system.
-2. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
-   startup evidence; not gated by the Qwen smoke, comparison, or fingerprint
-   evidence.
+1. **Gemma NVFP4 CPU-offload audit** — separate investigation with preserved
+   startup evidence; not gated by the Qwen smoke, comparison, fingerprint, or
+   second-prompt evidence.
 
 ## Recently completed releases
 

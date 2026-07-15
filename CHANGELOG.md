@@ -16,6 +16,16 @@
 
 ### Documentation
 
+- Recorded completed second-prompt llama.cpp-versus-vLLM cross-runtime
+  replication evidence
+  (`docs/VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md`): same methodology and
+  Qwen2.5-3B-Instruct family settings as the first comparison; suite prompt
+  `shell-safety/failed-command-recovery`; sequential GPU ownership; reviewed
+  manual scores 32/50 mixed (vLLM) vs 19/50 fail (llama.cpp); directional
+  quality-gap replication only (not a ranking or averaged multi-prompt score);
+  runtime-native metrics kept non-equivalent. Updated roadmap and design
+  discoverability; optional short forward link from the first comparison
+  evidence document.
 - Recorded post-merge live external-vLLM fingerprint smoke evidence
   (`docs/VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md`): server `/version`
   `0.25.1`, API-ready `server_state`, opaque fingerprint
