@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from llmgauge.core.run_fingerprint import verify_run_fingerprint
+from llmgauge.core.run_fingerprint import (
+    FingerprintUnavailable,
+    resolve_contained_result_artifact,
+    verify_run_fingerprint,
+)
 
 
 REQUIRED_TOP_LEVEL_KEYS = [
@@ -67,9 +71,15 @@ def _check_artifact_path(
         errors.append(f"{prompt_id}.{field} must be a non-empty string")
         return
 
-    path = result_dir / value
-    if not path.exists():
-        errors.append(f"{prompt_id}.{field} missing artifact: {value}")
+    try:
+        resolve_contained_result_artifact(
+            result_dir,
+            value,
+            label=f"{prompt_id}.{field}",
+            require_file=True,
+        )
+    except FingerprintUnavailable as exc:
+        errors.append(str(exc))
 
 
 def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
@@ -213,11 +223,15 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
         if not isinstance(command_path_value, str) or not command_path_value:
             errors.append("runtime.runtime_command_path must be set when command metadata is captured")
         else:
-            command_path = result_dir / command_path_value
-            if not command_path.exists():
-                errors.append(
-                    f"runtime command artifact missing: {command_path_value}"
+            try:
+                command_path = resolve_contained_result_artifact(
+                    result_dir,
+                    command_path_value,
+                    label="runtime.runtime_command_path",
+                    require_file=True,
                 )
+            except FingerprintUnavailable as exc:
+                errors.append(str(exc))
             else:
                 try:
                     command_data = json.loads(command_path.read_text(encoding="utf-8"))
@@ -231,6 +245,125 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                             "runtime command artifact schema_version must be "
                             "llmgauge.runtime_command.v0"
                         )
+
+    if isinstance(runtime, dict) and runtime.get("vllm_runtime_evidence_captured"):
+        evidence_path_value = runtime.get("vllm_runtime_evidence_path")
+        if not isinstance(evidence_path_value, str) or not evidence_path_value:
+            errors.append(
+                "runtime.vllm_runtime_evidence_path must be set when vLLM "
+                "runtime evidence is captured"
+            )
+        else:
+            try:
+                evidence_path = resolve_contained_result_artifact(
+                    result_dir,
+                    evidence_path_value,
+                    label="runtime.vllm_runtime_evidence_path",
+                    require_file=True,
+                )
+            except FingerprintUnavailable as exc:
+                errors.append(str(exc))
+            else:
+                try:
+                    evidence_data = json.loads(evidence_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    errors.append(
+                        "vLLM runtime evidence artifact is not valid JSON: "
+                        f"{evidence_path_value}"
+                    )
+                else:
+                    if evidence_data.get("schema_version") != (
+                        "llmgauge.vllm_runtime_evidence.v0"
+                    ):
+                        errors.append(
+                            "vLLM runtime evidence schema_version must be "
+                            "llmgauge.vllm_runtime_evidence.v0"
+                        )
+                    endpoint_identity = evidence_data.get("endpoint_identity")
+                    if endpoint_identity is not None:
+                        if not isinstance(endpoint_identity, dict):
+                            errors.append(
+                                "vLLM runtime evidence endpoint_identity must be an object"
+                            )
+                        else:
+                            for forbidden in (
+                                "url",
+                                "raw_url",
+                                "username",
+                                "password",
+                                "headers",
+                                "proxy",
+                            ):
+                                if forbidden in endpoint_identity:
+                                    errors.append(
+                                        "vLLM runtime evidence endpoint_identity "
+                                        f"must not include {forbidden}"
+                                    )
+
+            for key in ("endpoint_identity",):
+                value = runtime.get(key)
+                if value is not None and not isinstance(value, dict):
+                    errors.append(f"runtime.{key} must be an object when present")
+
+            for key in (
+                "requested_served_model",
+                "observed_served_model",
+                "lifecycle_ownership",
+                "proxy_bypass_policy",
+            ):
+                value = runtime.get(key)
+                if value is not None and not isinstance(value, str):
+                    errors.append(f"runtime.{key} must be a string when present")
+
+    # Optional per-prompt vLLM request evidence (additive).
+    results = data.get("results")
+    if isinstance(results, list):
+        for prompt_result in results:
+            if not isinstance(prompt_result, dict):
+                continue
+            prompt_id = prompt_result.get("prompt_id", "prompt")
+            request_path_value = prompt_result.get("request_evidence_path")
+            if request_path_value is None:
+                continue
+            if not isinstance(request_path_value, str) or not request_path_value:
+                errors.append(
+                    f"{prompt_id}.request_evidence_path must be a non-empty string"
+                )
+                continue
+            try:
+                request_path = resolve_contained_result_artifact(
+                    result_dir,
+                    request_path_value,
+                    label=f"{prompt_id}.request_evidence_path",
+                    require_file=True,
+                )
+            except FingerprintUnavailable as exc:
+                errors.append(str(exc))
+            else:
+                try:
+                    request_data = json.loads(request_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    errors.append(
+                        f"{prompt_id}.request_evidence_path is not valid JSON"
+                    )
+                else:
+                    if request_data.get("schema_version") != (
+                        "llmgauge.vllm_request_evidence.v0"
+                    ):
+                        errors.append(
+                            f"{prompt_id} request evidence schema_version must be "
+                            "llmgauge.vllm_request_evidence.v0"
+                        )
+
+            failure_class = prompt_result.get("failure_class")
+            if failure_class is not None and not isinstance(failure_class, str):
+                errors.append(f"{prompt_id}.failure_class must be a string when present")
+
+            finish_reason = prompt_result.get("finish_reason")
+            if finish_reason is not None and not isinstance(finish_reason, str):
+                errors.append(
+                    f"{prompt_id}.finish_reason must be a string when present"
+                )
 
     errors.extend(verify_run_fingerprint(result_dir, data))
 

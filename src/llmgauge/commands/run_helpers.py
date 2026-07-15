@@ -46,6 +46,20 @@ from llmgauge.core.runtime_command import (
 from llmgauge.core.suite import load_suite
 from llmgauge.core.suite_paths import resolve_suite_path
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
+from llmgauge.runners.vllm_external import (
+    DEFAULT_CONNECT_TIMEOUT,
+    DEFAULT_MAX_RESPONSE_BYTES,
+    DEFAULT_REQUEST_TIMEOUT,
+    VLLM_RUNTIME_EVIDENCE_FILENAME,
+    VllmExternalConfig,
+    VllmRequestResult,
+    build_runtime_evidence_document,
+    build_vllm_metrics,
+    check_readiness_and_model,
+    format_failure_log,
+    run_chat_completion,
+)
+from llmgauge.runners.vllm_http import VllmTransportError, validate_vllm_endpoint
 
 
 def find_prompt(suite: dict, prompt_id: str) -> dict:
@@ -173,6 +187,51 @@ def resolve_cli_output_dir(
     )
 
 
+def _normalize_backend(value: Any) -> str:
+    if value is None:
+        return "llama.cpp"
+    normalized = str(value).strip().lower()
+    if normalized in {"llama.cpp", "llamacpp", "llama"}:
+        return "llama.cpp"
+    if normalized == "vllm":
+        return "vllm"
+    raise typer.BadParameter("backend must be one of: llama.cpp, vllm")
+
+
+def reject_unsupported_vllm_command(
+    resolved: dict[str, Any],
+    *,
+    command: str,
+) -> None:
+    """Fail closed: backend=vllm is supported only by the normal run command."""
+    if (resolved.get("backend") or "llama.cpp") != "vllm":
+        return
+    raise typer.BadParameter(
+        f"{command} does not support backend=vllm in this slice. "
+        "Use `llmgauge run` with --backend vllm (or a vLLM profile) for the "
+        "externally managed server adapter. Batch, ladder, and fit-ladder "
+        "vLLM execution is not implemented."
+    )
+
+
+def _optional_positive_float(value: Any, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    resolved = float(value)
+    if resolved <= 0:
+        raise typer.BadParameter(f"{field_name} must be positive")
+    return resolved
+
+
+def _optional_positive_int(value: Any, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    resolved = int(value)
+    if resolved <= 0:
+        raise typer.BadParameter(f"{field_name} must be positive")
+    return resolved
+
+
 def resolve_run_options(
     *,
     model_id: str | None,
@@ -191,6 +250,12 @@ def resolve_run_options(
     flash_attn: str | None = None,
     runtime_label: str | None = None,
     reasoning_mode: str | None = None,
+    backend: str | None = None,
+    vllm_endpoint: str | None = None,
+    served_model: str | None = None,
+    connect_timeout: float | None = None,
+    request_timeout: float | None = None,
+    max_response_bytes: int | None = None,
 ) -> dict[str, Any]:
     resolved_config_path = config_path or default_existing_path(
         DEFAULT_LOCAL_CONFIG,
@@ -205,35 +270,18 @@ def resolve_run_options(
     profiles = load_model_profiles(resolved_model_profiles_path)
     profile = resolve_model_profile(profiles, model_profile)
 
+    resolved_backend = _normalize_backend(
+        coalesce(
+            backend,
+            profile.get("backend"),
+            get_config_value(config_data, "runtime.backend"),
+            "llama.cpp",
+        )
+    )
+
     resolved_model_id = coalesce(model_id, model_profile, profile.get("label"))
     if resolved_model_id is None:
         raise typer.BadParameter("Provide --model-id or --model-profile")
-
-    resolved_model_path = coalesce(model_path, profile.get("path"))
-    if resolved_model_path is None:
-        if (
-            model_id is not None
-            and model_profile is None
-            and isinstance(profiles.get(model_id), dict)
-        ):
-            raise typer.BadParameter(
-                f"Model profile {model_id!r} was provided with --model-id. "
-                f"Use --model-profile {model_id} to load its configured path."
-            )
-        raise typer.BadParameter(
-            "Provide --model-path or use --model-profile with a path"
-        )
-    resolved_model_path = Path(resolved_model_path)
-
-    resolved_llama_cli = coalesce(
-        llama_cli,
-        get_config_value(config_data, "runtime.llama_cli"),
-    )
-    if resolved_llama_cli is None:
-        raise typer.BadParameter(
-            "Provide --llama-cli or set runtime.llama_cli in --config"
-        )
-    resolved_llama_cli = Path(resolved_llama_cli)
 
     resolved_ctx = int(
         coalesce(
@@ -328,6 +376,153 @@ def resolve_run_options(
         field_name="vram.min_headroom_warn_mib",
     )
 
+    if resolved_backend == "vllm":
+        resolved_endpoint = coalesce(
+            vllm_endpoint,
+            profile.get("vllm_endpoint"),
+            get_config_value(config_data, "runtime.vllm_endpoint"),
+        )
+        if resolved_endpoint is None or not str(resolved_endpoint).strip():
+            raise typer.BadParameter(
+                "Provide --vllm-endpoint or set runtime.vllm_endpoint / "
+                "profile vllm_endpoint for backend=vllm"
+            )
+        resolved_endpoint = str(resolved_endpoint).strip()
+        try:
+            validate_vllm_endpoint(resolved_endpoint)
+        except VllmTransportError as exc:
+            raise typer.BadParameter(
+                f"Invalid vLLM endpoint ({exc.detail})"
+            ) from exc
+
+        resolved_served_model = coalesce(
+            served_model,
+            profile.get("served_model"),
+            get_config_value(config_data, "runtime.served_model"),
+            profile.get("label"),
+            model_id,
+            model_profile,
+        )
+        if resolved_served_model is None or not str(resolved_served_model).strip():
+            raise typer.BadParameter(
+                "Provide --served-model or set profile served_model for backend=vllm"
+            )
+        resolved_served_model = str(resolved_served_model).strip()
+
+        resolved_connect_timeout = float(
+            coalesce(
+                _optional_positive_float(
+                    connect_timeout, field_name="connect_timeout"
+                ),
+                _optional_positive_float(
+                    profile.get("connect_timeout"), field_name="connect_timeout"
+                ),
+                _optional_positive_float(
+                    get_config_value(config_data, "runtime.connect_timeout"),
+                    field_name="runtime.connect_timeout",
+                ),
+                DEFAULT_CONNECT_TIMEOUT,
+            )
+        )
+        resolved_request_timeout = float(
+            coalesce(
+                _optional_positive_float(
+                    request_timeout, field_name="request_timeout"
+                ),
+                _optional_positive_float(
+                    profile.get("request_timeout"), field_name="request_timeout"
+                ),
+                _optional_positive_float(
+                    get_config_value(config_data, "runtime.request_timeout"),
+                    field_name="runtime.request_timeout",
+                ),
+                DEFAULT_REQUEST_TIMEOUT,
+            )
+        )
+        resolved_max_response_bytes = int(
+            coalesce(
+                _optional_positive_int(
+                    max_response_bytes, field_name="max_response_bytes"
+                ),
+                _optional_positive_int(
+                    profile.get("max_response_bytes"),
+                    field_name="max_response_bytes",
+                ),
+                _optional_positive_int(
+                    get_config_value(config_data, "runtime.max_response_bytes"),
+                    field_name="runtime.max_response_bytes",
+                ),
+                DEFAULT_MAX_RESPONSE_BYTES,
+            )
+        )
+
+        # Directory/GGUF provenance is deferred for vLLM. Reject local paths so
+        # collect_model_provenance is never applied to a served checkpoint.
+        profile_path = profile.get("path")
+        if model_path is not None or (
+            isinstance(profile_path, str) and profile_path.strip()
+        ):
+            raise typer.BadParameter(
+                "backend=vllm does not accept --model-path or profile path in "
+                "this slice; directory-model and GGUF provenance for served "
+                "checkpoints is deferred. Identify the model with "
+                "--served-model / profile served_model only."
+            )
+
+        return {
+            "backend": "vllm",
+            "model_id": str(resolved_model_id),
+            "model_profile": model_profile,
+            "profile": profile,
+            "config_path": resolved_config_path,
+            "model_profiles_path": resolved_model_profiles_path,
+            "model_path": None,
+            "llama_cli": None,
+            "vllm_endpoint": resolved_endpoint,
+            "served_model": resolved_served_model,
+            "connect_timeout": resolved_connect_timeout,
+            "request_timeout": resolved_request_timeout,
+            "max_response_bytes": resolved_max_response_bytes,
+            "ctx": resolved_ctx,
+            "max_tokens": resolved_max_tokens,
+            "temp": resolved_temp,
+            "top_p": resolved_top_p,
+            "batch": resolved_batch,
+            "ubatch": resolved_ubatch,
+            "gpu_layers": resolved_gpu_layers,
+            "flash_attn": resolved_flash_attn,
+            "runtime_label": resolved_runtime_label,
+            "reasoning_mode": resolved_reasoning_mode,
+            "model_source": resolved_model_source,
+            "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
+        }
+
+    resolved_model_path = coalesce(model_path, profile.get("path"))
+    if resolved_model_path is None:
+        if (
+            model_id is not None
+            and model_profile is None
+            and isinstance(profiles.get(model_id), dict)
+        ):
+            raise typer.BadParameter(
+                f"Model profile {model_id!r} was provided with --model-id. "
+                f"Use --model-profile {model_id} to load its configured path."
+            )
+        raise typer.BadParameter(
+            "Provide --model-path or use --model-profile with a path"
+        )
+    resolved_model_path = Path(resolved_model_path)
+
+    resolved_llama_cli = coalesce(
+        llama_cli,
+        get_config_value(config_data, "runtime.llama_cli"),
+    )
+    if resolved_llama_cli is None:
+        raise typer.BadParameter(
+            "Provide --llama-cli or set runtime.llama_cli in --config"
+        )
+    resolved_llama_cli = Path(resolved_llama_cli)
+
     if not resolved_model_path.exists():
         raise typer.BadParameter(f"Model path does not exist: {resolved_model_path}")
 
@@ -335,6 +530,7 @@ def resolve_run_options(
         raise typer.BadParameter(f"llama-cli path does not exist: {resolved_llama_cli}")
 
     return {
+        "backend": "llama.cpp",
         "model_id": str(resolved_model_id),
         "model_profile": model_profile,
         "profile": profile,
@@ -342,6 +538,11 @@ def resolve_run_options(
         "model_profiles_path": resolved_model_profiles_path,
         "model_path": resolved_model_path,
         "llama_cli": resolved_llama_cli,
+        "vllm_endpoint": None,
+        "served_model": None,
+        "connect_timeout": None,
+        "request_timeout": None,
+        "max_response_bytes": None,
         "ctx": resolved_ctx,
         "max_tokens": resolved_max_tokens,
         "temp": resolved_temp,
@@ -395,61 +596,107 @@ def print_run_preflight(
     table.add_row("Suite path", str(resolved_suite))
     table.add_row("Selection", selection)
     table.add_row("Prompt count", str(len(selected_prompts)))
+    backend = resolved.get("backend") or "llama.cpp"
+    table.add_row("Backend", str(backend))
     table.add_row("Model ID", str(resolved["model_id"]))
     table.add_row("Model source", str(resolved["model_source"]))
     table.add_row("Model profile", str(resolved["model_profile"]))
     table.add_row("Config", str(resolved["config_path"]))
     table.add_row("Model profiles", str(resolved["model_profiles_path"]))
-    table.add_row("Model path", str(resolved["model_path"]))
-    table.add_row("llama-cli", str(resolved["llama_cli"]))
+    if backend == "vllm":
+        try:
+            endpoint = validate_vllm_endpoint(str(resolved["vllm_endpoint"]))
+            identity = endpoint.identity
+            identity_text = (
+                f"scheme={identity.get('scheme')}, "
+                f"loopback_class={identity.get('loopback_class')}, "
+                f"port={identity.get('port')}"
+            )
+        except VllmTransportError as exc:
+            identity_text = f"invalid ({exc.detail})"
+        table.add_row("Endpoint identity", identity_text)
+        table.add_row("Served model", str(resolved["served_model"]))
+        table.add_row("Connect timeout s", str(resolved["connect_timeout"]))
+        table.add_row("Request timeout s", str(resolved["request_timeout"]))
+        table.add_row("Max response bytes", str(resolved["max_response_bytes"]))
+        table.add_row(
+            "Model path",
+            "not used (served-model identity only; local provenance deferred)",
+        )
+    else:
+        table.add_row("Model path", str(resolved["model_path"]))
+        table.add_row("llama-cli", str(resolved["llama_cli"]))
     table.add_row("Context", str(resolved["ctx"]))
     table.add_row("Max tokens", str(resolved["max_tokens"]))
     table.add_row("Temperature", str(resolved["temp"]))
     table.add_row("Top-p", str(resolved["top_p"]))
-    table.add_row("Batch", str(resolved["batch"]))
-    table.add_row("UBatch", str(resolved["ubatch"]))
-    table.add_row("GPU layers", str(resolved["gpu_layers"]))
-    table.add_row("Flash attention", str(resolved["flash_attn"]))
+    if backend != "vllm":
+        table.add_row("Batch", str(resolved["batch"]))
+        table.add_row("UBatch", str(resolved["ubatch"]))
+        table.add_row("GPU layers", str(resolved["gpu_layers"]))
+        table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Runtime label", str(resolved["runtime_label"] or "unknown"))
     table.add_row("Reasoning mode", str(resolved["reasoning_mode"]))
     table.add_row("Output plan", output_plan)
 
-    preview_config = LlamaCppRunConfig(
-        llama_cli=resolved["llama_cli"],
-        model_path=resolved["model_path"],
-        ctx_size=resolved["ctx"],
-        max_tokens=resolved["max_tokens"],
-        temperature=resolved["temp"],
-        top_p=resolved["top_p"],
-        batch_size=resolved["batch"],
-        ubatch_size=resolved["ubatch"],
-        gpu_layers=resolved["gpu_layers"],
-        flash_attn=resolved["flash_attn"],
-        reasoning_mode=resolved["reasoning_mode"],
-    )
-    preview_document = build_runtime_command_document(
-        config=preview_config,
-        resolved=resolved,
-        suite_id=str(loaded_suite.get("suite_id", suite)),
-        suite_version=str(loaded_suite.get("suite_version", "unknown")),
-    )
-    table.add_row(
-        "Command preview",
-        format_command_preview(preview_document["command_argv"]),
-    )
-    if out is not None:
-        runtime_command_path = str(out / RUNTIME_COMMAND_FILENAME)
-    elif auto_name:
-        default_run_name = f"{resolved['model_id']}-{suite.name}"
-        runtime_command_path = (
-            f"{runs_root}/<auto-named-run>/{RUNTIME_COMMAND_FILENAME} "
-            f"(run name {run_name or default_run_name})"
+    if backend == "vllm":
+        table.add_row(
+            "Request shape",
+            "non-streaming OpenAI-compatible chat.completions (external server)",
         )
+        if out is not None:
+            evidence_path = str(out / VLLM_RUNTIME_EVIDENCE_FILENAME)
+        elif auto_name:
+            default_run_name = f"{resolved['model_id']}-{suite.name}"
+            evidence_path = (
+                f"{runs_root}/<auto-named-run>/{VLLM_RUNTIME_EVIDENCE_FILENAME} "
+                f"(run name {run_name or default_run_name})"
+            )
+        else:
+            evidence_path = (
+                f"<result-dir>/{VLLM_RUNTIME_EVIDENCE_FILENAME} for real runs "
+                "with --out or --auto-name"
+            )
+        table.add_row("Runtime evidence artifact", evidence_path)
+        table.add_row("Runtime command artifact", "not used for vLLM")
     else:
-        runtime_command_path = (
-            f"<result-dir>/{RUNTIME_COMMAND_FILENAME} for real runs with --out or --auto-name"
+        preview_config = LlamaCppRunConfig(
+            llama_cli=resolved["llama_cli"],
+            model_path=resolved["model_path"],
+            ctx_size=resolved["ctx"],
+            max_tokens=resolved["max_tokens"],
+            temperature=resolved["temp"],
+            top_p=resolved["top_p"],
+            batch_size=resolved["batch"],
+            ubatch_size=resolved["ubatch"],
+            gpu_layers=resolved["gpu_layers"],
+            flash_attn=resolved["flash_attn"],
+            reasoning_mode=resolved["reasoning_mode"],
         )
-    table.add_row("Runtime command artifact", runtime_command_path)
+        preview_document = build_runtime_command_document(
+            config=preview_config,
+            resolved=resolved,
+            suite_id=str(loaded_suite.get("suite_id", suite)),
+            suite_version=str(loaded_suite.get("suite_version", "unknown")),
+        )
+        table.add_row(
+            "Command preview",
+            format_command_preview(preview_document["command_argv"]),
+        )
+        if out is not None:
+            runtime_command_path = str(out / RUNTIME_COMMAND_FILENAME)
+        elif auto_name:
+            default_run_name = f"{resolved['model_id']}-{suite.name}"
+            runtime_command_path = (
+                f"{runs_root}/<auto-named-run>/{RUNTIME_COMMAND_FILENAME} "
+                f"(run name {run_name or default_run_name})"
+            )
+        else:
+            runtime_command_path = (
+                f"<result-dir>/{RUNTIME_COMMAND_FILENAME} for real runs "
+                "with --out or --auto-name"
+            )
+        table.add_row("Runtime command artifact", runtime_command_path)
 
     console.print(table)
 
@@ -466,10 +713,38 @@ def print_run_preflight(
         )
 
     console.print(prompt_table)
-    console.print(
-        "[bold green]Dry run complete[/bold green]: llama.cpp was not "
-        "launched and no result directory was created."
-    )
+    if backend == "vllm":
+        console.print(
+            "[bold green]Dry run complete[/bold green]: no HTTP request was "
+            "sent and no result directory was created. Server lifecycle remains "
+            "operator-owned."
+        )
+    else:
+        console.print(
+            "[bold green]Dry run complete[/bold green]: llama.cpp was not "
+            "launched and no result directory was created."
+        )
+
+
+def _finalize_run_result(
+    *,
+    out: Path,
+    result: dict[str, Any],
+    failed_count: int,
+    fail_on_failed_prompts: bool,
+) -> dict[str, Any]:
+    attach_run_fingerprint(out, result)
+    write_json(out / "llmgauge-result.json", result)
+    write_text(out / "report.md", build_markdown_report(result))
+
+    if failed_count:
+        console.print(f"[bold red]Run completed with failures[/bold red]: {out}")
+        if fail_on_failed_prompts:
+            raise typer.Exit(code=1)
+    else:
+        console.print(f"[bold green]Run completed[/bold green]: {out}")
+
+    return result
 
 
 def execute_run(
@@ -481,6 +756,16 @@ def execute_run(
     out: Path,
     fail_on_failed_prompts: bool,
 ) -> dict[str, Any]:
+    if (resolved.get("backend") or "llama.cpp") == "vllm":
+        return execute_vllm_run(
+            suite=suite,
+            only=only,
+            include=include,
+            resolved=resolved,
+            out=out,
+            fail_on_failed_prompts=fail_on_failed_prompts,
+        )
+
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
     loaded_suite = load_suite(suite)
@@ -684,18 +969,342 @@ def execute_run(
         },
     }
 
-    attach_run_fingerprint(out, result)
-    write_json(out / "llmgauge-result.json", result)
-    write_text(out / "report.md", build_markdown_report(result))
+    return _finalize_run_result(
+        out=out,
+        result=result,
+        failed_count=failed_count,
+        fail_on_failed_prompts=fail_on_failed_prompts,
+    )
 
-    if failed_count:
-        console.print(f"[bold red]Run completed with failures[/bold red]: {out}")
-        if fail_on_failed_prompts:
-            raise typer.Exit(code=1)
+
+def execute_vllm_run(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    resolved: dict[str, Any],
+    out: Path,
+    fail_on_failed_prompts: bool,
+) -> dict[str, Any]:
+    """Execute prompts against an operator-managed local vLLM server."""
+    resolved_suite = resolve_suite_path(suite)
+    suite = resolved_suite
+    loaded_suite = load_suite(suite)
+    selected_prompts = select_prompts(loaded_suite, only, include)
+    system_prompt = load_system_prompt()
+
+    prepare_result_dir(out)
+    (out / "request").mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
+    run_id = out.name
+    vllm_config = VllmExternalConfig(
+        endpoint_url=str(resolved["vllm_endpoint"]),
+        served_model=str(resolved["served_model"]),
+        max_tokens=int(resolved["max_tokens"]),
+        temperature=float(resolved["temp"]),
+        top_p=float(resolved["top_p"]),
+        connect_timeout=float(resolved["connect_timeout"]),
+        request_timeout=float(resolved["request_timeout"]),
+        max_response_bytes=int(resolved["max_response_bytes"]),
+        ctx_size=int(resolved["ctx"]),
+    )
+
+    console.print(
+        f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
+        f"via external vLLM model [bold]{resolved['served_model']}[/bold] "
+        f"(backend=vllm, operator-managed server)"
+    )
+
+    readiness = check_readiness_and_model(vllm_config)
+    endpoint_identity = readiness.endpoint_identity or {}
+    runtime_evidence = build_runtime_evidence_document(
+        config=vllm_config,
+        readiness=readiness,
+        endpoint_identity=endpoint_identity,
+    )
+    runtime_evidence_path = out / VLLM_RUNTIME_EVIDENCE_FILENAME
+    write_json(runtime_evidence_path, runtime_evidence)
+
+    prompt_results: list[dict] = []
+
+    if not readiness.success:
+        # Fail all selected prompts deterministically without evaluation requests.
+        for prompt_meta in selected_prompts:
+            prompt_id = prompt_meta["id"]
+            prompt_path = suite / prompt_meta["file"]
+            prompt_text = prompt_path.read_text(encoding="utf-8").strip()
+            combined_prompt = build_combined_prompt(system_prompt, prompt_text)
+
+            raw_prompt_path = out / "raw" / f"{prompt_id}.prompt.md"
+            raw_output_path = out / "raw" / f"{prompt_id}.output.txt"
+            cleaned_output_path = out / "cleaned" / f"{prompt_id}.output.txt"
+            stderr_log_path = out / "logs" / f"{prompt_id}.stderr.log"
+            request_evidence_path = (
+                out / "request" / f"{prompt_id.replace('/', '__')}.json"
+            )
+
+            write_text(raw_prompt_path, combined_prompt)
+            write_text(raw_output_path, "")
+            write_text(cleaned_output_path, "")
+            write_text(stderr_log_path, format_failure_log(readiness))
+            write_json(
+                request_evidence_path,
+                {
+                    "schema_version": "llmgauge.vllm_request_evidence.v0",
+                    "lifecycle_ownership": "external_operator",
+                    "skipped": True,
+                    "skip_reason": "readiness_or_model_check_failed",
+                    "failure_class": readiness.failure_class,
+                    "failure_detail": readiness.failure_detail,
+                    "endpoint_identity": endpoint_identity,
+                },
+            )
+
+            prompt_results.append(
+                {
+                    "prompt_id": prompt_id,
+                    "title": prompt_meta.get("title", prompt_id),
+                    "category": prompt_meta.get("category"),
+                    "status": "failed",
+                    "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+                    "raw_output_path": str(raw_output_path.relative_to(out)),
+                    "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
+                    "stderr_log_path": str(stderr_log_path.relative_to(out)),
+                    "request_evidence_path": str(
+                        request_evidence_path.relative_to(out)
+                    ),
+                    "metrics": build_vllm_metrics(
+                        VllmRequestResult(success=False)
+                    ),
+                    "vram": None,
+                    "vram_samples_path": None,
+                    "vram_guardrails": None,
+                    "score": None,
+                    "failure_labels": [],
+                    "notes": "",
+                    "exit_status": 1,
+                    "error": readiness.failure_detail or readiness.failure_class,
+                    "failure_class": readiness.failure_class,
+                    "failure_detail": readiness.failure_detail,
+                    "finish_reason": None,
+                }
+            )
     else:
-        console.print(f"[bold green]Run completed[/bold green]: {out}")
+        for index, prompt_meta in enumerate(selected_prompts, start=1):
+            prompt_id = prompt_meta["id"]
+            prompt_path = suite / prompt_meta["file"]
+            prompt_text = prompt_path.read_text(encoding="utf-8").strip()
+            # Human-readable combined form for compatibility with existing raw
+            # prompt artifacts. Chat request uses separate system/user roles and
+            # is not claimed byte-identical to this combined text.
+            combined_prompt = build_combined_prompt(system_prompt, prompt_text)
 
-    return result
+            raw_prompt_path = out / "raw" / f"{prompt_id}.prompt.md"
+            raw_output_path = out / "raw" / f"{prompt_id}.output.txt"
+            cleaned_output_path = out / "cleaned" / f"{prompt_id}.output.txt"
+            stderr_log_path = out / "logs" / f"{prompt_id}.stderr.log"
+            request_evidence_path = (
+                out / "request" / f"{prompt_id.replace('/', '__')}.json"
+            )
+
+            write_text(raw_prompt_path, combined_prompt)
+
+            console.print(
+                f"[{index}/{len(selected_prompts)}] Requesting {prompt_id} "
+                f"(non-streaming chat.completions)"
+            )
+            request_result = run_chat_completion(
+                vllm_config,
+                prompt=prompt_text,
+                system_prompt=system_prompt,
+            )
+
+            write_text(raw_output_path, request_result.generated_text)
+            write_text(
+                cleaned_output_path,
+                clean_llama_output(request_result.generated_text),
+            )
+            if request_result.success and not request_result.incomplete_usage:
+                write_text(stderr_log_path, "vllm request completed\n")
+            else:
+                write_text(stderr_log_path, format_failure_log(request_result))
+
+            write_json(
+                request_evidence_path,
+                request_result.request_evidence
+                or {
+                    "schema_version": "llmgauge.vllm_request_evidence.v0",
+                    "lifecycle_ownership": "external_operator",
+                    "failure_class": request_result.failure_class,
+                    "failure_detail": request_result.failure_detail,
+                    "endpoint_identity": request_result.endpoint_identity,
+                },
+            )
+
+            # incomplete_usage_metadata: output may still be usable; mark completed
+            # with explicit incomplete usage rather than inventing token counts.
+            if request_result.success:
+                status = "completed"
+                exit_status = 0
+                error = (
+                    "incomplete_usage_metadata"
+                    if request_result.incomplete_usage
+                    else None
+                )
+            else:
+                status = "failed"
+                exit_status = 1
+                error = request_result.failure_detail or request_result.failure_class
+
+            prompt_results.append(
+                {
+                    "prompt_id": prompt_id,
+                    "title": prompt_meta.get("title", prompt_id),
+                    "category": prompt_meta.get("category"),
+                    "status": status,
+                    "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+                    "raw_output_path": str(raw_output_path.relative_to(out)),
+                    "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
+                    "stderr_log_path": str(stderr_log_path.relative_to(out)),
+                    "request_evidence_path": str(
+                        request_evidence_path.relative_to(out)
+                    ),
+                    "metrics": build_vllm_metrics(request_result),
+                    "vram": None,
+                    "vram_samples_path": None,
+                    "vram_guardrails": None,
+                    "score": None,
+                    "failure_labels": [],
+                    "notes": "",
+                    "exit_status": exit_status,
+                    "error": error,
+                    "failure_class": request_result.failure_class,
+                    "failure_detail": request_result.failure_detail,
+                    "finish_reason": request_result.finish_reason,
+                    "observed_served_model": request_result.observed_model,
+                }
+            )
+
+    completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
+    failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
+    run_status = "completed" if failed_count == 0 else "failed"
+    profile = resolved["profile"]
+
+    # Never feed a local path into GGUF provenance for vLLM; directory-model
+    # provenance remains deferred and must not misrepresent the served model.
+    model_provenance = {
+        "source_type": resolved["model_source"],
+        "filename": None,
+        "file_size_bytes": None,
+        "sha256": None,
+        "public_fingerprint": None,
+        "status": "unavailable",
+        "warning": (
+            "Directory-model and GGUF provenance are deferred for backend=vllm; "
+            "identity is the requested/observed served-model name only"
+        ),
+        "served_model": resolved["served_model"],
+        "provenance_kind": "served_model_only",
+    }
+
+    backend_provenance = {
+        "backend_name": "vllm",
+        "lifecycle_ownership": "external_operator",
+        "endpoint_identity": endpoint_identity,
+        "requested_served_model": resolved["served_model"],
+        "observed_served_model": readiness.observed_model,
+        "vllm_version": "unknown",
+        "status": "available" if readiness.success else "unavailable",
+        "warning": None
+        if readiness.success
+        else (readiness.failure_detail or readiness.failure_class),
+        "discovery_status": "partial",
+        "discovery_warning": (
+            "Server version and kernel metadata are unknown for this slice"
+        ),
+    }
+
+    result = {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": __version__,
+        "run": {
+            "run_id": run_id,
+            "timestamp_utc": timestamp,
+            "status": run_status,
+            "result_dir": str(out),
+        },
+        "model": {
+            "model_id": resolved["model_id"],
+            "model_source": resolved["model_source"],
+            "model_profile": resolved["model_profile"],
+            "label": profile.get("label"),
+            "family": profile.get("family"),
+            "role": profile.get("role"),
+            "quant": profile.get("quant"),
+            "model_path": "redacted",
+            "model_path_policy": "redacted",
+            "served_model": resolved["served_model"],
+            "provenance": model_provenance,
+        },
+        "runtime": {
+            "backend": "vllm",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": endpoint_identity,
+            "requested_served_model": resolved["served_model"],
+            "observed_served_model": readiness.observed_model,
+            "connect_timeout_seconds": resolved["connect_timeout"],
+            "request_timeout_seconds": resolved["request_timeout"],
+            "max_response_bytes": resolved["max_response_bytes"],
+            "ctx_size": resolved["ctx"],
+            "max_tokens": resolved["max_tokens"],
+            "temperature": resolved["temp"],
+            "top_p": resolved["top_p"],
+            "runtime_label": resolved["runtime_label"],
+            "reasoning_mode": resolved["reasoning_mode"],
+            "runtime_command_captured": False,
+            "runtime_command_path": None,
+            "vllm_runtime_evidence_captured": True,
+            "vllm_runtime_evidence_path": str(
+                runtime_evidence_path.relative_to(out)
+            ),
+            "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
+            "command": [],
+            "config_path": str(resolved["config_path"])
+            if resolved["config_path"]
+            else None,
+            "model_profiles_path": str(resolved["model_profiles_path"])
+            if resolved["model_profiles_path"]
+            else None,
+            "backend_provenance": backend_provenance,
+            "proxy_bypass_policy": runtime_evidence.get("proxy_bypass_policy"),
+            "streaming": False,
+            "authentication": "none",
+        },
+        "suite": {
+            "suite_id": loaded_suite["suite_id"],
+            "suite_version": str(loaded_suite["suite_version"]),
+            "suite_path": str(resolved_suite),
+            "prompt_count": len(prompt_results),
+            "include": include,
+            "only": only,
+        },
+        "results": prompt_results,
+        "summary": {
+            "completed": completed_count,
+            "failed": failed_count,
+            "manual_score_total": None,
+            "manual_score_max": None,
+            "failure_labels": {},
+        },
+    }
+
+    return _finalize_run_result(
+        out=out,
+        result=result,
+        failed_count=failed_count,
+        fail_on_failed_prompts=fail_on_failed_prompts,
+    )
 
 
 

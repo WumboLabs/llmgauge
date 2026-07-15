@@ -30,9 +30,13 @@ Non-goals for the first pass:
 
 - [Initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md) —
   externally managed, loopback-only, text-only OpenAI-compatible server
-  integration. This is an accepted architecture boundary, not a statement that
-  the backend is implemented.
+  integration.
 - [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) —
   standard-library HTTP transport is admitted for the initial vLLM client;
   no third-party HTTP dependency is required for the accepted loopback
   contract.
+- Externally managed vLLM adapter (first production slice): optional
+  `backend=vllm` path using `http.client` against an operator-managed loopback
+  server. Does not install, start, or supervise vLLM. llama.cpp remains the
+  default backend. Token counts and throughput are not claimed equivalent
+  across runtimes.

@@ -156,7 +156,76 @@ def _sanitize_json_artifact(path: Path, output_path: Path, categories: set[str])
         )
         sanitized["prompt_placeholder"] = PROMPT_FROM_RAW_ARTIFACT
 
+    if path.name == "vllm-runtime-evidence.json" and isinstance(sanitized, dict):
+        if "endpoint_identity" in sanitized:
+            sanitized["endpoint_identity"] = _sanitize_endpoint_identity(
+                sanitized.get("endpoint_identity"),
+                categories,
+            )
+        for key in ("url", "raw_url", "headers", "response_body", "proxy"):
+            if key in sanitized:
+                sanitized.pop(key, None)
+                categories.add("vllm_sensitive_evidence_field")
+
+    if path.parent.name == "request" and path.suffix.lower() == ".json" and isinstance(
+        sanitized, dict
+    ):
+        if "endpoint_identity" in sanitized:
+            sanitized["endpoint_identity"] = _sanitize_endpoint_identity(
+                sanitized.get("endpoint_identity"),
+                categories,
+            )
+        for key in (
+            "url",
+            "raw_url",
+            "headers",
+            "response_body",
+            "request_body",
+            "proxy",
+        ):
+            if key in sanitized:
+                sanitized.pop(key, None)
+                categories.add("vllm_sensitive_request_field")
+
     write_json(output_path, sanitized)
+
+
+def _sanitize_endpoint_identity(value: Any, categories: set[str]) -> Any:
+    """Keep only scheme / loopback class / port / proxy-bypass policy."""
+    if not isinstance(value, dict):
+        return value
+    allowed = {
+        "scheme": value.get("scheme"),
+        "loopback_class": value.get("loopback_class"),
+        "port": value.get("port"),
+        "proxy_bypass_policy": value.get("proxy_bypass_policy"),
+    }
+    for key in value:
+        if key not in allowed:
+            categories.add("vllm_endpoint_field_omitted")
+    return {k: v for k, v in allowed.items() if v is not None}
+
+
+def _sanitize_vllm_runtime_fields(runtime: dict[str, Any], categories: set[str]) -> None:
+    if "endpoint_identity" in runtime:
+        runtime["endpoint_identity"] = _sanitize_endpoint_identity(
+            runtime.get("endpoint_identity"),
+            categories,
+        )
+    for key in (
+        "vllm_endpoint",
+        "endpoint_url",
+        "raw_url",
+        "headers",
+        "proxy",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+    ):
+        if key in runtime:
+            runtime.pop(key, None)
+            categories.add("vllm_sensitive_runtime_field")
 
 
 def _sanitize_result_json(path: Path, output_path: Path, categories: set[str]) -> None:
@@ -168,6 +237,15 @@ def _sanitize_result_json(path: Path, output_path: Path, categories: set[str]) -
         runtime = sanitized.get("runtime")
         if isinstance(runtime, dict):
             runtime["command"] = _sanitize_command_argv(runtime.get("command"), categories)
+            _sanitize_vllm_runtime_fields(runtime, categories)
+            backend_provenance = runtime.get("backend_provenance")
+            if isinstance(backend_provenance, dict) and "endpoint_identity" in (
+                backend_provenance
+            ):
+                backend_provenance["endpoint_identity"] = _sanitize_endpoint_identity(
+                    backend_provenance.get("endpoint_identity"),
+                    categories,
+                )
 
     write_json(output_path, sanitized)
 
@@ -176,6 +254,7 @@ def _is_known_artifact(relative_path: Path) -> bool:
     if relative_path.as_posix() in {
         "llmgauge-result.json",
         "runtime-command.json",
+        "vllm-runtime-evidence.json",
         "report.md",
         "scores.yaml",
     }:
@@ -186,6 +265,7 @@ def _is_known_artifact(relative_path: Path) -> bool:
         "cleaned",
         "logs",
         "vram",
+        "request",
     }:
         return False
 

@@ -131,6 +131,10 @@ def fit_ladder(
         runtime_label=runtime_label,
         reasoning_mode=reasoning_mode,
     )
+    run_helpers.reject_unsupported_vllm_command(
+        base_resolved,
+        command="fit-ladder",
+    )
 
     try:
         fallback_values = parse_ctx_ladder(
@@ -400,6 +404,10 @@ def run_ladder(
             runtime_label=runtime_label,
             reasoning_mode=reasoning_mode,
         )
+        run_helpers.reject_unsupported_vllm_command(
+            resolved,
+            command="run-ladder",
+        )
         run_helpers.print_ladder_preflight(
             suite=resolved_suite,
             loaded_suite=loaded_suite,
@@ -452,6 +460,10 @@ def run_ladder(
                 flash_attn=flash_attn,
                 runtime_label=runtime_label,
                 reasoning_mode=reasoning_mode,
+            )
+            run_helpers.reject_unsupported_vllm_command(
+                resolved,
+                command="run-ladder",
             )
 
             result = run_helpers.execute_run(
