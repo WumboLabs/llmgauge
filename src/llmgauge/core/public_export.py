@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import getpass
 import json
 import re
 import shutil
+import socket
 import tempfile
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -34,8 +36,40 @@ _FULL_HASH_SEGMENT_RE = re.compile(
 _PROVENANCE_FILENAME_KEYS = {"filename", "executable_filename"}
 
 
+def _local_usernames() -> tuple[str, ...]:
+    usernames = {Path.home().name.strip()}
+    try:
+        usernames.add(getpass.getuser().strip())
+    except OSError:
+        pass
+    return tuple(sorted(username for username in usernames if username))
+
+
+_LOCAL_HOSTNAME = socket.gethostname().strip()
+_LOCAL_USERNAMES = _local_usernames()
+
+
 def _utc_timestamp() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def _redact_local_identifier(
+    text: str,
+    identifier: str,
+    replacement: str,
+    category: str,
+    categories: set[str],
+) -> str:
+    if len(identifier) < 3:
+        return text
+    pattern = re.compile(
+        rf"(?<![A-Za-z0-9_-]){re.escape(identifier)}(?![A-Za-z0-9_-])",
+        re.IGNORECASE,
+    )
+    sanitized, count = pattern.subn(replacement, text)
+    if count:
+        categories.add(category)
+    return sanitized
 
 
 def _sanitize_text(text: str, categories: set[str]) -> str:
@@ -55,6 +89,21 @@ def _sanitize_text(text: str, categories: set[str]) -> str:
         categories.add("absolute_path")
         return "REDACTED_ABSOLUTE_PATH"
 
+    text = _redact_local_identifier(
+        text,
+        _LOCAL_HOSTNAME,
+        "REDACTED_HOSTNAME",
+        "local_hostname",
+        categories,
+    )
+    for username in _LOCAL_USERNAMES:
+        text = _redact_local_identifier(
+            text,
+            username,
+            "REDACTED_USERNAME",
+            "local_username",
+            categories,
+        )
     text = _CREDENTIAL_URL_RE.sub(replace_url, text)
     text = _SECRET_VALUE_RE.sub(replace_secret, text)
     text = _ABSOLUTE_PATH_RE.sub(replace_path, text)
@@ -146,7 +195,9 @@ def _sanitize_command_argv(value: Any, categories: set[str]) -> Any:
     return sanitized
 
 
-def _sanitize_json_artifact(path: Path, output_path: Path, categories: set[str]) -> None:
+def _sanitize_json_artifact(
+    path: Path, output_path: Path, categories: set[str]
+) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     sanitized = _remove_full_hashes(_sanitize_structured(data, categories), categories)
 
@@ -167,8 +218,10 @@ def _sanitize_json_artifact(path: Path, output_path: Path, categories: set[str])
                 sanitized.pop(key, None)
                 categories.add("vllm_sensitive_evidence_field")
 
-    if path.parent.name == "request" and path.suffix.lower() == ".json" and isinstance(
-        sanitized, dict
+    if (
+        path.parent.name == "request"
+        and path.suffix.lower() == ".json"
+        and isinstance(sanitized, dict)
     ):
         if "endpoint_identity" in sanitized:
             sanitized["endpoint_identity"] = _sanitize_endpoint_identity(
@@ -206,7 +259,9 @@ def _sanitize_endpoint_identity(value: Any, categories: set[str]) -> Any:
     return {k: v for k, v in allowed.items() if v is not None}
 
 
-def _sanitize_vllm_runtime_fields(runtime: dict[str, Any], categories: set[str]) -> None:
+def _sanitize_vllm_runtime_fields(
+    runtime: dict[str, Any], categories: set[str]
+) -> None:
     if "endpoint_identity" in runtime:
         runtime["endpoint_identity"] = _sanitize_endpoint_identity(
             runtime.get("endpoint_identity"),
@@ -236,7 +291,9 @@ def _sanitize_result_json(path: Path, output_path: Path, categories: set[str]) -
         sanitized.pop(RUN_FINGERPRINT_FIELD, None)
         runtime = sanitized.get("runtime")
         if isinstance(runtime, dict):
-            runtime["command"] = _sanitize_command_argv(runtime.get("command"), categories)
+            runtime["command"] = _sanitize_command_argv(
+                runtime.get("command"), categories
+            )
             _sanitize_vllm_runtime_fields(runtime, categories)
             backend_provenance = runtime.get("backend_provenance")
             if isinstance(backend_provenance, dict) and "endpoint_identity" in (
@@ -338,7 +395,9 @@ def _check_output_destination(source_dir: Path, output_dir: Path) -> bool:
         if not output_dir.is_dir():
             raise ValueError(f"Output path is not a directory: {output_dir}")
         if any(output_dir.iterdir()):
-            raise ValueError(f"Refusing to overwrite non-empty output directory: {output_dir}")
+            raise ValueError(
+                f"Refusing to overwrite non-empty output directory: {output_dir}"
+            )
         return True
     return False
 
