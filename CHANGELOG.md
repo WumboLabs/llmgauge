@@ -15,6 +15,9 @@
   and control-character bounds; older artifacts without the fields remain valid.
 
 ### Documentation
+- Consolidated `AGENTS.md` into a shorter canonical agent-assisted development
+  policy with compact handoffs, centralized fail-closed rules, bounded subagent
+  use, and a seven-section review-report format.
 - Recorded real operator validation of both Fit Ladder terminal paths
   (`docs/FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md`): preserved OOM attempts,
   success-child selection with stop-on-first-success, parent/child validation,
