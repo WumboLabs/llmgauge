@@ -1,1017 +1,388 @@
 # AGENTS.md
 
-Guidance for AI coding tools, assistants, and automated editors working on LLMGauge.
-
-LLMGauge is a conservative local-model evaluation tool for real consumer hardware. The project values evaluation quality, reproducibility, artifact integrity, stable command behavior, and defensible evidence over feature volume, architectural novelty, or broad automation.
-
-`AGENT` refers to the coding tool, model, assistant, or automated editor currently working in this repository. This file is intentionally self-contained so the same guardrails apply across different agent harnesses.
+Canonical policy for AI coding tools, assistants, and automated editors working
+on LLMGauge. `AGENT` means the active coding tool, regardless of harness or
+model. This file is self-contained and is the single authority for agent-assisted
+development workflow, responsibility, Git boundaries, scope, validation,
+reports, compatibility, security, and evidence handling.
 
 ## Project identity
 
-LLMGauge is primarily:
+LLMGauge is a conservative, local-first Python CLI for evaluating local models
+on real consumer hardware. It prioritizes evaluation quality, reproducibility,
+artifact integrity, stable command behavior, and defensible evidence over
+feature volume or architectural novelty.
 
-- a local-model evaluation engine
-- an artifact-preserving evaluation bench
-- a reproducibility and public-evidence system
-- a CLI-first tool for real consumer hardware and constrained VRAM
-
-LLMGauge evaluates dimensions such as:
-
-- usefulness
-- honesty and truthfulness
-- technical correctness
-- safety
-- instruction following
-- completion quality
-- speed
-- VRAM use and headroom
-- reproducibility
-- real workflow fit
+It evaluates usefulness, honesty, technical correctness, safety, instruction
+following, completion quality, speed, VRAM use and headroom, reproducibility,
+and real workflow fit.
 
 LLMGauge is not:
 
-- a cloud evaluation service
-- a hosted leaderboard
-- a universal model-ranking system
-- a model downloader
-- a hardware tuning tool
-- an agent framework
-- a hidden automatic judge
-- a telemetry or data-collection service
-- a hosted multi-user platform
+- a cloud evaluation service or hosted multi-user platform;
+- a hosted leaderboard or universal model-ranking system;
+- a model downloader or hardware tuning tool;
+- an agent framework, hidden automatic judge, or telemetry service;
+- a replacement for human quality or publication review.
 
-Structural validation is not answer-quality validation.
+Structural validation is not answer-quality validation. Manual scores are
+review metadata, not universal truth. Comparisons summarize bounded evidence;
+they are not global recommendations. Auto-draft scoring is review-required
+triage.
 
-Manual scores are review metadata, not universal truth.
+## Repository map and canonical product sources
 
-Comparison reports are evidence summaries, not global recommendations.
+- Package: `src/llmgauge/`
+- CLI entry point: `src/llmgauge/cli.py`
+- Commands: `src/llmgauge/commands/`
+- Shared CLI helpers: `src/llmgauge/cli_common.py`
+- Evaluation logic: `src/llmgauge/core/`
+- Runtime integrations: `src/llmgauge/runners/`
+- Bundled and editable suites: `src/llmgauge/builtin_suites/`, `suites/`
+- Tests: `tests/`
+- User documentation: `docs/`
+- Ignored review and result artifacts: `tmp/`, `results/`
 
-Auto-draft scoring is review-required triage.
+Product and artifact contracts live in `README.md`, `docs/DESIGN.md`,
+`docs/ROADMAP.md`, `docs/PUBLIC_REPORTING.md`,
+`docs/ARTIFACT_SCHEMAS.md`, `docs/FIT_LADDER.md`, and accepted focused contract
+documents referenced by `docs/DESIGN.md`. `CHANGELOG.md` records shipped and
+Unreleased changes. These documents define product behavior; this file alone
+defines agent workflow. If canonical sources conflict, follow the fail-closed
+policy instead of choosing silently.
 
-## Project structure
+## Governing workflow
 
-LLMGauge is a Python CLI project using a `src/` layout.
+> One milestone, one branch, one agent, one report, one human Git gate.
 
-- Core package code lives in `src/llmgauge/`.
-- The Typer CLI entry point is `src/llmgauge/cli.py`.
-- Focused CLI command modules live under `src/llmgauge/commands/`.
-- Shared CLI helpers live in `src/llmgauge/cli_common.py`.
-- Shared evaluation logic lives under `src/llmgauge/core/`.
-- llama.cpp integration lives under `src/llmgauge/runners/`.
-- Bundled prompt suites live in `src/llmgauge/builtin_suites/`.
-- Editable suite examples live in `suites/`.
-- Local configuration templates live in `examples/configs/`.
-- Tests live in `tests/`.
-- User-facing documentation lives in `docs/`.
-- Temporary local review artifacts belong under ignored `tmp/`.
-- Generated evaluation artifacts normally belong under ignored `results/`.
-
-## Absolute rules
-
-- Inspect repository state before making changes.
-- Read this file before editing.
-- Make small, focused, reviewable changes.
-- Prefer explicit, deterministic code over clever abstractions.
-- Do not broaden scope merely because adjacent code is visible.
-- Do not perform unrelated cleanup.
-- Do not silently commit unrelated files.
-- Do not introduce network behavior by default.
-- Do not introduce telemetry, model downloads, cloud services, background agents, or external execution frameworks.
-- Do not add an automatic LLM judge.
-- Do not add arbitrary llama.cpp argument passthrough.
-- Do not create abstractions solely for hypothetical future backends.
-- Do not change public CLI behavior accidentally.
-- Do not hide failures, retries, OOMs, missing files, validation errors, or nonzero exits.
-- Do not silently repair or reinterpret user-owned artifacts.
-- Preserve raw outputs and original evidence.
-- Treat generated evaluation artifacts as records, not scratch files.
-- Do not automatically delete user-created result artifacts.
-- Avoid broad refactors unless the requested task is explicitly a refactor and compatibility is covered by tests.
-- Do not add dependencies unless they are necessary, lightweight, and justified.
-- Do not add tool-specific sidecar files unless explicitly requested.
-- Never expose secrets in reports, fixtures, command output, or public artifacts.
-- Never assume public redaction is perfect; public exports must still require human review.
-
-## Agent and human responsibility boundary
-
-Use one agent for each bounded milestone.
-
-The operating rule is:
-
-`One milestone, one branch, one agent, one report, one human Git gate.`
+A milestone must be bounded, independently inspectable, testable, and mergeable.
+Use a focused branch rather than editing `main`. Keep architecture or contract
+definition, meaningful dependency admission, implementation, presentation,
+publication, and release preparation as separate milestones when they create
+distinct durable boundaries.
 
 The agent may:
 
-- verify the expected repository baseline
-- create and switch to the explicitly named working branch
-- inspect relevant files and history
-- plan the bounded milestone
-- edit in-scope code, documentation, tests, and local configuration
-- run non-destructive validation
-- inspect and correct its own complete final diff
-- write the required untracked review report
+- verify the expected baseline and inspect task-relevant history;
+- create and switch to the explicitly named working branch after proving the
+  working tree is safe;
+- inspect relevant code, tests, documentation, and artifacts;
+- edit only the accepted milestone scope;
+- run non-destructive validation and inspect generated artifacts;
+- correct findings from its complete final-diff review;
+- write the required untracked review report.
 
-The human retains exclusive control over:
+The human exclusively controls:
 
-- staging
-- commits
-- merges
-- branch deletion
-- pushes
-- tags
-- releases
-- remote configuration
-- destructive Git operations
-- history rewriting
+- staging and unstaging;
+- commits and commit amendment;
+- merges and branch deletion;
+- pushes and remote configuration;
+- tags and releases;
+- destructive Git actions and history changes.
 
-The agent must leave tracked changes unstaged and uncommitted unless the user
-explicitly overrides this policy for one task.
+Agents must leave tracked changes unstaged and uncommitted. They must not merge,
+push, tag, release, delete branches, rewrite history, or stage files unless the
+user explicitly overrides the relevant boundary for one task. Passing checks
+does not authorize a Git gate.
 
-Do not use subagents, delegated scouts, or parallel agent tasks unless explicitly
-authorized.
+Do not use destructive Git operations such as `git reset --hard`, forced branch
+updates, history rewriting, aggressive cleanup, or unreviewed branch deletion.
+Do not pull, fetch, switch, or create branches blindly when local changes may be
+present. Preserve unrelated and untracked user work.
 
-## Scope discipline
+Pull requests are optional and only used when explicitly requested. CI may not
+exist; missing checks are not passing checks. The normal owner path is local
+review, human staging and commit, a human `--no-ff` merge, post-merge validation,
+and explicit release work later.
 
-Before editing, define:
+## Compact handoffs
 
-1. the requested outcome
-2. the smallest safe implementation slice
-3. the canonical files or contracts
-4. the observable completion criteria
-5. the required validation
-6. adjacent work that will remain deferred
+Every repository handoff must contain exactly the information needed to execute
+the bounded milestone:
 
-Do not expand a focused task into:
+- **Repository** — repository path or identity.
+- **Expected baseline** — branch, commit, synchronization, and expected tree
+  state.
+- **Branch** — exact working branch to create or use.
+- **Goal** — one bounded outcome.
+- **Canonical sources** — only contracts needed for the milestone.
+- **Required delta** — observable changes and acceptance criteria.
+- **Milestone-specific non-goals** — nearby work intentionally excluded.
+- **Special validation** — checks beyond this file's defaults.
+- **Report path** — exact ignored `tmp/*-review-report.md` path.
+- **Subagents** — explicit authorization or `none`.
 
-- a broad architecture rewrite
-- unrelated documentation cleanup
-- speculative backend support
-- model downloading
-- hardware tuning
-- automatic scoring
-- TUI work
-- release work
-- PR or CI ceremony
+Stable workflow, Git, security, privacy, reporting, and default validation rules
+from this file must not be repeated in every handoff. Keep model recommendations
+and model-selection instructions outside repository handoffs. Do not place
+client-specific orchestration or session commands such as `/new` or `/slice`
+inside a handoff.
 
-unless the user explicitly requests that scope.
+A handoff cannot silently authorize scope expansion, dependency admission,
+contract changes, destructive Git operations, model execution, network access,
+or publication.
 
-Each milestone must be independently inspectable, testable, and mergeable.
+## Session and subagent policy
 
-Keep these as separate milestones when they introduce distinct durable
-boundaries:
+Default: one primary agent, one integrated session, no subagents. Every handoff
+must state subagent authorization explicitly; absence of authorization means
+none.
 
-- architecture or contract definition
-- dependency admission
-- implementation
-- presentation or integration
-- publication
-- release preparation
+Keep tightly coupled schema, lifecycle, recovery, protocol, containment, or
+security work in one integrated session. Use slices only for genuinely
+independent, non-overlapping work. Slicing is never automatic and must not split
+one invariant or accepted contract across competing owners.
 
-Do not combine:
+When explicitly authorized, the primary agent may use at most two narrow,
+read-only subagents for independent research. Editing subagents are exceptional:
+the handoff must authorize them, their file ownership must be isolated and
+non-overlapping, and the primary agent remains responsible for integration,
+validation, and the report. Never use subagents to evade scope, validation,
+responsibility, or the human Git gate.
 
-- architecture and implementation
-- dependency admission and production behavior
-- feature work and release metadata
-- unrelated cleanup and a bounded correction
-- several integration layers in one uncontrolled change
+## Scope and architecture discipline
 
-When a milestone contains dependent work, implement it in focused slices.
+Before editing, establish:
 
-## Architecture-first sequencing
+1. requested outcome and expected baseline;
+2. smallest safe implementation slice;
+3. canonical files and accepted contracts;
+4. observable completion criteria and validation;
+5. whether real operator validation is required;
+6. untracked or user-owned artifacts that must be preserved;
+7. adjacent work that remains deferred.
 
-Use architecture-first sequencing when work introduces or changes:
+Inspect before changing. Read only relevant sections. Reuse existing patterns;
+do not create a second convention beside an established one. Prefer small,
+explicit, deterministic changes and boring designs. Fix root causes. Remove
+obsolete in-scope code without leaving aliases, shims, or misleading comments.
+Do not perform unrelated cleanup or speculative abstraction.
 
-- public APIs
-- CLI contracts
-- result or configuration schemas
-- persistence formats
-- external runtimes or services
-- meaningful dependencies
-- security or permission boundaries
-- lifecycle ownership
-- long-lived integration formats
+Architecture-first sequencing is required for public APIs, CLI contracts,
+result or configuration schemas, persistence formats, external runtimes,
+meaningful dependencies, security boundaries, lifecycle ownership, and
+long-lived integrations:
 
-Preferred sequence:
+1. accept the contract;
+2. admit any meaningful dependency in a separate milestone;
+3. implement the accepted contract;
+4. add presentation or integration separately;
+5. prepare publication or release separately.
 
-1. define the contract or ADR
-2. admit any meaningful dependency separately
-3. implement the accepted contract
-4. add presentation or additional integration layers
-5. perform release or publication work separately
+Implementation must not silently reopen an accepted contract. Do not add
+hypothetical backends, broad migration frameworks, arbitrary runtime argument
+passthrough, external execution frameworks, or dependencies without a concrete
+accepted need. Never broaden a focused task into release work, model tuning,
+automatic scoring, TUI work, hosted services, or publication.
 
-Implementation must follow accepted contracts rather than silently reopening
-them.
+## FAIL: centralized fail-closed policy
 
-If implementation reveals a genuine contradiction or missing contract, stop and
-report the exact blocker instead of changing the architecture implicitly.
+Verdict must be `FAIL`, not a reduced or improvised `PASS`, when any of these
+conditions applies:
 
-## Lean handoff standard
+- the expected branch, commit, synchronization, or working-tree baseline is
+  incorrect;
+- canonical documents conflict on a decision material to the milestone;
+- requested work would violate an accepted contract;
+- completion requires unauthorized scope expansion;
+- completion requires a forbidden or unauthorized schema, dependency, public
+  API, or compatibility change;
+- a required capability, tool, runtime, artifact, permission, or source is
+  unavailable;
+- required security, privacy, evidence-integrity, or compatibility guarantees
+  cannot be preserved;
+- required validation cannot be performed or reported honestly.
 
-Task handoffs should contain only:
+Stop before making unsafe changes when the blocker is known. Preserve evidence,
+complete any independent safe inspection, and report the exact blocker, what
+was verified, and the smallest materially different next milestone. Never hide,
+retry away, document around, rename, wrap, mock, or special-case an unresolved
+failure. No partial implementation, placeholder, stub, or deferred promise may
+be presented as completion.
 
-- repository and expected baseline
-- branch to create
-- one bounded milestone
-- essential canonical context
-- required observable behavior
-- hard constraints
-- explicit out-of-scope work
-- validation commands
-- report path
-- exact expected next action
+## Local-first, offline-safe, and runtime boundaries
 
-Stable workflow rules belong in `AGENTS.md` and should not be repeated in every
-handoff.
+Default behavior must remain local, offline-safe, explicit, and non-destructive.
+Do not introduce automatic model downloads, telemetry, cloud services, hosted
+judges, network submission, background agents, external databases, or hardware
+mutation. Do not install or modify drivers, CUDA, packages, firewalls, clocks,
+GPU state, or host configuration. Do not add network behavior by default.
 
-Do not include session commands, model-selection commands, `/new`, `/slice`, or
-orchestration instructions inside repository handoffs.
+LLMGauge may integrate only with explicitly accepted local runtimes. Respect
+runtime lifecycle ownership: do not install, launch, supervise, or mutate an
+external service unless its accepted contract and milestone explicitly require
+it. Use structured argv, never shell command strings or arbitrary shell
+passthrough. Bound user-facing controls with explicit validated options.
 
-State each instruction once.
+Do not launch real models in normal tests. Prefer dry-run validation, temporary
+fixtures, and mocked runners. Before any authorized real operator smoke, print
+and inspect the executable, model/profile, suite, prompt selector, context,
+maximum tokens, temperature, batch, ubatch, GPU layers, flash-attention,
+reasoning mode, runtime label, and output directory. Do not invent paths or
+assume hardware, CUDA, runtime builds, or model files.
 
-Do not over-prescribe implementation details before repository inspection unless
-they are already canonical or required for compatibility, privacy, security, or
-correctness.
+Runtime metadata must distinguish requested, observed, unavailable, and unknown
+behavior. A requested mode is not proof that it became effective. Do not hide
+nonzero exits, signals, startup failures, retries, OOMs, readiness failures, or
+partial output.
 
-## Starting every repository task
+## CLI and configuration compatibility
 
-At the start of every substantial repository task:
+Preserve public command names, aliases, option names, defaults, exit codes,
+dry-run behavior, stdout/stderr ownership, signals, and artifact contracts unless
+the accepted milestone changes them. CLI changes require focused tests and
+manual `--help` inspection. Prefer hyphenated user-facing names, actionable
+errors, bounded options, and explicit `--dry-run`, `--check`, `--yes`, or
+`--force` controls where appropriate.
 
-1. Read `AGENTS.md`.
-2. Inspect the current branch and HEAD.
-3. Inspect the working tree.
-4. Inspect recent history.
-5. Compare local `main` with `origin/main` when remote state matters.
-6. Restate the requested scope.
-7. Identify likely files and modules.
-8. Identify targeted tests and full gates.
-9. Identify whether real operator validation will be required.
-10. Identify any existing untracked artifacts that must be preserved.
+Treat user-owned YAML as data, not scaffolding:
 
-Suggested read-only commands:
+- preserve unknown fields and existing `extra="allow"` behavior;
+- validate before writing and reject ambiguous mutation requests;
+- require explicit confirmation for destructive changes;
+- do not hard-code private paths, model locations, GPUs, or VRAM assumptions;
+- keep machine-specific paths in ignored local configuration;
+- never download models or build runtimes automatically.
+
+Structured YAML writes may lose comments; do not claim comment preservation
+unless deliberately supported.
+
+## Evidence and artifact integrity
+
+Generated results are records, not scratch files. Do not mutate or delete
+user-created result artifacts except through an explicit documented artifact
+operation. Preserve:
+
+- raw prompts, model stdout, stderr, logs, and original runtime settings;
+- cleaned output as a clearly derived review aid;
+- telemetry and scheduler traces when captured;
+- every failed attempt, exit code, and honest failure classification;
+- scores, reports, provenance, and requested versus selected settings.
+
+Raw evidence is authoritative. Cleaned output never replaces it. Never convert a
+failed run into success, hide an attempt, silently repair an artifact, or
+reinterpret fallback settings as the original request. Validators report
+problems; they do not repair user evidence.
+
+Fit and retry workflows must be explicit, opt-in, bounded, reproducible, and
+artifact-preserving. Adaptive fallback is not the normal-run default. Preserve
+all attempts, stop according to the accepted policy, report the selected working
+configuration, and keep substantial GPU-layer fallback explicit. A fitting
+fallback does not prove the requested configuration worked, global optimality,
+or answer quality.
+
+Generated reports, comparisons, export indexes, and validation are evidence
+summaries or structural checks. They do not prove correctness, safety, model
+quality, publication readiness, or universal rank. Preserve source-of-truth and
+regeneration rules documented in `docs/ARTIFACT_SCHEMAS.md`.
+
+## Schema and provenance compatibility
+
+Prefer additive schema evolution. Normally safe changes are optional fields,
+optional artifacts, warnings, and informative validation that keeps previously
+valid artifacts valid. Breaking changes include required fields, renamed or
+removed fields, changed types or semantics, moved required artifacts, changed
+score meaning, or rejection of valid legacy results.
+
+Support older valid v0.x result directories through 1.0 unless corrupted,
+unsafe, or technically impossible to interpret. Importers must check
+`schema_version`, tolerate unknown optional fields, and avoid assuming one
+repository or application data directory. Do not build a migration framework
+without demonstrated need.
+
+For provenance:
+
+- use full SHA-256 locally; shortened fingerprints are display identifiers, not
+  full identities;
+- validate cached hashes against path, size, modification time, and inode or an
+  equivalent file identity, and rehash when identity changes;
+- prefer GGUF metadata over filename inference and label inference clearly;
+- record unavailable provenance as unknown when the artifact remains usable;
+- exclude mutable review artifacts from immutable run fingerprints;
+- do not add a whole-result-directory hash manifest without an accepted product
+  decision.
+
+Fingerprints do not prove model quality, authorship, hardware identity, or the
+byte integrity of transformed public exports.
+
+## Scoring and claim boundaries
+
+Manual scoring is authoritative. Do not overwrite reviewed scores without
+explicit intent. Auto-draft scores remain review-required drafts until a human
+deliberately reviews and applies them. Preserve scoring provenance and make
+reviewed, unreviewed, partial, and missing states visible. Deterministic output
+checks may supply evidence but must not silently become final quality scores.
+
+Do not calculate or imply full quality from partially reviewed repeated trials.
+Compare quality only across like-for-like runs with equivalent prompts and
+disclosed model, hardware, runtime, suite, context, generation settings, and
+scoring status. Reports may support claims about the tested configuration only;
+they must not imply universal rank, untested safety or performance, daily-driver
+reliability, or broad recommendations from one run.
+
+## Privacy and public export
+
+Never intentionally capture, expose, report, fixture, or publish API keys,
+tokens, passwords, credential-bearing URLs, unrelated environment secrets, or
+private machine identity. Inspect changes and generated artifacts for usernames,
+hostnames, home paths, model and executable directories, serial numbers, and
+unnecessary device identifiers.
+
+Hardware capture remains optional; results are valid when it is disabled. Modes
+may be `off`, `minimal`, or `full`, but privacy-sensitive identity must not be
+default metadata. State when hardware disclosure was not captured.
+
+Public exports are separate sanitized derivatives and must never mutate their
+canonical private source. Public export must redact usernames, home paths,
+hostnames, model directories, executable directories, and unrelated environment
+data; avoid duplicated full prompts in command metadata; preserve relevant
+settings; omit unknown files safely; and produce a redaction summary. Keep the
+private source for audit.
+
+Sanitization is not proof that all private data is removed. Every public export
+requires human review before publication. Preserve provenance without claiming
+that a source fingerprint authenticates transformed export bytes.
+
+## Validation discipline
+
+At the start of substantial work, inspect rather than infer:
 
 ```bash
 git status --short --branch
 git rev-parse HEAD
 git log --oneline --decorate --graph --max-count=20
-git tag --points-at HEAD
 git diff --check
-uv run llmgauge --version
 ```
 
-Do not invent repository state. Inspect it.
-
-## Branch workflow
-
-Work on a focused feature branch rather than directly on `main`.
-
-Before creating a branch, confirm that the working tree is safe and that existing untracked files will not be disturbed.
-
-Typical owner workflow:
-
-```bash
-git switch main
-git pull --ff-only origin main
-git switch -c feature/descriptive-name
-```
-
-A coding agent must not pull, fetch, switch branches, or create a branch blindly when local changes may be present.
-
-When remote synchronization is not explicitly authorized, inspect rather than mutate:
-
-```bash
-git status --short --branch
-git rev-parse main
-git rev-parse origin/main
-git log --oneline --decorate --graph --max-count=20
-```
-
-Do not use destructive Git operations such as:
-
-- `git reset --hard`
-- forced branch updates
-- history rewriting
-- aggressive cleanup
-- unreviewed branch deletion
-
-unless explicitly approved.
-
-## Implementation workflow
-
-For normal milestone work:
-
-1. Read `AGENTS.md`.
-2. Verify the expected repository baseline.
-3. Create and switch to the explicitly named branch.
-4. Inspect only task-relevant code, tests, and canonical documentation.
-5. Define the smallest correct change.
-6. Patch only relevant files.
-7. Add or update focused tests.
-8. Run targeted validation.
-9. Inspect generated artifacts when behavior changes.
-10. Run the full project gate when proportional and practical.
-11. Inspect the complete final diff adversarially.
-12. Correct all in-scope findings.
-13. Create the required untracked review report as the final file-writing action.
-14. Leave tracked changes unstaged and uncommitted.
-15. Stop for human review.
-
-Run the full suite once per milestone unless a later production-code correction
-materially invalidates that result.
-
-Documentation-only corrections after a successful full gate normally require
-only proportional documentation, version, lint, and diff validation.
-
-Use timeouts for commands that may hang.
-
-Recommended checks:
-
-- `uv run pytest`
-- `uv run ruff check .`
-- `git diff --check`
-
-Before reporting, inspect:
-
-- `git diff --stat`
-- `git diff --name-status`
-- `git diff`
-- `git status --short --branch`
-
-## Human Git gate
-
-The agent must not stage or commit work.
-
-After receiving a PASS report, the human:
-
-1. reads the review report
-2. inspects the complete working-tree diff
-3. stages only the reviewed files
-4. inspects the staged name/status and diff
-5. runs `git diff --cached --check`
-6. runs the required pre-commit validation
-7. commits the bounded milestone
-8. switches to `main`
-9. merges with `--no-ff`
-10. runs post-merge validation
-11. verifies the final repository state
-12. pushes and deletes the branch only when appropriate
-
-Do not commit:
-
-- generated `results/`
-- temporary `tmp/` reports or audit data
-- private machine paths
-- secrets or `.env` files
-- caches
-- local databases
-- personal notes
-- unrelated files
-
-Commit subjects should be concise, imperative, and milestone-specific.
-
-The agent may recommend a commit message in its report but must not execute it.
-
-## Owner merge workflow
-
-Pull requests are optional and are not the default owner workflow.
-
-The normal owner workflow is:
-
-1. Complete the focused feature branch.
-2. Run targeted tests.
-3. Run the full local gate.
-4. Create and inspect the untracked review report.
-5. Review the branch locally.
-6. Switch to `main`.
-7. Confirm `main` is synchronized and clean.
-8. Merge with a merge commit:
-
-```bash
-git merge --no-ff feature/descriptive-name -m "Merge descriptive feature"
-```
-
-9. Run the final local gate on `main`.
-10. Perform any required real operator smoke.
-11. Create release metadata separately when preparing a release.
-12. Tag and push only when explicitly requested.
-
-Do not merge automatically merely because tests pass.
-
-Do not delete the feature branch until merge, release, and tag state have been verified and the user approves cleanup.
-
-## Pull request workflow
-
-PRs are optional.
-
-Only create or use a pull request when explicitly requested.
-
-When asked to create a PR:
-
-1. Verify branch state.
-2. Confirm the branch contains only intended commits.
-3. Push the branch.
-4. Create the PR.
-5. Inspect the PR diff and metadata.
-6. Inspect checks when checks actually exist.
-7. Report the PR number, URL, checks, and mergeability.
-
-Do not assume CI exists or has run.
-
-LLMGauge currently treats local validation as authoritative. CI may be added later when contributor volume, packaging complexity, or multi-environment testing justifies it.
-
-When a PR has no checks, say so plainly rather than treating missing checks as success.
-
-## Release workflow
-
-Release metadata must remain separate from feature work.
-
-Only update release metadata during an explicit release-preparation step.
-
-Typical release files include:
-
-- `pyproject.toml`
-- `src/llmgauge/__init__.py`
-- `uv.lock`
-- `CHANGELOG.md`
-- release/version language in documentation
-
-Do not bump the package version merely because a feature branch starts.
-
-Release preparation should:
-
-1. Start after feature work is merged.
-2. Update version metadata.
-3. Update the lockfile when required.
-4. Update the changelog.
-5. Verify package and CLI versions.
-6. Run the full local gate.
-7. Commit release metadata separately.
-8. Merge release metadata into `main`.
-9. Run final gates.
-10. Create an annotated tag.
-11. Push `main` and the tag only when explicitly requested.
-
-Version checks:
-
-```bash
-grep '^version' pyproject.toml
-grep '__version__' src/llmgauge/__init__.py
-uv run llmgauge --version
-```
-
-Annotated tag example:
-
-```bash
-git tag -a v0.70 -m "LLMGauge v0.70"
-git push origin refs/tags/v0.70:refs/tags/v0.70
-```
-
-Use semantic version tags.
-
-Do not create nonstandard release tags such as:
-
-- `v0.70-final`
-- `v0.70-fix2`
-- `v0.71a`
-
-## Required review report
-
-Every substantial feature, documentation, process, audit, validation, or
-release-preparation milestone must produce an untracked Markdown report under
-`tmp/`.
-
-Small read-only inspections do not require a report unless requested.
-
-Required path pattern:
-
-`tmp/<milestone>-review-report.md`
-
-The report must remain untracked.
-
-Do not place it under:
-
-- `docs/`
-- `results/`
-- another tracked directory
-
-The report must include:
-
-- explicit `PASS` or `FAIL`
-- readiness for human commit review
-- exact recommended next action
-- verified starting branch and HEAD
-- working branch and current HEAD
-- staged or unstaged state
-- requested scope and explicit boundaries
-- files added, modified, and removed
-- complete diff stat
-- decisions made
-- implementation or documentation summary
-- compatibility impact
-- exact validation commands and actual results
-- targeted-test results
-- full-project gate result
-- Ruff result
-- `git diff --check` result
-- self-review findings
-- corrections made
-- remaining Critical findings
-- remaining High findings
-- remaining Medium findings
-- residual risks
-- external assumptions
-- unsupported cases
-- real operator validation when relevant
-- generated artifacts inspected
-- source-artifact integrity when relevant
-- privacy findings when relevant
-- deferred work
-- untracked artifacts created
-- final working-tree status
-
-A milestone must not receive PASS with unresolved Critical, High, or Medium
-findings.
-
-The report must clearly distinguish:
-
-- completed work
-- deferred work
-- blocked work
-- future recommendations
-
-Do not include:
-
-- secrets
-- private usernames
-- unnecessary absolute private paths
-- full private hashes
-- raw prompts
-- raw model outputs
-- oversized logs
-- complete successful test output
-
-Approximately 150 lines is the normal upper bound unless the milestone genuinely
-requires more.
-
-Print the absolute report path at the end of the task.
-
-The report is the authoritative detailed record of the milestone. It is not a
-substitute for a concise final response.
-
-## Investigation and evidence discipline
-
-Distinguish completed capability from:
-
-- prototypes
-- partial implementation
-- documentation-only work
-- mocks
-- special-case success
-- unresolved reductions
-- moved or renamed problems
-
-Do not claim completion unless the stated observable criteria are satisfied.
-
-When blocked by a missing contract, unavailable capability, unresolved
-dependency, unproved assumption, external requirement, or security or
-compatibility contradiction:
-
-- record the exact blocker
-- preserve the evidence
-- stop retrying equivalent approaches
-- recommend the smallest materially different next milestone
-
-Ground conclusions in exact files, commands, observed results, reproduction
-cases, tests, corrections, residual risks, and remaining gaps.
-
-Avoid vague claims such as:
-
-- `looks good`
-- `should work`
-- `mostly complete`
-- `appears safe`
-- `probably compatible`
-
-Do not treat documenting, wrapping, renaming, moving, or abstracting an unresolved
-problem as solving it.
-
-## Adversarial self-review
-
-Before reporting, inspect the complete final diff for:
-
-- scope expansion
-- contract violations
-- duplicated authority
-- compatibility regressions
-- unsafe defaults
-- missing validation
-- stale documentation
-- unrelated changes
-- hidden dependency assumptions
-- secret or error leakage
-- resource or process leaks
-- partial-output behavior
-- insufficient failure handling
-
-Apply checks specific to the changed boundary.
-
-Examples:
-
-- CLI: parsing, stdout/stderr ownership, exit codes, signals, partial output
-- API: malformed inputs, bounds, timeouts, cancellation, redaction
-- persistence: atomicity, rollback, reopen behavior, identity mismatch
-- runtime integration: lifecycle ownership, readiness, request isolation,
-  cancellation, telemetry semantics, startup versus request evidence
-- public artifacts: source immutability, redaction, provenance, trust boundaries
-
-Correct all in-scope findings before assigning PASS.
-
-## Chat response discipline
-
-Keep interactive chat output concise.
-
-The untracked review report is the authoritative detailed record of repository work. Do not duplicate its full contents in chat.
-
-During a task, only send an update when:
-
-- a blocker requires user input
-- a destructive or externally visible action requires approval
-- a real model command requires review before launch
-- a significant defect or scope conflict is discovered
-- the requested scope cannot be completed as written
-
-Do not narrate routine:
-
-- file inspection
-- repository orientation
-- successful commands
-- passing tests
-- repeated status checks
-- implementation details already captured in the review report
-
-Do not paste full test output, diffs, logs, or generated artifacts into chat unless the user requests them or a failure needs diagnosis.
-
-Normal progress updates should be short and decision-oriented.
-
-The final chat response should summarize only:
-
-- what was completed
-- important findings
-- failures or limitations
-- repository state
-- readiness recommendation
-- absolute review-report path
-
-Avoid repeating:
-
-- the original task
-- the project identity
-- settled product decisions
-- complete command histories
-- full test lists
-- full file lists already present in the review report
-
-## Context and usage discipline
-
-Use repository context economically.
-
-- Read only files directly relevant to the requested change.
-- Do not reread broad project documentation when `AGENTS.md` and the task provide
-  sufficient context.
-- Do not repeat settled product decisions in analysis, reports, or chat.
-- Stop repository orientation once the implementation path and tests are known.
-- Do not produce speculative designs for explicitly deferred features.
-- Do not inspect every potentially related module merely for completeness.
-- Prefer one focused implementation objective per milestone.
-- Run targeted tests while developing and the full suite once before final
-  handoff when proportional.
-- Do not rerun successful full gates without a concrete reason.
-- Keep review reports concise and evidence-oriented.
-- Summarize commands and results rather than pasting complete successful output.
-- Record only decisions made during the current task.
-- Treat token and tool usage as project resources.
-- Use large context only for a concrete repository-wide need.
-- Keep numeric model context limits and billing thresholds out of tracked
-  repository policy; those belong in operator configuration.
-
-## Unattended-run discipline
-
-Before substantive work, inspect the planned workflow for commands likely to
-trigger approval.
-
-For unattended runs:
-
-- use repository-local paths
-- use existing project dependencies
-- prefer offline commands
-- avoid network access
-- avoid writes outside the repository
-- avoid package installation
-- avoid privileged or host-modifying commands
-- avoid destructive Git operations
-- use noninteractive command forms
-- request unavoidable approval before implementation begins
-
-Do not begin a long run that is predictably unable to finish under the current
-permission policy.
-
-When an unexpected approval interruption occurs, record:
-
-- the exact command
-- the reason approval was requested
-- whether it is a normal project operation
-- whether the task or permission profile should change
-
-Do not recommend unrestricted permissions without a bounded operational need.
-
-## CLI compatibility
-
-LLMGauge is CLI-first.
-
-Preserve existing:
-
-- command names
-- aliases
-- option names
-- defaults
-- exit codes
-- dry-run behavior
-- output artifact contracts
-
-unless the task explicitly changes them.
-
-When changing CLI behavior:
-
-- Add or update CLI tests.
-- Inspect `--help` output manually.
-- Preserve compatibility aliases where practical.
-- Keep destructive behavior explicit.
-- Prefer bounded options over arbitrary passthrough.
-- Use `--dry-run`, `--check`, `--yes`, or `--force` where appropriate.
-- Use hyphenated user-facing command and option names.
-- Keep errors clear and actionable.
-- Do not silently change defaults with compatibility implications.
-
-## Configuration and model profiles
-
-User-owned YAML must be treated carefully.
-
-When reading or writing config and model-profile files:
-
-- Preserve unknown fields.
-- Do not silently remove user data.
-- Validate before writing.
-- Reject ambiguous mutation requests.
-- Avoid destructive changes without explicit confirmation.
-- Do not hard-code private machine paths.
-- Do not hard-code model locations.
-- Do not hard-code GPU or VRAM assumptions.
-- Preserve `extra="allow"` behavior where user-owned configuration models rely on it.
-- Keep setup and config behavior local-first.
-- Do not download models or build llama.cpp automatically.
-
-Known acceptable limitation:
-
-YAML comments may not be preserved by structured writes unless comment-preserving YAML support is deliberately introduced.
-
-Machine-specific paths belong in ignored local configuration files.
-
-## Result artifacts
-
-Result directories are evidence.
-
-Do not mutate them unless an explicit command applies:
-
-- scoring
-- validation
-- reporting
-- export
-- another documented artifact operation
-
-Preserve:
-
-- raw prompts
-- raw model output
-- cleaned output
-- stderr logs
-- VRAM telemetry
-- scheduler traces when explicitly captured
-- runtime metadata
-- failed attempts
-- scores
-- reports
-
-Rules:
-
-- Raw output is authoritative source evidence.
-- Cleaned output is a derived review aid.
-- Do not convert failed runs into successful runs.
-- Do not hide failed attempts.
-- Do not rewrite original runtime settings.
-- Validation should report problems rather than silently repair artifacts.
-- Public export must not mutate the source result.
-- Missing optional provenance must not invalidate otherwise usable legacy artifacts unless the schema explicitly requires it.
-
-## Local and public artifact boundaries
-
-Local evidence and public exports have different disclosure requirements.
-
-Local result artifacts may retain information needed for debugging and reproduction, subject to existing schema redaction rules.
-
-Public artifacts must be copied into a separate export and sanitized.
-
-Public export must:
-
-- never mutate the original result
-- redact usernames and home-directory paths by default
-- redact hostnames
-- redact model directories
-- redact executable directories
-- omit unrelated environment data
-- avoid duplicated full prompts in command metadata
-- preserve evaluation-relevant settings
-- produce a redaction summary
-- validate the exported result
-- warn that human review is still required
-
-Never intentionally capture or export:
-
-- API keys
-- authentication tokens
-- passwords
-- credential-bearing URLs
-- unrelated environment secrets
-
-Shortened public fingerprints are display identifiers, not substitutes for full cryptographic identity.
-
-## Schema compatibility
-
-Prefer additive schema changes.
-
-Non-breaking changes generally include:
-
-- optional fields
-- optional artifacts
-- warnings
-- additional report sections
-- new enum values that older readers can treat as unknown
-- more informative validation that does not reject previously valid artifacts
-
-Breaking changes include:
-
-- new required fields
-- renamed or removed fields
-- changed field types
-- changed field semantics
-- moved required artifacts
-- changed score semantics
-- making previously valid legacy results fail
-
-Older valid v0.x result directories should remain supported through 1.0 unless they are:
-
-- corrupted
-- unsafe
-- technically impossible to interpret
-
-Do not build a large migration framework without a demonstrated user or integration need.
-
-## Model execution
-
-Do not launch real models during normal unit tests.
-
-Use:
-
-- dry-run validation
-- mocked runner behavior
-- temporary fixtures
-- controlled integration tests
-
-when possible.
-
-Before launching a real operator smoke, print and inspect:
-
-- llama.cpp executable path
-- model path or model profile
-- suite
-- prompt selector
-- context size
-- maximum tokens
-- temperature
-- batch
-- ubatch
-- GPU layers
-- flash-attention mode
-- reasoning mode
-- runtime label
-- output directory
-
-Do not launch a model until the command and paths are resolved and reviewed.
-
-Do not invent a model path.
-
-Do not assume a specific GPU, CUDA version, llama.cpp build, or GGUF exists.
-
-Public/reference artifacts should use disclosed stock methodology unless a tuned configuration is explicitly part of the evaluation.
-
-## Runtime command construction
-
-Use structured argv.
-
-Do not construct shell command strings for execution.
-
-Do not add arbitrary shell passthrough.
-
-Bound user-facing runtime controls through explicit validated options.
-
-Runtime metadata should distinguish:
-
-- requested behavior
-- observed behavior
-- unavailable or unknown behavior
-
-Do not claim an effective reasoning mode merely from a requested option.
-
-## Provenance and fingerprints
-
-When implementing provenance:
-
-- Use full SHA-256 locally.
-- Use shortened fingerprints for public display where configured.
-- Do not treat shortened fingerprints as full identities.
-- Cache expensive hashes only with file-identity validation.
-- Cache identity should include path, size, modification time, and inode or equivalent identity where available.
-- Rehash when file identity changes.
-- Mark unavailable provenance as unknown rather than failing usable runs unnecessarily.
-- Prefer GGUF metadata over filename inference.
-- Mark inferred architecture or quantization clearly.
-- Keep mutable review artifacts out of immutable run fingerprints.
-
-Do not implement a whole-result-directory hash manifest unless the product decision explicitly changes.
-
-## Hardware metadata
-
-Hardware capture must remain optional.
-
-A result is valid when hardware metadata is disabled.
-
-Hardware capture modes may include:
-
-- `off`
-- `minimal`
-- `full`
-
-Do not capture privacy-sensitive machine identity by default.
-
-Exclude or redact:
-
-- hostname
-- username
-- serial numbers
-- private paths
-- unnecessary PCI identifiers
-
-Reports must state plainly when hardware disclosure was not captured.
-
-## Fit ladders and retries
-
-Fit and retry workflows must remain explicit and artifact-preserving.
-
-- Do not make adaptive fallback the default for normal runs.
-- Preserve every failed attempt.
-- Classify failures honestly.
-- Preserve requested settings.
-- Report the selected working configuration.
-- Do not hide OOMs or runtime failures.
-- Do not silently reinterpret a fallback as the originally requested run.
-
-## Scoring
-
-Manual scoring remains authoritative.
-
-- Do not overwrite reviewed scores without explicit user intent.
-- Auto-draft scores must remain review-required drafts until deliberately applied.
-- Keep scoring provenance accurate.
-- Keep reviewed and unreviewed states visible.
-- Do not silently calculate a full quality claim from partially reviewed repeated trials.
-- Deterministic output checks may provide evidence but must not silently determine final manual scores.
-
-## Testing
-
-Tests use `pytest`.
-
-- Add or update tests whenever behavior changes.
-- Run focused tests before the full suite.
-- Keep tests deterministic.
-- Avoid real model dependencies in normal tests.
-- Prefer temporary directories and fixtures.
-- Assert against generated JSON, YAML, files, command output, and exit behavior.
-- Avoid broad snapshots when focused assertions are clearer.
-- Test backward compatibility when schemas change.
-- Test cache invalidation when caching file hashes.
-- Test path redaction and privacy boundaries.
-- Test that public export does not mutate source artifacts.
-- Test older artifacts when validation behavior changes.
-
-Full gate:
+Compare local `main`, `origin/main`, and `origin/HEAD` when baseline synchronization
+matters. Inspect existing untracked files before branch creation. Use offline,
+repository-local, noninteractive commands with timeouts; do not install packages
+or write outside the repository for routine validation.
+
+Behavior changes require deterministic focused tests. Test observable contracts,
+boundaries, invariants, transitions, precedence, and real errors—not source text
+or incidental implementation. Use temporary directories and fixtures; avoid
+real models. Test backward compatibility, cache invalidation, redaction, source
+immutability, and failure preservation when those boundaries change.
+
+Verification must match the work:
+
+- investigation: run the experiment and preserve its output;
+- CLI: exercise parsing, help, output ownership, exits, signals, and artifacts;
+- persistence or schema: validate atomicity, reopen behavior, identity, and
+  legacy artifacts;
+- runtime integration: validate lifecycle, readiness, isolation, cancellation,
+  and requested-versus-observed evidence;
+- public export: validate source immutability, redaction, provenance, and human
+  review boundaries;
+- documentation: check changed links, commands, cross-document consistency, and
+  Markdown quality;
+- real operator behavior: inspect the resolved command before launch and the
+  generated artifacts afterward.
+
+Run focused checks during development, then the full project gate once per
+milestone when proportional:
 
 ```bash
 uv run pytest
@@ -1019,94 +390,106 @@ uv run ruff check .
 git diff --check
 ```
 
-## Documentation
+Do not rerun a successful full gate unless later production changes invalidate
+it. Documentation-only corrections after a full gate need proportional Markdown,
+link, version, lint, and diff checks. Never claim a check ran unless its actual
+result was observed.
 
-Documentation should be practical, precise, and reproducible.
+Before reporting, inspect the complete diff and final status for scope expansion,
+contract violations, duplicated authority, compatibility regressions, unsafe
+defaults, stale docs, unrelated files, hidden dependencies, leaks, process or
+resource leaks, partial-output behavior, and insufficient failure handling.
+Correct every in-scope Critical, High, or Medium finding before `PASS`.
 
-- Avoid hype.
-- Avoid universal ranking claims.
-- Avoid unsupported currentness claims.
-- State limitations plainly.
-- Distinguish structural validation from quality review.
-- Distinguish manual scores from objective truth.
-- Keep commands copy/paste safe.
-- Keep examples local-first.
-- Do not expose private paths or personal notes.
-- Do not describe optional future features as current capabilities.
-- Keep release state, roadmap state, and CLI behavior synchronized.
+## Release and publication boundaries
 
-## Code style
+Feature work must not change release metadata. Release preparation is a separate,
+explicit milestone after accepted feature work. Version files, lockfiles,
+changelog release sections, commits, merges, annotated tags, pushes, and releases
+remain human-controlled unless one boundary is explicitly delegated for one
+task. Do not invent nonstandard version tags.
 
-- Target Python 3.11 or newer.
-- Use 4-space indentation.
-- Use type hints for public helpers.
-- Prefer clear names.
-- Prefer simple functions over speculative abstractions.
-- Keep imports minimal and explicit.
-- Avoid broad exception swallowing.
-- Raise clear `ValueError`, `typer.BadParameter`, or `typer.Exit` errors where appropriate.
-- Preserve backward compatibility.
-- Keep privacy and artifact behavior explicit.
-- Avoid hidden side effects.
+Publication is also separate. Public evidence requires validated artifacts,
+manual review, disclosed tested conditions and scoring status, bounded claims,
+and inspection of the sanitized derivative. Never publish or submit by default.
 
-## Safety and privacy checks
+## Required review report
 
-Before presenting work as complete, inspect for:
+Every substantial feature, documentation, process, audit, validation, or release
+milestone must end with one untracked Markdown report under the exact handoff
+path in `tmp/`. Small read-only inspections need no report unless requested.
+The report is the authoritative detailed handoff and must remain untracked.
+Approximately 150 lines is the normal ceiling unless evidence genuinely needs
+more.
 
-- home-directory paths
-- usernames
-- hostnames
-- local model directories
-- llama.cpp executable directories
-- API keys
-- tokens
-- secrets
-- credential-bearing URLs
-- `.env` content
-- generated result artifacts
-- caches
-- local databases
-- unrelated personal notes
+Use these seven core sections:
 
-Use generic searches rather than embedding unnecessary personal identifiers in tracked project guidance.
+1. **State and verdict** — explicit `PASS` or `FAIL`; starting branch and HEAD;
+   working branch and current HEAD; staged, unstaged, and untracked state;
+   readiness for human commit review.
+2. **Subagents** — authorization, actual use, role, and file ownership; state
+   `none` when none were used.
+3. **Changes** — requested scope, files added/modified/removed, diff stat, and
+   concise implementation or documentation summary.
+4. **Architecture and safety decisions** — contracts followed, compatibility,
+   privacy, artifact integrity, decisions made, corrections from self-review,
+   and generated/source artifacts inspected.
+5. **Validation** — exact commands and actual results; focused checks, full gate,
+   Ruff, `git diff --check`, operator validation, and any check not run with the
+   reason.
+6. **Scope and residual risks** — completed, deferred, blocked, and unsupported
+   work; external assumptions; intentional omissions; remaining Critical, High,
+   and Medium findings; residual risks and untracked artifacts.
+7. **Next gate** — exact recommended human action and final working-tree status.
 
-Examples:
+A report cannot say `PASS` with unresolved Critical, High, or Medium findings or
+with dishonest or unavailable required validation. Do not include secrets,
+private identifiers, full private hashes, raw prompts or model outputs,
+oversized logs, or complete successful test output. Write the report as the
+final file-writing action and print its absolute path in the final response.
 
-```bash
-git grep -n "/home/" || true
-git grep -n "/Users/" || true
-git grep -ni "api[_-]key" || true
-git grep -ni "token" || true
-git grep -ni "secret" || true
-git grep -ni "password" || true
-git grep -n "Projects/local-llm" || true
-git status --short --branch
+## Code and communication standards
+
+Target Python 3.11 or newer. Use four-space indentation, minimal explicit
+imports, and type hints for public helpers. Prefer clear names and simple
+functions over speculative abstractions. Avoid needless allocation, copying,
+computation, and broad exception swallowing. Raise clear `ValueError`,
+`typer.BadParameter`, or `typer.Exit` errors where appropriate.
+
+Keep agent chat concise and evidence-based. Send progress only for blockers,
+approval needs, real-model launch review, material defects, or scope conflicts.
+Do not paste routine inspection, successful logs, complete diffs, or report
+contents unless requested or needed to diagnose failure. The final response
+states completion, important findings or limitations, repository state,
+readiness, and the absolute report path.
+
+## Documentation standards
+
+Write practical, precise, reproducible documentation without hype or unsupported
+currentness claims. Distinguish structural validation from quality review,
+manual scores from objective truth, and current capability from roadmap work.
+Keep examples local-first, copy/paste safe, and free of private paths. Do not add
+documentation frameworks or broad cleanup outside the milestone.
+
+## Compact LLMGauge handoff example
+
+```text
+Repository: /path/to/llmgauge
+Expected baseline: main @ <commit>; clean; main and origin/main synchronized
+Branch: docs/clarify-score-review
+Goal: Clarify that assisted score drafts require human review.
+Canonical sources: AGENTS.md; docs/PUBLIC_REPORTING.md; docs/SCORING_RUBRICS.md
+Required delta: Align current scoring language and add one Unreleased entry.
+Milestone-specific non-goals: No CLI, schema, or scoring behavior changes.
+Special validation: Check changed links and search for contradictory scoring claims.
+Report path: tmp/clarify-score-review-report.md
+Subagents: none
 ```
 
-Interpret matches carefully. A matching word in documentation or a test fixture is not automatically a leak.
+## Completion rule
 
-## Completion checklist
-
-Before presenting work as ready:
-
-- Requested scope is complete.
-- Unrequested work was not added.
-- Tests pass.
-- Ruff passes.
-- `git diff --check` passes.
-- CLI help renders where relevant.
-- Existing aliases still work.
-- Backward compatibility was tested where relevant.
-- No unexpected version bump was included.
-- No unrelated files were staged.
-- No generated results were committed.
-- No temporary review reports were committed.
-- No secrets or private paths were introduced.
-- User-owned YAML fields remain preserved.
-- Destructive behavior requires explicit confirmation.
-- Original result artifacts remain preserved.
-- Public export does not mutate its source.
-- Real operator validation was performed when required.
-- The review report exists and remains untracked.
-- The final working-tree state is clearly reported.
-- PR, merge, push, release, tag, and cleanup actions were performed only when explicitly requested.
+Stop for the human Git gate only after the requested scope is complete, affected
+callsites/tests/docs are updated or intentionally unchanged, required validation
+has passed honestly, the final diff is clean and bounded, no secrets or generated
+results are tracked, and the untracked report is the final file written.
+Recommend a commit message if useful; never stage or commit it.
