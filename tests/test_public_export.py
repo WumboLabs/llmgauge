@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import llmgauge.core.public_export as public_export_module
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.run_fingerprint import attach_run_fingerprint
@@ -140,7 +141,9 @@ def _write_run(
 def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> None:
     source_dir = _write_run(tmp_path)
     before = {
-        path.relative_to(source_dir).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        path.relative_to(source_dir).as_posix(): hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
         for path in source_dir.rglob("*")
         if path.is_file()
     }
@@ -149,7 +152,9 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     manifest = export_public_run(source_dir, output_dir)
 
     after = {
-        path.relative_to(source_dir).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        path.relative_to(source_dir).as_posix(): hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
         for path in source_dir.rglob("*")
         if path.is_file()
     }
@@ -158,9 +163,7 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     assert manifest["source_run_fingerprint"]["schema_version"] == (
         "llmgauge.run_fingerprint.v0"
     )
-    assert "canonical private evidence" in manifest[
-        "source_run_fingerprint_boundary"
-    ]
+    assert "canonical private evidence" in manifest["source_run_fingerprint_boundary"]
     assert "unknown-private.db" in manifest["files_omitted"]
     assert validate_result_dir(output_dir) == []
 
@@ -195,24 +198,42 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     ).read_text(encoding="utf-8")
 
 
+def test_public_export_redacts_local_hostname_and_username(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_dir = _write_run(tmp_path)
+    private_text = "Reviewed on PrivateHost by PrivateUser.\n"
+    (source_dir / "scores.yaml").write_text(private_text, encoding="utf-8")
+    monkeypatch.setattr(public_export_module, "_LOCAL_HOSTNAME", "PrivateHost")
+    monkeypatch.setattr(public_export_module, "_LOCAL_USERNAMES", ("PrivateUser",))
+
+    output_dir = tmp_path / "public-export"
+    manifest = export_public_run(source_dir, output_dir)
+
+    exported_scores = (output_dir / "scores.yaml").read_text(encoding="utf-8")
+    assert exported_scores == "Reviewed on REDACTED_HOSTNAME by REDACTED_USERNAME.\n"
+    assert "local_hostname" in manifest["redaction_categories"]
+    assert "local_username" in manifest["redaction_categories"]
+
+
 @pytest.mark.parametrize(
     ("model_filename", "executable_filename", "expected_model", "expected_executable"),
     [
         (
-            f'{"a" * 64}.gguf',
+            f"{'a' * 64}.gguf",
             "llama-cli",
             "REDACTED_FULL_HASH.gguf",
             "llama-cli",
         ),
         (
-            f'model-{"b" * 64}-Q4_K_M.gguf',
+            f"model-{'b' * 64}-Q4_K_M.gguf",
             "llama-cli",
             "model-REDACTED_FULL_HASH-Q4_K_M.gguf",
             "llama-cli",
         ),
         (
             "model.gguf",
-            f'{"C" * 64}-LLAMA-CLI',
+            f"{'C' * 64}-LLAMA-CLI",
             "model.gguf",
             "REDACTED_FULL_HASH-LLAMA-CLI",
         ),
@@ -279,7 +300,9 @@ def test_public_export_filename_hashes_are_absent_from_structured_metadata(
     assert validate_result_dir(output_dir) == []
 
 
-def test_public_export_manifest_is_deterministic_except_timestamp(tmp_path: Path) -> None:
+def test_public_export_manifest_is_deterministic_except_timestamp(
+    tmp_path: Path,
+) -> None:
     source_dir = _write_run(tmp_path)
     first = export_public_run(source_dir, tmp_path / "public-one")
     second = export_public_run(source_dir, tmp_path / "public-two")
@@ -289,7 +312,9 @@ def test_public_export_manifest_is_deterministic_except_timestamp(tmp_path: Path
     assert first == second
 
 
-def test_public_export_refuses_nonempty_output_and_invalid_source(tmp_path: Path) -> None:
+def test_public_export_refuses_nonempty_output_and_invalid_source(
+    tmp_path: Path,
+) -> None:
     source_dir = _write_run(tmp_path)
     output_dir = tmp_path / "existing"
     output_dir.mkdir()
@@ -369,7 +394,9 @@ def test_public_export_existing_empty_destination_remains_empty_after_failure(
             return ["forced exported-result validation failure"]
         return []
 
-    monkeypatch.setattr("llmgauge.core.public_export.validate_result_dir", fail_validation)
+    monkeypatch.setattr(
+        "llmgauge.core.public_export.validate_result_dir", fail_validation
+    )
 
     with pytest.raises(ValueError, match="forced exported-result validation failure"):
         export_public_run(source_dir, output_dir)
@@ -409,7 +436,9 @@ def test_public_export_nonempty_destination_remains_untouched(tmp_path: Path) ->
     assert sorted(path.name for path in output_dir.iterdir()) == ["keep.txt"]
 
 
-def test_public_export_supports_legacy_result_without_provenance(tmp_path: Path) -> None:
+def test_public_export_supports_legacy_result_without_provenance(
+    tmp_path: Path,
+) -> None:
     source_dir = _write_run(tmp_path, with_provenance=False)
 
     manifest = export_public_run(source_dir, tmp_path / "legacy-export")
