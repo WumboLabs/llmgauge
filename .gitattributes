@@ -1,0 +1,3 @@
+
+# Sanitized public evidence preserves reviewed artifact bytes, including whitespace.
+docs/evidence/**/public-export/** -whitespace

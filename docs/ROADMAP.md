@@ -147,28 +147,45 @@ orchestration and artifact handling on one host, binary, and prompt. They do not
 establish model quality, optimal context, a hardware support matrix, or a
 cross-model ranking.
 
+### First reviewed public practical evidence package
+
+**Completed:** the first reviewed practical evidence package is tracked under
+[docs/evidence/practical/grug-12b-q4-k-m/](evidence/practical/grug-12b-q4-k-m/).
+
+It publishes one bounded six-prompt `wumbolabs-practical-use-v1` run for
+Grug-12B Q4_K_M on llama.cpp (RTX 5070 telemetry), with full sanitized
+`export-public` artifacts, export index, source-integrity notes, and claim
+boundaries. Classification remains `review_ready_with_caveats`: 4 pass and
+2 mixed verdicts (`unsupported_claim` on Arch/NVIDIA update advice and
+consumer-GPU local-LLM advice), legacy provenance gaps disclosed, structural
+validation only, manual scores as reviewer metadata, no ranking or
+daily-driver claim.
+
+See the [public evidence index](evidence/README.md).
+
 ### Selected next bounded project milestone
 
-**Produce one review-ready public practical evidence package from existing
-validated and manually reviewed artifacts.**
+**Human publication gate for the tracked practical evidence package (optional
+website or release-note surface only after re-read).**
 
-This advances the current public-reporting focus without another model run or
-runtime expansion. The milestone should select one already validated and
-manually scored bounded result set, prepare only sanitized derived public
-artifacts, exercise the documented publish-readiness checklist, and record
-source-integrity and human-review findings. It must not publish automatically,
-rescore results, generalize beyond the selected evidence, or add network
-behavior.
+Recommended next accepted work, in order of preference:
 
-Constraints:
+1. Human re-read of the tracked package against
+   [PUBLICATION_READINESS.md](evidence/practical/grug-12b-q4-k-m/PUBLICATION_READINESS.md)
+   and the six cleaned outputs, then optional website or social copy outside
+   this repository using only bounded claims already disclosed in the package.
+2. Or a second like-for-like practical package for a different model profile
+   under the same suite and claim discipline (no ranking synthesis until at
+   least two reviewed packages exist and comparison scope is explicit).
+3. Or a newer practical re-run that captures runtime-command and fingerprint
+   provenance so the next package is not legacy on those fields.
 
-- no new model run
-- no rescoring
-- sanitized derived artifacts only
-- no automatic publication
-- source-integrity review
-- human claim review
-- no generalized conclusions
+Constraints for any follow-on:
+
+- no automatic publication or network submit from the tool
+- no rescoring of published packages without explicit intent and a new package
+- no generalized ranking from a single package
+- preserve mixed verdicts, privacy caveats, and provenance limits
 
 ## Recently completed releases
 

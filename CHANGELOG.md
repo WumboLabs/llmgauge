@@ -15,6 +15,11 @@
   and control-character bounds; older artifacts without the fields remain valid.
 
 ### Documentation
+- Published the first reviewed public practical evidence package under
+  `docs/evidence/practical/grug-12b-q4-k-m/` (Grug-12B Q4_K_M, six-prompt
+  practical suite, `review_ready_with_caveats`), with an evidence index and a
+  short README link. Bounded claims only; mixed verdicts and provenance limits
+  retained.
 - Consolidated `AGENTS.md` into a shorter canonical agent-assisted development
   policy with compact handoffs, centralized fail-closed rules, bounded subagent
   use, and a seven-section review-report format.
