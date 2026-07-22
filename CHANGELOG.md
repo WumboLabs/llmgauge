@@ -2,24 +2,46 @@
 
 ## Unreleased
 
+## v0.71.0 - 2026-07-22
+
 ### Added
 
-- Capture bounded vLLM server metadata for the external adapter: `vllm_version`
-  from server `GET /version`, API-ready `server_state` after successful
-  readiness and served-model checks, per-request OpenAI-compatible
-  `system_fingerprint` when present and well-formed, and ordered-unique
+- Optional externally managed local vLLM backend for single `llmgauge run`
+  (`--backend vllm`, endpoint/served-model/timeout controls, additive
+  profile/config fields). Default runtime remains llama.cpp. No remote,
+  authenticated, streaming, concurrent, or lifecycle-managed vLLM support.
+- Standard-library loopback-only HTTP transport with bounded readiness,
+  served-model checks, request bodies, timeouts, and classified transport
+  failures (`docs/VLLM_RUNTIME_CONTRACT.md`, transport assessment).
+- Capture bounded vLLM server metadata: `vllm_version` from server
+  `GET /version`, API-ready `server_state` after successful readiness and
+  served-model checks, per-request OpenAI-compatible `system_fingerprint`
+  when present and well-formed, and ordered-unique
   `observed_system_fingerprints` at run level.
 - Surface version, server-state, and fingerprint evidence in reports with claim
   boundaries; preserve safe fields in public export without mutating sources.
 - Additive validation for optional fingerprint/version fields with type, length,
   and control-character bounds; older artifacts without the fields remain valid.
+- Fail-closed rejection of `backend=vllm` for `run-batch`, `run-ladder`, and
+  `fit-ladder` in this release line (single sequential `run` only).
+- Config/profile `backend` now validates only `llama.cpp` or `vllm` when set
+  (unsupported experimental strings that previously loaded as free-form text
+  are rejected). Normal llama.cpp users are unaffected.
 
-### Documentation
+### Fixed
+
+- Public export redacts local hostname and username tokens found in review text
+  and structured strings, in addition to home/absolute path and prompt
+  duplication redaction. Sanitized derivatives remain review-required before
+  publication.
+
+### Documentation and evidence
+
 - Published the first reviewed public practical evidence package under
   `docs/evidence/practical/grug-12b-q4-k-m/` (Grug-12B Q4_K_M, six-prompt
   practical suite, `review_ready_with_caveats`), with an evidence index and a
   short README link. Bounded claims only; mixed verdicts and provenance limits
-  retained.
+  retained. Structural validation is not quality validation.
 - Consolidated `AGENTS.md` into a shorter canonical agent-assisted development
   policy with compact handoffs, centralized fail-closed rules, bounded subagent
   use, and a seven-section review-report format.
@@ -29,46 +51,37 @@
   export-index representation, and parent-versus-child score-target behavior.
   This is orchestration and artifact evidence, not a model-quality claim.
 - Consolidated the vLLM roadmap into implemented capability, validated evidence,
-  closed investigation, active limitations, and the selected next bounded
-  project milestone at that time (real end-to-end Fit Ladder validation).
-  Fit Ladder real-workflow evidence has since been recorded separately.
+  closed investigation, active limitations, and remaining project milestones.
 - Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit
   (`docs/GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md`): mixed FP8/NVFP4 runtime
   recognition, requested-versus-observed offload distinction, construction-time
   BF16 LM-head CUDA OOM, `not_viable` for the disclosed configuration, cleanup
-  verification, and narrow non-generalized claim boundaries. Updated roadmap
-  completion status and design discoverability.
+  verification, and narrow non-generalized claim boundaries. This is not a
+  generalized Gemma viability or hardware-support claim.
 - Recorded completed second-prompt llama.cpp-versus-vLLM cross-runtime
   replication evidence
   (`docs/VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md`): same methodology and
   Qwen2.5-3B-Instruct family settings as the first comparison; suite prompt
   `shell-safety/failed-command-recovery`; sequential GPU ownership; reviewed
   manual scores 32/50 mixed (vLLM) vs 19/50 fail (llama.cpp); directional
-  quality-gap replication only (not a ranking or averaged multi-prompt score);
-  runtime-native metrics kept non-equivalent. Updated roadmap and design
-  discoverability; optional short forward link from the first comparison
-  evidence document.
+  quality-gap replication only (not a ranking, daily-driver, or averaged
+  multi-prompt score); runtime-native metrics kept non-equivalent.
 - Recorded post-merge live external-vLLM fingerprint smoke evidence
   (`docs/VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md`): server `/version`
   `0.25.1`, API-ready `server_state`, opaque fingerprint
   `vllm-0.25.1-eb488855` agreed across request/prompt/run-level artifacts,
   `validate-result` and report rendering, intentionally unscored; claim
   boundaries preserved (no answer quality, authentication, or reproducibility
-  claims). Updated roadmap, design discoverability, and a brief historical
-  forward link from the pre-fingerprint live smoke record.
+  claims).
 - Documented version/fingerprint field sources, optional/unknown behavior, and
   claim boundaries in `docs/VLLM_RUNTIME_CONTRACT.md` and
-  `docs/ARTIFACT_SCHEMAS.md`; updated roadmap after fingerprint-capture work.
+  `docs/ARTIFACT_SCHEMAS.md`.
 - Recorded completed first bounded llama.cpp-versus-vLLM cross-runtime
   comparison evidence (`docs/VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md`):
   Qwen2.5-3B-Instruct family, one `agent-backend-v1` prompt, matched requested
   generation settings, GPU-contention failure preserved, clean-GPU llama.cpp
   and vLLM completions validated, reviewed manual scores, runtime-native
   metrics without throughput equivalence, and strict claim boundaries.
-- Updated roadmap and design notes so comparison execution is marked complete.
-  At that point, optional second-prompt replication and a separate Gemma NVFP4
-  audit track were the remaining near-term vLLM evidence options; both are now
-  completed and recorded.
 - Added the first bounded llama.cpp-versus-vLLM cross-runtime comparison
   methodology (`docs/VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md`): matched
   suite and generation settings, template/tokenization disclosure,
@@ -81,7 +94,23 @@
 - Preserved claim boundaries: runtime compatibility and adapter execution are
   distinct from answer quality and publication readiness; generated private
   results, scores, comparison outputs, and public-export derivatives remain
-  untracked.
+  untracked. No generalized runtime superiority claim.
+
+### Compatibility
+
+- Result schema remains `llmgauge.result.v0` with additive optional fields.
+- Older results without vLLM metadata remain valid.
+- Scoring semantics are unchanged.
+- Default backend remains llama.cpp.
+
+### Validation
+
+- Validated v0.71 against source tests, Ruff, wheel and sdist packaging,
+  isolated wheel install, clean-clone install workflow, commit-based Git
+  install (pre-tag substitute), representative legacy and current artifacts,
+  tracked Grug public evidence package, and public-export privacy rechecks.
+  Packaging and clean-clone checks validate installation and CLI readiness, not
+  model quality. PyPI availability is not claimed.
 
 ## v0.70.0 - 2026-07-11
 
