@@ -99,12 +99,12 @@ Use the same `XDG_CONFIG_HOME` isolation when testing the installed command.
 ## GitHub installed CLI path
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.71
 llmgauge --version
 ```
 
-This validates the latest formal release tag (`v0.70`, package/CLI version
-`0.70.0`). Reinstall with `--force` only when intentionally retesting that
+This validates the latest formal release tag (`v0.71`, package/CLI version
+`0.71.0`). Reinstall with `--force` only when intentionally retesting that
 tag.
 
 ## Pre-init doctor and smoke expectations

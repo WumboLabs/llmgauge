@@ -8,9 +8,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.70`
-- Current package version: `0.70.0`
-- Current release line: `v0.70.0`
+- Current stable tag: `v0.71`
+- Current package version: `0.71.0`
+- Current release line: `v0.71.0`
 - Current focus: public reporting, reproducible evidence, and practical model comparisons
 
 ## What LLMGauge is
@@ -193,6 +193,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
+| v0.71 | Optional external local vLLM adapter, additive fingerprint evidence, public-export identity redaction, first tracked practical evidence package |
 | v0.70 | Identity, provenance, evidence-equivalence fingerprints, and sanitized public export foundations; validated released install tag |
 | v0.66 | Runtime reproducibility — command metadata, reasoning-mode metadata, model-source reporting |
 | v0.65 | Guided setup / first-run onboarding (`setup`, scan, non-interactive modes) |
@@ -207,26 +208,27 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
-### v0.70 release notes (current)
+### v0.71 release notes (current)
 
-The following v0.70 foundations are complete on `main`:
+The following v0.71 work is complete on `main`:
 
-- canonical identity and additive compatibility policy
-- model provenance and identity-validated hash caching
-- llama.cpp executable provenance
-- bounded llama.cpp build identity discovery
-- sanitized single-run public export with source protection
+- optional externally managed local vLLM backend for single `run` (loopback-only
+  stdlib transport; readiness and served-model checks)
+- additive vLLM version, API-ready server-state, and system-fingerprint evidence
+- fail-closed rejection of `backend=vllm` for batch, ladder, and Fit Ladder
+- public-export redaction of local hostname and username tokens
+- bounded live, cross-runtime, Gemma, and Fit Ladder evidence records
+- first tracked reviewed practical public evidence package (Grug-12B)
 
-The v0.70 release completed local wheel, source-distribution, isolated
-installed-CLI, real-artifact compatibility, privacy, and source-integrity
-validation. `v0.70` is the current validated released install. PyPI availability
-is not claimed.
-
-Packaging and clean-clone checks validate installation and CLI readiness. They
-do not prove model quality or establish PyPI availability.
+Default runtime remains llama.cpp. No remote/authenticated/streaming/concurrent
+vLLM support, ranking claims, Gemma viability generalization, or PyPI claim.
+Packaging and clean-clone checks validate installation and CLI readiness, not
+model quality.
 
 ### Selected earlier release context
 
+- **v0.70** established identity, provenance, evidence-equivalence fingerprints,
+  and sanitized public export foundations as a validated released install.
 - **v0.66** added structured `runtime-command.json`, bounded `reasoning_mode`
   metadata, and `model_source` reporting for public-proof reproduction.
 - **v0.65** added `llmgauge setup` as the preferred first-run path while

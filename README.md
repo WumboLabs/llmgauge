@@ -52,13 +52,13 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.70
+Current stable tag: v0.71
 
-Current package version: 0.70.0
+Current package version: 0.71.0
 
-Current release line: v0.70.0.
+Current release line: v0.71.0.
 
-The validated installed-user workflow uses the v0.70 tagged GitHub install
+The validated installed-user workflow uses the v0.71 tagged GitHub install
 documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
 
 See [Roadmap](docs/ROADMAP.md).
@@ -67,7 +67,7 @@ The current vLLM capability, evidence, and limitations are consolidated in the
 
 Install the latest formal release:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.71
 
 Then use `llmgauge ...` directly. That tagged GitHub install is the validated
 path for installed end users. Contributors and unreleased development should
@@ -158,7 +158,7 @@ See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
 Audience split:
 
-- installed end users: validated tagged GitHub install (`v0.70`), then `llmgauge ...`
+- installed end users: validated tagged GitHub install (`v0.71`), then `llmgauge ...`
 - contributors and unreleased development: source checkout with `uv run llmgauge ...`
 - editable local install: development convenience only
 

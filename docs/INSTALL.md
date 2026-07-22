@@ -2,7 +2,7 @@
 
 LLMGauge install paths depend on audience:
 
-1. installed end users: validated tagged GitHub install (`v0.70`), then run
+1. installed end users: validated tagged GitHub install (`v0.71`), then run
    `llmgauge ...` directly
 2. contributors and unreleased development: source checkout with
    `uv run llmgauge ...`
@@ -121,7 +121,7 @@ Use the released Git tag when you want the installed user CLI without working
 inside a checkout:
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.70
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.71
 ```
 
 Then run:
@@ -134,14 +134,14 @@ llmgauge model list
 llmgauge smoke
 ```
 
-The validated released tag is `v0.70` and reports package/CLI version
-`0.70.0`. PyPI availability is not claimed; use the tagged GitHub install
+The validated released tag is `v0.71` and reports package/CLI version
+`0.71.0`. PyPI availability is not claimed; use the tagged GitHub install
 workflow documented below.
 
 Reinstall a tagged version with the validated `uv tool` command:
 
 ```bash
-uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.70
+uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.71
 ```
 
 Remove the installed command when you no longer need it:
