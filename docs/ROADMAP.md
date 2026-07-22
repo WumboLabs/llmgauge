@@ -163,51 +163,110 @@ daily-driver claim.
 
 See the [public evidence index](evidence/README.md).
 
+### Second reviewed public practical evidence package
+
+**Completed:** the second reviewed practical evidence package is tracked under
+[docs/evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/](evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/).
+
+It publishes one bounded six-prompt `wumbolabs-practical-use-v1` run for
+Qwen3.6-35B-A3B UD-IQ2_M on llama.cpp (RTX 5070 telemetry), using a **new**
+source with model-file provenance, backend provenance, run fingerprint, and
+resolved `runtime-command.json`. Classification remains
+`review_ready_with_caveats`: 3 pass and 3 mixed verdicts (Arch/NVIDIA command
+imprecision; unknown-package overclaim without tools; truncated consumer-GPU
+advice with unsupported model examples). Structural validation only; manual
+scores as reviewer metadata; no ranking, daily-driver, or Grug-versus-Qwen
+comparison synthesis in this package.
+
+Qwen-specific capture caveats retained for honesty and for future comparisons:
+
+- flash attention used `auto` (current CLI default), unlike the older Grug argv
+  which did not pass an explicit flash-attention flag;
+- the suite was resolved through a temporary suite path
+  (`tmp/wumbolabs-practical-use-v1`) rather than a stable tracked suite path;
+- the operator console log records prompt order and completion but is not a
+  complete resolved execution plan (authoritative settings live in result
+  artifacts and `runtime-command.json`);
+- observed minimum VRAM headroom was about 521 MiB and is **not** a general fit
+  guarantee;
+- public-result fingerprint fields and the export-manifest
+  `source_run_fingerprint` play different roles and must remain explicitly
+  documented;
+- hardware telemetry (GPU name/VRAM samples) is observed metadata, not
+  authenticated hardware identity.
+
+See the [public evidence index](evidence/README.md).
+
+### Reference practical-run capture standard
+
+Future **reference-quality** practical evidence runs should review and preserve
+the following before launch and in the resulting artifacts. This is a
+documentation standard for defensible packages; it is not a schema, CLI, or
+runtime contract change.
+
+**Identity and suite**
+
+- stable tracked suite path and suite identity (and suite fingerprint when the
+  installed tool records one);
+- exact model profile name and GGUF path (do not invent paths);
+- model-file fingerprint and available GGUF metadata;
+- llama.cpp executable path, version/build metadata, and executable fingerprint
+  when available.
+
+**Resolved runtime**
+
+- complete resolved `runtime-command.json`;
+- explicit flash-attention setting (`auto` / `on` / `off`) rather than relying
+  on an implicit default without disclosure;
+- explicit reasoning mode;
+- context, maximum tokens, temperature, top-p, batch, ubatch, and GPU layers;
+- runtime methodology label.
+
+**Hardware and timing**
+
+- hardware disclosure mode;
+- GPU plus CPU/RAM/OS/driver metadata when safely supported and privacy-safe;
+- start and end timestamps;
+- VRAM baseline, peak, and minimum headroom when capture is available.
+
+**Execution evidence**
+
+- prompt order and per-prompt completion or failure status;
+- run fingerprint when the installed tool records one;
+- raw output, cleaned output, stderr, retries, OOMs, and failed attempts
+  preserved without silent replacement.
+
+Operator console logs may aid review but are not substitutes for resolved
+command metadata, result JSON, or runtime-command capture. Observed telemetry is
+not authenticated identity. Fingerprints identify evidence; they do not prove
+authorship, hardware, answer quality, or transformed public-export bytes.
+
 ### Selected next bounded project milestone
 
-**Second like-for-like practical public evidence package (provenance-complete
-source).**
+**Bounded comparison synthesis across the two reviewed practical packages.**
 
-Post-v0.71 assessment (`planning/post-v071-roadmap-assessment`): the first
-reviewed practical package remains tracked and valid under disclosed legacy
-provenance limits. Human re-read and optional website or social copy for that
-package is an **optional parallel human gate outside this repository**, not the
-next in-repo development milestone. Comparison synthesis across packages is
-blocked until a second reviewed package exists. Monolith importer work remains
-parking-lot only.
+With two independently reviewed packages under the same suite family, the next
+in-repo development milestone is an explicit, claim-bounded comparison document
+that:
 
-**Selected development milestone:** produce and track one additional reviewed
-practical evidence package for a **different** model profile under the same
-suite and claim discipline as
-[grug-12b-q4-k-m](evidence/practical/grug-12b-q4-k-m/), using a **new** source
-run that captures post-v0.70 identity/provenance fields and runtime-command
-metadata so the second package is not legacy on those axes.
-
-Acceptance criteria (summary):
-
-- suite: same practical suite family as the first package
-  (`wumbolabs-practical-use-v1` or equivalent current practical suite);
-- runtime: default llama.cpp / GGUF, single-backend package (no mixed-runtime
-  ranking claims);
-- source run records model/run fingerprints and resolved runtime-command capture
-  when the installed tool supports them;
-- complete manual scores, all reviewed, with rationales and verdicts;
-- sanitized `export-public` derivative, validated export index, source
-  immutability, privacy scan, and package docs with explicit claim boundaries;
-- classification honest (`review_ready` or `review_ready_with_caveats`);
-- no ranking, daily-driver, or cross-package quality synthesis in this
-  milestone.
+- **discloses all methodology differences before comparing** the two packages
+  (including provenance completeness, flash-attention argv, suite path
+  stability, runtime-command capture, hardware metadata depth, and any setting
+  deltas);
+- compares only like-for-like disclosed conditions under that disclosure;
+- preserves both packages' mixed verdicts and privacy/provenance limits;
+- treats manual scores as reviewer metadata, not objective rank;
+- does **not** declare a winner, daily-driver, purchasing recommendation, or
+  generalized model ranking.
 
 Deferred relative to this selection:
 
-1. Optional human publication of the existing Grug package (outside-repo copy
-   only; re-read
-   [PUBLICATION_READINESS.md](evidence/practical/grug-12b-q4-k-m/PUBLICATION_READINESS.md)
-   first).
+1. Optional human publication of either package (outside-repo copy only; re-read
+   each package's `PUBLICATION_READINESS.md` first).
 2. Standalone re-package of Grug from a provenance-complete re-run (optional
-   later upgrade of the first package; not required before a second model).
-3. Bounded comparison synthesis across two reviewed packages (requires this
-   milestone first; explicit comparison scope only).
+   later upgrade of the first package).
+3. Additional practical packages for further models or configurations, using the
+   reference practical-run capture standard above.
 4. Monolith read-only importer/integration preparation (parking lot; not core
    evidence).
 

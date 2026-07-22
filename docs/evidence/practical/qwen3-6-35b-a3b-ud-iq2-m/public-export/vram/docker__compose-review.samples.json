@@ -1,0 +1,160 @@
+{
+  "prompt_id": "docker/compose-review",
+  "samples": [
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:38+00:00",
+      "total_mib": 12227,
+      "used_mib": 552
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:38+00:00",
+      "total_mib": 12227,
+      "used_mib": 684
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:39+00:00",
+      "total_mib": 12227,
+      "used_mib": 555
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:39+00:00",
+      "total_mib": 12227,
+      "used_mib": 11368
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:40+00:00",
+      "total_mib": 12227,
+      "used_mib": 11632
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:40+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:41+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:41+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:42+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:42+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:43+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:43+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:44+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:44+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:45+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:45+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:46+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:46+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:47+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:47+00:00",
+      "total_mib": 12227,
+      "used_mib": 11706
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:48+00:00",
+      "total_mib": 12227,
+      "used_mib": 552
+    },
+    {
+      "gpu_index": 0,
+      "gpu_name": "NVIDIA GeForce RTX 5070",
+      "timestamp_utc": "2026-07-22T14:52:48+00:00",
+      "total_mib": 12227,
+      "used_mib": 552
+    }
+  ],
+  "schema_version": "llmgauge.vram.samples.v0"
+}

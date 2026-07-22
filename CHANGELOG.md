@@ -2,12 +2,19 @@
 
 ## Unreleased
 
-### Documentation
+### Documentation and evidence
 
-- Updated the post-v0.71 selected next milestone in `docs/ROADMAP.md`: second
-  like-for-like practical public evidence package with provenance-complete
-  source; optional Grug human publication remains an outside-repo gate;
-  comparison synthesis and Monolith importer work stay deferred.
+- Published the second reviewed public practical evidence package under
+  `docs/evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/` (Qwen3.6-35B-A3B UD-IQ2_M,
+  six-prompt practical suite, provenance-complete source with
+  `runtime-command.json`, `review_ready_with_caveats`). Evidence index and
+  roadmap next-gate updated. Bounded claims only; mixed verdicts retained; no
+  cross-package ranking.
+- Recorded a reference practical-run capture standard and Qwen package capture
+  caveats in `docs/ROADMAP.md` (and aligned package docs): explicit flash-attn
+  and runtime settings, suite identity, provenance fingerprints, hardware
+  disclosure limits, and required methodology disclosure before any future
+  cross-package comparison.
 
 ## v0.71.0 - 2026-07-22
 
