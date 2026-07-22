@@ -1,0 +1,106 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9672-74ade5274
+model      : Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+modalities : text
+
+available commands:
+  REDACTED_ABSOLUTE_PATH or Ctrl+C     stop or exit
+  REDACTED_ABSOLUTE_PATH              regenerate the last response
+  REDACTED_ABSOLUTE_PATH              clear the chat history
+  REDACTED_ABSOLUTE_PATH <file>        add a text file
+  REDACTED_ABSOLUTE_PATH <pattern>     add text files using globbing pattern
+
+
+> SYSTEM:
+
+You are a conservative local systems assistant. Prefer safe, reversible, verified steps. Say when unsure. Do not invent commands, packages, flags, or docs.
+
+USER:
+
+# WumboLabs Practical Use Test: Consumer GPU Local LLM Advice
+
+You are a practical local LLM assistant.
+
+Important constraints:
+
+- You do not have tool access.
+- Do not invent benchmark results.
+- Do not claim a model will fit unless you explain the uncertainty.
+- Keep the advice grounded in consumer hardware.
+
+User scenario: ... (truncated)
+
+Here is practical advice for running local LLMs on a 12GB NVIDIA GPU, grounded in hardware realities and conservative testing practices.
+
+### 1. Why VRAM Headroom Matters
+
+VRAM (Video RAM) is not just storage for the model weights; it is the workspace for inference. When you load a model, the GPU must hold:
+1.  **Model Weights:** The parameters of the model.
+2.  **KV Cache (Key-Value Cache):** A dynamic structure that stores the attention context of the conversation. This grows with every token generated.
+3.  **Activation Memory:** Temporary calculations during forward passes.
+
+**The Danger of Zero Headroom:**
+If you load a model that *just* fits in 12GB, you have no room for the KV Cache. As the conversation gets longer, the KV Cache expands. If it exceeds available VRAM, the system will:
+*   **Swap to System RAM:** This causes a massive speed drop (from ~50-100 tokens/sec to <5 tokens/sec).
+*   **Crash:** If the OS cannot swap fast enough, the inference process terminates.
+
+**Rule of Thumb:** Aim for models that use **8–10GB** of VRAM when loaded. This leaves 2–4GB for the KV Cache and system overhead, allowing for longer conversations without performance degradation.
+
+### 2. Why Speed Is Not the Same as Quality
+
+Speed is a function of **model size** and **quantization**, not intelligence.
+
+*   **Small Models (7B–8B parameters):** Can run at 50–100+ tokens/sec on a 12GB GPU. They are fast but may lack deep reasoning, complex instruction following, or nuanced creativity.
+*   **Large Models (70B+ parameters):** Require significant VRAM. Even with quantization, they may run slowly or not fit at all on 12GB. They offer higher quality but are often impractical for daily use on consumer hardware.
+
+**The Trap:** A fast model that hallucinates or fails to follow instructions is useless. A slower model that is accurate and reliable is valuable. Prioritize **accuracy** and **instruction adherence** over raw token speed.
+
+### 3. Why a Small Useful Model Beats a Large Awkward Model
+
+A "small useful model" (e.g., an 8B model well-tuned for specific tasks) often outperforms a "large awkward model" (e.g., a 70B model poorly quantized or unsuited for your task) because:
+
+*   **Task-Specific Tuning:** Smaller models can be fine-tuned for specific domains (coding, writing, customer service). A large general-purpose model may be "jumbled" for niche tasks.
+*   **Quantization Artifacts:** Large models are often heavily quantized (e.g., Q4_K_M) to fit in VRAM. This can degrade reasoning capabilities significantly. A smaller model loaded at higher precision (e.g., Q8_0) may retain more intelligence.
+*   **Context Window Efficiency:** Smaller models often handle context windows more efficiently, reducing the chance of "lost in the middle" phenomena.
+
+**Example:** An 8B model like **Mistral 7B** or **Llama 3.1 8B** (quantized to Q8) is often more practical and reliable than a 70B model quantized to Q4 that runs slowly and occasionally fails basic logic.
+
+### 4. Conservative Testing Order
+
+Start with models that are proven, well-supported, and fit comfortably within 12GB VRAM. Test in this order:
+
+#### Step 1: The Reliable Workhorse (8B Class)
+*   **Model:** **Llama 3.1 8B** (Quantized to Q8_0 or Q6_K)
+*   **Why:** Excellent instruction following, good reasoning, and widely supported. It fits easily in 12GB with headroom.
+*   **Test:** Ask it to write code, summarize a document, and follow a complex multi-step instruction.
+*   **Expected VRAM Usage:** ~6–8GB.
+
+#### Step 2: The Specialist (7B–8B Class)
+*   **Model:** **Mistral 7B** or **Phi-3 Mini** (Quantized to Q8_0)
+*   **Why:** Mistral is highly efficient and great for coding. Phi-3 is small but surprisingly capable for its size. These are good for testing speed vs. quality trade-offs.
+*   **Test:** Ask it to debug a Python script or explain a technical concept.
+*   **Expected VRAM Usage:** ~5–7GB.
+
+#### Step 3: The Heavyweight Attempt (13B–14B Class)
+*   **Model:** **Llama 3.1 14B** (Quantized to Q4_K_M or Q5_K_M)
+*   **Why:** This is the upper limit for 12GB VRAM. It may fit, but headroom will be tight. Use this to test if you can handle larger context windows.
+*   **Test:** Same tasks as Step 1, but with longer inputs.
+*   **Expected VRAM Usage:** ~9–11GB. **Warning:** If you see system slowdowns, this model is too large for comfortable use.
+
+#### Step 4: The Niche Choice (3B–5B Class)
+*   **Model:** **Qwen 2.5 3B** or **Gemma 2 
+
+[ Prompt: 1092.4 t/s | Generation: 152.0 t/s ]
+
+Exiting...

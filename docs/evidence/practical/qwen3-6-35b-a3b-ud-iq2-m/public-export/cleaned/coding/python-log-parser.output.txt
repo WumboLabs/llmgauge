@@ -1,0 +1,114 @@
+```python
+import sys
+import os
+import argparse
+from collections import defaultdict
+
+
+def parse_log_file(log_path: str) -> dict[str, list[str]]:
+    """
+    Read a log file and return a dictionary mapping severity levels
+    to their matching lines.
+    
+    Args:
+        log_path: Path to the log file.
+        
+    Returns:
+        A dictionary with keys 'ERROR', 'WARNING', 'CRITICAL' mapping
+        to lists of matching log lines.
+        
+    Raises:
+        FileNotFoundError: If the log file does not exist.
+        PermissionError: If the log file cannot be read.
+    """
+    if not os.path.exists(log_path):
+        raise FileNotFoundError(f"Log file not found: {log_path}")
+    
+    if not os.path.isfile(log_path):
+        raise FileNotFoundError(f"Path is not a file: {log_path}")
+    
+    # Check read permission
+    if not os.access(log_path, os.R_OK):
+        raise PermissionError(f"Cannot read file: {log_path}")
+    
+    severities = ['ERROR', 'WARNING', 'CRITICAL']
+    results = {sev: [] for sev in severities}
+    
+    with open(log_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            stripped_line = line.strip()
+            if not stripped_line:
+                continue
+            for sev in severities:
+                # Check if the line contains the severity keyword
+                # We look for the keyword as a word boundary or at start
+                # Simple approach: check if the severity is in the line
+                # More precise: check if the line starts with the severity after the timestamp
+                # Given the format: YYYY-MM-DD HH:MM:SS SEVERITY Message
+                # We can check if the line contains the severity level
+                if sev in stripped_line:
+                    # To be more precise, let's check if the severity is the log level
+                    # The log level typically appears after the timestamp
+                    # Split by whitespace and check the third element (index 2)
+                    parts = stripped_line.split()
+                    if len(parts) >= 3 and parts[2] == sev:
+                        results[sev].append(stripped_line)
+                    break  # Only match one severity per line
+    
+    return results
+
+
+def print_summary(results: dict[str, list[str]]) -> None:
+    """
+    Print a summary of the log analysis.
+    
+    Args:
+        results: Dictionary mapping severity levels to their matching lines.
+    """
+    severities = ['CRITICAL', 'ERROR', 'WARNING']
+    
+    print("=" * 50)
+    print("Log Analysis Summary")
+    print("=" * 50)
+    
+    for sev in severities:
+        lines = results[sev]
+        count = len(lines)
+        print(f"\n{sev} ({count} occurrences):")
+        
+        if count == 0:
+            print("  No occurrences found.")
+        else:
+            # Print first 5 matching lines
+            for i, line in enumerate(lines[:5]):
+                print(f"  {line}")
+            if count > 5:
+                print(f"  ... and {count - 5} more")
+    
+    print("\n" + "=" * 50)
+
+
+def main():
+    """Main entry point for the log parser."""
+    parser = argparse.ArgumentParser(description='Parse and summarize log files.')
+    parser.add_argument('log_path', help='Path to the log file to analyze')
+    
+    args = parser.parse_args()
+    
+    try:
+        results = parse_log_file(args.log_path)
+        print_summary(results)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+```

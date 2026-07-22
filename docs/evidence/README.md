@@ -13,6 +13,7 @@ metadata, not objective truth.
 | Package | Model / quant | Runtime | Scope | Classification |
 |---|---|---|---|---|
 | [grug-12b-q4-k-m](practical/grug-12b-q4-k-m/) | Grug-12B Q4_K_M | llama.cpp | One six-prompt practical run | `review_ready_with_caveats` |
+| [qwen3-6-35b-a3b-ud-iq2-m](practical/qwen3-6-35b-a3b-ud-iq2-m/) | Qwen3.6-35B-A3B UD-IQ2_M | llama.cpp | One six-prompt practical run (provenance-complete source) | `review_ready_with_caveats` |
 
 ## Related documentation
 
