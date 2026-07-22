@@ -165,26 +165,57 @@ See the [public evidence index](evidence/README.md).
 
 ### Selected next bounded project milestone
 
-**Human publication gate for the tracked practical evidence package (optional
-website or release-note surface only after re-read).**
+**Second like-for-like practical public evidence package (provenance-complete
+source).**
 
-Recommended next accepted work, in order of preference:
+Post-v0.71 assessment (`planning/post-v071-roadmap-assessment`): the first
+reviewed practical package remains tracked and valid under disclosed legacy
+provenance limits. Human re-read and optional website or social copy for that
+package is an **optional parallel human gate outside this repository**, not the
+next in-repo development milestone. Comparison synthesis across packages is
+blocked until a second reviewed package exists. Monolith importer work remains
+parking-lot only.
 
-1. Human re-read of the tracked package against
+**Selected development milestone:** produce and track one additional reviewed
+practical evidence package for a **different** model profile under the same
+suite and claim discipline as
+[grug-12b-q4-k-m](evidence/practical/grug-12b-q4-k-m/), using a **new** source
+run that captures post-v0.70 identity/provenance fields and runtime-command
+metadata so the second package is not legacy on those axes.
+
+Acceptance criteria (summary):
+
+- suite: same practical suite family as the first package
+  (`wumbolabs-practical-use-v1` or equivalent current practical suite);
+- runtime: default llama.cpp / GGUF, single-backend package (no mixed-runtime
+  ranking claims);
+- source run records model/run fingerprints and resolved runtime-command capture
+  when the installed tool supports them;
+- complete manual scores, all reviewed, with rationales and verdicts;
+- sanitized `export-public` derivative, validated export index, source
+  immutability, privacy scan, and package docs with explicit claim boundaries;
+- classification honest (`review_ready` or `review_ready_with_caveats`);
+- no ranking, daily-driver, or cross-package quality synthesis in this
+  milestone.
+
+Deferred relative to this selection:
+
+1. Optional human publication of the existing Grug package (outside-repo copy
+   only; re-read
    [PUBLICATION_READINESS.md](evidence/practical/grug-12b-q4-k-m/PUBLICATION_READINESS.md)
-   and the six cleaned outputs, then optional website or social copy outside
-   this repository using only bounded claims already disclosed in the package.
-2. Or a second like-for-like practical package for a different model profile
-   under the same suite and claim discipline (no ranking synthesis until at
-   least two reviewed packages exist and comparison scope is explicit).
-3. Or a newer practical re-run that captures runtime-command and fingerprint
-   provenance so the next package is not legacy on those fields.
+   first).
+2. Standalone re-package of Grug from a provenance-complete re-run (optional
+   later upgrade of the first package; not required before a second model).
+3. Bounded comparison synthesis across two reviewed packages (requires this
+   milestone first; explicit comparison scope only).
+4. Monolith read-only importer/integration preparation (parking lot; not core
+   evidence).
 
 Constraints for any follow-on:
 
 - no automatic publication or network submit from the tool
 - no rescoring of published packages without explicit intent and a new package
-- no generalized ranking from a single package
+- no generalized ranking from one or two packages
 - preserve mixed verdicts, privacy caveats, and provenance limits
 
 ## Recently completed releases
