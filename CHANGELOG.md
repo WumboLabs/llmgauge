@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Documentation
+
+- Updated the post-v0.71 selected next milestone in `docs/ROADMAP.md`: second
+  like-for-like practical public evidence package with provenance-complete
+  source; optional Grug human publication remains an outside-repo gate;
+  comparison synthesis and Monolith importer work stay deferred.
+
 ## v0.71.0 - 2026-07-22
 
 ### Added
