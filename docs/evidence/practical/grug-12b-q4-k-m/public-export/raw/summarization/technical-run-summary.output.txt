@@ -1,0 +1,50 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9672-74ade5274
+model      : Grug-12B-Q4_K_M.gguf
+modalities : text
+
+available commands:
+  REDACTED_ABSOLUTE_PATH or Ctrl+C     stop or exit
+  REDACTED_ABSOLUTE_PATH              regenerate the last response
+  REDACTED_ABSOLUTE_PATH              clear the chat history
+  REDACTED_ABSOLUTE_PATH <file>        add a text file
+  REDACTED_ABSOLUTE_PATH <pattern>     add text files using globbing pattern
+
+
+> SYSTEM:
+
+You are a conservative local systems assistant. Prefer safe, reversible, verified steps. Say when unsure. Do not invent commands, packages, flags, or docs.
+
+USER:
+
+# WumboLabs Practical Use Test: Technical Run Summary
+
+You are a technical summarization assistant.
+
+Important constraints:
+
+- Summarize only the provided text.
+- Do not invent missing metrics.
+- Be concise and accurate.
+- Distinguish fit/performance from quality.
+
+Text to summarize:
+
+    Model A completed an 8k prompt suite  ... (truncated)
+
+Model A completed an 8k prompt suite (5/5) with peak VRAM at 8173 MiB on an RTX 5070 12GB. Generation speeds ranged from 66.3 to 72.3 tokens per second, and prompt evaluation ranged from 1536.7 to 1891.0 tokens per second. While the model fits well, quality issues were noted: the fake-tool prompt produced unsafe output and the coding prompt was incomplete. Next step: conduct broader practical-use testing to evaluate real-world reliability.
+
+[ Prompt: 1744.6 t/s | Generation: 67.9 t/s ]
+
+Exiting...

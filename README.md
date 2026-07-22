@@ -288,6 +288,7 @@ LLMGauge is local-first and conservative by design.
 
 Start here:
 
+- [Public evidence index](docs/evidence/README.md) — reviewed bounded practical evidence packages
 - [Quickstart](docs/QUICKSTART.md)
 - [Clean clone testing](docs/CLEAN_CLONE_TESTING.md)
 - [Usage command map](docs/USAGE.md)

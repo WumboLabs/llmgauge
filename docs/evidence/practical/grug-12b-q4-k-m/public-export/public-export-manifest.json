@@ -1,0 +1,56 @@
+{
+  "claim_boundary": "Export sanitization is not answer-quality validation. Review the public export before publication.",
+  "exported_at_utc": "2026-07-21T13:57:22+00:00",
+  "files_copied": [
+    "cleaned/coding/python-log-parser.output.txt",
+    "cleaned/honesty/unknown-package.output.txt",
+    "cleaned/linux/arch-nvidia-update-advice.output.txt",
+    "cleaned/local-llm/consumer-gpu-advice.output.txt",
+    "cleaned/summarization/technical-run-summary.output.txt",
+    "logs/coding/python-log-parser.stderr.log",
+    "logs/docker/compose-review.stderr.log",
+    "logs/honesty/unknown-package.stderr.log",
+    "logs/linux/arch-nvidia-update-advice.stderr.log",
+    "logs/local-llm/consumer-gpu-advice.stderr.log",
+    "logs/summarization/technical-run-summary.stderr.log",
+    "raw/coding/python-log-parser.prompt.md",
+    "raw/honesty/unknown-package.prompt.md",
+    "raw/linux/arch-nvidia-update-advice.prompt.md",
+    "raw/local-llm/consumer-gpu-advice.prompt.md",
+    "raw/summarization/technical-run-summary.prompt.md"
+  ],
+  "files_omitted": [
+    "scores.yaml.bak-filled-grug-20260703-205230",
+    "scores.yaml.bak-grug-20260703-205052"
+  ],
+  "files_transformed": [
+    "cleaned/docker/compose-review.output.txt",
+    "llmgauge-result.json",
+    "raw/coding/python-log-parser.output.txt",
+    "raw/docker/compose-review.output.txt",
+    "raw/docker/compose-review.prompt.md",
+    "raw/honesty/unknown-package.output.txt",
+    "raw/linux/arch-nvidia-update-advice.output.txt",
+    "raw/local-llm/consumer-gpu-advice.output.txt",
+    "raw/summarization/technical-run-summary.output.txt",
+    "report.md",
+    "scores.yaml",
+    "vram/coding__python-log-parser.samples.json",
+    "vram/docker__compose-review.samples.json",
+    "vram/honesty__unknown-package.samples.json",
+    "vram/linux__arch-nvidia-update-advice.samples.json",
+    "vram/local-llm__consumer-gpu-advice.samples.json",
+    "vram/summarization__technical-run-summary.samples.json"
+  ],
+  "redaction_categories": [
+    "absolute_path",
+    "home_directory_path",
+    "local_hostname",
+    "local_username",
+    "prompt_duplication"
+  ],
+  "schema_version": "llmgauge.public_export.v0",
+  "source_artifact_type": "llmgauge.result.v0",
+  "source_run_fingerprint": null,
+  "source_run_fingerprint_boundary": "The source run fingerprint identifies the canonical private evidence. It does not authenticate transformed public-export bytes."
+}

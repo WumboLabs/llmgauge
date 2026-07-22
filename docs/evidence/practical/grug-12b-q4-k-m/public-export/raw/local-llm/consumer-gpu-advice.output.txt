@@ -1,0 +1,79 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9672-74ade5274
+model      : Grug-12B-Q4_K_M.gguf
+modalities : text
+
+available commands:
+  REDACTED_ABSOLUTE_PATH or Ctrl+C     stop or exit
+  REDACTED_ABSOLUTE_PATH              regenerate the last response
+  REDACTED_ABSOLUTE_PATH              clear the chat history
+  REDACTED_ABSOLUTE_PATH <file>        add a text file
+  REDACTED_ABSOLUTE_PATH <pattern>     add text files using globbing pattern
+
+
+> SYSTEM:
+
+You are a conservative local systems assistant. Prefer safe, reversible, verified steps. Say when unsure. Do not invent commands, packages, flags, or docs.
+
+USER:
+
+# WumboLabs Practical Use Test: Consumer GPU Local LLM Advice
+
+You are a practical local LLM assistant.
+
+Important constraints:
+
+- You do not have tool access.
+- Do not invent benchmark results.
+- Do not claim a model will fit unless you explain the uncertainty.
+- Keep the advice grounded in consumer hardware.
+
+User scenario: ... (truncated)
+
+### Practical Model Selection for 12GB VRAM
+
+With 12GB of VRAM, your goal is to find the "sweet spot" where a model is smart enough to be useful but small enough to run fast and leave room for context.
+
+#### 1. Why VRAM Headroom Matters
+VRAM is not just for the model weights; it is also used for the **KV Cache** (the memory needed to "remember" the current conversation).
+*   **The Risk:** If a model takes up 11.5GB of your 12GB, you only have 0.5GB left for context. This leads to "Out of Memory" (OOM) errors as soon as the conversation gets long.
+*   **The Strategy:** Aim for a model that fits comfortably (e.g., 8-9GB) so you have 3-4GB of headroom for a large context window.
+
+#### 2. Speed vs. Quality
+Speed is a function of parameter count and quantization; quality is a function of training data and architecture.
+*   **Speed:** A 7B model will generate tokens much faster than a 70B model.
+*   **Quality:** A 70B model might follow complex instructions better, but if it runs at 1 token per second, it is not "useful" for interactive tasks.
+*   **The Balance:** A model that is "fast enough" to be usable is often better than a "high quality" model that is too slow to interact with.
+
+#### 3. Small/Useful vs. Large/Awkward
+A smaller model that is well-tuned for a specific task (e.g., coding or summarization) often outperforms a massive, general-purpose model that is "awkward" (slow, prone to hallucination, or inconsistent).
+*   **Example:** A 14B model optimized for reasoning may outperform a 70B model that is heavily quantized (compressed) to fit on your hardware.
+
+#### 4. Recommended Testing Order
+Do not jump to the largest model that fits. Start small to establish a baseline:
+
+1.  **Baseline (8B - 14B):** Test a high-quality 8B or 14B model (e.g., Llama 3.1 8B or Mistral NeMo 12B). These are designed to fit comfortably in 12GB with room for context.
+2.  **Specialized (14B - 30B):** If the 8B model is not smart enough, move to a 14B or 30B model with a higher quantization (e.g., Q4_K_M).
+3.  **Large (70B+):** Only move to 70B models if you are okay with significant quantization (e.g., Q2_K or Q3_K_L) and slower speeds.
+
+#### 5. Actionable Advice
+*   **Quantization is your friend:** Use GGUF or EXL2 formats to fit larger models into your 12GB.
+*   **Check the math:** Before downloading, check the model's size. A 14B model at Q4_K_M is roughly 9GB. This leaves 3GB for context.
+*   **Start with 8B/14B:** These are the most practical starting points for 12GB hardware.
+
+**Unsure about specific models?** Tell me what task you want to perform (e.g., coding, creative writing, summarization), and I can suggest specific models to test.
+
+[ Prompt: 1625.3 t/s | Generation: 66.1 t/s ]
+
+Exiting...

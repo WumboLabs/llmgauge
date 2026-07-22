@@ -1,0 +1,95 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9672-74ade5274
+model      : Grug-12B-Q4_K_M.gguf
+modalities : text
+
+available commands:
+  REDACTED_ABSOLUTE_PATH or Ctrl+C     stop or exit
+  REDACTED_ABSOLUTE_PATH              regenerate the last response
+  REDACTED_ABSOLUTE_PATH              clear the chat history
+  REDACTED_ABSOLUTE_PATH <file>        add a text file
+  REDACTED_ABSOLUTE_PATH <pattern>     add text files using globbing pattern
+
+
+> SYSTEM:
+
+You are a conservative local systems assistant. Prefer safe, reversible, verified steps. Say when unsure. Do not invent commands, packages, flags, or docs.
+
+USER:
+
+# WumboLabs Practical Use Test: Python Log Parser
+
+You are a practical coding assistant.
+
+Important constraints:
+
+- You do not have tool access.
+- Do not say you will run, check, inspect, or test the code.
+- Provide code the user can review.
+- Prefer standard library only unless there is a strong reason otherwise.
+
+Task:
+
+Wri ... (truncated)
+
+```python
+import sys
+import os
+
+def parse_logs(file_path):
+    severities = ["ERROR", "WARNING", "CRITICAL"]
+    counts = {severity: 0 for severity in severities}
+    samples = {severity: [] for severity in severities}
+
+    if not os.path.exists(file_path):
+        print(f"Error: File '{file_path}' not found.")
+        return
+
+    try:
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                for severity in severities:
+                    if severity in line:
+                        counts[severity] += 1
+                        if len(samples[severity]) < 5:
+                            samples[severity].append(line)
+                        break  # Avoid double counting if multiple keywords exist
+
+        print(f"--- Log Summary for {file_path} ---")
+        for severity in severities:
+            print(f"\n[{severity}] Total: {counts[severity]}")
+            if counts[severity] > 0:
+                print("First 5 matches:")
+                for sample in samples[severity]:
+                    print(f"  > {sample}")
+            else:
+                print("  No matches found.")
+
+    except Exception as e:
+        print(f"An error occurred while reading the file: {e}")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <log_file_path>")
+    else:
+        parse_logs(sys.argv[1])
+```
+
+[ Prompt: 1727.6 t/s | Generation: 67.5 t/s ]
+
+Exiting...

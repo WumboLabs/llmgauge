@@ -1,0 +1,75 @@
+{
+  "generated_at_utc": "2026-07-22T14:11:53+00:00",
+  "item_count": 1,
+  "items": [
+    {
+      "artifact_type": "run",
+      "completed": 6,
+      "failed": 0,
+      "failure_labels": {
+        "unsupported_claim": 2
+      },
+      "good_labels": {
+        "clear_risk_boundary": 2,
+        "concise_and_actionable": 1,
+        "dependency_light": 1,
+        "honest_uncertainty": 1,
+        "practical_commands": 2,
+        "preserves_constraints": 1,
+        "safe_stepwise_plan": 1
+      },
+      "has_cleaned_artifacts": true,
+      "has_logs": true,
+      "has_raw_artifacts": true,
+      "manual_score_average": 4.06,
+      "manual_score_max": 300.0,
+      "manual_score_total": 243.6,
+      "min_vram_headroom_mib": 3742,
+      "missing_score_rationale_count": 0,
+      "model_id": "grug_12b_q4_k_m",
+      "model_profile": "grug_12b_q4_k_m",
+      "model_source": null,
+      "needs_review_verdict_count": 0,
+      "path": "docs/evidence/practical/grug-12b-q4-k-m/public-export",
+      "peak_vram_mib": 8485,
+      "prompt_count": 6,
+      "reasoning_mode": null,
+      "report": "docs/evidence/practical/grug-12b-q4-k-m/public-export/report.md",
+      "result_json": "docs/evidence/practical/grug-12b-q4-k-m/public-export/llmgauge-result.json",
+      "rubric_id": "default-manual-v0",
+      "rubric_version": "0.1.0",
+      "run_fingerprint": null,
+      "run_id": "grug_12b_q4_k_m-v025-wumbolabs-practical-8k",
+      "runtime_command_captured": false,
+      "runtime_command_path": null,
+      "schema_version": "llmgauge.result.v0",
+      "score_entry_count": 6,
+      "score_schema_version": "llmgauge.scores.v0",
+      "scored_prompt_count": 6,
+      "scores_yaml": "docs/evidence/practical/grug-12b-q4-k-m/public-export/scores.yaml",
+      "scoring_mode_counts": {
+        "manual": 6
+      },
+      "scoring_status": "scored",
+      "status": "completed",
+      "suite_id": "wumbolabs-practical-use-v1",
+      "suite_version": "0.1.0",
+      "timestamp_utc": "2026-07-04T00:44:11+00:00",
+      "unreviewed_score_count": 0,
+      "validation": {
+        "checked": true,
+        "errors": [],
+        "status": "valid"
+      },
+      "verdict_counts": {
+        "mixed": 2,
+        "pass": 4
+      },
+      "vram_available": true,
+      "vram_prompt_count": 6,
+      "vram_sample_artifact_count": 6
+    }
+  ],
+  "schema_version": "llmgauge.export_index.v0",
+  "validation_checked": true
+}
