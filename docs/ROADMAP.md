@@ -282,22 +282,39 @@ from its redacted public derivatives before sanitization. The existing
 These byte-equivalence checks do not establish answer quality, scoring
 correctness, privacy completeness, or publication readiness.
 
+### Provenance-refresh Grug practical evidence package
+
+**Completed:** the separate provenance-refresh Grug-12B Q4_K_M package is
+tracked at
+[docs/evidence/practical/grug-12b-q4-k-m-provenance-refresh-v1/](evidence/practical/grug-12b-q4-k-m-provenance-refresh-v1/).
+
+The source used the stable tracked historical suite, explicit reference
+settings, model and executable/backend provenance, observed runtime identity,
+resolved `runtime-command.json`, run fingerprint, operator start/end capture,
+privacy-safe hardware disclosure, and complete raw/cleaned/stderr/VRAM
+evidence. All six prompts completed once with zero retries. Manual review
+recorded 2 pass, 3 mixed, and 1 fail verdict (3.71 / 5 reviewer average), with
+unsupported claims and instruction failures preserved rather than repaired.
+
+The package is a new bounded source. It does not modify or supersede the legacy
+Grug package, rescore Qwen, establish a regression, or support ranking,
+recommendation, safety, or generalized fit claims.
+
 ### Selected next bounded project milestone
 
-**Prepare a provenance-complete Grug-12B Q4_K_M rerun.**
+**Add a bounded comparison addendum for the refreshed Grug source.**
 
-Prepare a new six-prompt run of the tracked historical suite using the
-[reference practical-run capture standard](#reference-practical-run-capture-standard).
-The preparation milestone must establish the exact model, runtime, provenance,
-hardware-disclosure, and output inputs and inspect the resolved bounded command
-before any separate human-authorized launch. It must not modify the legacy Grug
-package or treat prior artifacts as proof that the requested configuration will
-run.
+Extend the existing practical comparison through a separate, methodology-first
+addendum that incorporates the provenance-refresh Grug package without replacing
+the legacy Grug comparison source. The addendum must preserve all three packages
+as distinct evidence, compare only shared prompts and disclosed operational
+facts, explain response/review differences without declaring regression or a
+winner, and retain the existing boundaries against rankings, recommendations,
+and generalized fit guarantees.
 
-The eventual rerun must preserve all attempts and raw evidence, be scored
-manually, and be published only as a separate bounded package with its own
-readiness review. This selection does not authorize a model launch. Other
-practical packages and integrations remain deferred and unselected.
+This milestone is documentation and evidence synthesis only. It does not
+authorize model execution, rescoring, package replacement, release work, or
+publication.
 
 ## Recently completed releases
 

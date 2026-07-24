@@ -4,6 +4,11 @@
 
 ### Documentation and evidence
 
+- Added a separate reviewed Grug-12B Q4_K_M provenance-refresh practical
+  evidence package with stable historical-suite capture, manual scoring,
+  sanitized export, source-integrity verification, and bounded claim limits;
+  the legacy package remains unchanged.
+
 - Tracked the exact historical `wumbolabs-practical-use-v1` version `0.1.0`
   suite source and added focused verification of private canonical and public
   sanitized-derivative equivalence without changing existing evidence packages.
