@@ -21,6 +21,7 @@ metadata, not objective truth.
 | Comparison | Scope | Claim boundary |
 |---|---|---|
 | [Grug-12B Q4_K_M versus Qwen3.6-35B-A3B UD-IQ2_M practical v1](comparisons/grug-vs-qwen3-6-practical-v1/) | Six shared, manually reviewed practical prompts | Methodology-disclosed prompt and operational observations; no winner, ranking, or recommendation |
+| [Grug provenance-refresh practical comparison addendum](comparisons/grug-vs-qwen3-6-practical-v1/PROVENANCE_REFRESH_ADDENDUM.md) | The same six prompts across legacy Grug, refreshed Grug, and Qwen3.6 evidence | Three distinct response sets; descriptive reviewed and operational observations only |
 
 ## Related documentation
 
