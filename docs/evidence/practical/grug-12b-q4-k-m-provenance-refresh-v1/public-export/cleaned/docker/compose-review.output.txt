@@ -1,0 +1,46 @@
+### Security Concerns
+
+*   **Docker Socket Exposure:** Mounting `REDACTED_ABSOLUTE_PATH` into the container gives the application the same privileges as the Docker daemon. This allows the container to start/stop other containers, modify images, and potentially escalate privileges to the host system. This should only be used if the application specifically requires it (e.g., a CI/CD runner or a monitoring tool).
+*   **Root Privileges:** The snippet does not specify a `user` directive. By default, the container runs as root. Combined with the Docker socket mount, this creates a significant security risk.
+
+### Reproducibility Concerns
+
+*   **`latest` Tag:** Using `image: example/app:latest` makes the deployment non-deterministic. The exact version of the application running will change whenever the image is updated on the registry, making it difficult to replicate the environment or roll back to a known good state.
+*   **Relative Path:** The volume `.REDACTED_ABSOLUTE_PATH` relies on the current working directory. While common, it can lead to issues if the `docker-compose.yml` is executed from a different location than intended.
+
+### Operational Concerns
+
+*   **Container Name:** `container_name: example-app` prevents scaling the service to multiple instances, as Docker requires unique names for all containers.
+*   **Restart Policy:** `restart: always` ensures the container restarts on failure or host reboot. This is generally good for self-hosting, but it can lead to a loop of restarts if the application is crashing due to a persistent configuration error.
+*   **Port Mapping:** `8080:80` is a standard mapping, but it does not specify the host IP. By default, it listens on all interfaces (`0.0.0.0`).
+
+### Suggested Improvements
+
+*   **Remove Docker Socket:** If the application does not strictly require it, remove the `REDACTED_ABSOLUTE_PATH` mount to reduce the attack surface.
+*   **Use Specific Tags:** Replace `latest` with a specific version tag (e.g., `example/app:1.2.3`) to ensure reproducibility.
+*   **Add a Non-Root User:** Use the `user: "1000:1000"` directive to run the application as a non-privileged user, which aligns with the `PUID` and `PGID` environment variables.
+*   **Remove `container_name`:** Removing `container_name` allows Docker Compose to automatically generate unique names, enabling horizontal scaling.
+*   **Add Healthchecks:** Include a `healthcheck` section to allow Docker to monitor the application's status and restart it if it becomes unresponsive.
+*   **Use a Dedicated Network:** Instead of the default bridge, define a custom network for the service to isolate it from other containers.
+
+### Revised Compose Snippet (Optional)
+
+```yaml
+services:
+  app:
+    image: example/app:1.2.3
+    ports:
+      - "8080:80"
+    volumes:
+      - .REDACTED_ABSOLUTE_PATH
+    environment:
+      - PUID=1000
+      - PGID=1000
+    user: "1000:1000"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
