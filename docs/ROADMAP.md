@@ -265,34 +265,39 @@ both hardware records omit CPU, RAM, OS, and driver metadata; and Qwen's
 consumer-GPU answer is truncated. See the comparison for the exact supported,
 qualified, and unsupported claims.
 
+### Historical Practical Suite v0.1.0 source
+
+**Completed:** the exact historical `wumbolabs-practical-use-v1` version
+`0.1.0` source is tracked at
+[`suites/wumbolabs-practical-use-v1/`](../suites/wumbolabs-practical-use-v1/).
+The source preserves the original `suite.yaml`, six prompt files, suite
+identity, and prompt order without modernization. Focused verification
+establishes private canonical source and rendering equivalence against the
+authorized ignored reference, then deterministic sanitized derivative
+equivalence against both existing practical evidence packages.
+
+The path-bearing private `docker/compose-review` rendering intentionally differs
+from its redacted public derivatives before sanitization. The existing
+`wumbolabs-practical-v1` version `0.2.0` suite remains a separate identity.
+These byte-equivalence checks do not establish answer quality, scoring
+correctness, privacy completeness, or publication readiness.
+
 ### Selected next bounded project milestone
 
-**Track the historical Practical Suite v0.1.0 source.**
+**Prepare a provenance-complete Grug-12B Q4_K_M rerun.**
 
-Implement the accepted
-[Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md):
-copy the private `wumbolabs-practical-use-v1` version `0.1.0` source without
-modernization to `suites/wumbolabs-practical-use-v1/`; verify suite identity,
-ordered prompt IDs, original source bytes, private canonical rendering, and
-deterministic public-export redaction against an authorized ignored reference;
-and leave both existing practical evidence packages unchanged.
+Prepare a new six-prompt run of the tracked historical suite using the
+[reference practical-run capture standard](#reference-practical-run-capture-standard).
+The preparation milestone must establish the exact model, runtime, provenance,
+hardware-disclosure, and output inputs and inspect the resolved bounded command
+before any separate human-authorized launch. It must not modify the legacy Grug
+package or treat prior artifacts as proof that the requested configuration will
+run.
 
-Private canonical equivalence and public derivative equivalence are separate
-checks. Sanitized tracked prompt artifacts are not required to equal
-path-bearing private prompt bytes, and public redaction must not redefine the
-historical benchmark. The existing `wumbolabs-practical-v1` version `0.2.0`
-suite remains a separate identity.
-
-After that implementation passes, the selected evidence-capture milestone is a
-provenance-complete Grug-12B Q4_K_M rerun of the same six-prompt historical
-suite using the reference practical-run capture standard above. Preserve all
-attempts and raw evidence, score the new run manually without changing the
-legacy package, and publish it as a separate bounded package with its own
-readiness review.
-
-Neither selection authorizes a model launch in an architecture or suite-tracking
-milestone. Other practical packages and integrations remain deferred and
-unselected.
+The eventual rerun must preserve all attempts and raw evidence, be scored
+manually, and be published only as a separate bounded package with its own
+readiness review. This selection does not authorize a model launch. Other
+practical packages and integrations remain deferred and unselected.
 
 ## Recently completed releases
 

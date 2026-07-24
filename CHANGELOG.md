@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Tracked the exact historical `wumbolabs-practical-use-v1` version `0.1.0`
+  suite source and added focused verification of private canonical and public
+  sanitized-derivative equivalence without changing existing evidence packages.
+
 - Accepted the historical `wumbolabs-practical-use-v1` version `0.1.0`
   architecture contract: private source and rendering remain authoritative,
   while tracked public prompt artifacts are deterministic sanitized derivatives.
