@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Accepted the historical `wumbolabs-practical-use-v1` version `0.1.0`
+  architecture contract: private source and rendering remain authoritative,
+  while tracked public prompt artifacts are deterministic sanitized derivatives.
+
 - Added a claim-bounded Grug-12B Q4_K_M versus Qwen3.6-35B-A3B UD-IQ2_M
   practical evidence comparison with methodology-first disclosure, all reviewed
   prompt verdicts and failures, operational observations, and no ranking.

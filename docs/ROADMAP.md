@@ -267,21 +267,32 @@ qualified, and unsupported claims.
 
 ### Selected next bounded project milestone
 
-**Provenance-complete Grug-12B practical rerun package.**
+**Track the historical Practical Suite v0.1.0 source.**
 
-Capture, review, and publish one new Grug-12B Q4_K_M run of the same six-prompt
-practical suite using the reference practical-run capture standard above:
-stable tracked suite path, resolved runtime command, explicit flash-attention
-and reasoning settings, runtime label, model/backend/run provenance, and the
-available privacy-safe hardware metadata. Preserve all attempts and raw
-evidence, score the new run manually without changing the legacy package, and
-publish it as a separate bounded package with its own readiness review.
+Implement the accepted
+[Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md):
+copy the private `wumbolabs-practical-use-v1` version `0.1.0` source without
+modernization to `suites/wumbolabs-practical-use-v1/`; verify suite identity,
+ordered prompt IDs, original source bytes, private canonical rendering, and
+deterministic public-export redaction against an authorized ignored reference;
+and leave both existing practical evidence packages unchanged.
 
-This selection is an evidence-capture milestone, not an instruction to rerun or
-replace evidence during the completed comparison milestone. It does not
-authorize model-family claims, ranking, publication outside the repository,
-schema or CLI changes, runtime changes, or rescoring of either existing package.
-Other practical packages and integrations remain deferred and unselected.
+Private canonical equivalence and public derivative equivalence are separate
+checks. Sanitized tracked prompt artifacts are not required to equal
+path-bearing private prompt bytes, and public redaction must not redefine the
+historical benchmark. The existing `wumbolabs-practical-v1` version `0.2.0`
+suite remains a separate identity.
+
+After that implementation passes, the selected evidence-capture milestone is a
+provenance-complete Grug-12B Q4_K_M rerun of the same six-prompt historical
+suite using the reference practical-run capture standard above. Preserve all
+attempts and raw evidence, score the new run manually without changing the
+legacy package, and publish it as a separate bounded package with its own
+readiness review.
+
+Neither selection authorizes a model launch in an architecture or suite-tracking
+milestone. Other practical packages and integrations remain deferred and
+unselected.
 
 ## Recently completed releases
 
