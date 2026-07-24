@@ -28,6 +28,11 @@ Current non-goals / deliberate project boundaries:
 
 ## Accepted architecture contracts and evidence
 
+- [General evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md) — accepted
+  boundaries for native response, performance benchmark, external text
+  benchmark, and agent-environment evaluation, including authority, scoring,
+  comparison, and integration sequencing.
+
 - [Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md) —
   private source and rendering remain authoritative; tracked public prompt
   artifacts are deterministic sanitized derivatives, not replacement source.
