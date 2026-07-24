@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Accepted the general evaluation taxonomy contract, separating native response,
+  performance benchmark, external text benchmark, and agent-environment
+  authority, scoring, comparison, provenance, and integration boundaries.
+
 - Added a methodology-first provenance-refresh addendum to the tracked Grug
   versus Qwen3.6 practical comparison, preserving three distinct evidence
   sources, all reviewed verdicts and caveats, and bounded operational claims.

@@ -315,14 +315,31 @@ retains every reviewed verdict and material failure label, treats package
 averages as descriptive metadata only, and makes no regression, winner,
 ranking, recommendation, or generalized fit claim.
 
+### General evaluation taxonomy contract
+
+**Completed:** the accepted
+[general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md) defines native
+response, performance benchmark, external text benchmark, and agent-environment
+evaluation as distinct classes with explicit authority, scoring, comparison,
+provenance, and integration boundaries. This architecture milestone adds no
+evaluation behavior.
+
 ### Selected next bounded project milestone
 
-**Define the general evaluation taxonomy contract.**
+**Current suite and prompt architecture review.**
 
-Define, in a later architecture-only milestone, the boundaries and relationships
-among native response, performance, external text benchmark, and
-agent-environment evaluation classes. Do not implement the taxonomy, adapters,
-suites, or execution behavior as part of this completed evidence milestone.
+Review the identities, ownership, overlap, and intended roles of current native
+suites and prompts before defining new suite content. This is the only selected
+next milestone.
+
+### Ordered later evaluation work
+
+1. Generic Core suite.
+2. LocalMaxxing contract and offline performance-benchmark export.
+3. External text benchmark read-only imports.
+4. Agent drift evaluation contract.
+5. Terminal-Bench/Harbor contract and read-only import.
+6. Later SWE-bench, browser, and OSWorld work.
 
 ## Recently completed releases
 
@@ -377,7 +394,6 @@ model quality.
 These are optional or exploratory. They are not core commitments:
 
 - optional website publication helpers
-- optional LocalMaxxing export/submission integration (not core; no default network activity)
 - optional Monolith import/read-only integration (not core)
 - richer comparison summaries when deterministic and schema-safe
 - package/release automation improvements
