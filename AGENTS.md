@@ -54,12 +54,15 @@ policy instead of choosing silently.
 ## Governing workflow
 
 > One milestone, one branch, one agent, one report, one human Git gate.
+> Solve the named problem. Make the smallest correct change. Prove that change.
+> Stop.
 
 A milestone must be bounded, independently inspectable, testable, and mergeable.
-Use a focused branch rather than editing `main`. Keep architecture or contract
-definition, meaningful dependency admission, implementation, presentation,
-publication, and release preparation as separate milestones when they create
-distinct durable boundaries.
+Use a focused branch rather than editing `main`. Closing or replacing a session
+does not justify creating another branch for the same unfinished milestone. Keep
+architecture or contract definition, meaningful dependency admission,
+implementation, presentation, publication, and release preparation separate
+when they create distinct durable boundaries.
 
 The agent may:
 
@@ -104,7 +107,7 @@ the bounded milestone:
 - **Repository** — repository path or identity.
 - **Expected baseline** — branch, commit, synchronization, and expected tree
   state.
-- **Branch** — exact working branch to create or use.
+- **Create or continue** — exact working branch to create or continue.
 - **Goal** — one bounded outcome.
 - **Canonical sources** — only contracts needed for the milestone.
 - **Required delta** — observable changes and acceptance criteria.
@@ -112,12 +115,13 @@ the bounded milestone:
 - **Special validation** — checks beyond this file's defaults.
 - **Report path** — exact ignored `tmp/*-review-report.md` path.
 - **Subagents** — explicit authorization or `none`.
+- **Git boundary** — the exact instruction: `Do not stage, commit, merge, or
+  push. Leave all changes unstaged and uncommitted.`
 
-Stable workflow, Git, security, privacy, reporting, and default validation rules
-from this file must not be repeated in every handoff. Keep model recommendations
-and model-selection instructions outside repository handoffs. Do not place
-client-specific orchestration or session commands such as `/new` or `/slice`
-inside a handoff.
+Stable security, privacy, reporting, and validation rules from this file need
+not be repeated. The Git boundary above must be explicit in every handoff. Keep
+model recommendations and client-specific orchestration commands outside
+repository handoffs.
 
 A handoff cannot silently authorize scope expansion, dependency admission,
 contract changes, destructive Git operations, model execution, network access,
@@ -126,38 +130,48 @@ or publication.
 ## Session and subagent policy
 
 Default: one primary agent, one integrated session, no subagents. Every handoff
-must state subagent authorization explicitly; absence of authorization means
-none.
+must explicitly authorize subagents or state `none`.
+
+Start a new session for a new milestone or to resume unfinished work after its
+prior session closes. Keep direct review corrections and validation fixes in
+the same session and branch. A fresh continuation session must receive exactly:
+`This is a fresh session. First inspect the current unstaged branch state and
+the existing report. Do not restart or reimplement completed work.` Session
+closure alone never authorizes a replacement branch.
 
 Keep tightly coupled schema, lifecycle, recovery, protocol, containment, or
 security work in one integrated session. Use slices only for genuinely
-independent, non-overlapping work. Slicing is never automatic and must not split
-one invariant or accepted contract across competing owners.
+independent, non-overlapping work. Slicing must not split one invariant or
+accepted contract across competing owners.
 
 When explicitly authorized, the primary agent may use at most two narrow,
-read-only subagents for independent research. Editing subagents are exceptional:
-the handoff must authorize them, their file ownership must be isolated and
-non-overlapping, and the primary agent remains responsible for integration,
-validation, and the report. Never use subagents to evade scope, validation,
-responsibility, or the human Git gate.
+read-only subagents for independent research. Editing subagents require
+authorized, isolated, non-overlapping file ownership. The primary agent remains
+responsible for integration, validation, and the report; subagents must not
+evade scope, validation, responsibility, or the human Git gate.
 
 ## Scope and architecture discipline
 
-Before editing, establish:
+Before editing, perform a minimal preflight:
 
-1. requested outcome and expected baseline;
-2. smallest safe implementation slice;
-3. canonical files and accepted contracts;
-4. observable completion criteria and validation;
-5. whether real operator validation is required;
-6. untracked or user-owned artifacts that must be preserved;
-7. adjacent work that remains deferred.
+1. verify the named baseline, branch, synchronization requirement, and tree
+   state;
+2. identify the named outcome, accepted contracts, allowed files, acceptance
+   criteria, required validation, and protected user artifacts;
+3. classify admission explicitly as `PASS` or `FAIL`.
 
-Inspect before changing. Read only relevant sections. Reuse existing patterns;
-do not create a second convention beside an established one. Prefer small,
-explicit, deterministic changes and boring designs. Fix root causes. Remove
-obsolete in-scope code without leaving aliases, shims, or misleading comments.
-Do not perform unrelated cleanup or speculative abstraction.
+Preflight must not read the repository broadly or run broad tests. Read only
+the named sources and directly relevant references. `PASS` admits only the
+smallest safe implementation slice. `FAIL` admits no implementation; report the
+blocker under the centralized fail-closed policy. When implementation is not
+admitted because architecture or contract work is required first, use a
+separate, explicitly handed-off architecture-only branch rather than mixing
+architecture and implementation.
+
+Reuse existing patterns; do not create a second convention beside an
+established one. Prefer small, explicit, deterministic changes and boring
+designs. Fix root causes. Remove obsolete in-scope code without aliases, shims,
+or misleading comments. Do not perform unrelated cleanup or abstraction.
 
 Architecture-first sequencing is required for public APIs, CLI contracts,
 result or configuration schemas, persistence formats, external runtimes,
@@ -226,6 +240,27 @@ Runtime metadata must distinguish requested, observed, unavailable, and unknown
 behavior. A requested mode is not proof that it became effective. Do not hide
 nonzero exits, signals, startup failures, retries, OOMs, readiness failures, or
 partial output.
+
+Live tests against real models or providers are human-controlled. Agents may run
+an inspected, bounded command only with explicit authorization. Scripted
+transports are allowed for deterministic protocol and failure-path tests; label
+them synthetic, keep fixtures bounded and secret-free, and never present them
+as live-provider evidence.
+
+Provider diagnostics may retain only bounded structured facts needed to
+classify the failure:
+
+- HTTP status, normalized content type, provider error code, rejected field or
+  parameter, and closed error category;
+- selected model, request byte count, and tool count;
+- event names, output-item types, terminal-event presence, and action count;
+- admitted and observed resource limits.
+
+Never retain raw provider payloads, arbitrary provider messages, prompts,
+repository contents, tool arguments, raw headers, credentials, tokens, JWTs,
+or account or workspace identifiers. A generic HTTP 400 or other unclassified
+provider error cannot justify a behavior, fallback, compatibility, or contract
+change; reproduce and classify the cause first.
 
 ## CLI and configuration compatibility
 
@@ -346,25 +381,23 @@ that a source fingerprint authenticates transformed export bytes.
 
 ## Validation discipline
 
-At the start of substantial work, inspect rather than infer:
+Preflight is the minimal admission check defined above. When synchronization
+matters, compare local `main`, `origin/main`, and `origin/HEAD`; inspect existing
+untracked files before creating a branch. Use offline, repository-local,
+noninteractive commands with timeouts. Do not install packages or write outside
+the repository for routine validation.
 
-```bash
-git status --short --branch
-git rev-parse HEAD
-git log --oneline --decorate --graph --max-count=20
-git diff --check
-```
+Testing must be proportional to the changed boundary. Run deterministic focused
+tests during implementation. Run the full suite only for repository-wide impact
+or an explicit governing requirement. Never replace a failed required gate with
+a narrower passing check. Documentation-only work uses focused Markdown, link,
+command, cross-reference, and diff checks unless Python tests are required.
 
-Compare local `main`, `origin/main`, and `origin/HEAD` when baseline synchronization
-matters. Inspect existing untracked files before branch creation. Use offline,
-repository-local, noninteractive commands with timeouts; do not install packages
-or write outside the repository for routine validation.
-
-Behavior changes require deterministic focused tests. Test observable contracts,
-boundaries, invariants, transitions, precedence, and real errors—not source text
-or incidental implementation. Use temporary directories and fixtures; avoid
-real models. Test backward compatibility, cache invalidation, redaction, source
-immutability, and failure preservation when those boundaries change.
+Test observable contracts, boundaries, invariants, transitions, precedence,
+and real errors—not source text or incidental implementation. Use temporary
+directories and fixtures; avoid real models. Test backward compatibility,
+cache invalidation, redaction, source immutability, and failure preservation
+when those boundaries change.
 
 Verification must match the work:
 
@@ -381,19 +414,11 @@ Verification must match the work:
 - real operator behavior: inspect the resolved command before launch and the
   generated artifacts afterward.
 
-Run focused checks during development, then the full project gate once per
-milestone when proportional:
-
-```bash
-uv run pytest
-uv run ruff check .
-git diff --check
-```
-
-Do not rerun a successful full gate unless later production changes invalidate
-it. Documentation-only corrections after a full gate need proportional Markdown,
-link, version, lint, and diff checks. Never claim a check ran unless its actual
-result was observed.
+Never rerun a successful broad gate unless later production changes invalidate
+it. Record every required check and its actual result. Distinguish stale
+failures that were directly corrected and rerun from the final corrected state;
+do not describe an earlier failure as current or omit it from validation
+history.
 
 Before reporting, inspect the complete diff and final status for scope expansion,
 contract violations, duplicated authority, compatibility regressions, unsafe
@@ -416,37 +441,31 @@ and inspection of the sanitized derivative. Never publish or submit by default.
 ## Required review report
 
 Every substantial feature, documentation, process, audit, validation, or release
-milestone must end with one untracked Markdown report under the exact handoff
-path in `tmp/`. Small read-only inspections need no report unless requested.
-The report is the authoritative detailed handoff and must remain untracked.
-Approximately 150 lines is the normal ceiling unless evidence genuinely needs
-more.
+milestone must end with the required untracked `tmp/` report. Small read-only
+inspections need no report unless requested. About 150 lines is the normal
+ceiling unless evidence requires more.
 
-Use these seven core sections:
+Use these six core sections:
 
-1. **State and verdict** — explicit `PASS` or `FAIL`; starting branch and HEAD;
-   working branch and current HEAD; staged, unstaged, and untracked state;
-   readiness for human commit review.
-2. **Subagents** — authorization, actual use, role, and file ownership; state
-   `none` when none were used.
-3. **Changes** — requested scope, files added/modified/removed, diff stat, and
-   concise implementation or documentation summary.
-4. **Architecture and safety decisions** — contracts followed, compatibility,
-   privacy, artifact integrity, decisions made, corrections from self-review,
-   and generated/source artifacts inspected.
-5. **Validation** — exact commands and actual results; focused checks, full gate,
-   Ruff, `git diff --check`, operator validation, and any check not run with the
-   reason.
-6. **Scope and residual risks** — completed, deferred, blocked, and unsupported
-   work; external assumptions; intentional omissions; remaining Critical, High,
-   and Medium findings; residual risks and untracked artifacts.
-7. **Next gate** — exact recommended human action and final working-tree status.
+1. **State** — branches and HEADs; admission; subagent authorization and actual
+   use, normally `none`; staged, unstaged, and untracked state; readiness for
+   human review.
+2. **Changes** — scope, exact files, diff stat, and concise summary.
+3. **Validation** — commands, actual results, omitted required checks with
+   reasons, and stale corrected failures distinguished from final state.
+4. **Findings and residual risks** — decisions, completed and deferred scope,
+   corrections, unresolved findings, assumptions, risks, and artifacts.
+5. **Outcome** — final `PASS` or `FAIL`; no `PASS` with unresolved Critical,
+   High, or Medium findings or unavailable required validation.
+6. **Next gate** — smallest exact human action and final working-tree state.
 
-A report cannot say `PASS` with unresolved Critical, High, or Medium findings or
-with dishonest or unavailable required validation. Do not include secrets,
-private identifiers, full private hashes, raw prompts or model outputs,
-oversized logs, or complete successful test output. Write the report as the
-final file-writing action and print its absolute path in the final response.
+For a direct correction after the report exists, append a small dated follow-up
+section describing only the correction, affected validation, resulting outcome,
+and next gate; do not rewrite history or duplicate the full report. Do not
+include secrets, private identifiers, full private hashes, raw prompts or model
+outputs, oversized logs, or complete successful test output. The report must be
+the last intentional task artifact, remain untracked, and have its absolute path
+printed in the final response.
 
 ## Code and communication standards
 
@@ -476,20 +495,22 @@ documentation frameworks or broad cleanup outside the milestone.
 ```text
 Repository: /path/to/llmgauge
 Expected baseline: main @ <commit>; clean; main and origin/main synchronized
-Branch: docs/clarify-score-review
+Create or continue: docs/clarify-score-review
 Goal: Clarify that assisted score drafts require human review.
 Canonical sources: AGENTS.md; docs/PUBLIC_REPORTING.md; docs/SCORING_RUBRICS.md
 Required delta: Align current scoring language and add one Unreleased entry.
 Milestone-specific non-goals: No CLI, schema, or scoring behavior changes.
-Special validation: Check changed links and search for contradictory scoring claims.
+Special validation: Check changed links and contradictory scoring claims.
 Report path: tmp/clarify-score-review-report.md
 Subagents: none
+Git boundary: Do not stage, commit, merge, or push. Leave all changes unstaged and uncommitted.
 ```
 
 ## Completion rule
 
-Stop for the human Git gate only after the requested scope is complete, affected
-callsites/tests/docs are updated or intentionally unchanged, required validation
-has passed honestly, the final diff is clean and bounded, no secrets or generated
-results are tracked, and the untracked report is the final file written.
-Recommend a commit message if useful; never stage or commit it.
+Stop as soon as acceptance criteria pass and required evidence is recorded.
+Proceed to the human Git gate only when the scope is complete, affected
+callsites/tests/docs are updated or intentionally unchanged, validation passed
+honestly, the diff is bounded, no secrets or generated results are tracked, and
+the untracked report is the last intentional task artifact. Recommend a commit
+message if useful; never stage or commit it.
