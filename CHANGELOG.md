@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Added a claim-bounded Grug-12B Q4_K_M versus Qwen3.6-35B-A3B UD-IQ2_M
+  practical evidence comparison with methodology-first disclosure, all reviewed
+  prompt verdicts and failures, operational observations, and no ranking.
+
 - Aligned the repository agent policy with the revised session, admission,
   proportional-validation, reporting, and human Git-gate workflow.
 
