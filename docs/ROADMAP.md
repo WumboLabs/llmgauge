@@ -300,21 +300,29 @@ The package is a new bounded source. It does not modify or supersede the legacy
 Grug package, rescore Qwen, establish a regression, or support ranking,
 recommendation, safety, or generalized fit claims.
 
+### Completed provenance-refresh practical comparison addendum
+
+**Completed:** the separate
+[Grug provenance-refresh practical comparison addendum](evidence/comparisons/grug-vs-qwen3-6-practical-v1/PROVENANCE_REFRESH_ADDENDUM.md)
+incorporates the refreshed Grug source without replacing the original
+two-package comparison.
+
+The addendum preserves legacy Grug, refreshed Grug, and Qwen3.6 as distinct
+evidence roles; verifies their exact six byte-identical public prompts; and
+places provenance, suite-path, command, runtime, hardware, timing, completion,
+and source-integrity differences before response-specific observations. It
+retains every reviewed verdict and material failure label, treats package
+averages as descriptive metadata only, and makes no regression, winner,
+ranking, recommendation, or generalized fit claim.
+
 ### Selected next bounded project milestone
 
-**Add a bounded comparison addendum for the refreshed Grug source.**
+**Define the general evaluation taxonomy contract.**
 
-Extend the existing practical comparison through a separate, methodology-first
-addendum that incorporates the provenance-refresh Grug package without replacing
-the legacy Grug comparison source. The addendum must preserve all three packages
-as distinct evidence, compare only shared prompts and disclosed operational
-facts, explain response/review differences without declaring regression or a
-winner, and retain the existing boundaries against rankings, recommendations,
-and generalized fit guarantees.
-
-This milestone is documentation and evidence synthesis only. It does not
-authorize model execution, rescoring, package replacement, release work, or
-publication.
+Define, in a later architecture-only milestone, the boundaries and relationships
+among native response, performance, external text benchmark, and
+agent-environment evaluation classes. Do not implement the taxonomy, adapters,
+suites, or execution behavior as part of this completed evidence milestone.
 
 ## Recently completed releases
 

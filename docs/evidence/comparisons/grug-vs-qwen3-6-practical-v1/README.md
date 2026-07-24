@@ -5,6 +5,10 @@ under their disclosed conditions. It is a bounded evidence summary, not a
 leaderboard, winner declaration, model-family judgment, purchasing guide,
 daily-driver recommendation, safety finding, or guarantee of fit.
 
+The separate [provenance-refresh addendum](PROVENANCE_REFRESH_ADDENDUM.md)
+incorporates a newer Grug evidence package while preserving this original
+two-package comparison.
+
 ## Scope
 
 The comparison covers the six prompts shared by one Grug-12B Q4_K_M llama.cpp

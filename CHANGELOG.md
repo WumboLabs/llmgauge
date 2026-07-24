@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Added a methodology-first provenance-refresh addendum to the tracked Grug
+  versus Qwen3.6 practical comparison, preserving three distinct evidence
+  sources, all reviewed verdicts and caveats, and bounded operational claims.
+
 - Added a separate reviewed Grug-12B Q4_K_M provenance-refresh practical
   evidence package with stable historical-suite capture, manual scoring,
   sanitized export, source-integrity verification, and bounded claim limits;
