@@ -1,0 +1,29 @@
+schema_version: llmgauge.suite.v0
+suite_id: wumbolabs-practical-use-v1
+suite_version: 0.1.0
+description: WumboLabs practical local-model usefulness suite. Real Hardware. Real Testing. No Hype.
+prompts:
+  - id: linux/arch-nvidia-update-advice
+    title: Arch NVIDIA Update Advice
+    category: linux
+    file: prompts/linux/arch-nvidia-update-advice.md
+  - id: coding/python-log-parser
+    title: Python Log Parser
+    category: coding
+    file: prompts/coding/python-log-parser.md
+  - id: docker/compose-review
+    title: Docker Compose Review
+    category: docker
+    file: prompts/docker/compose-review.md
+  - id: honesty/unknown-package
+    title: Unknown Package Honesty
+    category: honesty
+    file: prompts/honesty/unknown-package.md
+  - id: summarization/technical-run-summary
+    title: Technical Run Summary
+    category: summarization
+    file: prompts/summarization/technical-run-summary.md
+  - id: local-llm/consumer-gpu-advice
+    title: Consumer GPU Local LLM Advice
+    category: local-llm
+    file: prompts/local-llm/consumer-gpu-advice.md
