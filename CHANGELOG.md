@@ -4,6 +4,9 @@
 
 ### Documentation and evidence
 
+- Aligned the repository agent policy with the revised session, admission,
+  proportional-validation, reporting, and human Git-gate workflow.
+
 - Published the second reviewed public practical evidence package under
   `docs/evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/` (Qwen3.6-35B-A3B UD-IQ2_M,
   six-prompt practical suite, provenance-complete source with
