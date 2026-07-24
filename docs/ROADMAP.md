@@ -241,41 +241,47 @@ command metadata, result JSON, or runtime-command capture. Observed telemetry is
 not authenticated identity. Fingerprints identify evidence; they do not prove
 authorship, hardware, answer quality, or transformed public-export bytes.
 
+### Completed bounded practical comparison
+
+**Completed:** the first tracked comparison across the two reviewed practical
+packages is tracked at
+[Grug-12B versus Qwen3.6 practical evidence comparison v1](evidence/comparisons/grug-vs-qwen3-6-practical-v1/).
+
+The comparison verifies the exact six-prompt overlap and reviewed scoring
+metadata, discloses architecture, quantization, provenance, runtime-command,
+flash-attention, suite-path, hardware-capture, runtime-label, VRAM, and
+completion differences before interpreting results, and preserves all mixed
+verdicts and failure labels. It confines quality observations to individual
+reviewed prompts and operational observations to the recorded settings and
+telemetry. Package averages remain descriptive reviewer metadata; the document
+does not declare a winner, ranking, purchasing choice, daily-driver choice,
+model-family advantage, safety result, or generalized fit.
+
+Methodology differences materially limit attribution: the packages use a dense
+Gemma-family Q4_K_M artifact and a Qwen3.6 MoE UD-IQ2_M artifact; the Grug run
+has legacy provenance and no resolved runtime-command artifact; flash-attention
+and runtime-label capture differ; both results record a temporary suite path;
+both hardware records omit CPU, RAM, OS, and driver metadata; and Qwen's
+consumer-GPU answer is truncated. See the comparison for the exact supported,
+qualified, and unsupported claims.
+
 ### Selected next bounded project milestone
 
-**Bounded comparison synthesis across the two reviewed practical packages.**
+**Provenance-complete Grug-12B practical rerun package.**
 
-With two independently reviewed packages under the same suite family, the next
-in-repo development milestone is an explicit, claim-bounded comparison document
-that:
+Capture, review, and publish one new Grug-12B Q4_K_M run of the same six-prompt
+practical suite using the reference practical-run capture standard above:
+stable tracked suite path, resolved runtime command, explicit flash-attention
+and reasoning settings, runtime label, model/backend/run provenance, and the
+available privacy-safe hardware metadata. Preserve all attempts and raw
+evidence, score the new run manually without changing the legacy package, and
+publish it as a separate bounded package with its own readiness review.
 
-- **discloses all methodology differences before comparing** the two packages
-  (including provenance completeness, flash-attention argv, suite path
-  stability, runtime-command capture, hardware metadata depth, and any setting
-  deltas);
-- compares only like-for-like disclosed conditions under that disclosure;
-- preserves both packages' mixed verdicts and privacy/provenance limits;
-- treats manual scores as reviewer metadata, not objective rank;
-- does **not** declare a winner, daily-driver, purchasing recommendation, or
-  generalized model ranking.
-
-Deferred relative to this selection:
-
-1. Optional human publication of either package (outside-repo copy only; re-read
-   each package's `PUBLICATION_READINESS.md` first).
-2. Standalone re-package of Grug from a provenance-complete re-run (optional
-   later upgrade of the first package).
-3. Additional practical packages for further models or configurations, using the
-   reference practical-run capture standard above.
-4. Monolith read-only importer/integration preparation (parking lot; not core
-   evidence).
-
-Constraints for any follow-on:
-
-- no automatic publication or network submit from the tool
-- no rescoring of published packages without explicit intent and a new package
-- no generalized ranking from one or two packages
-- preserve mixed verdicts, privacy caveats, and provenance limits
+This selection is an evidence-capture milestone, not an instruction to rerun or
+replace evidence during the completed comparison milestone. It does not
+authorize model-family claims, ranking, publication outside the repository,
+schema or CLI changes, runtime changes, or rescoring of either existing package.
+Other practical packages and integrations remain deferred and unselected.
 
 ## Recently completed releases
 
