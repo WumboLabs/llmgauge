@@ -354,13 +354,24 @@ fixture ownership, deterministic-check feasibility, and manual/hybrid scoring
 provenance. It adds no executable suite, final prompt, fixture, schema, loader,
 scoring, or runtime behavior.
 
+### Generic Core schema and loader contract
+
+**Completed:** the accepted
+[Generic Core schema and loader contract](GENERIC_CORE_SCHEMA_LOADER_CONTRACT.md)
+defines additive profile-aware manifest fields, exact ordered membership,
+capability and scoring metadata, contained versioned references, normalized
+loader output, legacy-suite compatibility, and fail-closed diagnostics. It adds
+no schema model, loader, manifest, suite, fixture, scoring, CLI, or result
+behavior.
+
 ### Selected next bounded project milestone
 
-**Generic Core schema and loader contract.**
+**Generic Core schema model and validation implementation.**
 
-Define the minimum representation and loading support needed for profiles,
-capability tags, scoring roles, prompt ordering, and fixture references before
-suite implementation. This is the only selected next milestone.
+Implement only the additive manifest model, strict contract-owned fields,
+legacy mode, controlled enums, scoring-role/reference consistency, bounded
+diagnostics, and fail-closed validation. This is the only selected next
+milestone.
 
 ### Ordered later evaluation work
 

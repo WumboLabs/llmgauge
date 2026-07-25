@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Accepted the additive Generic Core schema and loader contract, preserving
+  legacy suites while fixing ordered profiles, scoring references, contained
+  resources, normalization, and fail-closed validation boundaries.
+
 - Designed the complete proposed `generic-core-v1` `0.1.0` prompt-role
   inventory, ordered Smoke/Core membership, fixture ownership, and versioned
   deterministic, manual, and hybrid scoring provenance without implementing a
