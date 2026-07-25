@@ -344,14 +344,23 @@ capability coverage, scoring roles, comparison boundaries, current-suite
 coexistence, and gates for later prompt design. This architecture milestone
 adds no prompts or evaluation behavior.
 
+### Generic Core prompt and scoring design
+
+**Completed:** the
+[Generic Core prompt and scoring design](GENERIC_CORE_PROMPT_SCORING_DESIGN.md)
+fixes the proposed `generic-core-v1` `0.1.0` prompt-role inventory, all 13
+primary capability owners, ordered Smoke/Core membership, task-family and
+fixture ownership, deterministic-check feasibility, and manual/hybrid scoring
+provenance. It adds no executable suite, final prompt, fixture, schema, loader,
+scoring, or runtime behavior.
+
 ### Selected next bounded project milestone
 
-**Generic Core prompt and scoring design.**
+**Generic Core schema and loader contract.**
 
-Design the prompt-role inventory, capability coverage, scoring ownership,
-deterministic-check feasibility, duplication review, and ordered smoke/Core
-membership required by the accepted contract. This is the only selected next
-milestone.
+Define the minimum representation and loading support needed for profiles,
+capability tags, scoring roles, prompt ordering, and fixture references before
+suite implementation. This is the only selected next milestone.
 
 ### Ordered later evaluation work
 

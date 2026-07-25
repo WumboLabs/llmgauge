@@ -37,6 +37,11 @@ Current non-goals / deliberate project boundaries:
   `generic-core-v1` identity, profile, capability, scoring, comparison, and
   historical-suite coexistence boundaries before prompt design or implementation.
 
+- [Generic Core prompt and scoring design](GENERIC_CORE_PROMPT_SCORING_DESIGN.md)
+  — proposed `generic-core-v1` `0.1.0` prompt-role inventory, ordered Smoke/Core
+  membership, task and fixture ownership, deterministic-check feasibility, and
+  manual/hybrid scoring provenance before schema or suite implementation.
+
 - [Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md) —
   private source and rendering remain authoritative; tracked public prompt
   artifacts are deterministic sanitized derivatives, not replacement source.

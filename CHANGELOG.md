@@ -4,6 +4,11 @@
 
 ### Documentation and evidence
 
+- Designed the complete proposed `generic-core-v1` `0.1.0` prompt-role
+  inventory, ordered Smoke/Core membership, fixture ownership, and versioned
+  deterministic, manual, and hybrid scoring provenance without implementing a
+  suite.
+
 - Accepted the Generic Core suite architecture contract, defining its stable
   identity, profiles, capability and scoring roles, comparison limits,
   historical-suite protections, and prompt-design gates.
