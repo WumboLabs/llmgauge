@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Added a complete current native-suite and prompt architecture review, with
+  capability gaps, protected historical ownership, scoring opportunities, and
+  the Generic Core suite contract selected as the next bounded milestone.
+
 - Accepted the general evaluation taxonomy contract, separating native response,
   performance benchmark, external text benchmark, and agent-environment
   authority, scoring, comparison, provenance, and integration boundaries.
