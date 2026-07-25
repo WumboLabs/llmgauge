@@ -1,0 +1,62 @@
+{
+  "resource_id": "generic-core-interval-function-cases-v0",
+  "version": "0.1.0",
+  "function_name": "merge_intervals",
+  "cases": [
+    {
+      "id": "empty",
+      "input": [],
+      "expected": []
+    },
+    {
+      "id": "separate",
+      "input": [[1, 2], [5, 7]],
+      "expected": [[1, 2], [5, 7]]
+    },
+    {
+      "id": "overlap",
+      "input": [[1, 4], [3, 8]],
+      "expected": [[1, 8]]
+    },
+    {
+      "id": "touching-inclusive",
+      "input": [[1, 3], [3, 6]],
+      "expected": [[1, 6]]
+    },
+    {
+      "id": "nested",
+      "input": [[2, 10], [4, 5], [6, 9]],
+      "expected": [[2, 10]]
+    },
+    {
+      "id": "unsorted",
+      "input": [[8, 10], [-3, -1], [0, 4], [-1, 1]],
+      "expected": [[-3, 4], [8, 10]]
+    },
+    {
+      "id": "duplicates",
+      "input": [[4, 6], [4, 6], [6, 9]],
+      "expected": [[4, 9]]
+    },
+    {
+      "id": "reject-reversed",
+      "input": [[5, 2]],
+      "expected_error": "ValueError"
+    },
+    {
+      "id": "reject-non-integer",
+      "input": [[1, 2.5]],
+      "expected_error": "ValueError"
+    },
+    {
+      "id": "reject-wrong-arity",
+      "input": [[1, 2, 3]],
+      "expected_error": "ValueError"
+    }
+  ],
+  "assertions": {
+    "input_unchanged": true,
+    "result_sorted_by_start": true,
+    "result_contains_lists": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "resource_id": "generic-core-ledger-extraction-v0",
+  "version": "0.1.0",
+  "expected_value": {
+    "entries": [
+      {
+        "entry_id": "L-17",
+        "amount": 42.5,
+        "currency": "CRD",
+        "approved_by": "Mira"
+      },
+      {
+        "entry_id": "L-18",
+        "amount": 8,
+        "currency": "CRD",
+        "approved_by": null
+      },
+      {
+        "entry_id": "L-21",
+        "amount": 105.25,
+        "currency": "CRD",
+        "approved_by": "Tomas"
+      }
+    ]
+  },
+  "entry_order": ["L-17", "L-18", "L-21"],
+  "additional_keys_allowed": false,
+  "additional_text_allowed": false
+}
