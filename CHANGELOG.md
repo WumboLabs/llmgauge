@@ -8,6 +8,9 @@
   including controlled capability metadata, scoring-reference cardinality, and
   lexical fixture-reference safety, while preserving existing legacy manifests.
 
+- Added immutable normalized suite loading with profile, legacy-all, and custom
+  selection plus contained prompt and fixture reference resolution.
+
 ### Documentation and evidence
 
 - Accepted the additive Generic Core schema and loader contract, preserving
