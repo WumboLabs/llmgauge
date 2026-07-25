@@ -4,6 +4,10 @@
 
 ### Documentation and evidence
 
+- Accepted the Generic Core suite architecture contract, defining its stable
+  identity, profiles, capability and scoring roles, comparison limits,
+  historical-suite protections, and prompt-design gates.
+
 - Added a complete current native-suite and prompt architecture review, with
   capability gaps, protected historical ownership, scoring opportunities, and
   the Generic Core suite contract selected as the next bounded milestone.

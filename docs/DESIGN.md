@@ -33,6 +33,10 @@ Current non-goals / deliberate project boundaries:
   benchmark, and agent-environment evaluation, including authority, scoring,
   comparison, and integration sequencing.
 
+- [Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md) — accepted
+  `generic-core-v1` identity, profile, capability, scoring, comparison, and
+  historical-suite coexistence boundaries before prompt design or implementation.
+
 - [Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md) —
   private source and rendering remain authoritative; tracked public prompt
   artifacts are deterministic sanitized derivatives, not replacement source.
