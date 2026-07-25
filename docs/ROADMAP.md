@@ -10,8 +10,10 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 - Current stable tag: `v0.71`
 - Current package version: `0.71.0`
-- Current release line: `v0.71.0`
-- Current focus: public reporting, reproducible evidence, and practical model comparisons
+- Current stable release line: `v0.71.0`
+- Current development state: `main` contains unreleased post-`v0.71` work.
+- The package version remains `0.71.0` until a separate release-preparation
+  milestone changes release metadata.
 
 ## What LLMGauge is
 
@@ -380,20 +382,137 @@ resolves prompt and fixture references as contained regular files while keeping
 portable relative identities separate from private host paths. Editable and
 packaged definitions retain equivalent portable normalization and owned bytes.
 
-### Selected next bounded project milestone
+## Post-v0.71 development status
+
+The following development is complete on `main` but remains unreleased:
+
+- reviewed practical evidence packages, a bounded comparison, and a
+  provenance-refresh comparison addendum;
+- preservation of the historical Practical v0.1 source and its authority and
+  equivalence contract;
+- the general evaluation taxonomy and current-suite architecture review;
+- Generic Core suite, prompt/scoring, and schema/loader architecture and design;
+- additive profile-aware schema validation;
+- normalized profile and custom selection with contained prompt and fixture
+  reference resolution; and
+- source-only-suite CI repair.
+
+These are post-`v0.71` development results, not capabilities released by the
+`v0.71` tag. Details remain in [CHANGELOG.md](../CHANGELOG.md).
+
+## Selected next bounded project milestone
 
 **Generic Core fixture and package-data support.**
 
 Add only the fixture resources and package-data support required by the accepted
 Generic Core design. This is the only selected next milestone.
 
-### Ordered later evaluation work
+## Ordered Generic Core delivery sequence
+
+The current delivery path is:
+
+1. Generic Core fixture and package-data support.
+2. Compatibility and security hardening.
+3. `v0.72` release preparation.
+4. Generic Core suite implementation with final prompts, fixtures, and exact
+   Smoke/Core membership.
+5. Deterministic checks D1-D7.
+6. Separate D5 generated-code containment gate.
+7. Execution and result-provenance integration.
+8. `v0.73` release preparation.
+
+Each item remains a separate bounded milestone unless a later accepted handoff
+explicitly combines milestones. Release preparation does not begin until its
+preceding implementation and validation gates are complete.
+
+## Release gates
+
+### `v0.72` — Profile-aware suite foundation
+
+The `v0.72` release gate requires:
+
+- the additive profile-aware schema;
+- normalized profile and custom selection;
+- contained prompt and fixture reference resolution;
+- fixture and package-data support;
+- compatibility and security hardening;
+- source/package equivalence;
+- clean source-checkout, wheel, sdist, and isolated installed-CLI validation;
+  and
+- release metadata and documentation updates in the separate `v0.72`
+  release-preparation milestone.
+
+`v0.72` does not claim that `generic-core-v1` is available. The package version
+remains `0.71.0` until the separate `v0.72` release-preparation milestone.
+
+### `v0.73` — Generic Core v1
+
+The `v0.73` release gate requires:
+
+- an implemented `generic-core-v1` suite at version `0.1.0`;
+- its final 13-prompt inventory;
+- exact `core` and `smoke` profiles;
+- committed fixtures;
+- supported scoring references;
+- deterministic checks D1-D7;
+- D5 generated-code containment resolved under an accepted safe local contract
+  or explicitly redesigned through a separate accepted contract;
+- selected profile and exact ordered membership provenance in results;
+- clean installed-package and CI validation; and
+- release metadata and documentation updates in the separate `v0.73`
+  release-preparation milestone.
+
+These gates assign no release dates.
+
+## Post-Generic-Core product tracks
+
+These tracks are future product work. They are separate from the selected
+Generic Core milestone and from one another.
+
+### Packaging and productization
+
+- PyPI readiness and publication, without claiming current PyPI availability.
+- Validated `uv tool install llmgauge` and `pipx install llmgauge` workflows
+  after publication.
+- Wheel, sdist, and isolated-install tests.
+- Release automation.
+- Upgrade and uninstall workflow.
+- User configuration, data, and cache path review.
+- `doctor` and guided setup polish.
+- Standalone executable and container feasibility later.
+
+The currently validated installed-user path remains the Git-tag installation
+documented in [Installation](INSTALL.md). PyPI availability is not yet claimed.
+
+### Runtime interoperability
+
+1. vLLM completion and product audit.
+2. Shared OpenAI-compatible HTTP transport contract.
+3. SGLang adapter.
+4. Ollama adapter.
+5. TensorRT-LLM or NVIDIA NIM later.
+6. Heterogeneous platform provenance.
+
+`llama.cpp` remains the default runtime. The current vLLM adapter remains a
+bounded, operator-managed local integration. DGX Spark is a hardware/platform
+provenance target, not a backend; support should use whichever separately
+admitted runtime actually runs on that platform. None of this runtime work is
+the immediate next milestone.
+
+## Expanded evaluation track
+
+This work remains separate from Generic Core delivery and runtime
+interoperability:
 
 1. LocalMaxxing contract and offline performance-benchmark export.
 2. External text benchmark read-only imports.
 3. Agent drift evaluation contract.
 4. Terminal-Bench/Harbor contract and read-only import.
-5. Later SWE-bench, browser, and OSWorld work.
+5. SWE-bench.
+6. Browser, computer-use, and OSWorld later.
+
+These items retain the distinct evaluation classes and evidence authorities
+defined by the [general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md).
 
 ## Recently completed releases
 
