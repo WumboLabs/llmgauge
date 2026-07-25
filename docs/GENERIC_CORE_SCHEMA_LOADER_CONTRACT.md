@@ -19,8 +19,9 @@ implementation represents, validates, resolves, and normalizes those decisions.
 ## Decision summary
 
 Generic Core uses additive fields in the existing `llmgauge.suite.v0` manifest,
-not a new manifest format. The existing required `schema` field is the format
-version discriminator; no second schema or format version field is added.
+not a new manifest format. The existing required `schema_version` field is the
+format version discriminator; no second schema or format version field is
+added.
 
 A manifest adopts the profile-aware contract by declaring both `profiles` and
 `default_profile`. In that mode every prompt must declare the complete new
@@ -35,8 +36,9 @@ ordered profiles and scoring ownership explicit and reproducible.
 
 ## Current compatibility baseline
 
-The current manifest contract requires `schema: llmgauge.suite.v0`; `prompts`
-is the canonical ordered inventory. The loader currently discovers editable
+The current manifest contract requires
+`schema_version: llmgauge.suite.v0`; `suite_id`, `suite_version`, and `prompts`
+retain their established meanings. The loader currently discovers editable
 suite data under `suites/` and installed data under the package's
 `builtin_suites/` tree. That source choice must not change suite meaning.
 
@@ -56,6 +58,9 @@ mirrors keep their current identity and order, and the future packaged Generic
 Core definition must be byte-equivalent in all suite-relative owned files to
 its editable source. Historical result evidence is not migrated, reinterpreted,
 or made subject to the new optional metadata.
+Existing manifests already conform to these canonical identity fields and
+require no edits. This contract introduces no `schema`, `id`, or `version`
+aliases for suite identity and no compatibility shim or migration behavior.
 
 ## Additive manifest shape
 
@@ -63,9 +68,9 @@ The future representation is equivalent to this abbreviated YAML shape. It is
 illustrative; it does not create a manifest or finalize fixture filenames.
 
 ```yaml
-schema: llmgauge.suite.v0
-id: generic-core-v1
-version: 0.1.0
+schema_version: llmgauge.suite.v0
+suite_id: generic-core-v1
+suite_version: 0.1.0
 default_profile: core
 profiles:
   core:
@@ -102,7 +107,7 @@ meaning. The additive fields and their ownership are:
 
 | Field | Cardinality and default | Owner | Failure behavior |
 | --- | --- | --- | --- |
-| `schema` | Exactly one; required for every manifest; only `llmgauge.suite.v0` is supported by this contract | Suite format | Missing, wrong type, or unsupported value is a root definition error |
+| `schema_version` | Exactly one; required for every manifest; only `llmgauge.suite.v0` is supported by this contract | Suite format | Missing, wrong type, or unsupported value fails closed as a root definition error; no alias is accepted |
 | `profiles` | Legacy mode: absent; profile-aware mode: one non-empty mapping of unique profile names to profile objects; no implicit entries | Suite version | Presence without `default_profile`, an empty mapping, malformed names or objects, or invalid membership is a definition error |
 | `default_profile` | Legacy mode: absent; profile-aware mode: exactly one name present in `profiles`; no implicit profile | Suite version | Presence without `profiles` or a name not declared by `profiles` is a definition error |
 | `profiles.<name>.prompt_ids` | Exactly one non-empty ordered list of prompt IDs; no default and no inherited members | Suite version | Unknown, duplicate, or out-of-canonical-order members are definition errors |
@@ -376,9 +381,11 @@ unknown field it owns, repair a path, infer metadata, choose a fallback version,
 or continue into execution.
 
 Duplicate YAML mapping keys, YAML parse failures, a non-mapping root, a missing
-or unsupported `schema`, or an unidentifiable suite root make later
-interpretation unsafe and therefore short-circuit validation. Once the root is
-safe to inspect, independent definition diagnostics accumulate in stable
+or unsupported `schema_version`, or an unidentifiable suite root make later
+interpretation unsafe and therefore short-circuit validation. Unsupported
+`schema_version` values fail closed; they are not repaired through an alias,
+fallback, or compatibility shim. Once the root is safe to inspect, independent
+definition diagnostics accumulate in stable
 manifest order, followed by profile and resource checks in declared order.
 
 Diagnostics are structured with a stable code, bounded logical location, and
