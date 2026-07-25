@@ -335,14 +335,23 @@ external benchmark, and agent-environment work distinct, and recommends a
 bounded future smoke/Core/optional-profile structure without changing suites or
 writing prompts.
 
+### Generic Core suite contract
+
+**Completed:** the accepted
+[Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md) defines the
+`generic-core-v1` identity and initial version, smoke/Core profile relationship,
+capability coverage, scoring roles, comparison boundaries, current-suite
+coexistence, and gates for later prompt design. This architecture milestone
+adds no prompts or evaluation behavior.
+
 ### Selected next bounded project milestone
 
-**Generic Core suite contract.**
+**Generic Core prompt and scoring design.**
 
-Define the native-response subject, identity, versioning, profile relationship,
-capability tags, scoring roles, comparison boundaries, and historical-suite
-coexistence before selecting prompt wording or implementing suite content. This
-is the only selected next milestone.
+Design the prompt-role inventory, capability coverage, scoring ownership,
+deterministic-check feasibility, duplication review, and ordered smoke/Core
+membership required by the accepted contract. This is the only selected next
+milestone.
 
 ### Ordered later evaluation work
 
