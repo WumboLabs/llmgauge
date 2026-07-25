@@ -1,6 +1,9 @@
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 import re
+from types import MappingProxyType
 from typing import Any, Literal
 
 from pydantic import (
@@ -347,6 +350,352 @@ def _format_validation_diagnostics(exc: ValidationError) -> list[str]:
     if truncated:
         diagnostics.append(_DIAGNOSTICS_TRUNCATED)
     return diagnostics
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedLogicalReference:
+    id: str
+    version: str
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedFixtureReference:
+    id: str
+    version: str
+    path: str
+    resolved_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedScoringDefinition:
+    role: ScoringRole
+    deterministic_check: NormalizedLogicalReference | None
+    manual_rubric: NormalizedLogicalReference | None
+    hybrid_rule: Literal["side-by-side"] | None
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedPrompt:
+    id: str
+    file: str
+    resolved_file: Path
+    primary_capability: PrimaryCapability | None
+    secondary_stressors: tuple[SecondaryStressor, ...]
+    scoring: NormalizedScoringDefinition | None
+    fixtures: tuple[NormalizedFixtureReference, ...]
+    metadata: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedSuite:
+    schema_version: Literal["llmgauge.suite.v0"]
+    suite_id: str
+    suite_version: str
+    title: str | None
+    suite_root: Path
+    canonical_prompt_ids: tuple[str, ...]
+    profiles: Mapping[str, tuple[str, ...]]
+    default_profile: str | None
+    selected_profile: str | None
+    selection_kind: Literal["legacy-all", "profile", "custom"]
+    selected_prompt_ids: tuple[str, ...]
+    is_complete_named_profile: bool
+    is_custom_subset: bool
+    prompts: tuple[NormalizedPrompt, ...]
+    selected_prompts: tuple[NormalizedPrompt, ...]
+    metadata: Mapping[str, Any]
+
+
+def _freeze_metadata(value: Any) -> Any:
+    if isinstance(value, dict):
+        return MappingProxyType(
+            {key: _freeze_metadata(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_metadata(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze_metadata(item) for item in value)
+    return value
+
+
+def _opaque_metadata(data: dict[str, Any], owned_fields: set[str]) -> Mapping[str, Any]:
+    return _freeze_metadata(
+        {key: value for key, value in data.items() if key not in owned_fields}
+    )
+
+
+def _resolve_owned_file(suite_root: Path, relative_path: str, location: str) -> Path:
+    try:
+        FixtureReference.validate_path(relative_path)
+    except ValueError as exc:
+        raise SuiteDefinitionError(
+            [f"invalid-relative-path: {location}: {exc}"]
+        ) from None
+
+    lexical_target = suite_root.joinpath(*relative_path.split("/"))
+    try:
+        lexical_target.relative_to(suite_root)
+    except ValueError:
+        raise SuiteDefinitionError(
+            [f"path-escape: {location}: target leaves suite root"]
+        ) from None
+
+    try:
+        resolved_target = lexical_target.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise SuiteDefinitionError(
+            [f"missing-resource: {location}: target is unavailable"]
+        ) from None
+
+    try:
+        resolved_target.relative_to(suite_root)
+    except ValueError:
+        raise SuiteDefinitionError(
+            [f"symlink-escape: {location}: target leaves suite root"]
+        ) from None
+    if not resolved_target.is_file():
+        raise SuiteDefinitionError(
+            [f"non-regular-resource: {location}: target is not a regular file"]
+        )
+    return resolved_target
+
+
+def _normalize_logical_reference(
+    reference: _LogicalReference | None,
+) -> NormalizedLogicalReference | None:
+    if reference is None:
+        return None
+    return NormalizedLogicalReference(id=reference.id, version=reference.version)
+
+
+def _validate_generic_core_profiles(
+    manifest: SuiteManifest,
+    canonical_prompt_ids: tuple[str, ...],
+    profiles: Mapping[str, tuple[str, ...]],
+) -> None:
+    if manifest.suite_id != "generic-core-v1" or manifest.suite_version != "0.1.0":
+        return
+
+    diagnostics: list[str] = []
+    if set(profiles) != {"core", "smoke"}:
+        diagnostics.append(
+            "generic-core-profiles: profiles must be exactly 'core' and 'smoke'"
+        )
+    if manifest.default_profile != "core":
+        diagnostics.append(
+            "generic-core-default-profile: default_profile must be 'core'"
+        )
+
+    core = profiles.get("core")
+    smoke = profiles.get("smoke")
+    if core is not None and core != canonical_prompt_ids:
+        diagnostics.append(
+            "generic-core-core-membership: core must equal the canonical inventory"
+        )
+    if smoke is not None:
+        if core is None or not smoke or len(smoke) >= len(core):
+            diagnostics.append(
+                "generic-core-smoke-membership: smoke must be a non-empty strict "
+                "subsequence of core"
+            )
+        else:
+            smoke_members = set(smoke)
+            if (
+                tuple(prompt_id for prompt_id in core if prompt_id in smoke_members)
+                != smoke
+            ):
+                diagnostics.append(
+                    "generic-core-smoke-order: smoke must preserve core-relative order"
+                )
+    if diagnostics:
+        raise SuiteDefinitionError(diagnostics)
+
+
+def _select_prompt_ids(
+    *,
+    manifest: SuiteManifest,
+    canonical_prompt_ids: tuple[str, ...],
+    profiles: Mapping[str, tuple[str, ...]],
+    profile: str | None,
+    prompt_ids: Sequence[str] | None,
+) -> tuple[str | None, Literal["legacy-all", "profile", "custom"], tuple[str, ...]]:
+    if profile is not None and prompt_ids is not None:
+        raise SuiteDefinitionError(
+            ["selection-conflict: profile and custom prompt IDs are mutually exclusive"]
+        )
+
+    if prompt_ids is not None:
+        selected = tuple(prompt_ids)
+        if not selected:
+            raise SuiteDefinitionError(
+                ["custom-selection-empty: custom prompt IDs must be non-empty"]
+            )
+        if len(selected) != len(set(selected)):
+            raise SuiteDefinitionError(
+                ["custom-selection-duplicate: custom prompt IDs must be unique"]
+            )
+        canonical_positions = {
+            prompt_id: position
+            for position, prompt_id in enumerate(canonical_prompt_ids)
+        }
+        if any(prompt_id not in canonical_positions for prompt_id in selected):
+            raise SuiteDefinitionError(
+                [
+                    "custom-selection-unknown: custom selection contains an unknown prompt ID"
+                ]
+            )
+        positions = [canonical_positions[prompt_id] for prompt_id in selected]
+        if positions != sorted(positions):
+            raise SuiteDefinitionError(
+                [
+                    "custom-selection-order: custom prompt IDs must preserve "
+                    "canonical order"
+                ]
+            )
+        return None, "custom", selected
+
+    if manifest.profiles is None:
+        if profile is not None:
+            raise SuiteDefinitionError(
+                ["legacy-profile-selection: legacy suites do not declare profiles"]
+            )
+        return None, "legacy-all", canonical_prompt_ids
+
+    selected_profile = profile if profile is not None else manifest.default_profile
+    if selected_profile not in profiles:
+        raise SuiteDefinitionError(
+            ["unknown-profile: requested profile is not declared by the suite"]
+        )
+    return selected_profile, "profile", profiles[selected_profile]
+
+
+def load_normalized_suite(
+    suite_dir: Path,
+    *,
+    profile: str | None = None,
+    prompt_ids: Sequence[str] | None = None,
+) -> NormalizedSuite:
+    """Validate, resolve, and select one suite without mutating its raw manifest."""
+    data = load_suite(suite_dir)
+    manifest = SuiteManifest.model_validate(data)
+    try:
+        suite_root = suite_dir.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise SuiteDefinitionError(
+            ["suite-root-unavailable: suite root is unavailable"]
+        ) from None
+    if not suite_root.is_dir():
+        raise SuiteDefinitionError(
+            ["suite-root-invalid: suite root is not a directory"]
+        )
+
+    canonical_prompt_ids = tuple(prompt.id for prompt in manifest.prompts)
+    profiles = MappingProxyType(
+        {
+            name: tuple(definition.prompt_ids)
+            for name, definition in (manifest.profiles or {}).items()
+        }
+    )
+    _validate_generic_core_profiles(manifest, canonical_prompt_ids, profiles)
+
+    normalized_prompts: list[NormalizedPrompt] = []
+    raw_prompts = data["prompts"]
+    for prompt_index, (prompt, raw_prompt) in enumerate(
+        zip(manifest.prompts, raw_prompts, strict=True)
+    ):
+        resolved_file = _resolve_owned_file(
+            suite_root, prompt.file, f"prompts.{prompt_index}.file"
+        )
+        normalized_fixtures = tuple(
+            NormalizedFixtureReference(
+                id=fixture.id,
+                version=fixture.version,
+                path=fixture.path,
+                resolved_path=_resolve_owned_file(
+                    suite_root,
+                    fixture.path,
+                    f"prompts.{prompt_index}.fixtures.{fixture_index}.path",
+                ),
+            )
+            for fixture_index, fixture in enumerate(prompt.fixtures or ())
+        )
+        scoring = (
+            NormalizedScoringDefinition(
+                role=prompt.scoring.role,
+                deterministic_check=_normalize_logical_reference(
+                    prompt.scoring.deterministic_check
+                ),
+                manual_rubric=_normalize_logical_reference(
+                    prompt.scoring.manual_rubric
+                ),
+                hybrid_rule=prompt.scoring.hybrid_rule,
+            )
+            if prompt.scoring is not None
+            else None
+        )
+        normalized_prompts.append(
+            NormalizedPrompt(
+                id=prompt.id,
+                file=prompt.file,
+                resolved_file=resolved_file,
+                primary_capability=prompt.primary_capability,
+                secondary_stressors=tuple(prompt.secondary_stressors or ()),
+                scoring=scoring,
+                fixtures=normalized_fixtures,
+                metadata=_opaque_metadata(
+                    raw_prompt,
+                    {
+                        "id",
+                        "file",
+                        "primary_capability",
+                        "secondary_stressors",
+                        "scoring",
+                        "fixtures",
+                    },
+                ),
+            )
+        )
+
+    selected_profile, selection_kind, selected_prompt_ids = _select_prompt_ids(
+        manifest=manifest,
+        canonical_prompt_ids=canonical_prompt_ids,
+        profiles=profiles,
+        profile=profile,
+        prompt_ids=prompt_ids,
+    )
+    prompts_by_id = {prompt.id: prompt for prompt in normalized_prompts}
+    normalized_prompt_tuple = tuple(normalized_prompts)
+    return NormalizedSuite(
+        schema_version=manifest.schema_version,
+        suite_id=manifest.suite_id,
+        suite_version=manifest.suite_version,
+        title=manifest.title,
+        suite_root=suite_root,
+        canonical_prompt_ids=canonical_prompt_ids,
+        profiles=profiles,
+        default_profile=manifest.default_profile,
+        selected_profile=selected_profile,
+        selection_kind=selection_kind,
+        selected_prompt_ids=selected_prompt_ids,
+        is_complete_named_profile=selection_kind == "profile",
+        is_custom_subset=selection_kind == "custom",
+        prompts=normalized_prompt_tuple,
+        selected_prompts=tuple(
+            prompts_by_id[prompt_id] for prompt_id in selected_prompt_ids
+        ),
+        metadata=_opaque_metadata(
+            data,
+            {
+                "schema_version",
+                "suite_id",
+                "suite_version",
+                "title",
+                "prompts",
+                "profiles",
+                "default_profile",
+            },
+        ),
+    )
 
 
 def load_suite(suite_dir: Path) -> dict[str, Any]:

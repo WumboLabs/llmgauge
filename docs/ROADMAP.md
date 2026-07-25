@@ -369,18 +369,23 @@ behavior.
 **Completed:** the additive profile-aware suite manifest model now validates
 ordered profile declarations, capability and stressor metadata, scoring-role
 references, and lexical fixture references while preserving unchanged legacy
-manifests and their source/package behavior. Profile selection, filesystem
-reference resolution, Generic Core content, scoring execution, CLI behavior,
-and result provenance remain deferred.
+manifests and their source/package behavior. Generic Core content, scoring
+execution, CLI behavior, and result provenance remain deferred.
+
+### Generic Core profile selection and reference resolution
+
+**Completed:** the normalized suite loader now selects declared default or
+requested profiles, records legacy-all and disclosed custom membership, and
+resolves prompt and fixture references as contained regular files while keeping
+portable relative identities separate from private host paths. Editable and
+packaged definitions retain equivalent portable normalization and owned bytes.
 
 ### Selected next bounded project milestone
 
-**Generic Core profile selection and reference resolution implementation.**
+**Generic Core fixture and package-data support.**
 
-Implement only caller-selected and default profile handling, canonical selected
-membership normalization, contained prompt and fixture reference resolution,
-and editable/package-source equivalence. This is the only selected next
-milestone.
+Add only the fixture resources and package-data support required by the accepted
+Generic Core design. This is the only selected next milestone.
 
 ### Ordered later evaluation work
 
