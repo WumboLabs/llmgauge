@@ -42,6 +42,11 @@ Current non-goals / deliberate project boundaries:
   membership, task and fixture ownership, deterministic-check feasibility, and
   manual/hybrid scoring provenance before schema or suite implementation.
 
+- [Generic Core schema and loader contract](GENERIC_CORE_SCHEMA_LOADER_CONTRACT.md)
+  — accepted additive manifest, ordered-profile, scoring-reference, contained
+  path-resolution, normalization, compatibility, and fail-closed loading
+  boundaries before schema implementation.
+
 - [Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md) —
   private source and rendering remain authoritative; tracked public prompt
   artifacts are deterministic sanitized derivatives, not replacement source.
