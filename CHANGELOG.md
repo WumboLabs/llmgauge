@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added versioned Generic Core deterministic, D5 coding, and bounded-context
+  fixture resources with exact source/package mirrors and verified wheel, source
+  distribution, and isolated-install package-data access.
+
 - Added fail-closed validation for additive profile-aware suite manifests,
   including controlled capability metadata, scoring-reference cardinality, and
   lexical fixture-reference safety, while preserving existing legacy manifests.

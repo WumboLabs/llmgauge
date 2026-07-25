@@ -1,0 +1,10 @@
+{
+  "resource_id": "generic-core-summary-envelope-v0",
+  "version": "0.1.0",
+  "response": {
+    "sections": ["Decisions", "Open questions"],
+    "section_order_required": true,
+    "max_total_words": 90,
+    "additional_sections_allowed": false
+  }
+}

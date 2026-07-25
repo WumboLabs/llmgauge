@@ -382,6 +382,15 @@ resolves prompt and fixture references as contained regular files while keeping
 portable relative identities separate from private host paths. Editable and
 packaged definitions retain equivalent portable normalization and owned bytes.
 
+### Generic Core fixture and package-data support
+
+**Completed:** the versioned suite-owned `generic-core-v1` resource tree now
+provides D5 coding cases and execution-limit metadata, bounded-context excerpts
+and reconciliation data, and the remaining deterministic mappings required by
+the accepted design. Exact source/package mirrors are included in source
+distributions, wheels, and isolated installations without creating the suite
+manifest, final prompts, scoring execution, or runtime behavior.
+
 ## Post-v0.71 development status
 
 The following development is complete on `main` but remains unreleased:
@@ -394,7 +403,8 @@ The following development is complete on `main` but remains unreleased:
 - Generic Core suite, prompt/scoring, and schema/loader architecture and design;
 - additive profile-aware schema validation;
 - normalized profile and custom selection with contained prompt and fixture
-  reference resolution; and
+  reference resolution;
+- versioned Generic Core fixture and package-data support; and
 - source-only-suite CI repair.
 
 These are post-`v0.71` development results, not capabilities released by the
@@ -402,17 +412,18 @@ These are post-`v0.71` development results, not capabilities released by the
 
 ## Selected next bounded project milestone
 
-**Generic Core fixture and package-data support.**
+**Generic Core compatibility and security hardening.**
 
-Add only the fixture resources and package-data support required by the accepted
-Generic Core design. This is the only selected next milestone.
+Harden the accepted profile-aware suite foundation while preserving legacy-suite
+compatibility and contained resource access. This is the only selected next
+milestone.
 
 ## Ordered Generic Core delivery sequence
 
 The current delivery path is:
 
-1. Generic Core fixture and package-data support.
-2. Compatibility and security hardening.
+1. Generic Core fixture and package-data support (completed).
+2. Generic Core compatibility and security hardening.
 3. `v0.72` release preparation.
 4. Generic Core suite implementation with final prompts, fixtures, and exact
    Smoke/Core membership.

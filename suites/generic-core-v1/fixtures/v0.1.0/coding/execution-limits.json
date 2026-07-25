@@ -1,0 +1,17 @@
+{
+  "resource_id": "generic-core-interval-execution-limits-v0",
+  "version": "0.1.0",
+  "language": "python",
+  "language_floor": "3.11",
+  "candidate_form": "single-function-definition",
+  "limits": {
+    "wall_seconds": 2,
+    "stdout_bytes": 4096,
+    "stderr_bytes": 4096,
+    "source_bytes": 16384
+  },
+  "network_allowed": false,
+  "third_party_packages_allowed": false,
+  "containment_required": true,
+  "execution_authorized": false
+}

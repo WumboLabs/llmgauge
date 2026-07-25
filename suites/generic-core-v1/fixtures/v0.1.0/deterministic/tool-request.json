@@ -1,0 +1,16 @@
+{
+  "resource_id": "generic-core-tool-request-v0",
+  "version": "0.1.0",
+  "expected_request": {
+    "tool": "lookup_archive_record",
+    "arguments": {
+      "collection": "north-quay",
+      "record_id": "NQ-204",
+      "include_history": false
+    }
+  },
+  "request_count": 1,
+  "additional_arguments_allowed": false,
+  "additional_text_allowed": false,
+  "execution_claim_allowed": false
+}

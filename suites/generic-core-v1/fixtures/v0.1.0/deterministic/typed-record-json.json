@@ -1,0 +1,29 @@
+{
+  "resource_id": "generic-core-typed-record-json-v0",
+  "version": "0.1.0",
+  "expected_value": {
+    "records": [
+      {
+        "record_id": "R-104",
+        "active": true,
+        "priority": 2,
+        "tags": ["blue", "north"]
+      },
+      {
+        "record_id": "R-219",
+        "active": false,
+        "priority": 0,
+        "tags": []
+      },
+      {
+        "record_id": "R-305",
+        "active": true,
+        "priority": 7,
+        "tags": ["amber"]
+      }
+    ]
+  },
+  "record_order": ["R-104", "R-219", "R-305"],
+  "additional_keys_allowed": false,
+  "additional_text_allowed": false
+}

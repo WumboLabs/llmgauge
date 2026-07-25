@@ -1,0 +1,29 @@
+{
+  "resource_id": "generic-core-context-reconciliation-v0",
+  "version": "0.1.0",
+  "answers": [
+    {
+      "question_id": "Q1",
+      "value": "09:00",
+      "source_excerpt_ids": ["POL-B"]
+    },
+    {
+      "question_id": "Q2",
+      "value": "07:30",
+      "source_excerpt_ids": ["POL-C"]
+    },
+    {
+      "question_id": "Q3",
+      "value": true,
+      "source_excerpt_ids": ["POL-B", "POL-C"]
+    },
+    {
+      "question_id": "Q4",
+      "value": null,
+      "source_excerpt_ids": []
+    }
+  ],
+  "answer_order": ["Q1", "Q2", "Q3", "Q4"],
+  "additional_answers_allowed": false,
+  "additional_text_allowed": false
+}

@@ -1,0 +1,23 @@
+{
+  "resource_id": "generic-core-constraint-envelope-v0",
+  "version": "0.1.0",
+  "response": {
+    "line_count": 3,
+    "numbering": "decimal-period",
+    "max_words_per_line": 12,
+    "required_line_fields": [
+      ["event", "date"],
+      ["location", "start_time"],
+      ["registration", "deadline"]
+    ],
+    "additional_text_allowed": false
+  },
+  "literal_fields": {
+    "event": "Harborview repair clinic",
+    "date": "18 October",
+    "location": "North Hall",
+    "start_time": "09:30",
+    "registration": "free",
+    "deadline": "15 October"
+  }
+}
