@@ -13,6 +13,10 @@
 
 ### Documentation and evidence
 
+- Reconciled the roadmap with unreleased post-`v0.71` development, explicit
+  `v0.72` and `v0.73` release gates, and separate packaging, runtime, and
+  expanded-evaluation tracks without changing release metadata.
+
 - Accepted the additive Generic Core schema and loader contract, preserving
   legacy suites while fixing ordered profiles, scoring references, contained
   resources, normalization, and fail-closed validation boundaries.
