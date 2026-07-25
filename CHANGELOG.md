@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Added fail-closed validation for additive profile-aware suite manifests,
+  including controlled capability metadata, scoring-reference cardinality, and
+  lexical fixture-reference safety, while preserving existing legacy manifests.
+
 ### Documentation and evidence
 
 - Accepted the additive Generic Core schema and loader contract, preserving

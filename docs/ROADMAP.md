@@ -364,13 +364,22 @@ loader output, legacy-suite compatibility, and fail-closed diagnostics. It adds
 no schema model, loader, manifest, suite, fixture, scoring, CLI, or result
 behavior.
 
+### Generic Core schema model and validation
+
+**Completed:** the additive profile-aware suite manifest model now validates
+ordered profile declarations, capability and stressor metadata, scoring-role
+references, and lexical fixture references while preserving unchanged legacy
+manifests and their source/package behavior. Profile selection, filesystem
+reference resolution, Generic Core content, scoring execution, CLI behavior,
+and result provenance remain deferred.
+
 ### Selected next bounded project milestone
 
-**Generic Core schema model and validation implementation.**
+**Generic Core profile selection and reference resolution implementation.**
 
-Implement only the additive manifest model, strict contract-owned fields,
-legacy mode, controlled enums, scoring-role/reference consistency, bounded
-diagnostics, and fail-closed validation. This is the only selected next
+Implement only caller-selected and default profile handling, canonical selected
+membership normalization, contained prompt and fixture reference resolution,
+and editable/package-source equivalence. This is the only selected next
 milestone.
 
 ### Ordered later evaluation work
