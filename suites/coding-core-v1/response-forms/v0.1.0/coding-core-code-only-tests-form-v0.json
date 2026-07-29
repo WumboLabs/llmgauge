@@ -1,0 +1,19 @@
+{
+  "resource_id": "coding-core-code-only-tests-form-v0",
+  "version": "0.1.0",
+  "category": "code-only",
+  "allowed_envelope": {
+    "fenced_blocks": 1,
+    "language_tag": "python",
+    "content": "one complete test module and no non-code material",
+    "text_before_fence": false,
+    "text_after_fence": false
+  },
+  "malformed_or_extra_output": [
+    "missing or multiple fenced code blocks",
+    "a language tag other than python",
+    "prose, headings, or commentary outside the code block",
+    "a patch envelope",
+    "a production implementation when only tests were requested"
+  ]
+}

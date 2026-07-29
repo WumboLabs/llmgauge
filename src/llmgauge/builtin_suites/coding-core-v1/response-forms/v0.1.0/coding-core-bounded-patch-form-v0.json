@@ -1,0 +1,32 @@
+{
+  "resource_id": "coding-core-bounded-patch-form-v0",
+  "version": "0.1.0",
+  "category": "bounded-patch",
+  "allowed_envelope": {
+    "first_line": "*** Begin Patch",
+    "last_line": "*** End Patch",
+    "markdown_fence": false,
+    "surrounding_text": false,
+    "file_sections": {
+      "minimum": 1,
+      "header": "*** Update File: <suite-relative prompt-allowed path>",
+      "allowed_operations": ["Update File"],
+      "path_must_be_declared_allowed_by_prompt": true,
+      "duplicate_paths_allowed": false
+    },
+    "hunks": {
+      "minimum_per_file": 1,
+      "header_prefix": "@@",
+      "body_line_prefixes": [" ", "+", "-"],
+      "binary_content": false
+    }
+  },
+  "malformed_or_extra_output": [
+    "text outside the begin and end lines",
+    "Markdown fences",
+    "Add File, Delete File, Move File, rename, or binary sections",
+    "an absolute path, parent traversal, or path not allowed by the prompt",
+    "a file section without a hunk",
+    "a hunk body line without an allowed prefix"
+  ]
+}
