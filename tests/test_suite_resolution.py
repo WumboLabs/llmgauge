@@ -81,6 +81,7 @@ def _portable_identity(suite: NormalizedSuite) -> tuple[Any, ...]:
         suite.schema_version,
         suite.suite_id,
         suite.suite_version,
+        suite.title,
         suite.canonical_prompt_ids,
         tuple(suite.profiles.items()),
         suite.default_profile,
@@ -91,13 +92,25 @@ def _portable_identity(suite: NormalizedSuite) -> tuple[Any, ...]:
             (
                 prompt.id,
                 prompt.file,
+                prompt.primary_capability,
+                prompt.secondary_stressors,
+                (
+                    prompt.scoring.role,
+                    prompt.scoring.deterministic_check,
+                    prompt.scoring.manual_rubric,
+                    prompt.scoring.hybrid_rule,
+                )
+                if prompt.scoring is not None
+                else None,
                 tuple(
                     (fixture.id, fixture.version, fixture.path)
                     for fixture in prompt.fixtures
                 ),
+                prompt.metadata,
             )
             for prompt in suite.prompts
         ),
+        suite.metadata,
     )
 
 
@@ -142,8 +155,14 @@ def test_explicit_profile_preserves_exact_declared_order(tmp_path: Path) -> None
 
 
 def test_unknown_profile_fails_without_fallback(tmp_path: Path) -> None:
-    with pytest.raises(SuiteDefinitionError, match="unknown-profile"):
-        load_normalized_suite(_profile_suite(tmp_path), profile="missing")
+    private_profile = "/home/private-user/" + "x" * 1_000
+
+    with pytest.raises(SuiteDefinitionError, match="unknown-profile") as exc_info:
+        load_normalized_suite(_profile_suite(tmp_path), profile=private_profile)
+
+    assert private_profile not in str(exc_info.value)
+    assert all(private_profile not in item for item in exc_info.value.diagnostics)
+    assert len(str(exc_info.value)) <= 512
 
 
 def test_profile_request_against_legacy_suite_fails() -> None:
@@ -187,6 +206,22 @@ def test_invalid_custom_subsets_fail_closed(
         )
 
 
+def test_unknown_custom_selection_diagnostic_does_not_echo_private_input(
+    tmp_path: Path,
+) -> None:
+    private_prompt_id = "/home/private-user/private-prompt"
+
+    with pytest.raises(
+        SuiteDefinitionError, match="custom-selection-unknown"
+    ) as exc_info:
+        load_normalized_suite(
+            _profile_suite(tmp_path), prompt_ids=(private_prompt_id,)
+        )
+
+    assert private_prompt_id not in str(exc_info.value)
+    assert all(private_prompt_id not in item for item in exc_info.value.diagnostics)
+
+
 def test_prompt_and_fixture_references_resolve_without_losing_portable_paths(
     tmp_path: Path,
 ) -> None:
@@ -203,7 +238,20 @@ def test_prompt_and_fixture_references_resolve_without_losing_portable_paths(
     assert normalized.metadata["extension"]["preserved"] == (1, 2)
 
 
-@pytest.mark.parametrize("target_kind", ["missing", "directory", "fifo"])
+@pytest.mark.parametrize(
+    "target_kind",
+    [
+        "missing",
+        "directory",
+        pytest.param(
+            "fifo",
+            marks=pytest.mark.skipif(
+                not hasattr(os, "mkfifo"),
+                reason="os.mkfifo is unavailable on this platform",
+            ),
+        ),
+    ],
+)
 def test_non_regular_prompt_targets_fail_closed(
     tmp_path: Path, target_kind: str
 ) -> None:
@@ -222,11 +270,35 @@ def test_non_regular_prompt_targets_fail_closed(
         load_normalized_suite(suite_dir)
 
 
-def test_missing_fixture_target_fails_closed(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "target_kind",
+    [
+        "missing",
+        "directory",
+        pytest.param(
+            "fifo",
+            marks=pytest.mark.skipif(
+                not hasattr(os, "mkfifo"),
+                reason="os.mkfifo is unavailable on this platform",
+            ),
+        ),
+    ],
+)
+def test_non_regular_fixture_targets_fail_closed(
+    tmp_path: Path, target_kind: str
+) -> None:
     suite_dir = _profile_suite(tmp_path)
-    (suite_dir / "fixtures/data.json").unlink()
+    target = suite_dir / "fixtures/data.json"
+    target.unlink()
+    if target_kind == "directory":
+        target.mkdir()
+    elif target_kind == "fifo":
+        os.mkfifo(target)
 
-    with pytest.raises(SuiteDefinitionError, match="missing-resource"):
+    expected = (
+        "missing-resource" if target_kind == "missing" else "non-regular-resource"
+    )
+    with pytest.raises(SuiteDefinitionError, match=expected):
         load_normalized_suite(suite_dir)
 
 
@@ -264,6 +336,25 @@ def test_symlink_escape_fails_after_resolution(tmp_path: Path) -> None:
         load_normalized_suite(suite_dir)
 
     assert str(outside) not in str(exc_info.value)
+
+
+def test_fixture_symlink_escape_fails_after_resolution_without_leaking_target(
+    tmp_path: Path,
+) -> None:
+    suite_dir = _profile_suite(tmp_path)
+    private_content = "PRIVATE FIXTURE CONTENT"
+    outside = tmp_path / "private-fixture.json"
+    outside.write_text(private_content, encoding="utf-8")
+    fixture_path = suite_dir / "fixtures/data.json"
+    fixture_path.unlink()
+    fixture_path.symlink_to(outside)
+
+    with pytest.raises(SuiteDefinitionError, match="symlink-escape") as exc_info:
+        load_normalized_suite(suite_dir)
+
+    assert str(outside) not in str(exc_info.value)
+    assert private_content not in str(exc_info.value)
+    assert all(str(outside) not in item for item in exc_info.value.diagnostics)
 
 
 def test_editable_and_packaged_mirrors_have_same_portable_normalization() -> None:

@@ -391,6 +391,14 @@ the accepted design. Exact source/package mirrors are included in source
 distributions, wheels, and isolated installations without creating the suite
 manifest, final prompts, scoring execution, or runtime behavior.
 
+### Generic Core compatibility and security hardening
+
+**Completed:** focused negative-path and regression coverage now protects the
+accepted profile-aware schema, selection, contained resource, package-data,
+source/package portability, bounded-diagnostic, legacy-suite, and historical
+source-only-suite contracts. No Generic Core manifest, prompt, scoring, CLI,
+result, or runtime behavior is added.
+
 ## Post-v0.71 development status
 
 The following development is complete on `main` but remains unreleased:
@@ -404,7 +412,8 @@ The following development is complete on `main` but remains unreleased:
 - additive profile-aware schema validation;
 - normalized profile and custom selection with contained prompt and fixture
   reference resolution;
-- versioned Generic Core fixture and package-data support; and
+- versioned Generic Core fixture and package-data support;
+- Generic Core compatibility and security hardening; and
 - source-only-suite CI repair.
 
 These are post-`v0.71` development results, not capabilities released by the
@@ -412,18 +421,17 @@ These are post-`v0.71` development results, not capabilities released by the
 
 ## Selected next bounded project milestone
 
-**Generic Core compatibility and security hardening.**
+**`v0.72` release preparation.**
 
-Harden the accepted profile-aware suite foundation while preserving legacy-suite
-compatibility and contained resource access. This is the only selected next
-milestone.
+Prepare the accepted profile-aware suite foundation for the bounded `v0.72`
+release gate. This is the only selected next milestone.
 
 ## Ordered Generic Core delivery sequence
 
 The current delivery path is:
 
 1. Generic Core fixture and package-data support (completed).
-2. Generic Core compatibility and security hardening.
+2. Generic Core compatibility and security hardening (completed).
 3. `v0.72` release preparation.
 4. Generic Core suite implementation with final prompts, fixtures, and exact
    Smoke/Core membership.
