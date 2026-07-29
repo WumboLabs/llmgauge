@@ -173,7 +173,19 @@ Preview a category:
       --model-profile example_model \
       --dry-run
 
+Preview one named suite profile:
+
+    uv run llmgauge run \
+      --suite coding-core-v1 \
+      --profile smoke \
+      --model-profile example_model \
+      --dry-run
+
 Use `--only <prompt-id>` for one exact prompt. Use `--include <category>` for a category, or `--include all` for a full suite.
+For suites that declare profiles, `--profile <profile-name>` selects one named
+profile; omitting it uses the manifest default. `--profile` cannot be combined
+with `--only` or category-based `--include`; explicit `--include all` remains
+compatible.
 
 ## Run execution
 

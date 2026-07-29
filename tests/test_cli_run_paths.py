@@ -11,6 +11,38 @@ from llmgauge.commands import run_helpers
 runner = CliRunner()
 
 
+def _write_dry_run_config(tmp_path: Path) -> None:
+    examples_dir = tmp_path / "examples" / "configs"
+    examples_dir.mkdir(parents=True)
+
+    llama_cli = tmp_path / "llama-cli"
+    llama_cli.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    llama_cli.chmod(0o755)
+
+    model_path = tmp_path / "model.gguf"
+    model_path.write_text("fake model placeholder\n", encoding="utf-8")
+
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  ctx_size: 8192
+""",
+        encoding="utf-8",
+    )
+
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  example_model:
+    label: Example Model
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+
 def test_execute_run_resolves_builtin_suite_prompt_paths(
     tmp_path: Path,
     monkeypatch,
@@ -431,6 +463,101 @@ models:
     assert "runtime-command.json" in result.output
     assert "honesty-unknown-tool" in result.output
     assert not Path("results").exists()
+
+
+def test_run_dry_run_named_profile_resolves_without_runtime_launch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    def fake_run_llama_cpp(config, prompt):
+        raise AssertionError("dry-run must not launch llama.cpp")
+
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fake_run_llama_cpp)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "coding-core-v1",
+            "--profile",
+            "smoke",
+            "--model-profile",
+            "example_model",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "profile=smoke" in result.output
+    assert "Prompt count" in result.output
+    assert "debug/state-transition-defect" in result.output
+    assert "patch/bounded-cross-file-change" in result.output
+    assert "shell/safe-repository-maintenance" in result.output
+    assert "structured/closed-json-change-record" in result.output
+    assert "Dry run complete" in result.output
+    assert not Path("results").exists()
+
+
+def test_run_named_profile_reports_unknown_profile(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "coding-core-v1",
+            "--profile",
+            "missing",
+            "--model-profile",
+            "example_model",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "unknown-profile" in result.output
+    assert "Invalid value" in result.output
+    assert not Path("results").exists()
+
+
+def test_run_named_profile_rejects_ambiguous_selectors(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    for selector in (
+        ["--only", "debug/state-transition-defect"],
+        ["--include", "debug"],
+    ):
+        result = runner.invoke(
+            cli.app,
+            [
+                "run",
+                "--suite",
+                "coding-core-v1",
+                "--profile",
+                "smoke",
+                *selector,
+                "--model-profile",
+                "example_model",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "--profile is mutually exclusive" in result.output
+        assert not Path("results").exists()
 
 
 def test_run_without_output_still_requires_output_when_not_dry_run(

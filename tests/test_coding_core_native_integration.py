@@ -77,6 +77,12 @@ HYBRID_OUTPUTS = {
     "tests/behavioral-contract-cases": CODE_PASS,
     "structured/closed-json-change-record": JSON_PASS,
 }
+SMOKE_PROMPT_IDS = (
+    "debug/state-transition-defect",
+    "patch/bounded-cross-file-change",
+    "shell/safe-repository-maintenance",
+    "structured/closed-json-change-record",
+)
 
 
 def _resolved() -> dict[str, Any]:
@@ -153,9 +159,13 @@ def _run_coding(
     outputs: dict[str, tuple[str, int]],
     *,
     only: str | None = None,
+    profile: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     _patch_provenance(monkeypatch)
-    suite = load_normalized_suite(resolve_suite_path(Path("coding-core-v1")))
+    suite = load_normalized_suite(
+        resolve_suite_path(Path("coding-core-v1")),
+        profile=profile,
+    )
     selected_ids = (only,) if only is not None else suite.selected_prompt_ids
     responses = iter(outputs[prompt_id] for prompt_id in selected_ids)
 
@@ -176,6 +186,7 @@ def _run_coding(
         suite=Path("coding-core-v1"),
         only=only,
         include="all",
+        profile=profile,
         resolved=_resolved(),
         out=result_dir,
         fail_on_failed_prompts=False,
@@ -265,6 +276,36 @@ def test_native_run_persists_all_hybrid_methods_and_bounded_report(
     assert "Incomplete hybrid evidence is not a failed prompt" in report
     assert "No universal or profile-level numeric Coding Core score exists" in report
     assert "coding-core-bounded-patch-form-v0" in report
+
+
+def test_native_run_named_smoke_profile_preserves_portable_selection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, result_dir = _run_coding(
+        tmp_path,
+        monkeypatch,
+        _all_outputs(),
+        profile="smoke",
+    )
+
+    result_prompt_ids = tuple(prompt["prompt_id"] for prompt in result["results"])
+    assert result_prompt_ids == SMOKE_PROMPT_IDS
+    assert result["suite"]["include"] == "all"
+    assert result["suite"]["only"] is None
+    assert result["suite"]["prompt_count"] == len(SMOKE_PROMPT_IDS)
+    assert result["suite"]["selection"] == {
+        "kind": "profile",
+        "selected_profile": "smoke",
+        "selected_prompt_ids": list(SMOKE_PROMPT_IDS),
+        "canonical_prompt_ids": list(
+            load_normalized_suite(
+                resolve_suite_path(Path("coding-core-v1"))
+            ).canonical_prompt_ids
+        ),
+        "default_profile": "core",
+    }
+    assert validate_result_data(result_dir, result) == []
 
 
 def test_static_check_uses_raw_response_not_cleaned_output(
