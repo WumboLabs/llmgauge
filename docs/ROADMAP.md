@@ -427,16 +427,26 @@ prerequisite contracts and dependencies, and records the fast-track order and
 release gates. This architecture milestone adds no suite, schema, importer,
 metric, runtime, multimodal, non-autoregressive, or execution behavior.
 
+## Coding-suite architecture and scoring contract
+
+**Completed:** the accepted
+[Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
+defines the future `coding-core-v1` native single-turn identity, required
+capability and task-family boundaries, evidence authority, scoring roles,
+comparison eligibility, coexistence, and generated-code containment split. It
+adds no prompt, schema, suite, scoring, transcript, importer, execution, or
+runtime behavior.
+
 ## Selected next bounded project milestone
 
-**Coding-suite architecture and scoring contract.**
+**Coding-suite prompt and task-family design.**
 
-Accept only bounded milestone 1a from the full-model-testing architecture:
-coding-suite identity, coverage, evidence authority, scoring, comparison, and
-the split between non-executed checks and any later containment contract. This
-milestone adds no prompts, fixtures, schema, suite implementation, scoring
-execution, generated-code execution, or runtime behavior. This is the only
-selected next milestone.
+Fix only the proposed prompt-role inventory, task ownership, exact capability
+coverage, static versus multi-turn labels, permitted response forms, profile
+proposal, and scoring role per prompt under the accepted coding-suite contract.
+Do not add final prompts, schemas, fixtures, scoring code, containment,
+generated-code execution, or runtime behavior. This is the only selected next
+milestone.
 
 ## Full-model-testing fast-track programs
 

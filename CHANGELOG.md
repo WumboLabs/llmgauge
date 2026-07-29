@@ -8,6 +8,9 @@
   tracks for its eight-step capability program and the separate LocalMaxxing
   performance-benchmark architecture/offline-export lane, without adding
   benchmark, export, submission, leaderboard, or other implementation behavior.
+- Accepted the `coding-core-v1` architecture and scoring contract with static
+  coding capability, evidence, scoring, comparison, and containment boundaries;
+  prompts, schemas, suite behavior, and execution remain deferred.
 
 ## v0.72.0 - 2026-07-28
 
