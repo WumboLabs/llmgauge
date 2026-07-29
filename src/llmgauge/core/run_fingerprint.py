@@ -278,6 +278,13 @@ def build_run_fingerprint_payload(
             _prompt_evidence(result_dir, prompt_result, index=index)
         )
 
+    suite_identity = _selected_mapping(
+        suite,
+        ["suite_id", "suite_version", "prompt_count", "include", "only"],
+    )
+    if "selection" in suite:
+        suite_identity["selection"] = suite.get("selection")
+
     return {
         "schema_version": RUN_FINGERPRINT_PAYLOAD_VERSION,
         "result_schema_version": result.get("schema_version"),
@@ -285,10 +292,7 @@ def build_run_fingerprint_payload(
         "model": _model_identity(model),
         "backend": _backend_identity(runtime),
         "runtime_settings": _runtime_settings(runtime),
-        "suite": _selected_mapping(
-            suite,
-            ["suite_id", "suite_version", "prompt_count", "include", "only"],
-        ),
+        "suite": suite_identity,
         "prompts": prompt_evidence,
         "policy": {
             "run_id": "excluded",

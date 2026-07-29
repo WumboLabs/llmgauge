@@ -25,6 +25,10 @@ from llmgauge.core.config import (
     load_model_profiles,
     resolve_model_profile,
 )
+from llmgauge.core.coding_core_evidence import (
+    build_portable_selection,
+    build_prompt_evidence,
+)
 from llmgauge.core.fit_ladder import build_fit_attempt_record
 from llmgauge.core.identity import (
     collect_backend_provenance,
@@ -43,7 +47,7 @@ from llmgauge.core.runtime_command import (
     resolve_model_source,
     resolve_reasoning_mode,
 )
-from llmgauge.core.suite import load_suite
+from llmgauge.core.suite import NormalizedSuite, load_normalized_suite, load_suite
 from llmgauge.core.suite_paths import resolve_suite_path
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
 from llmgauge.runners.vllm_external import (
@@ -83,6 +87,49 @@ def select_prompts(suite: dict, only: str | None, include: str) -> list[dict]:
         raise typer.BadParameter(f"No prompts found for include/category: {include}")
 
     return selected
+
+
+def load_run_suite(
+    suite: Path,
+    *,
+    only: str | None,
+    include: str,
+) -> tuple[dict[str, Any], list[dict[str, Any]], NormalizedSuite]:
+    loaded_suite = load_suite(suite)
+    selected_prompts = select_prompts(loaded_suite, only, include)
+    selected_ids = tuple(prompt["id"] for prompt in selected_prompts)
+
+    if only is None and include == "all":
+        normalized = load_normalized_suite(suite)
+        if normalized.selected_prompt_ids != selected_ids:
+            normalized = load_normalized_suite(suite, prompt_ids=selected_ids)
+    else:
+        normalized = load_normalized_suite(suite, prompt_ids=selected_ids)
+
+    return loaded_suite, selected_prompts, normalized
+
+
+def build_result_suite_metadata(
+    *,
+    loaded_suite: dict[str, Any],
+    resolved_suite: Path,
+    normalized_suite: NormalizedSuite,
+    prompt_count: int,
+    include: str,
+    only: str | None,
+) -> dict[str, Any]:
+    result = {
+        "suite_id": loaded_suite["suite_id"],
+        "suite_version": str(loaded_suite["suite_version"]),
+        "suite_path": str(resolved_suite),
+        "prompt_count": prompt_count,
+        "include": include,
+        "only": only,
+    }
+    selection = build_portable_selection(normalized_suite)
+    if selection is not None:
+        result["selection"] = selection
+    return result
 
 
 def load_system_prompt() -> str:
@@ -768,8 +815,12 @@ def execute_run(
 
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
-    loaded_suite = load_suite(suite)
-    selected_prompts = select_prompts(loaded_suite, only, include)
+    loaded_suite, selected_prompts, normalized_suite = load_run_suite(
+        suite, only=only, include=include
+    )
+    normalized_prompts = {
+        prompt.id: prompt for prompt in normalized_suite.selected_prompts
+    }
     system_prompt = load_system_prompt()
 
     prepare_result_dir(out)
@@ -866,31 +917,38 @@ def execute_run(
             min_headroom_warn_mib=resolved["vram_min_headroom_warn_mib"],
         )
 
-        prompt_results.append(
-            {
-                "prompt_id": prompt_id,
-                "title": prompt_meta.get("title", prompt_id),
-                "category": prompt_meta.get("category"),
-                "status": status,
-                "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
-                "raw_output_path": str(raw_output_path.relative_to(out)),
-                "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
-                "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                "metrics": metrics,
-                "vram": vram_summary,
-                "vram_samples_path": str(vram_samples_path.relative_to(out))
-                if vram_samples_path is not None
-                else None,
-                "vram_guardrails": vram_guardrails,
-                "score": None,
-                "failure_labels": [],
-                "notes": "",
-                "exit_status": run_result.exit_status,
-                "error": None
-                if run_result.exit_status == 0
-                else "llama-cli exited nonzero",
-            }
+        prompt_entry = {
+            "prompt_id": prompt_id,
+            "title": prompt_meta.get("title", prompt_id),
+            "category": prompt_meta.get("category"),
+            "status": status,
+            "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+            "raw_output_path": str(raw_output_path.relative_to(out)),
+            "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
+            "stderr_log_path": str(stderr_log_path.relative_to(out)),
+            "metrics": metrics,
+            "vram": vram_summary,
+            "vram_samples_path": str(vram_samples_path.relative_to(out))
+            if vram_samples_path is not None
+            else None,
+            "vram_guardrails": vram_guardrails,
+            "score": None,
+            "failure_labels": [],
+            "notes": "",
+            "exit_status": run_result.exit_status,
+            "error": None
+            if run_result.exit_status == 0
+            else "llama-cli exited nonzero",
+        }
+        coding_evidence = build_prompt_evidence(
+            normalized_suite,
+            normalized_prompts[prompt_id],
+            run_result.stdout,
+            generation_failed=status == "failed",
         )
+        if coding_evidence is not None:
+            prompt_entry["coding_core"] = coding_evidence
+        prompt_results.append(prompt_entry)
 
     completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
     failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
@@ -951,14 +1009,14 @@ def execute_run(
             else None,
             "backend_provenance": backend_provenance,
         },
-        "suite": {
-            "suite_id": loaded_suite["suite_id"],
-            "suite_version": str(loaded_suite["suite_version"]),
-            "suite_path": str(resolved_suite),
-            "prompt_count": len(prompt_results),
-            "include": include,
-            "only": only,
-        },
+        "suite": build_result_suite_metadata(
+            loaded_suite=loaded_suite,
+            resolved_suite=resolved_suite,
+            normalized_suite=normalized_suite,
+            prompt_count=len(prompt_results),
+            include=include,
+            only=only,
+        ),
         "results": prompt_results,
         "summary": {
             "completed": completed_count,
@@ -989,8 +1047,12 @@ def execute_vllm_run(
     """Execute prompts against an operator-managed local vLLM server."""
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
-    loaded_suite = load_suite(suite)
-    selected_prompts = select_prompts(loaded_suite, only, include)
+    loaded_suite, selected_prompts, normalized_suite = load_run_suite(
+        suite, only=only, include=include
+    )
+    normalized_prompts = {
+        prompt.id: prompt for prompt in normalized_suite.selected_prompts
+    }
     system_prompt = load_system_prompt()
 
     prepare_result_dir(out)
@@ -1063,35 +1125,40 @@ def execute_vllm_run(
                 },
             )
 
-            prompt_results.append(
-                {
-                    "prompt_id": prompt_id,
-                    "title": prompt_meta.get("title", prompt_id),
-                    "category": prompt_meta.get("category"),
-                    "status": "failed",
-                    "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
-                    "raw_output_path": str(raw_output_path.relative_to(out)),
-                    "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
-                    "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                    "request_evidence_path": str(
-                        request_evidence_path.relative_to(out)
-                    ),
-                    "metrics": build_vllm_metrics(
-                        VllmRequestResult(success=False)
-                    ),
-                    "vram": None,
-                    "vram_samples_path": None,
-                    "vram_guardrails": None,
-                    "score": None,
-                    "failure_labels": [],
-                    "notes": "",
-                    "exit_status": 1,
-                    "error": readiness.failure_detail or readiness.failure_class,
-                    "failure_class": readiness.failure_class,
-                    "failure_detail": readiness.failure_detail,
-                    "finish_reason": None,
-                }
+            prompt_entry = {
+                "prompt_id": prompt_id,
+                "title": prompt_meta.get("title", prompt_id),
+                "category": prompt_meta.get("category"),
+                "status": "failed",
+                "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+                "raw_output_path": str(raw_output_path.relative_to(out)),
+                "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
+                "stderr_log_path": str(stderr_log_path.relative_to(out)),
+                "request_evidence_path": str(
+                    request_evidence_path.relative_to(out)
+                ),
+                "metrics": build_vllm_metrics(VllmRequestResult(success=False)),
+                "vram": None,
+                "vram_samples_path": None,
+                "vram_guardrails": None,
+                "score": None,
+                "failure_labels": [],
+                "notes": "",
+                "exit_status": 1,
+                "error": readiness.failure_detail or readiness.failure_class,
+                "failure_class": readiness.failure_class,
+                "failure_detail": readiness.failure_detail,
+                "finish_reason": None,
+            }
+            coding_evidence = build_prompt_evidence(
+                normalized_suite,
+                normalized_prompts[prompt_id],
+                None,
+                generation_failed=True,
             )
+            if coding_evidence is not None:
+                prompt_entry["coding_core"] = coding_evidence
+            prompt_results.append(prompt_entry)
     else:
         for index, prompt_meta in enumerate(selected_prompts, start=1):
             prompt_id = prompt_meta["id"]
@@ -1194,6 +1261,14 @@ def execute_vllm_run(
                 prompt_entry["system_fingerprint_status"] = (
                     request_result.system_fingerprint_status
                 )
+            coding_evidence = build_prompt_evidence(
+                normalized_suite,
+                normalized_prompts[prompt_id],
+                request_result.generated_text,
+                generation_failed=status == "failed",
+            )
+            if coding_evidence is not None:
+                prompt_entry["coding_core"] = coding_evidence
             prompt_results.append(prompt_entry)
 
     # Rewrite runtime evidence with ordered-unique observed fingerprints.
@@ -1327,14 +1402,14 @@ def execute_vllm_run(
             "streaming": False,
             "authentication": "none",
         },
-        "suite": {
-            "suite_id": loaded_suite["suite_id"],
-            "suite_version": str(loaded_suite["suite_version"]),
-            "suite_path": str(resolved_suite),
-            "prompt_count": len(prompt_results),
-            "include": include,
-            "only": only,
-        },
+        "suite": build_result_suite_metadata(
+            loaded_suite=loaded_suite,
+            resolved_suite=resolved_suite,
+            normalized_suite=normalized_suite,
+            prompt_count=len(prompt_results),
+            include=include,
+            only=only,
+        ),
         "results": prompt_results,
         "summary": {
             "completed": completed_count,

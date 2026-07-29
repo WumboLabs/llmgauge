@@ -7,6 +7,7 @@ from llmgauge.core.scoring import (
     scoring_evidence_summary,
     scoring_status_for_result,
 )
+from llmgauge.core.static_scoring import CODING_CORE_SUITE_ID, CODING_CORE_VERSION
 
 _MISSING = object()
 
@@ -340,6 +341,95 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
         "",
     ]
 
+    return lines
+
+
+def _build_coding_core_evidence(result: dict[str, Any]) -> list[str]:
+    suite = result.get("suite")
+    if (
+        not isinstance(suite, dict)
+        or suite.get("suite_id") != CODING_CORE_SUITE_ID
+        or suite.get("suite_version") != CODING_CORE_VERSION
+    ):
+        return []
+
+    lines = [
+        "## Coding Core Evidence",
+        "",
+        "- A deterministic structural `pass` is not proof of semantic correctness or runtime correctness.",
+        "- Generated code, tests, patches, commands, and JSON actions were not executed.",
+        "- Manual review remains the semantic authority for Coding Core responses.",
+        "- Incomplete hybrid evidence is not a failed prompt.",
+        "- No universal or profile-level numeric Coding Core score exists.",
+        "",
+    ]
+    selection = suite.get("selection")
+    if isinstance(selection, dict):
+        selected_profile = selection.get("selected_profile")
+        lines.extend(
+            [
+                f"- Selection kind: {selection.get('kind')}",
+                f"- Selected profile: {selected_profile or 'None (explicit custom selection)'}",
+                f"- Default profile: {selection.get('default_profile') or 'None'}",
+                "- Selected prompt order: "
+                + ", ".join(selection.get("selected_prompt_ids") or []),
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "| Prompt | Response form | Generation state | Deterministic method | Deterministic outcome | Manual review | Manual verdict | Hybrid evidence |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+    )
+    for prompt_result in result.get("results", []):
+        coding = prompt_result.get("coding_core")
+        if not isinstance(coding, dict):
+            continue
+        response_form = coding.get("response_form")
+        scoring_method = coding.get("scoring_method")
+        manual_review = coding.get("manual_review")
+        deterministic = coding.get("deterministic_result")
+        hybrid = coding.get("hybrid_composition")
+        if not isinstance(response_form, dict):
+            response_form = {}
+        if not isinstance(scoring_method, dict):
+            scoring_method = {}
+        if not isinstance(manual_review, dict):
+            manual_review = {}
+        if not isinstance(deterministic, dict):
+            deterministic = {}
+        if not isinstance(hybrid, dict):
+            hybrid = {}
+        deterministic_method = scoring_method.get("deterministic_check")
+        if isinstance(deterministic_method, dict):
+            method_text = (
+                f"{deterministic_method.get('id')} "
+                f"({deterministic_method.get('version')})"
+            )
+        else:
+            method_text = "not applicable"
+        if "complete" in hybrid:
+            hybrid_text = "complete" if hybrid.get("complete") is True else "incomplete"
+        else:
+            hybrid_text = "not applicable"
+        response_form_text = (
+            f"{response_form.get('category')}: {response_form.get('id')} "
+            f"({response_form.get('version')})"
+        )
+        lines.append(
+            "| "
+            f"{prompt_result.get('prompt_id')} | "
+            f"{response_form_text} | "
+            f"{prompt_result.get('status', 'unknown')} | "
+            f"{method_text} | "
+            f"{deterministic.get('outcome', 'not applicable')} | "
+            f"{manual_review.get('review_state', 'missing')} | "
+            f"{manual_review.get('verdict') or 'None'} | "
+            f"{hybrid_text} |"
+        )
+    lines.append("")
     return lines
 
 
@@ -683,6 +773,10 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     suite = result["suite"]
     summary = result["summary"]
     scored_results = scored_prompt_results(result)
+    coding_core = (
+        suite.get("suite_id") == CODING_CORE_SUITE_ID
+        and suite.get("suite_version") == CODING_CORE_VERSION
+    )
 
     lines = [
         f"# LLMGauge Report: {run['run_id']}",
@@ -693,6 +787,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
 
     lines.extend(_build_report_scope_section())
     lines.extend(_build_evidence_summary(result))
+    lines.extend(_build_coding_core_evidence(result))
     lines.extend(_build_single_run_publish_readiness_notes(result))
 
     lines.extend(
@@ -725,7 +820,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     failure_labels = summary.get("failure_labels", {})
     good_labels = summary.get("good_labels", {})
 
-    if summary.get("scored_prompt_count"):
+    if summary.get("scored_prompt_count") and not coding_core:
         lines.extend(
             [
                 "## Score Summary",
@@ -752,7 +847,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
                 lines.append(f"- {label}: {count}")
             lines.append("")
 
-    if scored_results:
+    if scored_results and not coding_core:
         provenance = _scoring_provenance(scored_results)
         lines.extend(
             [

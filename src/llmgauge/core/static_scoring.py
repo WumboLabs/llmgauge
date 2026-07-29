@@ -108,7 +108,7 @@ Outcome = Literal["pass", "fail", "error", "not_run"]
 ManualReviewState = Literal[
     "missing", "unreviewed", "partial", "reviewed", "unscoreable"
 ]
-_MAX_RESPONSE_CHARS = 1_000_000
+STATIC_RESPONSE_MAX_CHARS = 1_000_000
 _MAX_FORM_BYTES = 64 * 1024
 _MAX_EVIDENCE_ITEMS = 32
 
@@ -815,7 +815,7 @@ def apply_deterministic_check(
             ],
             "error_classification": "invalid-input",
         }
-    if len(raw_response) > _MAX_RESPONSE_CHARS:
+    if len(raw_response) > STATIC_RESPONSE_MAX_CHARS:
         return {
             **base,
             "outcome": "error",

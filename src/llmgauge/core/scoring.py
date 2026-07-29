@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from llmgauge.core.coding_core_evidence import (
+    build_manual_review,
+    build_method_provenance,
+)
 from llmgauge.core.static_scoring import (
     CODING_CORE_APPLICABILITY,
     CODING_CORE_DIMENSIONS,
@@ -14,9 +18,10 @@ from llmgauge.core.static_scoring import (
     CODING_CORE_SUITE_ID,
     CODING_CORE_VERSION,
     MANUAL_RUBRICS,
+    compose_hybrid_score,
     manual_review_state,
 )
-from llmgauge.core.suite import SuiteDefinitionError, load_normalized_suite
+from llmgauge.core.suite import ScoringRole, SuiteDefinitionError, load_normalized_suite
 
 
 SCORE_SCHEMA_VERSION = "llmgauge.scores.v0"
@@ -345,6 +350,7 @@ def _coding_core_score_profile(result: dict[str, Any]) -> dict[str, Any] | None:
         "good_labels": [],
         "prompt_dimensions": CODING_CORE_APPLICABILITY,
         "coding_core": True,
+        "normalized_suite": normalized,
     }
 
 
@@ -971,6 +977,11 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
     profile = _score_profile_for_result(result)
     coding_core = profile.get("coding_core") is True
     prompt_dimensions = profile.get("prompt_dimensions", {})
+    coding_prompts = (
+        {prompt.id: prompt for prompt in profile["normalized_suite"].selected_prompts}
+        if coding_core
+        else {}
+    )
 
     manual_score_total = 0.0
     manual_score_max = 0.0
@@ -1030,7 +1041,11 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             "score_rationale": score_entry.get("score_rationale", ""),
             "verdict": score_entry.get("verdict", ""),
             "scoring_mode": score_entry.get("scoring_mode") or "manual",
-            "scorer_id": score_entry.get("scorer_id") or "human-reviewer",
+            "scorer_id": (
+                score_entry.get("scorer_id", "")
+                if coding_core
+                else score_entry.get("scorer_id") or "human-reviewer"
+            ),
             "scorer_version": score_entry.get("scorer_version", ""),
             "confidence": score_entry.get("confidence", ""),
             "evidence": score_entry.get("evidence", []),
@@ -1038,6 +1053,53 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             "reviewed": score_entry.get("reviewed", not coding_core),
             "override_status": score_entry.get("override_status") or "none",
         }
+
+        if coding_core:
+            coding_evidence = prompt_result.get("coding_core")
+            if coding_evidence is not None:
+                if not isinstance(coding_evidence, dict):
+                    raise ValueError(
+                        "coding-core-evidence-invalid: prompt evidence must be an object"
+                    )
+                prompt = coding_prompts[prompt_id]
+                expected_method = build_method_provenance(prompt)
+                if (
+                    coding_evidence.get("response_form")
+                    != expected_method["response_form"]
+                    or coding_evidence.get("scoring_method")
+                    != expected_method["scoring_method"]
+                ):
+                    raise ValueError(
+                        "prompt-method-mismatch: persisted Coding Core method "
+                        "provenance does not match the selected prompt"
+                    )
+                coding_evidence["manual_review"] = build_manual_review(
+                    prompt, prompt_result["score"]
+                )
+                if (
+                    prompt.scoring is not None
+                    and prompt.scoring.role is ScoringRole.HYBRID
+                ):
+                    deterministic = coding_evidence.get("deterministic_result")
+                    if not isinstance(deterministic, dict):
+                        raise ValueError(
+                            "invalid-deterministic-component: persisted Coding Core "
+                            "deterministic evidence is absent or malformed"
+                        )
+                    coding_evidence["hybrid_composition"] = compose_hybrid_score(
+                        profile["normalized_suite"],
+                        prompt_id,
+                        deterministic,
+                        prompt_result["score"],
+                    )
+                elif (
+                    "deterministic_result" in coding_evidence
+                    or "hybrid_composition" in coding_evidence
+                ):
+                    raise ValueError(
+                        "prompt-method-mismatch: manual-only Coding Core prompt "
+                        "contains deterministic or hybrid evidence"
+                    )
 
         prompt_result["failure_labels"] = failure_labels
         prompt_result["notes"] = score_entry.get("reviewer_notes", "")
