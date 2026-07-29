@@ -437,16 +437,25 @@ comparison eligibility, coexistence, and generated-code containment split. It
 adds no prompt, schema, suite, scoring, transcript, importer, execution, or
 runtime behavior.
 
+## Coding-suite prompt and task-family design
+
+**Completed:** the proposed
+[Coding Suite Prompt and Task-Family Design](CODING_SUITE_PROMPT_TASK_FAMILY_DESIGN.md)
+fixes eight static prompt roles and primary capability owners, deliberate
+secondary overlap, suite-owned input types, permitted response forms, exact
+Smoke/Core membership, and scoring authority per role. Repair after compiler or
+test feedback remains multi-turn-only. This design adds no final prompt,
+fixture, schema, suite, scoring, execution, or runtime behavior.
+
 ## Selected next bounded project milestone
 
-**Coding-suite prompt and task-family design.**
+**Coding-suite scoring-method design.**
 
-Fix only the proposed prompt-role inventory, task ownership, exact capability
-coverage, static versus multi-turn labels, permitted response forms, profile
-proposal, and scoring role per prompt under the accepted coding-suite contract.
-Do not add final prompts, schemas, fixtures, scoring code, containment,
-generated-code execution, or runtime behavior. This is the only selected next
-milestone.
+Define only the scoring-method design for the fixed coding prompt roles under
+the accepted architecture and prompt/task-family design. Do not add final
+prompts, schemas, fixtures, suite behavior, scoring implementation,
+containment, generated-code execution, multi-turn evaluation, or runtime
+behavior. This is the only selected next milestone.
 
 ## Full-model-testing fast-track programs
 

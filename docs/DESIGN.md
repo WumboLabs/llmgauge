@@ -45,6 +45,11 @@ Current non-goals / deliberate project boundaries:
   suite coexistence, and separation from multi-turn, Agent Harness, and
   generated-code execution work.
 
+- [Coding Suite Prompt and Task-Family Design](CODING_SUITE_PROMPT_TASK_FAMILY_DESIGN.md)
+  — proposed `coding-core-v1` `0.1.0` static prompt-role inventory, exact
+  capability ownership, response forms, ordered Smoke/Core membership, scoring
+  roles, and explicit multi-turn repair exclusion before scoring-method design.
+
 - [Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md) — accepted
   `generic-core-v1` identity, profile, capability, scoring, comparison, and
   historical-suite coexistence boundaries before prompt design or implementation.
