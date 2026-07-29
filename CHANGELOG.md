@@ -2,85 +2,51 @@
 
 ## Unreleased
 
+## v0.72.0 - 2026-07-28
+
 ### Added
-
-- Added focused Generic Core compatibility and security regression coverage for
-  profile selection, contained resources, package failure, portable identity,
-  bounded diagnostics, and unchanged legacy-suite behavior.
-
-- Added versioned Generic Core deterministic, D5 coding, and bounded-context
-  fixture resources with exact source/package mirrors and verified wheel, source
-  distribution, and isolated-install package-data access.
 
 - Added fail-closed validation for additive profile-aware suite manifests,
   including controlled capability metadata, scoring-reference cardinality, and
   lexical fixture-reference safety, while preserving existing legacy manifests.
-
 - Added immutable normalized suite loading with profile, legacy-all, and custom
   selection plus contained prompt and fixture reference resolution.
+- Added versioned Generic Core deterministic, D5 coding, and bounded-context
+  fixture resources with exact source/package mirrors and package-data support.
+- Added focused Generic Core compatibility and security regression coverage for
+  profile selection, contained resources, package failure, portable identity,
+  bounded diagnostics, and unchanged legacy-suite behavior.
 
 ### Documentation and evidence
 
-- Reconciled the roadmap with unreleased post-`v0.71` development, explicit
-  `v0.72` and `v0.73` release gates, and separate packaging, runtime, and
-  expanded-evaluation tracks without changing release metadata.
+- Added the second reviewed practical evidence package, a bounded Grug-versus-
+  Qwen comparison, a separate provenance-refresh Grug package, and a
+  methodology-first comparison addendum. All preserve reviewed failures and
+  caveats and support only configuration-specific evidence claims, not ranking.
+- Preserved the exact historical `wumbolabs-practical-use-v1` version `0.1.0`
+  source and its private-source/public-derivative authority and equivalence
+  contract without altering existing evidence packages.
+- Accepted the general evaluation taxonomy, current native-suite review,
+  Generic Core suite contract, 13-role prompt/scoring design, and additive
+  schema/loader contract as separate architecture foundations.
+- Reconciled the roadmap around the completed `v0.72` profile-aware suite
+  foundation, the preserved `v0.73` release gate, and separate future packaging,
+  runtime, and expanded-evaluation tracks.
 
-- Accepted the additive Generic Core schema and loader contract, preserving
-  legacy suites while fixing ordered profiles, scoring references, contained
-  resources, normalization, and fail-closed validation boundaries.
+### Fixed
 
-- Designed the complete proposed `generic-core-v1` `0.1.0` prompt-role
-  inventory, ordered Smoke/Core membership, fixture ownership, and versioned
-  deterministic, manual, and hybrid scoring provenance without implementing a
-  suite.
+- Repaired suite-mirror CI handling so the immutable historical Practical v0.1
+  suite remains tracked as an intentional source-only suite rather than package
+  data.
 
-- Accepted the Generic Core suite architecture contract, defining its stable
-  identity, profiles, capability and scoring roles, comparison limits,
-  historical-suite protections, and prompt-design gates.
+### Compatibility and boundaries
 
-- Added a complete current native-suite and prompt architecture review, with
-  capability gaps, protected historical ownership, scoring opportunities, and
-  the Generic Core suite contract selected as the next bounded milestone.
-
-- Accepted the general evaluation taxonomy contract, separating native response,
-  performance benchmark, external text benchmark, and agent-environment
-  authority, scoring, comparison, provenance, and integration boundaries.
-
-- Added a methodology-first provenance-refresh addendum to the tracked Grug
-  versus Qwen3.6 practical comparison, preserving three distinct evidence
-  sources, all reviewed verdicts and caveats, and bounded operational claims.
-
-- Added a separate reviewed Grug-12B Q4_K_M provenance-refresh practical
-  evidence package with stable historical-suite capture, manual scoring,
-  sanitized export, source-integrity verification, and bounded claim limits;
-  the legacy package remains unchanged.
-
-- Tracked the exact historical `wumbolabs-practical-use-v1` version `0.1.0`
-  suite source and added focused verification of private canonical and public
-  sanitized-derivative equivalence without changing existing evidence packages.
-
-- Accepted the historical `wumbolabs-practical-use-v1` version `0.1.0`
-  architecture contract: private source and rendering remain authoritative,
-  while tracked public prompt artifacts are deterministic sanitized derivatives.
-
-- Added a claim-bounded Grug-12B Q4_K_M versus Qwen3.6-35B-A3B UD-IQ2_M
-  practical evidence comparison with methodology-first disclosure, all reviewed
-  prompt verdicts and failures, operational observations, and no ranking.
-
-- Aligned the repository agent policy with the revised session, admission,
-  proportional-validation, reporting, and human Git-gate workflow.
-
-- Published the second reviewed public practical evidence package under
-  `docs/evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/` (Qwen3.6-35B-A3B UD-IQ2_M,
-  six-prompt practical suite, provenance-complete source with
-  `runtime-command.json`, `review_ready_with_caveats`). Evidence index and
-  roadmap next-gate updated. Bounded claims only; mixed verdicts retained; no
-  cross-package ranking.
-- Recorded a reference practical-run capture standard and Qwen package capture
-  caveats in `docs/ROADMAP.md` (and aligned package docs): explicit flash-attn
-  and runtime settings, suite identity, provenance fingerprints, hardware
-  disclosure limits, and required methodology disclosure before any future
-  cross-package comparison.
+- Preserved legacy suite loading, validation, aliases, packaged discovery, and
+  source/package mirror behavior while adding profile-aware schema support.
+- `generic-core-v1` is not an executable suite in `v0.72`: this release contains
+  its accepted architecture, profile-aware foundation, and package resources,
+  but no manifest, final prompts, deterministic checks, scoring execution, CLI
+  integration, result integration, or generated-code execution.
 
 ## v0.71.0 - 2026-07-22
 

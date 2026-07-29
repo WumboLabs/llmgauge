@@ -8,12 +8,11 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.71`
-- Current package version: `0.71.0`
-- Current stable release line: `v0.71.0`
-- Current development state: `main` contains unreleased post-`v0.71` work.
-- The package version remains `0.71.0` until a separate release-preparation
-  milestone changes release metadata.
+- Current stable tag: `v0.72`
+- Current package version: `0.72.0`
+- Current stable release line: `v0.72.0`
+- Current release state: `v0.72` is the completed profile-aware suite foundation
+  release. `generic-core-v1` is not yet an executable suite.
 
 ## What LLMGauge is
 
@@ -399,9 +398,9 @@ source/package portability, bounded-diagnostic, legacy-suite, and historical
 source-only-suite contracts. No Generic Core manifest, prompt, scoring, CLI,
 result, or runtime behavior is added.
 
-## Post-v0.71 development status
+## v0.72 completed release scope
 
-The following development is complete on `main` but remains unreleased:
+The following profile-aware suite foundation is complete in `v0.72`:
 
 - reviewed practical evidence packages, a bounded comparison, and a
   provenance-refresh comparison addendum;
@@ -416,15 +415,17 @@ The following development is complete on `main` but remains unreleased:
 - Generic Core compatibility and security hardening; and
 - source-only-suite CI repair.
 
-These are post-`v0.71` development results, not capabilities released by the
-`v0.71` tag. Details remain in [CHANGELOG.md](../CHANGELOG.md).
+This foundation does not make `generic-core-v1` executable. Details remain in
+[CHANGELOG.md](../CHANGELOG.md).
 
 ## Selected next bounded project milestone
 
-**`v0.72` release preparation.**
+**Generic Core suite implementation.**
 
-Prepare the accepted profile-aware suite foundation for the bounded `v0.72`
-release gate. This is the only selected next milestone.
+Implement only the final `generic-core-v1` manifest, its 13-prompt inventory,
+fixture references, and exact Smoke/Core membership. Deterministic checks, D5
+generated-code containment, and result integration remain later separate
+milestones. This is the only selected next milestone.
 
 ## Ordered Generic Core delivery sequence
 
@@ -432,9 +433,9 @@ The current delivery path is:
 
 1. Generic Core fixture and package-data support (completed).
 2. Generic Core compatibility and security hardening (completed).
-3. `v0.72` release preparation.
-4. Generic Core suite implementation with final prompts, fixtures, and exact
-   Smoke/Core membership.
+3. `v0.72` release preparation (completed).
+4. Generic Core suite implementation with the final manifest, 13-prompt
+   inventory, fixture references, and exact Smoke/Core membership (selected).
 5. Deterministic checks D1-D7.
 6. Separate D5 generated-code containment gate.
 7. Execution and result-provenance integration.
@@ -448,7 +449,7 @@ preceding implementation and validation gates are complete.
 
 ### `v0.72` — Profile-aware suite foundation
 
-The `v0.72` release gate requires:
+**Completed:** the `v0.72` release contains:
 
 - the additive profile-aware schema;
 - normalized profile and custom selection;
@@ -458,11 +459,11 @@ The `v0.72` release gate requires:
 - source/package equivalence;
 - clean source-checkout, wheel, sdist, and isolated installed-CLI validation;
   and
-- release metadata and documentation updates in the separate `v0.72`
-  release-preparation milestone.
+- release metadata and documentation updates.
 
-`v0.72` does not claim that `generic-core-v1` is available. The package version
-remains `0.71.0` until the separate `v0.72` release-preparation milestone.
+`v0.72` does not claim that `generic-core-v1` is available. It includes the
+profile-aware foundation and versioned Generic Core package resources, but no
+suite manifest or final prompts.
 
 ### `v0.73` — Generic Core v1
 
@@ -539,6 +540,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
+| v0.72 | Profile-aware suite schema, normalized selection, contained references, Generic Core package resources, and compatibility/security hardening; no executable `generic-core-v1` suite |
 | v0.71 | Optional external local vLLM adapter, additive fingerprint evidence, public-export identity redaction, first tracked practical evidence package |
 | v0.70 | Identity, provenance, evidence-equivalence fingerprints, and sanitized public export foundations; validated released install tag |
 | v0.66 | Runtime reproducibility — command metadata, reasoning-mode metadata, model-source reporting |
@@ -554,7 +556,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 Earlier foundations (v0.46–v0.56 and before) established artifact schemas, validation, scoring, comparison, fit ladder, model profiles, CLI modularization, and public documentation.
 
-### v0.71 release notes (current)
+### v0.71 release notes (historical)
 
 The following v0.71 work is complete on `main`:
 
