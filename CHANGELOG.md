@@ -11,6 +11,9 @@
   inert response-form definitions, exact source/package mirrors, installed
   package resources, and focused content/discovery validation without adding
   scoring or generated-content execution.
+- Integrated the `coding-core-v1` `0.1.0` versioned manual rubric, three
+  non-executing structural checks, and independent side-by-side hybrid scoring
+  through existing scoring interfaces without result or export schema changes.
 
 ### Documentation
 

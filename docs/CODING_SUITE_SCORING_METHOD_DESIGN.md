@@ -11,12 +11,13 @@ comparison rules for the eight static roles accepted by the
 The [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
 remains authoritative for the evaluated subject and claim boundaries. The
 [Coding Suite Schema and Loader Contract](CODING_SUITE_SCHEMA_LOADER_CONTRACT.md)
-defines how a future manifest represents these decisions.
+defines how the manifest represents these decisions.
 
-This is a design contract, not scoring implementation. It adds no prompt,
-fixture, response-form definition, manifest, rubric file, check code, score or
-result schema, execution, patch application, test run, multi-turn behavior, or
-runtime integration. `coding-core-v1` remains unavailable.
+The accepted static scoring integration now implements these exact identities
+through the existing scoring interfaces. It adds no score or result schema,
+generated-content execution, patch application, test run, multi-turn behavior,
+or runtime integration. Native Coding Core run/result/report integration
+remains a separate milestone.
 
 ## Authority and method identities
 
