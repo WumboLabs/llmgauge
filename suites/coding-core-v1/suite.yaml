@@ -1,0 +1,205 @@
+schema_version: llmgauge.suite.v0
+suite_id: coding-core-v1
+suite_version: 0.1.0
+title: Coding Core v1
+default_profile: core
+profiles:
+  smoke:
+    prompt_ids:
+      - debug/state-transition-defect
+      - patch/bounded-cross-file-change
+      - shell/safe-repository-maintenance
+      - structured/closed-json-change-record
+  core:
+    prompt_ids:
+      - debug/state-transition-defect
+      - patch/bounded-cross-file-change
+      - tests/behavioral-contract-cases
+      - diagnosis/supplied-failure-output
+      - shell/safe-repository-maintenance
+      - api/closed-evidence-integration
+      - scope/distractor-aware-change-plan
+      - structured/closed-json-change-record
+prompts:
+  - id: debug/state-transition-defect
+    file: prompts/debug-state-transition-defect.md
+    task_family: supplied-code-debugging
+    primary_capability: debugging
+    secondary_stressors:
+      - scope-control
+      - dependency-api-uncertainty
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: explanation-plus-code
+      definition:
+        id: coding-core-explanation-plus-code-form-v0
+        version: 0.1.0
+    scoring:
+      role: manual
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: patch/bounded-cross-file-change
+    file: prompts/patch-bounded-cross-file-change.md
+    task_family: minimal-patch-generation
+    primary_capability: minimal-patch-generation
+    secondary_stressors:
+      - scope-control
+      - structured-output-compliance
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: bounded-patch
+      definition:
+        id: coding-core-bounded-patch-form-v0
+        version: 0.1.0
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: coding-core-bounded-patch-envelope-v0
+        version: 0.1.0
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+      hybrid_composition:
+        id: coding-core-side-by-side-v0
+        version: 0.1.0
+    fixtures: []
+  - id: tests/behavioral-contract-cases
+    file: prompts/tests-behavioral-contract-cases.md
+    task_family: test-design-and-creation
+    primary_capability: test-creation
+    secondary_stressors:
+      - scope-control
+      - structured-output-compliance
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: code-only
+      definition:
+        id: coding-core-code-only-tests-form-v0
+        version: 0.1.0
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: coding-core-code-only-tests-envelope-v0
+        version: 0.1.0
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+      hybrid_composition:
+        id: coding-core-side-by-side-v0
+        version: 0.1.0
+    fixtures: []
+  - id: diagnosis/supplied-failure-output
+    file: prompts/diagnosis-supplied-failure-output.md
+    task_family: failure-output-diagnosis
+    primary_capability: failure-diagnosis
+    secondary_stressors:
+      - debugging
+      - scope-control
+      - dependency-api-uncertainty
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: explanation-only
+      definition:
+        id: coding-core-explanation-only-form-v0
+        version: 0.1.0
+    scoring:
+      role: manual
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: shell/safe-repository-maintenance
+    file: prompts/shell-safe-repository-maintenance.md
+    task_family: safe-command-recommendation
+    primary_capability: shell-command-safety
+    secondary_stressors:
+      - scope-control
+      - dependency-api-uncertainty
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: explanation-only
+      definition:
+        id: coding-core-explanation-only-form-v0
+        version: 0.1.0
+    scoring:
+      role: manual
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: api/closed-evidence-integration
+    file: prompts/api-closed-evidence-integration.md
+    task_family: dependency-api-uncertainty
+    primary_capability: dependency-api-uncertainty
+    secondary_stressors:
+      - scope-control
+      - debugging
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: explanation-plus-code
+      definition:
+        id: coding-core-explanation-plus-code-form-v0
+        version: 0.1.0
+    scoring:
+      role: manual
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: scope/distractor-aware-change-plan
+    file: prompts/scope-distractor-aware-change-plan.md
+    task_family: scoped-change-planning
+    primary_capability: scope-control
+    secondary_stressors:
+      - minimal-patch-generation
+      - dependency-api-uncertainty
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: explanation-only
+      definition:
+        id: coding-core-explanation-only-form-v0
+        version: 0.1.0
+    scoring:
+      role: manual
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: structured/closed-json-change-record
+    file: prompts/structured-closed-json-change-record.md
+    task_family: structured-coding-response
+    primary_capability: structured-output-compliance
+    secondary_stressors:
+      - scope-control
+      - instruction-compliance
+    interaction_mode: static-single-turn
+    execution_mode: none
+    response_form:
+      category: closed-json-record
+      definition:
+        id: coding-core-closed-json-record-form-v0
+        version: 0.1.0
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: coding-core-closed-json-record-v0
+        version: 0.1.0
+      manual_rubric:
+        id: coding-core-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+      hybrid_composition:
+        id: coding-core-side-by-side-v0
+        version: 0.1.0
+    fixtures: []

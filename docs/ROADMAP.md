@@ -478,19 +478,37 @@ Core runnable and adds no suite content, scoring execution, or result behavior.
 The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
 Core work, and `v0.73` gate remain unchanged.
 
+## Coding-suite content and package implementation
+
+**Completed:** `coding-core-v1` `0.1.0` now provides the final eight static
+single-turn prompts, exact Smoke/Core profiles, inert versioned response-form
+definitions, and byte-identical editable and packaged suite trees. The suite is
+loadable and discoverable from editable, packaged, and isolated installed
+resources, validates through the existing manifest path, and is included in
+local wheels and source distributions. The existing native-response path admits
+its manifest, profile, and prompt selection and can prepare a command plan
+through `--dry-run`; no live model process, completion, scoring pass, or
+answer-quality evidence exists. No Coding Core-specific loader, registry,
+runner, or CLI path was added, and no generated response content is applied,
+imported, or executed.
+
 ## Selected next bounded project milestone
 
-**Coding-suite content and package implementation.**
+**Coding-suite static deterministic-check and scoring integration.**
 
-This is the only selected next milestone. It is limited to final prompt text,
-suite-owned inert resources, the `coding-core-v1` manifest, exact profile
-membership, source/package mirrors, package-data inclusion, and validation
-fixtures and tests required for that content.
+This is the only selected next milestone. It is limited to the accepted three
+non-executing structural checks, the versioned manual rubric definition and
+current manual-score workflow, side-by-side hybrid composition,
+scoring-method registration and provenance required by the existing scoring
+interfaces, and focused validation of those behaviors.
 
-It explicitly excludes scoring or deterministic-check implementation, result
-integration, generated-code execution, multi-turn evaluation, Agent Harness
-import, LocalMaxxing or Generic Core implementation, and release/version
-changes.
+It explicitly excludes native run/result/report integration beyond the existing
+generic scoring interfaces, new result or export schemas, generated-content
+execution, multi-turn evaluation, Agent Harness import, LocalMaxxing or Generic
+Core implementation, and release/version changes.
+
+**Coding-suite native run/result/report integration** remains the separate
+following gate after static scoring integration.
 
 ## Full-model-testing fast-track programs
 

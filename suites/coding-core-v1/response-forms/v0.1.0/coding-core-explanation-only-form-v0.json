@@ -1,0 +1,20 @@
+{
+  "resource_id": "coding-core-explanation-only-form-v0",
+  "version": "0.1.0",
+  "category": "explanation-only",
+  "allowed_envelope": {
+    "content": "prose following any exact heading order required by the prompt",
+    "minimum_non_whitespace_characters": 1,
+    "inline_identifiers_allowed": true,
+    "quoted_command_recommendations_allowed": true,
+    "fenced_code_blocks": 0,
+    "patch_envelopes": 0
+  },
+  "malformed_or_extra_output": [
+    "an empty response",
+    "a fenced code block",
+    "a patch envelope",
+    "implementation or repair code forbidden by the prompt",
+    "missing, extra, or reordered headings when the prompt fixes headings"
+  ]
+}

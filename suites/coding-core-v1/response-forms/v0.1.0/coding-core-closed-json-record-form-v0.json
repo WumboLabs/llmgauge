@@ -1,0 +1,75 @@
+{
+  "resource_id": "coding-core-closed-json-record-form-v0",
+  "version": "0.1.0",
+  "category": "closed-json-record",
+  "allowed_envelope": {
+    "top_level": "object",
+    "surrounding_text": false,
+    "markdown_fence": false,
+    "comments": false,
+    "additional_properties": false,
+    "key_order": [
+      "change_id",
+      "summary",
+      "files",
+      "behavior",
+      "verification",
+      "uncertainties"
+    ]
+  },
+  "properties": {
+    "change_id": {"type": "string", "const": "CFG-017"},
+    "summary": {"type": "string", "min_length": 1, "max_length": 120},
+    "files": {
+      "type": "array",
+      "min_items": 2,
+      "max_items": 2,
+      "item_key_order": ["path", "action"],
+      "items_in_order": [
+        {"path": "src/config.py", "action": "modify"},
+        {"path": "tests/test_config.py", "action": "modify"}
+      ],
+      "additional_item_properties": false
+    },
+    "behavior": {
+      "type": "object",
+      "key_order": ["before", "after"],
+      "additional_properties": false,
+      "before": {"type": "string", "min_length": 1},
+      "after": {"type": "string", "min_length": 1}
+    },
+    "verification": {
+      "type": "array",
+      "min_items": 2,
+      "max_items": 2,
+      "item_key_order": ["check", "status", "reason"],
+      "items_in_order": [
+        {"check": "focused-tests", "status": "not_run", "reason_type": "non-empty string"},
+        {"check": "static-review", "status": "not_run", "reason_type": "non-empty string"}
+      ],
+      "additional_item_properties": false
+    },
+    "uncertainties": {
+      "type": "array",
+      "min_items": 1,
+      "max_items": 1,
+      "item_type": "non-empty string",
+      "required_subject": "unspecified invalid-value exception message"
+    }
+  },
+  "forbidden_string_content": [
+    "secrets",
+    "private paths",
+    "URLs",
+    "commands",
+    "claims that work was applied or verified"
+  ],
+  "malformed_or_extra_output": [
+    "invalid JSON",
+    "surrounding prose or Markdown",
+    "missing, extra, or reordered keys where order is fixed",
+    "null values",
+    "wrong closed values or cardinalities",
+    "comments or additional properties"
+  ]
+}

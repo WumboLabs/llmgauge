@@ -1,0 +1,27 @@
+{
+  "resource_id": "coding-core-explanation-plus-code-form-v0",
+  "version": "0.1.0",
+  "category": "explanation-plus-code",
+  "allowed_envelope": {
+    "segments": ["prose", "code"],
+    "segment_order_is_exact": true,
+    "prose": {
+      "minimum_paragraphs": 1,
+      "fenced_code_allowed": false
+    },
+    "code": {
+      "fenced_blocks": 1,
+      "language_tag": "prompt-specified",
+      "content": "exactly the single code artifact requested by the prompt"
+    },
+    "text_after_code": false
+  },
+  "malformed_or_extra_output": [
+    "missing prose",
+    "missing or multiple fenced code blocks",
+    "a language tag other than the one required by the prompt",
+    "patch syntax when the prompt requests code",
+    "tests or surrounding code not requested by the prompt",
+    "any text after the closing code fence"
+  ]
+}
