@@ -7,6 +7,11 @@ This document proposes the prompt-role and task-family design for the future
 [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
 and the sequencing in the
 [Full Model Testing Capability Architecture](FULL_MODEL_TESTING_CAPABILITY_ARCHITECTURE.md).
+The accepted
+[Coding Suite Scoring-Method Design](CODING_SUITE_SCORING_METHOD_DESIGN.md)
+specializes this document's scoring-role authority, and the accepted
+[Coding Suite Schema and Loader Contract](CODING_SUITE_SCHEMA_LOADER_CONTRACT.md)
+specializes its manifest and loading representation.
 
 The proposal fixes:
 
@@ -224,7 +229,8 @@ static single-turn native-response task.
 - **Classification:** static single-turn.
 - **Owned input/context type:** a bounded suite-owned code-change request and
   relevant excerpts plus a declared closed JSON record form. Exact fields,
-  types, and closed values belong to later prompt and scoring-method design.
+  types, and closed values remain deferred to versioned response-form and
+  content design.
 - **Permitted response form:** structured JSON closed record only.
 - **Scoring role:** hybrid. A future deterministic component may inspect the
   exact envelope, parseability, and closed structural contract; manual review
@@ -299,11 +305,12 @@ The proposed inventory needs five response-form categories:
   contract, with no prose outside the envelope. Proposed member:
   `structured/closed-json-change-record`.
 
-Each final prompt must select exactly one response form. This design does not fix
-fences, delimiters, patch grammar, JSON fields, extraction rules, or malformed
-response handling; those decisions belong to final prompt and scoring-method
-work. A response form controls admitted output, not the truth or quality of its
-contents.
+Each final prompt must select exactly one response form. The accepted scoring
+and schema contracts fix the form-reference identities and structural authority,
+but do not fix fences, delimiters, patch grammar, JSON fields, extraction rules,
+or malformed-response algorithms. Those details belong to the content and later
+scoring implementation gates. A response form controls admitted output, not the
+truth or quality of its contents.
 
 ## Profile proposal
 
@@ -368,10 +375,10 @@ components remain visible and independent. Structural failure cannot be
 reinterpreted as functional failure, and structural success cannot replace
 manual review.
 
-This milestone does not name checks or rubrics, define score dimensions, choose
-weights or thresholds, specify schemas or algorithms, or create aggregation.
-Those decisions belong to the selected coding-suite scoring-method design
-milestone.
+The accepted scoring-method design now names checks, rubric dimensions,
+composition, scoreability, and aggregation eligibility. The accepted schema and
+loader contract now fixes their manifest references and validation boundary.
+Neither document implements scoring or loading behavior.
 
 ## Comparison and claim boundary
 
@@ -405,7 +412,12 @@ mutable upstream source, network retrieval, command execution, patch
 application, generated-code or test execution, and response repair after
 feedback.
 
-The next bounded milestone is coding-suite scoring-method design. It may define
-versioned scoring methods under the authority fixed for these roles, but final
-fixtures, suite manifest, loader behavior, containment, execution, and
-multi-turn evaluation remain separate gates.
+The selected next bounded milestone is **Coding-suite schema model and loader
+implementation**. It may implement only the accepted additive fields,
+vocabularies, normalization, coding-suite invariants, contained/no-fallback
+validation, public-safe diagnostics, and focused tests; it adds no prompt,
+manifest, suite content, scoring, execution, result, or runtime behavior. After
+that implementation passes, **Coding-suite content and package implementation**
+remains the next admitted gate for the final prompts, inert resources, manifest,
+exact profiles, source/package mirrors, package data, and content validation
+fixtures/tests.

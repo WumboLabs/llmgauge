@@ -15,6 +15,14 @@ transcript, Agent Harness importer, runtime behavior, package version, or releas
 behavior. The dedicated coding suite remains unavailable until later milestones
 are accepted and implemented.
 
+The accepted
+[prompt and task-family design](CODING_SUITE_PROMPT_TASK_FAMILY_DESIGN.md),
+[scoring-method design](CODING_SUITE_SCORING_METHOD_DESIGN.md), and
+[schema and loader contract](CODING_SUITE_SCHEMA_LOADER_CONTRACT.md) now supply
+the downstream inventory, method, and representation authorities. This
+architecture remains authoritative where those narrower documents do not
+specialize it.
+
 ## Current baseline and admission
 
 Current LLMGauge coding-related coverage is distributed across existing native
@@ -305,6 +313,11 @@ fall back to editable source, another suite, a working directory, a user path,
 or the network. Source/package equivalence, installed discovery, and package-data
 validation are implementation gates, not behavior added by this contract.
 
+The accepted [schema and loader contract](CODING_SUITE_SCHEMA_LOADER_CONTRACT.md)
+now fixes those representation, equivalence, discovery, containment, and
+no-fallback requirements for `coding-core-v1` `0.1.0`; implementation remains
+deferred.
+
 The future suite must own or explicitly reference every task input under an
 accepted versioned ownership contract. It must not silently consume Generic Core
 D5 fixtures, historical prompt sources, private repositories, mutable external
@@ -332,11 +345,13 @@ data.
 
 ## Scoring contract
 
-Every future prompt declares one primary scoring role before implementation:
-**deterministic**, **manual**, or **hybrid**. The later prompt and scoring-method
-design milestones must name and version applicable checks or rubrics and preserve
-all scoring provenance. This contract defines suitability and authority, not
-algorithms, schemas, final dimensions, weights, thresholds, or aggregation.
+Every prompt declares one primary scoring role: **deterministic**, **manual**,
+or **hybrid**. The accepted prompt and task-family design fixes the eight-role
+authority map, and the accepted
+[scoring-method design](CODING_SUITE_SCORING_METHOD_DESIGN.md) names and
+versions its checks, rubric, composition, scoreability, and aggregation
+eligibility. This architecture defines the governing suitability and authority
+boundaries.
 
 ### Deterministic suitability
 
@@ -526,26 +541,33 @@ work remains separated as follows:
 3. **Coding-suite schema and loader contract.** Define additive manifest,
    profile, task-input, response-form, scoring-reference, normalization,
    containment, source/package, and compatibility boundaries.
-4. **Coding-suite content and package implementation.** Add the accepted
+4. **Coding-suite schema model and loader implementation.** Implement only the
+   five accepted additive generic fields, controlled coding vocabularies,
+   normalization, logical-reference support, exact `coding-core-v1` invariants,
+   contained/no-fallback validation, public-safe diagnostics, and focused
+   regression tests. Add no coding manifest, prompt, suite content, scorer,
+   execution, result integration, runtime work, or release change.
+5. **Coding-suite content and package implementation.** Add the accepted
    manifest, final prompts, owned inert resources, exact membership, and
    source/package mirrors without scoring or executing generated content.
-5. **Static deterministic-check and scoring integration.** Implement only
+6. **Static deterministic-check and scoring integration.** Implement only
    accepted non-executing checks and scoring provenance under the existing
    manual-review boundary.
-6. **Native run/result/report integration.** Preserve exact selected membership,
+7. **Native run/result/report integration.** Preserve exact selected membership,
    response form, scoring state, failures, and bounded claims end to end.
-7. **Generated-code containment contract and implementation, if admitted.** Keep
+8. **Generated-code containment contract and implementation, if admitted.** Keep
    contract and implementation separate; do not substitute text heuristics when
    safe execution is unavailable.
-8. **Multi-turn transcript and repair evaluation.** Proceed only under the
+9. **Multi-turn transcript and repair evaluation.** Proceed only under the
    separately accepted multi-turn sequence in the Full Model Testing
    architecture.
-9. **Agent Harness import and session evaluation.** Proceed separately under the
-   agent-environment authority and read-only import sequence.
+10. **Agent Harness import and session evaluation.** Proceed separately under
+   the agent-environment authority and read-only import sequence.
 
-The next bounded milestone is **Coding-suite prompt and task-family design**.
-It must not create final prompts, schemas, fixtures, scoring code, execution, or
-runtime behavior.
+The selected next bounded milestone is **Coding-suite schema model and loader
+implementation**, with the exact bounded scope and exclusions recorded in the
+[roadmap](ROADMAP.md). After that implementation passes, **Coding-suite content
+and package implementation** remains the next admitted gate.
 
 ## Acceptance and deferred work
 
@@ -558,7 +580,8 @@ This contract is accepted when the repository and roadmap agree on:
 - source/package/installed ownership and coexistence with current suites;
 - Generic Core D5 and Agent Harness separation;
 - fail-closed generated-code and command-execution deferral; and
-- the ordered downstream gates with prompt/task-family design selected next.
+- the ordered downstream gates, with the current completed and selected state
+  recorded in the roadmap.
 
 Deferred work includes every final prompt and task input, profile membership,
 manifest or schema, fixture or baseline, deterministic algorithm, rubric
