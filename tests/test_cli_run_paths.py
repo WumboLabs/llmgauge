@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -553,10 +554,20 @@ def test_run_named_profile_rejects_ambiguous_selectors(
                 "example_model",
                 "--dry-run",
             ],
+            terminal_width=40,
         )
 
+        plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        normalized_output = " ".join(
+            line.strip(" │") for line in plain_output.splitlines()
+        )
+        normalized_output = " ".join(normalized_output.split())
+
         assert result.exit_code != 0
-        assert "--profile is mutually exclusive" in result.output
+        assert (
+            "--profile is mutually exclusive with --only and category-based --include"
+            in normalized_output
+        )
         assert not Path("results").exists()
 
 
