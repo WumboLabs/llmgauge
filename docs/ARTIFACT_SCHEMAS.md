@@ -432,6 +432,13 @@ Notes:
 - `include` records the selected category or `all`.
 - `only` records a single prompt id when used.
 
+Coding Core native runs may add a closed portable `suite.selection` object with
+selection kind, selected profile, exact ordered selected prompt IDs, canonical
+prompt IDs, and default profile. Its logical membership is portable identity;
+the existing local `suite_path` is not. `selected_prompt_ids` takes precedence
+over legacy `include` and `only` invocation metadata when the optional object is
+present.
+
 ### results
 
 `results` is a list of prompt result objects.
@@ -452,6 +459,26 @@ Expected prompt result fields:
     notes
     exit_status
     error
+
+For `coding-core-v1` `0.1.0`, each prompt may include a closed `coding_core`
+object containing exact response-form and scoring-method provenance plus a
+derived manual-review state. Hybrid prompts also contain the complete
+non-executing deterministic record and fail-closed side-by-side composition.
+Manual-only prompts contain neither. The independent deterministic record is
+authoritative and its composition copy must match exactly; the applied `score`
+object remains authoritative for full manual evidence and provenance.
+
+Deterministic `pass` and `fail` describe observed structure only. `error`
+describes check/resource/configuration failure, and `not_run` describes absent
+raw response evidence after generation failure. The check uses `raw_output_path`
+evidence, never cleaned output. Hybrid incompleteness is not prompt failure, and
+no numeric profile-level Coding Core score is produced.
+
+Coding Core `report.md` adds a per-prompt evidence table and explicit boundaries:
+generated content was not executed, structural conformance is not semantic or
+runtime correctness, manual review remains semantic authority, incomplete
+hybrid evidence is not failure, and no universal or profile-level Coding Core
+score exists. Other suite reports retain their existing sections.
 
 Expected `status` values:
 
@@ -528,9 +555,10 @@ New finalized single-run results may include an optional top-level
 The run fingerprint identifies canonical private evidence, not model quality,
 publication readiness, a unique execution instance, or transformed public-export
 bytes. Its canonical payload includes strong model/backend provenance when
-available, suite identity, ordered prompt identities, material runtime settings,
-per-prompt execution status and exit status, and SHA-256 values for
-authoritative raw prompt, raw output, stderr, and VRAM sample artifacts.
+available, suite identity and optional portable logical selection, ordered
+prompt identities, material runtime settings, per-prompt execution status and
+exit status, and SHA-256 values for authoritative raw prompt, raw output,
+stderr, and VRAM sample artifacts.
 
 It excludes run ID, run timestamp, local paths, reports, cleaned output, scores,
 reviewer metadata, comparison reports, export indexes, and public-export

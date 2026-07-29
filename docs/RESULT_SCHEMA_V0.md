@@ -265,6 +265,58 @@ must remain separate future metadata and must not be inferred from the requested
 mode alone. Reports should avoid empty reasoning sections and avoid claiming
 effective reasoning behavior without evidence.
 
+## Optional Coding Core native evidence
+
+Native `coding-core-v1` `0.1.0` runs may add a closed `suite.selection` object:
+
+- `kind`: `profile` or `custom`;
+- `selected_profile`: the named profile, or null for a custom selection;
+- `selected_prompt_ids`: exact ordered result membership;
+- `canonical_prompt_ids`: exact admitted canonical suite membership;
+- `default_profile`: the declared default profile.
+
+`suite.selection.selected_prompt_ids` is the portable selection authority when
+present. Existing `include` and `only` fields remain invocation metadata for
+legacy compatibility. `suite_path` remains local workflow metadata and is not
+portable suite identity. The optional selection is included in a new run's
+canonical fingerprint payload; legacy fingerprints without it remain valid.
+
+Each selected Coding Core prompt may add a closed `coding_core` object with:
+
+- `response_form`: exact category, logical ID, and version;
+- `scoring_method`: exact role and manual-rubric reference, plus deterministic
+  check and hybrid-composition references only where declared;
+- `manual_review`: rubric ID/version, applicable dimensions, derived review
+  state, reviewed flag, and verdict;
+- `deterministic_result`: the complete accepted static-check record, only for a
+  hybrid prompt;
+- `hybrid_composition`: the accepted side-by-side composition, only for a
+  hybrid prompt.
+
+The prompt's applied `score` object remains authoritative for manual dimensions,
+reviewer/scorer identity, rationale, verdict, evidence, warnings, and score
+provenance. `coding_core.manual_review` is a derived state summary and must agree
+with that object. The independent `coding_core.deterministic_result` is the
+deterministic authority; the copy inside `hybrid_composition` must match it
+exactly. Score application updates manual and hybrid state without rerunning the
+static check.
+
+Deterministic outcomes remain distinct:
+
+- `pass`: observed structural conformance;
+- `fail`: observed structural nonconformance;
+- `error`: check, resource, or configuration failure;
+- `not_run`: no check attempt because raw response evidence is absent after
+  generation failure.
+
+The check consumes preserved raw output, not cleaned output. Structural
+conformance is not semantic or runtime correctness. Manual-only prompts contain
+no deterministic or hybrid records. Hybrid `complete` is true only when the
+deterministic outcome is `pass` or `fail` and manual review is fully `reviewed`;
+incomplete is not failed. Coding Core has no numeric profile-level or universal
+aggregate score.
+
+
 ## Cleaned output
 
 Newer run artifacts may include `cleaned_output_path` on each prompt result.

@@ -1,14 +1,29 @@
 from __future__ import annotations
 
+import math
 import json
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.coding_core_evidence import (
+    build_manual_review,
+    build_method_provenance,
+)
+from llmgauge.core.static_scoring import (
+    CODING_CORE_SUITE_ID,
+    CODING_CORE_VERSION,
+    STATIC_RESPONSE_MAX_CHARS,
+    StaticScoringError,
+    apply_deterministic_check,
+    compose_hybrid_score,
+)
 from llmgauge.core.run_fingerprint import (
     FingerprintUnavailable,
     resolve_contained_result_artifact,
     verify_run_fingerprint,
 )
+from llmgauge.core.suite import ScoringRole, SuiteDefinitionError, load_normalized_suite
+from llmgauge.core.suite_paths import resolve_suite_path
 
 
 REQUIRED_TOP_LEVEL_KEYS = [
@@ -227,6 +242,338 @@ def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
     reviewed = score.get("reviewed")
     if reviewed is not None and not isinstance(reviewed, bool):
         errors.append(f"{prompt_id}.score.reviewed must be a boolean")
+
+
+_CODING_SELECTION_FIELDS = {
+    "kind",
+    "selected_profile",
+    "selected_prompt_ids",
+    "canonical_prompt_ids",
+    "default_profile",
+}
+_CODING_PROMPT_BASE_FIELDS = {
+    "response_form",
+    "scoring_method",
+    "manual_review",
+}
+
+
+def _read_coding_raw_response(
+    result_dir: Path, prompt_result: dict[str, Any]
+) -> tuple[str | None, str | None]:
+    value = prompt_result.get("raw_output_path")
+    if not isinstance(value, str) or not value:
+        return None, "authoritative raw response reference is missing"
+    try:
+        path = resolve_contained_result_artifact(
+            result_dir,
+            value,
+            label=f"{prompt_result.get('prompt_id', 'prompt')}.raw_output_path",
+            require_file=True,
+        )
+    except (FingerprintUnavailable, OSError):
+        return None, "authoritative raw response is missing or not safely contained"
+
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            raw_response = handle.read(STATIC_RESPONSE_MAX_CHARS + 1)
+    except (OSError, UnicodeError):
+        return None, "authoritative raw response is unreadable"
+    return raw_response, None
+
+
+def _validate_coding_score_provenance(
+    errors: list[str],
+    prompt_id: str,
+    prompt: Any,
+    score: Any,
+) -> None:
+    if score is None or not isinstance(score, dict):
+        return
+    scoring = prompt.scoring
+    rubric = scoring.manual_rubric if scoring is not None else None
+    if (
+        rubric is None
+        or score.get("rubric_id") != rubric.id
+        or score.get("rubric_version") != rubric.version
+    ):
+        errors.append(
+            f"{prompt_id}.score rubric provenance does not match the declared method"
+        )
+
+    dimensions = score.get("dimensions")
+    applicable = list(build_manual_review(prompt, None)["applicable_dimensions"])
+    if not isinstance(dimensions, dict) or list(dimensions) != applicable:
+        errors.append(
+            f"{prompt_id}.score dimensions must contain only applicable Coding Core dimensions"
+        )
+        return
+    for value in dimensions.values():
+        if value is None:
+            continue
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(value)
+            or not 0 <= value <= 5
+        ):
+            errors.append(
+                f"{prompt_id}.score dimensions must be null or finite values from 0 to 5"
+            )
+            break
+
+
+def _validate_optional_coding_core(
+    result_dir: Path,
+    data: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    suite_data = data.get("suite")
+    results = data.get("results")
+    if not isinstance(suite_data, dict) or not isinstance(results, list):
+        return errors
+
+    selection = suite_data.get("selection")
+    coding_results = [
+        item for item in results if isinstance(item, dict) and "coding_core" in item
+    ]
+    if selection is None and not coding_results:
+        return errors
+
+    if (
+        suite_data.get("suite_id") != CODING_CORE_SUITE_ID
+        or suite_data.get("suite_version") != CODING_CORE_VERSION
+    ):
+        errors.append(
+            "Coding Core selection or prompt evidence requires the supported suite ID/version"
+        )
+        return errors
+
+    try:
+        contract = load_normalized_suite(resolve_suite_path(Path(CODING_CORE_SUITE_ID)))
+    except (FileNotFoundError, SuiteDefinitionError, OSError, RuntimeError):
+        errors.append(
+            "Coding Core result evidence cannot be validated because the logical suite contract is unavailable"
+        )
+        return errors
+
+    result_prompt_ids = [
+        item.get("prompt_id") for item in results if isinstance(item, dict)
+    ]
+    if selection is None:
+        errors.append(
+            "suite.selection is required when Coding Core prompt evidence is present"
+        )
+    elif not isinstance(selection, dict) or set(selection) != _CODING_SELECTION_FIELDS:
+        errors.append("suite.selection must be a closed Coding Core selection object")
+    else:
+        selected_ids = selection.get("selected_prompt_ids")
+        canonical_ids = selection.get("canonical_prompt_ids")
+        kind = selection.get("kind")
+        selected_profile = selection.get("selected_profile")
+        if selected_ids != result_prompt_ids:
+            errors.append(
+                "suite.selection.selected_prompt_ids must exactly match result prompt ordering"
+            )
+        prompt_count = suite_data.get("prompt_count")
+        if (
+            isinstance(prompt_count, bool)
+            or not isinstance(prompt_count, int)
+            or prompt_count != len(results)
+            or not isinstance(selected_ids, list)
+            or prompt_count != len(selected_ids)
+        ):
+            errors.append(
+                "suite.prompt_count must match exact selected membership and result count"
+            )
+        if canonical_ids != list(contract.canonical_prompt_ids):
+            errors.append(
+                "suite.selection.canonical_prompt_ids must match the logical Coding Core contract"
+            )
+        if selection.get("default_profile") != contract.default_profile:
+            errors.append(
+                "suite.selection.default_profile must match the logical Coding Core contract"
+            )
+        if kind == "profile":
+            profile_ids = (
+                contract.profiles.get(selected_profile)
+                if isinstance(selected_profile, str)
+                else None
+            )
+            if profile_ids is None or selected_ids != list(profile_ids):
+                errors.append(
+                    "suite.selection profile identity and membership are inconsistent"
+                )
+        elif kind == "custom":
+            canonical_positions = {
+                prompt_id: index
+                for index, prompt_id in enumerate(contract.canonical_prompt_ids)
+            }
+            valid_ids = (
+                isinstance(selected_ids, list)
+                and bool(selected_ids)
+                and all(
+                    isinstance(prompt_id, str) and prompt_id in canonical_positions
+                    for prompt_id in selected_ids
+                )
+            )
+            positions = (
+                [canonical_positions[prompt_id] for prompt_id in selected_ids]
+                if valid_ids
+                else []
+            )
+            if (
+                selected_profile is not None
+                or not valid_ids
+                or len(selected_ids) != len(set(selected_ids))
+                or positions != sorted(positions)
+            ):
+                errors.append(
+                    "suite.selection custom membership must be unique and in canonical order"
+                )
+        else:
+            errors.append(
+                "suite.selection.kind must be profile or custom for Coding Core"
+            )
+
+        include = suite_data.get("include")
+        only = suite_data.get("only")
+        if not isinstance(include, str) or not include:
+            errors.append(
+                "suite.include must be non-empty invocation metadata when selection is represented"
+            )
+        if only is not None:
+            if (
+                not isinstance(only, str)
+                or not only
+                or not isinstance(selected_ids, list)
+                or selected_ids != [only]
+            ):
+                errors.append(
+                    "suite.only must equal the sole selected prompt when non-null"
+                )
+        elif kind == "profile":
+            if include != "all":
+                errors.append(
+                    "profile selection requires compatible include=all invocation metadata"
+                )
+        elif kind == "custom":
+            categories = [
+                item.get("category") for item in results if isinstance(item, dict)
+            ]
+            if (
+                include == "all"
+                or not isinstance(include, str)
+                or not include
+                or len(categories) != len(results)
+                or any(category != include for category in categories)
+            ):
+                errors.append(
+                    "custom selection without suite.only requires matching category invocation metadata"
+                )
+
+    if selection is not None and len(coding_results) != len(results):
+        errors.append(
+            "suite.selection requires closed Coding Core evidence for every selected prompt"
+        )
+    elif coding_results and len(coding_results) != len(results):
+        errors.append(
+            "Coding Core prompt evidence must be present for every selected prompt when represented"
+        )
+
+    prompts = {prompt.id: prompt for prompt in contract.prompts}
+    for prompt_result in coding_results:
+        prompt_id = prompt_result.get("prompt_id")
+        coding = prompt_result.get("coding_core")
+        prompt = prompts.get(prompt_id)
+        if prompt is None:
+            errors.append("Coding Core prompt evidence references an unknown prompt")
+            continue
+        scoring = prompt.scoring
+        expected_fields = set(_CODING_PROMPT_BASE_FIELDS)
+        if scoring is not None and scoring.role is ScoringRole.HYBRID:
+            expected_fields.update({"deterministic_result", "hybrid_composition"})
+        if not isinstance(coding, dict) or set(coding) != expected_fields:
+            errors.append(f"{prompt_id}.coding_core must use the declared closed shape")
+            continue
+
+        expected_method = build_method_provenance(prompt)
+        if (
+            coding.get("response_form") != expected_method["response_form"]
+            or coding.get("scoring_method") != expected_method["scoring_method"]
+        ):
+            errors.append(
+                f"{prompt_id}.coding_core method and response-form provenance is inconsistent"
+            )
+
+        score = prompt_result.get("score")
+        _validate_coding_score_provenance(errors, prompt_id, prompt, score)
+        try:
+            expected_manual = build_manual_review(
+                prompt, score if isinstance(score, dict) else None
+            )
+        except (StaticScoringError, ValueError):
+            errors.append(
+                f"{prompt_id}.coding_core manual review evidence is malformed"
+            )
+            expected_manual = None
+        if (
+            expected_manual is not None
+            and coding.get("manual_review") != expected_manual
+        ):
+            errors.append(
+                f"{prompt_id}.coding_core manual review state or rubric provenance is inconsistent"
+            )
+
+        if scoring is None or scoring.role is not ScoringRole.HYBRID:
+            continue
+        deterministic = coding.get("deterministic_result")
+        if not isinstance(deterministic, dict):
+            errors.append(
+                f"{prompt_id}.coding_core deterministic result must be a closed object"
+            )
+            continue
+        try:
+            expected_hybrid = compose_hybrid_score(
+                contract,
+                prompt_id,
+                deterministic,
+                score if isinstance(score, dict) else None,
+            )
+        except StaticScoringError:
+            errors.append(
+                f"{prompt_id}.coding_core deterministic result is malformed or inconsistent"
+            )
+            continue
+        if coding.get("hybrid_composition") != expected_hybrid:
+            errors.append(
+                f"{prompt_id}.coding_core hybrid composition or completeness is inconsistent"
+            )
+
+        raw_response, replay_error = _read_coding_raw_response(
+            result_dir, prompt_result
+        )
+        if replay_error is not None:
+            errors.append(f"{prompt_id}.coding_core {replay_error}")
+            continue
+        try:
+            replayed = apply_deterministic_check(
+                contract,
+                prompt_id,
+                raw_response,
+                generation_failed=prompt_result.get("status") == "failed",
+            )
+        except StaticScoringError:
+            errors.append(
+                f"{prompt_id}.coding_core deterministic replay could not be evaluated"
+            )
+            continue
+        if replayed != deterministic:
+            errors.append(
+                f"{prompt_id}.coding_core deterministic result does not match authoritative raw response replay"
+            )
+
+    return errors
 
 
 def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
@@ -510,6 +857,8 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"{prompt_id}.finish_reason must be a string when present"
                 )
+
+    errors.extend(_validate_optional_coding_core(result_dir, data))
 
     errors.extend(verify_run_fingerprint(result_dir, data))
 

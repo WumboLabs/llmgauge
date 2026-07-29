@@ -501,24 +501,37 @@ only each prompt's applicable dimensions, reviewed values retain rationale and
 provenance, and Coding Core profile summaries do not aggregate a numeric score.
 Deterministic methods consume only preserved raw response text and selected-root
 versioned response forms; they preserve `pass`, `fail`, `error`, and `not_run`
-without applying or executing generated content. Native run, result, and report
-integration remains separate.
+without applying or executing generated content.
+
+## Coding-suite native run/result/report integration
+
+**Completed:** native `coding-core-v1` `0.1.0` runs now preserve portable exact
+profile/custom selection and per-prompt response-form and scoring-method
+provenance. The accepted static checks consume authoritative raw response
+evidence after capture and retain generation status separately from structural
+`pass`, `fail`, `error`, and `not_run`. Manual score application derives honest
+review states and recomposes independent side-by-side hybrid evidence without
+rerunning checks or creating a numeric Coding Core aggregate. Additive result
+validation fails closed on malformed represented evidence while retaining
+legacy compatibility. Native reports expose prompt-level evidence and explicit
+non-execution, structural, semantic-authority, incompleteness, and scoring claim
+boundaries. Public export and export-index behavior are unchanged.
 
 ## Selected next bounded project milestone
 
-**Coding-suite native run/result/report integration.**
+**Coding-suite bounded live evidence.**
 
-This is the only selected next milestone. It is the bounded end-to-end
-integration required to preserve exact selected Coding Core membership,
-suite-owned response-form identities, independent deterministic and manual
-scoring states, generation and scoring failures, and bounded claims through
-native run, result, and report artifacts.
+This is the only selected next milestone. It is human-controlled, bounded
+execution of an explicitly authorized local model against selected Coding Core
+prompts, followed by native artifact inspection and manual semantic review.
+Resolved runtime, model, selection, generation settings, and output directory
+must be inspected before launch; raw evidence, deterministic outcomes, manual
+review state, and hybrid completeness must be inspected afterward.
 
-It must reuse the accepted static methods and existing generic interfaces,
-preserve legacy artifacts and current export behavior, and keep structural
-conformance separate from semantic correctness. It excludes generated-content
-execution, new export behavior, multi-turn repair, Agent Harness import,
-LocalMaxxing or Generic Core implementation, and release/version changes.
+The live-evidence milestone is not performed here. It does not authorize
+generated-content execution, new export behavior, multi-turn repair, Agent
+Harness import, LocalMaxxing or Generic Core implementation, or release/version
+changes.
 
 The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
 Core work, and `v0.73` gate remain unchanged.

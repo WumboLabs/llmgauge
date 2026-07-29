@@ -35,6 +35,42 @@
 - `score` is either null or a mapping with valid dimensions, label lists, and string metadata fields.
 - `model.model_path` remains redacted.
 
+When optional Coding Core native evidence is present, validation additionally
+checks:
+
+- the closed portable selection shape, exact result membership/order and count,
+  canonical membership, default profile, and named-profile or custom-selection
+  semantics;
+- complete closed `coding_core` evidence for every selected prompt whenever
+  `suite.selection` is represented;
+- `suite.prompt_count` and legacy `include`/`only` invocation metadata remain
+  consistent with the portable selection;
+- exact prompt, response-form, scoring-role, rubric, deterministic-check, and
+  hybrid-composition logical identities against `coding-core-v1` `0.1.0`;
+- absence of deterministic and hybrid data on manual-only prompts;
+- the closed deterministic record and its outcome/evidence/error relationships;
+- bounded replay of the accepted static check against the contained
+  authoritative `raw_output_path`, using prompt generation status to derive
+  `generation_failed`, with exact equality to the persisted deterministic
+  record;
+- reading at most the accepted static response limit plus one character; that
+  bounded over-limit sample is passed through the accepted check so a genuine
+  `resource-bound` deterministic error can validate without reading or parsing
+  the remainder;
+- rejection of missing, escaped, unreadable, or replay-inconsistent raw
+  evidence without using cleaned output;
+- manual rubric provenance, applicable dimensions, and derived
+  `missing`/`unreviewed`/`partial`/`reviewed`/`unscoreable` state;
+- exact side-by-side deterministic/manual components and hybrid completeness;
+- bounded diagnostics that do not echo raw responses or private physical paths.
+
+These checks use the installed logical suite contract, not the persisted
+physical `suite_path`. A malformed represented Coding Core field fails
+validation; it is not ignored or repaired.
+
+Genuine legacy results that contain neither `suite.selection` nor per-prompt
+`coding_core` evidence remain valid.
+
 
 ## Compatibility expectations
 
