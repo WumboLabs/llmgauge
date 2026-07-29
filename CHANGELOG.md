@@ -11,6 +11,10 @@
 - Accepted the `coding-core-v1` architecture and scoring contract with static
   coding capability, evidence, scoring, comparison, and containment boundaries;
   prompts, schemas, suite behavior, and execution remain deferred.
+- Proposed the bounded `coding-core-v1` prompt and task-family inventory,
+  capability ownership, response forms, profiles, and per-role scoring
+  authority while keeping prompts, fixtures, scoring methods, and behavior
+  deferred.
 
 ## v0.72.0 - 2026-07-28
 
