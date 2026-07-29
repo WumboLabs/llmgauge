@@ -15,6 +15,9 @@
   capability ownership, response forms, profiles, and per-role scoring
   authority while keeping prompts, fixtures, scoring methods, and behavior
   deferred.
+- Accepted the combined `coding-core-v1` scoring-method and schema/loader
+  foundation, fixing versioned manual/hybrid authority and additive contained
+  representation while leaving content and all executable behavior deferred.
 
 ## v0.72.0 - 2026-07-28
 

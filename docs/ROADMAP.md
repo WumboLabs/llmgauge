@@ -447,15 +447,60 @@ Smoke/Core membership, and scoring authority per role. Repair after compiler or
 test feedback remains multi-turn-only. This design adds no final prompt,
 fixture, schema, suite, scoring, execution, or runtime behavior.
 
+## Coding-suite scoring-method design
+
+**Completed:** the accepted
+[Coding Suite Scoring-Method Design](CODING_SUITE_SCORING_METHOD_DESIGN.md)
+fixes the versioned coding manual rubric, three non-executing structural checks,
+side-by-side hybrid composition, role applicability, scoreability, and bounded
+profile/custom summaries. Five roles remain manual and three remain hybrid; no
+deterministic-only role or universal coding score is admitted.
+
+## Coding-suite schema and loader contract
+
+**Completed:** the accepted
+[Coding Suite Schema and Loader Contract](CODING_SUITE_SCHEMA_LOADER_CONTRACT.md)
+fixes the smallest additive `llmgauge.suite.v0` representation, exact coding
+profiles and method references, normalized identity, contained resources,
+source/package/installed ownership, compatibility, and fail-closed validation.
+No manifest schema-version change, executable suite, or scoring behavior is
+added.
+
+The human explicitly authorized combining these two adjacent documentation
+gates into one bounded scoring-and-schema foundation milestone. Their original
+order in the Full Model Testing program remains unchanged.
+
 ## Selected next bounded project milestone
 
-**Coding-suite scoring-method design.**
+**Coding-suite schema model and loader implementation.**
 
-Define only the scoring-method design for the fixed coding prompt roles under
-the accepted architecture and prompt/task-family design. Do not add final
-prompts, schemas, fixtures, suite behavior, scoring implementation,
-containment, generated-code execution, multi-turn evaluation, or runtime
-behavior. This is the only selected next milestone.
+This is the only selected next milestone. It is limited to:
+
+- implementing the five additive optional generic fields: `task_family`,
+  `interaction_mode`, `execution_mode`, `response_form`, and
+  `hybrid_composition`;
+- extending only the accepted controlled coding capability and stressor
+  vocabularies;
+- normalizing the accepted fields and logical references;
+- validating the exact `coding-core-v1` `0.1.0` role, profile, form, scoring,
+  and non-execution invariants;
+- preserving contained-reference and no-fallback behavior; and
+- adding focused schema, loader, compatibility, package-source, and public-safe
+  diagnostic tests required for that implementation.
+
+It explicitly excludes final coding prompts, the coding suite manifest,
+suite-owned content resources, source/package coding-suite trees, package-data
+inclusion for `coding-core-v1`, scoring or deterministic-check implementation,
+result integration, generated-code execution, multi-turn evaluation, Agent
+Harness import, LocalMaxxing or Generic Core implementation, and release/version
+changes. It adds no prompt, manifest, suite-content, scoring, execution, or
+runtime work.
+
+After that implementation passes its bounded gates, the next admitted milestone
+remains **Coding-suite content and package implementation**, limited to final
+prompt text, suite-owned inert resources, the manifest, exact profile
+membership, source/package mirrors, package-data inclusion, and validation
+fixtures/tests required for that content.
 
 ## Full-model-testing fast-track programs
 
