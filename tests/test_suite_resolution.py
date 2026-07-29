@@ -94,11 +94,21 @@ def _portable_identity(suite: NormalizedSuite) -> tuple[Any, ...]:
                 prompt.file,
                 prompt.primary_capability,
                 prompt.secondary_stressors,
+                prompt.task_family,
+                prompt.interaction_mode,
+                prompt.execution_mode,
+                (
+                    prompt.response_form.category,
+                    prompt.response_form.definition,
+                )
+                if prompt.response_form is not None
+                else None,
                 (
                     prompt.scoring.role,
                     prompt.scoring.deterministic_check,
                     prompt.scoring.manual_rubric,
                     prompt.scoring.hybrid_rule,
+                    prompt.scoring.hybrid_composition,
                 )
                 if prompt.scoring is not None
                 else None,
@@ -214,9 +224,7 @@ def test_unknown_custom_selection_diagnostic_does_not_echo_private_input(
     with pytest.raises(
         SuiteDefinitionError, match="custom-selection-unknown"
     ) as exc_info:
-        load_normalized_suite(
-            _profile_suite(tmp_path), prompt_ids=(private_prompt_id,)
-        )
+        load_normalized_suite(_profile_suite(tmp_path), prompt_ids=(private_prompt_id,))
 
     assert private_prompt_id not in str(exc_info.value)
     assert all(private_prompt_id not in item for item in exc_info.value.diagnostics)
