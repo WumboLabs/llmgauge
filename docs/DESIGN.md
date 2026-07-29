@@ -33,6 +33,12 @@ Current non-goals / deliberate project boundaries:
   benchmark, and agent-environment evaluation, including authority, scoring,
   comparison, and integration sequencing.
 
+- [Full Model Testing Capability Architecture](FULL_MODEL_TESTING_CAPABILITY_ARCHITECTURE.md)
+  — accepted capability classification, evidence and trust boundaries,
+  prerequisite contracts, blocking scope, the eight-step Full Model Testing
+  capability sequence, the parallel LocalMaxxing performance-benchmark lane,
+  and release gates without merging their evaluation classes.
+
 - [Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md) — accepted
   `generic-core-v1` identity, profile, capability, scoring, comparison, and
   historical-suite coexistence boundaries before prompt design or implementation.

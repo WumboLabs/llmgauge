@@ -418,24 +418,117 @@ The following profile-aware suite foundation is complete in `v0.72`:
 This foundation does not make `generic-core-v1` executable. Details remain in
 [CHANGELOG.md](../CHANGELOG.md).
 
+## Full Model Testing Capability Architecture
+
+**Completed:** the accepted
+[Full Model Testing Capability Architecture](FULL_MODEL_TESTING_CAPABILITY_ARCHITECTURE.md)
+classifies current support, fixes evidence and trust boundaries, defines
+prerequisite contracts and dependencies, and records the fast-track order and
+release gates. This architecture milestone adds no suite, schema, importer,
+metric, runtime, multimodal, non-autoregressive, or execution behavior.
+
 ## Selected next bounded project milestone
 
-**Generic Core suite implementation.**
+**Coding-suite architecture and scoring contract.**
 
-Implement only the final `generic-core-v1` manifest, its 13-prompt inventory,
-fixture references, and exact Smoke/Core membership. Deterministic checks, D5
-generated-code containment, and result integration remain later separate
-milestones. This is the only selected next milestone.
+Accept only bounded milestone 1a from the full-model-testing architecture:
+coding-suite identity, coverage, evidence authority, scoring, comparison, and
+the split between non-executed checks and any later containment contract. This
+milestone adds no prompts, fixtures, schema, suite implementation, scoring
+execution, generated-code execution, or runtime behavior. This is the only
+selected next milestone.
 
-## Ordered Generic Core delivery sequence
+## Full-model-testing fast-track programs
 
-The current delivery path is:
+### Full Model Testing capability program
+
+The fast track covers these required capability areas:
+
+1. a dedicated coding suite for debugging, minimal patches, tests and failure
+   diagnosis, shell safety, dependency/API uncertainty, scope control,
+   structured output, and repair after compiler or test feedback;
+2. a multi-turn evaluation contract preserving state, every turn and response,
+   test/tool feedback, correction, recovery, and consistency evidence;
+3. read-only WumboLabs Agent Harness session evidence import covering repository
+   inspection, edits, commands, tests, failures, recovery, final diff, and
+   outcome while LLMGauge remains the evaluator;
+4. runtime interoperability that matures the external local vLLM backend,
+   generalizes only honest OpenAI-compatible transport behavior, preserves exact
+   request/response and stack provenance, and admits later local runtimes
+   separately;
+5. runtime-neutral latency, TTFT, prefill, generation, load-time, VRAM, offload,
+   and hybrid-execution metrics with native provenance and non-equivalence
+   boundaries;
+6. multimodal image, audio, and video evaluation with preserved inputs,
+   modality-specific scoring and failures, and explicit capability boundaries;
+7. diffusion and other non-autoregressive generation with native steps,
+   configuration, timing, and metrics that do not assume token decoding;
+8. reasoning and sampling profiles covering reasoning `on`, `off`, and `auto`,
+   vendor-aligned and controlled settings, complete sampling/template capture,
+   and profile-aware bounded comparisons; and
+9. an expanded failure taxonomy for runtime environment, unsupported
+   architecture/quantization/kernel, weight-load OOM, KV-cache OOM, endpoint,
+   tool, generation, malformed-response, and agent-recovery failures.
+
+The initial ordered implementation path is:
+
+1. coding-oriented text suite;
+2. multi-turn transcript contract;
+3. Agent Harness evidence importer;
+4. runtime-neutral metrics and expanded failure taxonomy;
+5. existing vLLM audit and shared OpenAI-compatible transport generalization;
+6. reasoning and sampling profile completion;
+7. multimodal support; and
+8. diffusion and non-autoregressive support.
+
+Each numbered implementation area remains subject to the bounded contract,
+dependency, schema, implementation, integration, and release gates defined by
+the architecture. The order is a program sequence, not authorization to combine
+milestones or describe deferred capability as current behavior.
+
+### Parallel LocalMaxxing performance-benchmark program
+
+LocalMaxxing remains a distinct **performance benchmark** evaluation class. Its
+current support is missing beyond the accepted architecture lane: no benchmark
+identity/version contract, artifact mapping, runner, offline exporter,
+validator, automatic submission, or leaderboard behavior is implemented.
+
+The admitted parallel sequence is:
+
+1. LocalMaxxing architecture and offline-export contract.
+2. Artifact/schema mapping and provenance contract.
+3. Offline benchmark execution/export implementation.
+4. Validation, compatibility, and publication-boundary hardening.
+
+Each item remains a separate milestone. This lane does not depend on completing
+coding, multi-turn, or Agent Harness evaluation, and it does not alter the
+eight-step capability order. The first LocalMaxxing contract is admitted
+parallel fast-track work but is not selected now; selecting it requires a later
+explicit human roadmap gate.
+
+LocalMaxxing artifacts remain performance-benchmark evidence under the
+[general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md). Offline export
+does not authorize automatic network submission or leaderboard upload. Any
+network transfer requires a separate human-approved publication milestone and
+explicit operator action.
+
+## Admitted downstream Generic Core delivery
+
+Generic Core suite implementation is no longer the selected next milestone, but
+it remains admitted downstream work under its existing accepted contracts and
+resources. Its relationship to the fast track is complementary: Generic Core
+provides a general native text suite and reusable profile/resource foundations;
+it does not replace the dedicated coding suite, multi-turn transcript, Agent
+Harness import, runtime-neutral metrics, or later modality/generation contracts.
+
+The existing separate Generic Core delivery path remains:
 
 1. Generic Core fixture and package-data support (completed).
 2. Generic Core compatibility and security hardening (completed).
 3. `v0.72` release preparation (completed).
 4. Generic Core suite implementation with the final manifest, 13-prompt
-   inventory, fixture references, and exact Smoke/Core membership (selected).
+   inventory, fixture references, and exact Smoke/Core membership (admitted
+   downstream).
 5. Deterministic checks D1-D7.
 6. Separate D5 generated-code containment gate.
 7. Execution and result-provenance integration.
@@ -484,10 +577,11 @@ The `v0.73` release gate requires:
 
 These gates assign no release dates.
 
-## Post-Generic-Core product tracks
+## Parallel product tracks
 
-These tracks are future product work. They are separate from the selected
-Generic Core milestone and from one another.
+These future product tracks remain separate from the completed architecture
+milestone, the selected coding-suite contract, the fast-track program sequence,
+Generic Core delivery, and one another.
 
 ### Packaging and productization
 
@@ -516,23 +610,25 @@ documented in [Installation](INSTALL.md). PyPI availability is not yet claimed.
 `llama.cpp` remains the default runtime. The current vLLM adapter remains a
 bounded, operator-managed local integration. DGX Spark is a hardware/platform
 provenance target, not a backend; support should use whichever separately
-admitted runtime actually runs on that platform. None of this runtime work is
-the immediate next milestone.
+admitted runtime actually runs on that platform. Runtime work enters the
+fast-track order only through its separately accepted contracts.
 
 ## Expanded evaluation track
 
-This work remains separate from Generic Core delivery and runtime
-interoperability:
+Other future evaluation-class work remains separate from Generic Core delivery,
+the Full Model Testing capability program, and the parallel LocalMaxxing
+performance-benchmark lane:
 
-1. LocalMaxxing contract and offline performance-benchmark export.
-2. External text benchmark read-only imports.
-3. Agent drift evaluation contract.
-4. Terminal-Bench/Harbor contract and read-only import.
-5. SWE-bench.
-6. Browser, computer-use, and OSWorld later.
+1. External text benchmark read-only imports.
+2. Agent drift evaluation contract.
+3. Terminal-Bench/Harbor contract and read-only import.
+4. SWE-bench.
+5. Browser, computer-use, and OSWorld later.
 
 These items retain the distinct evaluation classes and evidence authorities
 defined by the [general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md).
+LocalMaxxing is tracked in the parallel fast-track lane above rather than this
+future-work list.
 
 ## Recently completed releases
 
