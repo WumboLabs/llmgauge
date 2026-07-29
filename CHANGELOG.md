@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Implemented the optional Coding Core suite schema and normalized loader fields
+  with exact fail-closed `coding-core-v1` `0.1.0` invariants, without adding
+  suite content, scoring execution, or result behavior.
+
 ### Documentation
 
 - Accepted the Full Model Testing capability architecture and roadmap fast

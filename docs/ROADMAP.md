@@ -466,41 +466,31 @@ source/package/installed ownership, compatibility, and fail-closed validation.
 No manifest schema-version change, executable suite, or scoring behavior is
 added.
 
-The human explicitly authorized combining these two adjacent documentation
-gates into one bounded scoring-and-schema foundation milestone. Their original
-order in the Full Model Testing program remains unchanged.
+## Coding-suite schema model and loader implementation
+
+**Completed:** the accepted five optional generic fields, controlled coding
+vocabularies, normalized logical references, and exact `coding-core-v1`
+`0.1.0` inventory, profile, response-form, scoring-reference, static-interaction,
+and non-execution invariants are implemented. Existing suites retain their
+prior requirements and identities. Contained-resource and public-safe
+diagnostic behavior remain fail closed. This does not install or make Coding
+Core runnable and adds no suite content, scoring execution, or result behavior.
+The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
+Core work, and `v0.73` gate remain unchanged.
 
 ## Selected next bounded project milestone
 
-**Coding-suite schema model and loader implementation.**
+**Coding-suite content and package implementation.**
 
-This is the only selected next milestone. It is limited to:
-
-- implementing the five additive optional generic fields: `task_family`,
-  `interaction_mode`, `execution_mode`, `response_form`, and
-  `hybrid_composition`;
-- extending only the accepted controlled coding capability and stressor
-  vocabularies;
-- normalizing the accepted fields and logical references;
-- validating the exact `coding-core-v1` `0.1.0` role, profile, form, scoring,
-  and non-execution invariants;
-- preserving contained-reference and no-fallback behavior; and
-- adding focused schema, loader, compatibility, package-source, and public-safe
-  diagnostic tests required for that implementation.
-
-It explicitly excludes final coding prompts, the coding suite manifest,
-suite-owned content resources, source/package coding-suite trees, package-data
-inclusion for `coding-core-v1`, scoring or deterministic-check implementation,
-result integration, generated-code execution, multi-turn evaluation, Agent
-Harness import, LocalMaxxing or Generic Core implementation, and release/version
-changes. It adds no prompt, manifest, suite-content, scoring, execution, or
-runtime work.
-
-After that implementation passes its bounded gates, the next admitted milestone
-remains **Coding-suite content and package implementation**, limited to final
-prompt text, suite-owned inert resources, the manifest, exact profile
+This is the only selected next milestone. It is limited to final prompt text,
+suite-owned inert resources, the `coding-core-v1` manifest, exact profile
 membership, source/package mirrors, package-data inclusion, and validation
-fixtures/tests required for that content.
+fixtures and tests required for that content.
+
+It explicitly excludes scoring or deterministic-check implementation, result
+integration, generated-code execution, multi-turn evaluation, Agent Harness
+import, LocalMaxxing or Generic Core implementation, and release/version
+changes.
 
 ## Full-model-testing fast-track programs
 

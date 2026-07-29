@@ -61,6 +61,33 @@ def _validate_semantic_version(value: str) -> str:
     return value
 
 
+class TaskFamily(StrEnum):
+    SUPPLIED_CODE_DEBUGGING = "supplied-code-debugging"
+    MINIMAL_PATCH_GENERATION = "minimal-patch-generation"
+    TEST_DESIGN_AND_CREATION = "test-design-and-creation"
+    FAILURE_OUTPUT_DIAGNOSIS = "failure-output-diagnosis"
+    SAFE_COMMAND_RECOMMENDATION = "safe-command-recommendation"
+    DEPENDENCY_API_UNCERTAINTY = "dependency-api-uncertainty"
+    SCOPED_CHANGE_PLANNING = "scoped-change-planning"
+    STRUCTURED_CODING_RESPONSE = "structured-coding-response"
+
+
+class InteractionMode(StrEnum):
+    STATIC_SINGLE_TURN = "static-single-turn"
+
+
+class ExecutionMode(StrEnum):
+    NONE = "none"
+
+
+class ResponseFormCategory(StrEnum):
+    CODE_ONLY = "code-only"
+    EXPLANATION_PLUS_CODE = "explanation-plus-code"
+    EXPLANATION_ONLY = "explanation-only"
+    BOUNDED_PATCH = "bounded-patch"
+    CLOSED_JSON_RECORD = "closed-json-record"
+
+
 class PrimaryCapability(StrEnum):
     INSTRUCTION_FOLLOWING = "instruction-following"
     STRUCTURED_OUTPUT = "structured-output"
@@ -75,6 +102,14 @@ class PrimaryCapability(StrEnum):
     SAFETY_REFUSAL = "safety-refusal"
     TOOL_PREPARATION = "tool-preparation"
     BOUNDED_CONTEXT = "bounded-context"
+    DEBUGGING = "debugging"
+    MINIMAL_PATCH_GENERATION = "minimal-patch-generation"
+    TEST_CREATION = "test-creation"
+    FAILURE_DIAGNOSIS = "failure-diagnosis"
+    SHELL_COMMAND_SAFETY = "shell-command-safety"
+    DEPENDENCY_API_UNCERTAINTY = "dependency-api-uncertainty"
+    SCOPE_CONTROL = "scope-control"
+    STRUCTURED_OUTPUT_COMPLIANCE = "structured-output-compliance"
 
 
 class SecondaryStressor(StrEnum):
@@ -82,6 +117,12 @@ class SecondaryStressor(StrEnum):
     LATE_CONSTRAINTS = "late-constraints"
     ADVERSARIAL_INSTRUCTIONS = "adversarial-instructions"
     STRICT_LENGTH = "strict-length"
+    SCOPE_CONTROL = "scope-control"
+    DEPENDENCY_API_UNCERTAINTY = "dependency-api-uncertainty"
+    STRUCTURED_OUTPUT_COMPLIANCE = "structured-output-compliance"
+    DEBUGGING = "debugging"
+    MINIMAL_PATCH_GENERATION = "minimal-patch-generation"
+    INSTRUCTION_COMPLIANCE = "instruction-compliance"
 
 
 class ScoringRole(StrEnum):
@@ -113,6 +154,21 @@ class DeterministicCheckReference(_LogicalReference):
 
 class ManualRubricReference(_LogicalReference):
     pass
+
+
+class ResponseFormDefinitionReference(_LogicalReference):
+    pass
+
+
+class HybridCompositionReference(_LogicalReference):
+    pass
+
+
+class ResponseFormDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: ResponseFormCategory
+    definition: ResponseFormDefinitionReference
 
 
 class FixtureReference(_LogicalReference):
@@ -149,6 +205,7 @@ class ScoringDefinition(BaseModel):
     deterministic_check: DeterministicCheckReference | None = None
     manual_rubric: ManualRubricReference | None = None
     hybrid_rule: Literal["side-by-side"] | None = None
+    hybrid_composition: HybridCompositionReference | None = None
 
     @model_validator(mode="after")
     def validate_role_references(self) -> "ScoringDefinition":
@@ -159,6 +216,8 @@ class ScoringDefinition(BaseModel):
                 raise ValueError(
                     "deterministic role forbids manual_rubric and hybrid_rule"
                 )
+            if self.hybrid_composition is not None:
+                raise ValueError("deterministic role forbids hybrid_composition")
         elif self.role is ScoringRole.MANUAL:
             if self.manual_rubric is None:
                 raise ValueError("manual role requires manual_rubric")
@@ -166,6 +225,8 @@ class ScoringDefinition(BaseModel):
                 raise ValueError(
                     "manual role forbids deterministic_check and hybrid_rule"
                 )
+            if self.hybrid_composition is not None:
+                raise ValueError("manual role forbids hybrid_composition")
         else:
             if self.deterministic_check is None or self.manual_rubric is None:
                 raise ValueError(
@@ -201,6 +262,10 @@ class PromptDefinition(BaseModel):
     secondary_stressors: list[SecondaryStressor] | None = None
     scoring: ScoringDefinition | None = None
     fixtures: list[FixtureReference] | None = None
+    task_family: TaskFamily | None = None
+    interaction_mode: InteractionMode | None = None
+    execution_mode: ExecutionMode | None = None
+    response_form: ResponseFormDefinition | None = None
 
     @field_validator("id", "file")
     @classmethod
@@ -359,6 +424,12 @@ class NormalizedLogicalReference:
 
 
 @dataclass(frozen=True, slots=True)
+class NormalizedResponseFormDefinition:
+    category: ResponseFormCategory
+    definition: NormalizedLogicalReference
+
+
+@dataclass(frozen=True, slots=True)
 class NormalizedFixtureReference:
     id: str
     version: str
@@ -372,6 +443,7 @@ class NormalizedScoringDefinition:
     deterministic_check: NormalizedLogicalReference | None
     manual_rubric: NormalizedLogicalReference | None
     hybrid_rule: Literal["side-by-side"] | None
+    hybrid_composition: NormalizedLogicalReference | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -381,6 +453,10 @@ class NormalizedPrompt:
     resolved_file: Path
     primary_capability: PrimaryCapability | None
     secondary_stressors: tuple[SecondaryStressor, ...]
+    task_family: TaskFamily | None
+    interaction_mode: InteractionMode | None
+    execution_mode: ExecutionMode | None
+    response_form: NormalizedResponseFormDefinition | None
     scoring: NormalizedScoringDefinition | None
     fixtures: tuple[NormalizedFixtureReference, ...]
     metadata: Mapping[str, Any]
@@ -457,6 +533,13 @@ def _resolve_owned_file(suite_root: Path, relative_path: str, location: str) -> 
         raise SuiteDefinitionError(
             [f"non-regular-resource: {location}: target is not a regular file"]
         )
+    try:
+        with resolved_target.open("rb"):
+            pass
+    except OSError:
+        raise SuiteDefinitionError(
+            [f"unreadable-resource: {location}: target is unreadable"]
+        ) from None
     return resolved_target
 
 
@@ -466,6 +549,268 @@ def _normalize_logical_reference(
     if reference is None:
         return None
     return NormalizedLogicalReference(id=reference.id, version=reference.version)
+
+
+_CODING_CORE_VERSION = "0.1.0"
+_CODING_CORE_MANUAL_RUBRIC_ID = "coding-core-manual-v0"
+_CODING_CORE_COMPOSITION_ID = "coding-core-side-by-side-v0"
+_CODING_CORE_REPAIR_ROLE = "repair/prior-response-test-feedback"
+
+
+@dataclass(frozen=True, slots=True)
+class _CodingCorePromptContract:
+    id: str
+    task_family: TaskFamily
+    primary_capability: PrimaryCapability
+    secondary_stressors: tuple[SecondaryStressor, ...]
+    response_category: ResponseFormCategory
+    response_definition_id: str
+    scoring_role: ScoringRole
+    deterministic_check_id: str | None
+
+
+_CODING_CORE_PROMPT_CONTRACTS = (
+    _CodingCorePromptContract(
+        id="debug/state-transition-defect",
+        task_family=TaskFamily.SUPPLIED_CODE_DEBUGGING,
+        primary_capability=PrimaryCapability.DEBUGGING,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.DEPENDENCY_API_UNCERTAINTY,
+        ),
+        response_category=ResponseFormCategory.EXPLANATION_PLUS_CODE,
+        response_definition_id="coding-core-explanation-plus-code-form-v0",
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+    ),
+    _CodingCorePromptContract(
+        id="patch/bounded-cross-file-change",
+        task_family=TaskFamily.MINIMAL_PATCH_GENERATION,
+        primary_capability=PrimaryCapability.MINIMAL_PATCH_GENERATION,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.STRUCTURED_OUTPUT_COMPLIANCE,
+        ),
+        response_category=ResponseFormCategory.BOUNDED_PATCH,
+        response_definition_id="coding-core-bounded-patch-form-v0",
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="coding-core-bounded-patch-envelope-v0",
+    ),
+    _CodingCorePromptContract(
+        id="tests/behavioral-contract-cases",
+        task_family=TaskFamily.TEST_DESIGN_AND_CREATION,
+        primary_capability=PrimaryCapability.TEST_CREATION,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.STRUCTURED_OUTPUT_COMPLIANCE,
+        ),
+        response_category=ResponseFormCategory.CODE_ONLY,
+        response_definition_id="coding-core-code-only-tests-form-v0",
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="coding-core-code-only-tests-envelope-v0",
+    ),
+    _CodingCorePromptContract(
+        id="diagnosis/supplied-failure-output",
+        task_family=TaskFamily.FAILURE_OUTPUT_DIAGNOSIS,
+        primary_capability=PrimaryCapability.FAILURE_DIAGNOSIS,
+        secondary_stressors=(
+            SecondaryStressor.DEBUGGING,
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.DEPENDENCY_API_UNCERTAINTY,
+        ),
+        response_category=ResponseFormCategory.EXPLANATION_ONLY,
+        response_definition_id="coding-core-explanation-only-form-v0",
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+    ),
+    _CodingCorePromptContract(
+        id="shell/safe-repository-maintenance",
+        task_family=TaskFamily.SAFE_COMMAND_RECOMMENDATION,
+        primary_capability=PrimaryCapability.SHELL_COMMAND_SAFETY,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.DEPENDENCY_API_UNCERTAINTY,
+        ),
+        response_category=ResponseFormCategory.EXPLANATION_ONLY,
+        response_definition_id="coding-core-explanation-only-form-v0",
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+    ),
+    _CodingCorePromptContract(
+        id="api/closed-evidence-integration",
+        task_family=TaskFamily.DEPENDENCY_API_UNCERTAINTY,
+        primary_capability=PrimaryCapability.DEPENDENCY_API_UNCERTAINTY,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.DEBUGGING,
+        ),
+        response_category=ResponseFormCategory.EXPLANATION_PLUS_CODE,
+        response_definition_id="coding-core-explanation-plus-code-form-v0",
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+    ),
+    _CodingCorePromptContract(
+        id="scope/distractor-aware-change-plan",
+        task_family=TaskFamily.SCOPED_CHANGE_PLANNING,
+        primary_capability=PrimaryCapability.SCOPE_CONTROL,
+        secondary_stressors=(
+            SecondaryStressor.MINIMAL_PATCH_GENERATION,
+            SecondaryStressor.DEPENDENCY_API_UNCERTAINTY,
+        ),
+        response_category=ResponseFormCategory.EXPLANATION_ONLY,
+        response_definition_id="coding-core-explanation-only-form-v0",
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+    ),
+    _CodingCorePromptContract(
+        id="structured/closed-json-change-record",
+        task_family=TaskFamily.STRUCTURED_CODING_RESPONSE,
+        primary_capability=PrimaryCapability.STRUCTURED_OUTPUT_COMPLIANCE,
+        secondary_stressors=(
+            SecondaryStressor.SCOPE_CONTROL,
+            SecondaryStressor.INSTRUCTION_COMPLIANCE,
+        ),
+        response_category=ResponseFormCategory.CLOSED_JSON_RECORD,
+        response_definition_id="coding-core-closed-json-record-form-v0",
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="coding-core-closed-json-record-v0",
+    ),
+)
+_CODING_CORE_PROMPT_IDS = tuple(
+    contract.id for contract in _CODING_CORE_PROMPT_CONTRACTS
+)
+_CODING_CORE_SMOKE_IDS = (
+    "debug/state-transition-defect",
+    "patch/bounded-cross-file-change",
+    "shell/safe-repository-maintenance",
+    "structured/closed-json-change-record",
+)
+
+
+def _matches_coding_reference(
+    reference: _LogicalReference | None, expected_id: str
+) -> bool:
+    return (
+        reference is not None
+        and reference.id == expected_id
+        and reference.version == _CODING_CORE_VERSION
+    )
+
+
+def _validate_coding_core_contract(
+    manifest: SuiteManifest,
+    canonical_prompt_ids: tuple[str, ...],
+    profiles: Mapping[str, tuple[str, ...]],
+) -> None:
+    if (
+        manifest.suite_id != "coding-core-v1"
+        or manifest.suite_version != _CODING_CORE_VERSION
+    ):
+        return
+
+    diagnostics: list[str] = []
+    if canonical_prompt_ids != _CODING_CORE_PROMPT_IDS:
+        diagnostics.append(
+            "coding-core-inventory: prompts must match the canonical eight-role order"
+        )
+    if _CODING_CORE_REPAIR_ROLE in canonical_prompt_ids or any(
+        _CODING_CORE_REPAIR_ROLE in members for members in profiles.values()
+    ):
+        diagnostics.append(
+            "coding-core-repair-role: the multi-turn repair role is not a static member"
+        )
+    if set(profiles) != {"smoke", "core"}:
+        diagnostics.append(
+            "coding-core-profiles: profiles must be exactly 'smoke' and 'core'"
+        )
+    if manifest.default_profile != "core":
+        diagnostics.append(
+            "coding-core-default-profile: default_profile must be 'core'"
+        )
+    if profiles.get("smoke") != _CODING_CORE_SMOKE_IDS:
+        diagnostics.append(
+            "coding-core-smoke-membership: smoke members or order are invalid"
+        )
+    if profiles.get("core") != _CODING_CORE_PROMPT_IDS:
+        diagnostics.append(
+            "coding-core-core-membership: core must equal the canonical inventory"
+        )
+
+    contracts_by_id = {
+        contract.id: contract for contract in _CODING_CORE_PROMPT_CONTRACTS
+    }
+    for index, prompt in enumerate(manifest.prompts):
+        contract = contracts_by_id.get(prompt.id)
+        if contract is None:
+            continue
+        location = f"coding-core-prompt-{index + 1}"
+        if (
+            prompt.task_family is not contract.task_family
+            or prompt.primary_capability is not contract.primary_capability
+            or tuple(prompt.secondary_stressors or ()) != contract.secondary_stressors
+        ):
+            diagnostics.append(
+                f"{location}-metadata: task family, capability, or stressors are invalid"
+            )
+        if prompt.interaction_mode is not InteractionMode.STATIC_SINGLE_TURN:
+            diagnostics.append(
+                f"{location}-interaction: interaction_mode must be 'static-single-turn'"
+            )
+        if prompt.execution_mode is not ExecutionMode.NONE:
+            diagnostics.append(f"{location}-execution: execution_mode must be 'none'")
+        response_form = prompt.response_form
+        if (
+            response_form is None
+            or response_form.category is not contract.response_category
+            or not _matches_coding_reference(
+                response_form.definition, contract.response_definition_id
+            )
+        ):
+            diagnostics.append(
+                f"{location}-response-form: category or definition reference is invalid"
+            )
+
+        scoring = prompt.scoring
+        if scoring is None:
+            diagnostics.append(f"{location}-scoring: scoring declaration is required")
+            continue
+        if scoring.role is not contract.scoring_role:
+            diagnostics.append(f"{location}-scoring-role: scoring role is invalid")
+        if not _matches_coding_reference(
+            scoring.manual_rubric, _CODING_CORE_MANUAL_RUBRIC_ID
+        ):
+            diagnostics.append(
+                f"{location}-manual-rubric: manual rubric reference is invalid"
+            )
+        if contract.deterministic_check_id is None:
+            if (
+                scoring.deterministic_check is not None
+                or scoring.hybrid_rule is not None
+                or scoring.hybrid_composition is not None
+            ):
+                diagnostics.append(
+                    f"{location}-manual-scoring: hybrid fields are forbidden"
+                )
+        else:
+            if not _matches_coding_reference(
+                scoring.deterministic_check, contract.deterministic_check_id
+            ):
+                diagnostics.append(
+                    f"{location}-deterministic-check: check reference is invalid"
+                )
+            if scoring.hybrid_rule != "side-by-side":
+                diagnostics.append(
+                    f"{location}-hybrid-rule: hybrid_rule must be 'side-by-side'"
+                )
+            if not _matches_coding_reference(
+                scoring.hybrid_composition, _CODING_CORE_COMPOSITION_ID
+            ):
+                diagnostics.append(
+                    f"{location}-hybrid-composition: composition reference is invalid"
+                )
+
+    if diagnostics:
+        raise SuiteDefinitionError(diagnostics)
 
 
 def _validate_generic_core_profiles(
@@ -597,6 +942,7 @@ def load_normalized_suite(
         }
     )
     _validate_generic_core_profiles(manifest, canonical_prompt_ids, profiles)
+    _validate_coding_core_contract(manifest, canonical_prompt_ids, profiles)
 
     normalized_prompts: list[NormalizedPrompt] = []
     raw_prompts = data["prompts"]
@@ -629,6 +975,9 @@ def load_normalized_suite(
                     prompt.scoring.manual_rubric
                 ),
                 hybrid_rule=prompt.scoring.hybrid_rule,
+                hybrid_composition=_normalize_logical_reference(
+                    prompt.scoring.hybrid_composition
+                ),
             )
             if prompt.scoring is not None
             else None
@@ -640,6 +989,20 @@ def load_normalized_suite(
                 resolved_file=resolved_file,
                 primary_capability=prompt.primary_capability,
                 secondary_stressors=tuple(prompt.secondary_stressors or ()),
+                task_family=prompt.task_family,
+                interaction_mode=prompt.interaction_mode,
+                execution_mode=prompt.execution_mode,
+                response_form=(
+                    NormalizedResponseFormDefinition(
+                        category=prompt.response_form.category,
+                        definition=NormalizedLogicalReference(
+                            id=prompt.response_form.definition.id,
+                            version=prompt.response_form.definition.version,
+                        ),
+                    )
+                    if prompt.response_form is not None
+                    else None
+                ),
                 scoring=scoring,
                 fixtures=normalized_fixtures,
                 metadata=_opaque_metadata(
@@ -651,6 +1014,10 @@ def load_normalized_suite(
                         "secondary_stressors",
                         "scoring",
                         "fixtures",
+                        "task_family",
+                        "interaction_mode",
+                        "execution_mode",
+                        "response_form",
                     },
                 ),
             )
