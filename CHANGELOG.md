@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Documentation
+
+- Accepted the Full Model Testing capability architecture and roadmap fast
+  tracks for its eight-step capability program and the separate LocalMaxxing
+  performance-benchmark architecture/offline-export lane, without adding
+  benchmark, export, submission, leaderboard, or other implementation behavior.
+
 ## v0.72.0 - 2026-07-28
 
 ### Added
