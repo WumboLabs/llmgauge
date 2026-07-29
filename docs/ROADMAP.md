@@ -492,23 +492,36 @@ answer-quality evidence exists. No Coding Core-specific loader, registry,
 runner, or CLI path was added, and no generated response content is applied,
 imported, or executed.
 
+## Coding-suite static deterministic-check and scoring integration
+
+**Completed:** `coding-core-v1` `0.1.0` now registers the accepted manual
+rubric, three non-executing structural checks, and side-by-side hybrid
+composition through the existing scoring interfaces. Manual templates expose
+only each prompt's applicable dimensions, reviewed values retain rationale and
+provenance, and Coding Core profile summaries do not aggregate a numeric score.
+Deterministic methods consume only preserved raw response text and selected-root
+versioned response forms; they preserve `pass`, `fail`, `error`, and `not_run`
+without applying or executing generated content. Native run, result, and report
+integration remains separate.
+
 ## Selected next bounded project milestone
 
-**Coding-suite static deterministic-check and scoring integration.**
+**Coding-suite native run/result/report integration.**
 
-This is the only selected next milestone. It is limited to the accepted three
-non-executing structural checks, the versioned manual rubric definition and
-current manual-score workflow, side-by-side hybrid composition,
-scoring-method registration and provenance required by the existing scoring
-interfaces, and focused validation of those behaviors.
+This is the only selected next milestone. It is the bounded end-to-end
+integration required to preserve exact selected Coding Core membership,
+suite-owned response-form identities, independent deterministic and manual
+scoring states, generation and scoring failures, and bounded claims through
+native run, result, and report artifacts.
 
-It explicitly excludes native run/result/report integration beyond the existing
-generic scoring interfaces, new result or export schemas, generated-content
-execution, multi-turn evaluation, Agent Harness import, LocalMaxxing or Generic
-Core implementation, and release/version changes.
+It must reuse the accepted static methods and existing generic interfaces,
+preserve legacy artifacts and current export behavior, and keep structural
+conformance separate from semantic correctness. It excludes generated-content
+execution, new export behavior, multi-turn repair, Agent Harness import,
+LocalMaxxing or Generic Core implementation, and release/version changes.
 
-**Coding-suite native run/result/report integration** remains the separate
-following gate after static scoring integration.
+The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
+Core work, and `v0.73` gate remain unchanged.
 
 ## Full-model-testing fast-track programs
 
