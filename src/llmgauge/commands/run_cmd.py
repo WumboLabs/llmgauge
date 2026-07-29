@@ -59,6 +59,11 @@ def contextgen(
 
 def run(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Named suite profile to run",
+    ),
     only: str | None = typer.Option(
         None,
         "--only",
@@ -191,6 +196,7 @@ def run(
         run_helpers.print_run_preflight(
             suite=suite,
             only=only,
+            profile=profile,
             include=include,
             resolved=resolved,
             out=out,
@@ -211,6 +217,7 @@ def run(
     run_helpers.execute_run(
         suite=suite,
         only=only,
+        profile=profile,
         include=include,
         resolved=resolved,
         out=resolved_out,

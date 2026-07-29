@@ -47,7 +47,12 @@ from llmgauge.core.runtime_command import (
     resolve_model_source,
     resolve_reasoning_mode,
 )
-from llmgauge.core.suite import NormalizedSuite, load_normalized_suite, load_suite
+from llmgauge.core.suite import (
+    NormalizedSuite,
+    SuiteDefinitionError,
+    load_normalized_suite,
+    load_suite,
+)
 from llmgauge.core.suite_paths import resolve_suite_path
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, run_llama_cpp
 from llmgauge.runners.vllm_external import (
@@ -94,17 +99,29 @@ def load_run_suite(
     *,
     only: str | None,
     include: str,
+    profile: str | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], NormalizedSuite]:
-    loaded_suite = load_suite(suite)
-    selected_prompts = select_prompts(loaded_suite, only, include)
-    selected_ids = tuple(prompt["id"] for prompt in selected_prompts)
+    if profile is not None and (only is not None or include != "all"):
+        raise typer.BadParameter(
+            "--profile is mutually exclusive with --only and category-based --include"
+        )
 
-    if only is None and include == "all":
-        normalized = load_normalized_suite(suite)
-        if normalized.selected_prompt_ids != selected_ids:
+    loaded_suite = load_suite(suite)
+    try:
+        if only is None and include == "all":
+            normalized = load_normalized_suite(suite, profile=profile)
+            prompts_by_id = {
+                prompt["id"]: prompt for prompt in loaded_suite.get("prompts", [])
+            }
+            selected_prompts = [
+                prompts_by_id[prompt_id] for prompt_id in normalized.selected_prompt_ids
+            ]
+        else:
+            selected_prompts = select_prompts(loaded_suite, only, include)
+            selected_ids = tuple(prompt["id"] for prompt in selected_prompts)
             normalized = load_normalized_suite(suite, prompt_ids=selected_ids)
-    else:
-        normalized = load_normalized_suite(suite, prompt_ids=selected_ids)
+    except SuiteDefinitionError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     return loaded_suite, selected_prompts, normalized
 
@@ -610,6 +627,7 @@ def print_run_preflight(
     suite: Path,
     only: str | None,
     include: str,
+    profile: str | None = None,
     resolved: dict[str, Any],
     out: Path | None,
     auto_name: bool,
@@ -617,8 +635,12 @@ def print_run_preflight(
     run_name: str | None,
 ) -> None:
     resolved_suite = resolve_suite_path(suite)
-    loaded_suite = load_suite(resolved_suite)
-    selected_prompts = select_prompts(loaded_suite, only, include)
+    loaded_suite, selected_prompts, normalized_suite = load_run_suite(
+        resolved_suite,
+        only=only,
+        include=include,
+        profile=profile,
+    )
 
     if out is not None:
         output_plan = str(out)
@@ -633,7 +655,11 @@ def print_run_preflight(
             "not required for --dry-run; real runs require --out or --auto-name"
         )
 
-    selection = f"only={only}" if only else f"include={include}"
+    selection = (
+        f"profile={normalized_suite.selected_profile}"
+        if profile is not None
+        else (f"only={only}" if only else f"include={include}")
+    )
 
     table = Table(title="LLMGauge Run Dry Run")
     table.add_column("Field", no_wrap=True)
@@ -799,6 +825,7 @@ def execute_run(
     suite: Path,
     only: str | None,
     include: str,
+    profile: str | None = None,
     resolved: dict[str, Any],
     out: Path,
     fail_on_failed_prompts: bool,
@@ -808,6 +835,7 @@ def execute_run(
             suite=suite,
             only=only,
             include=include,
+            profile=profile,
             resolved=resolved,
             out=out,
             fail_on_failed_prompts=fail_on_failed_prompts,
@@ -816,7 +844,10 @@ def execute_run(
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
     loaded_suite, selected_prompts, normalized_suite = load_run_suite(
-        suite, only=only, include=include
+        suite,
+        only=only,
+        include=include,
+        profile=profile,
     )
     normalized_prompts = {
         prompt.id: prompt for prompt in normalized_suite.selected_prompts
@@ -1040,6 +1071,7 @@ def execute_vllm_run(
     suite: Path,
     only: str | None,
     include: str,
+    profile: str | None = None,
     resolved: dict[str, Any],
     out: Path,
     fail_on_failed_prompts: bool,
@@ -1048,7 +1080,10 @@ def execute_vllm_run(
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
     loaded_suite, selected_prompts, normalized_suite = load_run_suite(
-        suite, only=only, include=include
+        suite,
+        only=only,
+        include=include,
+        profile=profile,
     )
     normalized_prompts = {
         prompt.id: prompt for prompt in normalized_suite.selected_prompts

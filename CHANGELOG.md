@@ -17,6 +17,9 @@
 - Added bounded native Coding Core run/result/report integration with portable
   selection and method provenance, raw-response static outcomes, manual/hybrid
   review state, additive validation, and explicit non-execution claim limits.
+- Exposed named suite-profile selection through `llmgauge run --profile`,
+  including manifest-default preservation, dry-run planning, portable selection
+  metadata, and explicit rejection of ambiguous prompt selectors.
 
 ### Documentation
 
