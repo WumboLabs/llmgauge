@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added focused Generic Core compatibility and security regression coverage for
+  profile selection, contained resources, package failure, portable identity,
+  bounded diagnostics, and unchanged legacy-suite behavior.
+
 - Added versioned Generic Core deterministic, D5 coding, and bounded-context
   fixture resources with exact source/package mirrors and verified wheel, source
   distribution, and isolated-install package-data access.
