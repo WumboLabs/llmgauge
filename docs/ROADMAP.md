@@ -535,21 +535,31 @@ executed or applied. This private bounded evidence does not establish
 publication readiness, universal model quality or safety, model ranking,
 effective full GPU offload, or effective flash-attention behavior.
 
+## Multi-turn transcript architecture
+
+**Completed:** the accepted
+[Multi-turn Transcript Architecture](MULTI_TURN_TRANSCRIPT_ARCHITECTURE.md)
+defines the versioned native conversation identity, ordered turn and observable
+state model, feedback provenance and exact consuming-turn association,
+completion/retry/recovery semantics, scoring authority, source/derivative,
+privacy, compatibility, comparison, validation, and Agent Harness boundaries.
+It adds no schema or executable behavior, and existing single-turn results
+remain valid without reinterpretation or migration.
+
 ## Selected next bounded project milestone
 
-**Multi-turn transcript architecture.**
+**Multi-turn schema and native evaluation behavior.**
 
-This is the only selected next milestone. It is contract-only and defines the
-state, turn, feedback, completion, scoring, privacy, and compatibility
-boundaries required by order 2a of the accepted architecture. It adds no schema,
-runtime behavior, transcript capture, scoring implementation, agent loop, or
-release behavior, and it does not authorize the later separate Multi-turn
-schema and native evaluation behavior milestone.
+This is the only selected next milestone. It is order 2b of the accepted
+architecture, remains separately bounded, and must preserve the transcript
+identity, evidence, compatibility, and milestone gates fixed by the completed
+2a contract. It adds no Agent Harness importer and does not authorize combining
+transcript schema, runner, feedback generation, scoring, validation, reporting,
+bounded live-evidence, publication, or release work into one milestone.
 
-Agent Harness import remains after acceptance of the Multi-turn transcript
-architecture. The eight-step Full Model Testing order, parallel unselected
-LocalMaxxing lane and its later explicit human selection gate, downstream
-Generic Core work, and existing `v0.73` gate remain unchanged.
+The eight-step Full Model Testing order, parallel unselected LocalMaxxing lane
+and its later explicit human selection gate, downstream Generic Core work, and
+existing `v0.73` gate remain unchanged. No release-version decision is made.
 
 ## Full-model-testing fast-track programs
 

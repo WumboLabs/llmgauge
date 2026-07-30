@@ -39,6 +39,12 @@ Current non-goals / deliberate project boundaries:
   capability sequence, the parallel LocalMaxxing performance-benchmark lane,
   and release gates without merging their evaluation classes.
 
+- [Multi-turn Transcript Architecture](MULTI_TURN_TRANSCRIPT_ARCHITECTURE.md)
+  — accepted native multi-turn conversation identity, ordered-turn, observable
+  state, feedback provenance, completion/recovery, scoring, source authority,
+  privacy, compatibility, Agent Harness, comparison, validation, and milestone
+  boundaries before schema or implementation.
+
 - [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
   — accepted `coding-core-v1` native single-turn identity, capability and
   task-family boundaries, evidence/scoring authority, comparison eligibility,
