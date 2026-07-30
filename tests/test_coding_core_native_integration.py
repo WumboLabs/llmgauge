@@ -16,8 +16,14 @@ import llmgauge.core.result_validation as result_validation_module
 from llmgauge.commands import run_helpers
 from llmgauge.core.coding_core_evidence import build_manual_review
 from llmgauge.core.reports import build_markdown_report
-from llmgauge.core.result_validation import validate_result_data
-from llmgauge.core.scoring import apply_scores, build_score_template, validate_scores
+from llmgauge.core.result_validation import validate_result_data, validate_result_dir
+from llmgauge.core.scoring import (
+    apply_scores,
+    build_score_template,
+    load_result,
+    validate_scores,
+    write_result,
+)
 from llmgauge.core.static_scoring import (
     CODING_CORE_APPLICABILITY,
     STATIC_RESPONSE_MAX_CHARS,
@@ -509,6 +515,46 @@ def test_score_application_updates_manual_and_hybrid_without_rerunning_check(
     assert updated["summary"]["manual_score_max"] is None
     assert updated["summary"]["manual_score_average"] is None
     assert validate_result_data(result_dir, updated) == []
+
+    write_result(result_dir, updated)
+    reloaded = load_result(result_dir)
+    serialized_dimensions = tuple(reloaded["results"][0]["score"]["dimensions"])
+    applicable = CODING_CORE_APPLICABILITY[prompt_id]
+    assert serialized_dimensions == tuple(sorted(applicable))
+    assert serialized_dimensions != applicable
+    assert validate_result_dir(result_dir) == []
+
+
+@pytest.mark.parametrize("mutation", ["missing", "inapplicable", "unknown"])
+def test_result_validation_rejects_inexact_coding_dimension_membership(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+) -> None:
+    prompt_id = "patch/bounded-cross-file-change"
+    result, result_dir = _run_coding(
+        tmp_path,
+        monkeypatch,
+        {prompt_id: (PATCH_PASS, 0)},
+        only=prompt_id,
+    )
+    scores = build_score_template(result)
+    scores["scores"][prompt_id] = _fully_reviewed_entry(prompt_id)
+    updated = apply_scores(result, scores)
+    dimensions = updated["results"][0]["score"]["dimensions"]
+
+    if mutation == "missing":
+        dimensions.pop(CODING_CORE_APPLICABILITY[prompt_id][0])
+    elif mutation == "inapplicable":
+        dimensions["diagnosis_accuracy"] = 4
+    else:
+        dimensions["unknown_dimension"] = 4
+
+    errors = validate_result_data(result_dir, _validation_copy(updated))
+    assert any(
+        "score dimensions must contain only applicable Coding Core dimensions" in error
+        for error in errors
+    )
 
 
 def test_manual_review_persistence_covers_all_accepted_states() -> None:
