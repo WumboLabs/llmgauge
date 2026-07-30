@@ -517,24 +517,39 @@ legacy compatibility. Native reports expose prompt-level evidence and explicit
 non-execution, structural, semantic-authority, incompleteness, and scoring claim
 boundaries. Public export and export-index behavior are unchanged.
 
+## Coding-suite bounded live evidence
+
+**Completed:** one human-controlled, bounded `coding-core-v1` `0.1.0` `smoke`
+run with `gemma4_12b_qat_q4` (Gemma 4 12B IT QAT UD-Q4_K_XL) completed all
+four selected prompts. Manual semantic verdicts were `pass` for
+`debug/state-transition-defect`, `patch/bounded-cross-file-change`, and
+`structured/closed-json-change-record`, and `fail` for
+`shell/safe-repository-maintenance`. The independent deterministic structural
+outcomes were `fail` for `patch/bounded-cross-file-change` and
+`structured/closed-json-change-record`; both hybrid records are complete, and
+no Coding Core profile-level numeric score exists.
+
+The preserved scored result passes repository validation on merged `main` at
+`f80860f`. No generated code, patch, test, JSON action, or shell command was
+executed or applied. This private bounded evidence does not establish
+publication readiness, universal model quality or safety, model ranking,
+effective full GPU offload, or effective flash-attention behavior.
+
 ## Selected next bounded project milestone
 
-**Coding-suite bounded live evidence.**
+**Multi-turn transcript architecture.**
 
-This is the only selected next milestone. It is human-controlled, bounded
-execution of an explicitly authorized local model against selected Coding Core
-prompts, followed by native artifact inspection and manual semantic review.
-Resolved runtime, model, selection, generation settings, and output directory
-must be inspected before launch; raw evidence, deterministic outcomes, manual
-review state, and hybrid completeness must be inspected afterward.
+This is the only selected next milestone. It is contract-only and defines the
+state, turn, feedback, completion, scoring, privacy, and compatibility
+boundaries required by order 2a of the accepted architecture. It adds no schema,
+runtime behavior, transcript capture, scoring implementation, agent loop, or
+release behavior, and it does not authorize the later separate Multi-turn
+schema and native evaluation behavior milestone.
 
-The live-evidence milestone is not performed here. It does not authorize
-generated-content execution, new export behavior, multi-turn repair, Agent
-Harness import, LocalMaxxing or Generic Core implementation, or release/version
-changes.
-
-The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
-Core work, and `v0.73` gate remain unchanged.
+Agent Harness import remains after acceptance of the Multi-turn transcript
+architecture. The eight-step Full Model Testing order, parallel unselected
+LocalMaxxing lane and its later explicit human selection gate, downstream
+Generic Core work, and existing `v0.73` gate remain unchanged.
 
 ## Full-model-testing fast-track programs
 
