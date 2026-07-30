@@ -303,7 +303,11 @@ def _validate_coding_score_provenance(
 
     dimensions = score.get("dimensions")
     applicable = list(build_manual_review(prompt, None)["applicable_dimensions"])
-    if not isinstance(dimensions, dict) or list(dimensions) != applicable:
+    if (
+        not isinstance(dimensions, dict)
+        or len(dimensions) != len(applicable)
+        or any(dimension not in dimensions for dimension in applicable)
+    ):
         errors.append(
             f"{prompt_id}.score dimensions must contain only applicable Coding Core dimensions"
         )
