@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.multi_turn import validate_result_transcript
 from llmgauge.core.coding_core_evidence import (
     build_manual_review,
     build_method_provenance,
@@ -236,7 +237,9 @@ def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
 
     for list_field in ["evidence", "warnings"]:
         value = score.get(list_field, [])
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in value
+        ):
             errors.append(f"{prompt_id}.score.{list_field} must be a list of strings")
 
     reviewed = score.get("reviewed")
@@ -674,7 +677,9 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     if isinstance(runtime, dict) and runtime.get("runtime_command_captured"):
         command_path_value = runtime.get("runtime_command_path")
         if not isinstance(command_path_value, str) or not command_path_value:
-            errors.append("runtime.runtime_command_path must be set when command metadata is captured")
+            errors.append(
+                "runtime.runtime_command_path must be set when command metadata is captured"
+            )
         else:
             try:
                 command_path = resolve_contained_result_artifact(
@@ -693,7 +698,10 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                         f"runtime command artifact is not valid JSON: {command_path_value}"
                     )
                 else:
-                    if command_data.get("schema_version") != "llmgauge.runtime_command.v0":
+                    if (
+                        command_data.get("schema_version")
+                        != "llmgauge.runtime_command.v0"
+                    ):
                         errors.append(
                             "runtime command artifact schema_version must be "
                             "llmgauge.runtime_command.v0"
@@ -718,7 +726,9 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 errors.append(str(exc))
             else:
                 try:
-                    evidence_data = json.loads(evidence_path.read_text(encoding="utf-8"))
+                    evidence_data = json.loads(
+                        evidence_path.read_text(encoding="utf-8")
+                    )
                 except json.JSONDecodeError:
                     errors.append(
                         "vLLM runtime evidence artifact is not valid JSON: "
@@ -854,7 +864,9 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
 
             failure_class = prompt_result.get("failure_class")
             if failure_class is not None and not isinstance(failure_class, str):
-                errors.append(f"{prompt_id}.failure_class must be a string when present")
+                errors.append(
+                    f"{prompt_id}.failure_class must be a string when present"
+                )
 
             finish_reason = prompt_result.get("finish_reason")
             if finish_reason is not None and not isinstance(finish_reason, str):
@@ -863,6 +875,8 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 )
 
     errors.extend(_validate_optional_coding_core(result_dir, data))
+
+    errors.extend(validate_result_transcript(result_dir, data))
 
     errors.extend(verify_run_fingerprint(result_dir, data))
 

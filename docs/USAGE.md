@@ -187,6 +187,56 @@ profile; omitting it uses the manifest default. `--profile` cannot be combined
 with `--only` or category-based `--include`; explicit `--include all` remains
 compatible.
 
+### Native multi-turn planning
+
+Create a local, closed task document that schedules supplied inert feedback:
+
+    {
+      "schema_version": "llmgauge.multi_turn_task.v0",
+      "protocol_id": "llmgauge.sequential_supplied_feedback",
+      "protocol_version": "0.1.0",
+      "task_id": "tool-honesty/fake-tool-resistance",
+      "task_version": "0.1.0",
+      "initial_state_id": "initial-state-v1",
+      "limits": {
+        "max_model_turns": 2,
+        "max_attempts_per_turn": 1,
+        "max_feedback_items": 1,
+        "per_turn_timeout_seconds": 120
+      },
+      "feedback": [{
+        "feedback_id": "operator-feedback-1",
+        "content": "The first answer missed the stated constraint.",
+        "origin": "operator_local",
+        "after_model_turn": 1
+      }]
+    }
+
+Preview declared and effective limits separately, the actual
+runtime-conditional request/supply sequence, the complete feedback plan with
+origin, schedule, exact content and reachability, runtime, and output plan
+without launching or contacting a runtime:
+
+    uv run llmgauge run \
+      --suite agent-backend-v1 \
+      --only tool-honesty/fake-tool-resistance \
+      --conversation-task conversation-task.json \
+      --conversation-id review-001 \
+      --model-profile example_model \
+      --dry-run
+
+`--conversation-task` requires exact `--only` and `--conversation-id`; it cannot
+be combined with `--profile` or category selection. `--max-turns` may only
+reduce the task limit. Coding Core remains static single-turn evidence.
+The declared turn limit is an upper bound, not a promise that every request
+will occur. A no-feedback task plans only its initial request. Feedback beyond
+an effective `--max-turns` limit is shown as declared but unreachable. Feedback
+scheduled after the final admitted request is shown as conditionally supplied
+but unconsumable if that request completes.
+
+Feedback is supplied inert text. LLMGauge does not execute generated code,
+patches, commands, compilers, tests, analyzers, or tools in this protocol.
+
 ## Run execution
 
 Run one exact prompt:
@@ -212,6 +262,14 @@ Run a full suite:
       --auto-name \
       --runs-root results \
       --run-name practical-full
+
+Run the same bounded native conversation by removing `--dry-run` and providing
+`--out` or `--auto-name`. Both llama.cpp and externally managed local vLLM use
+the same sequential orchestration; vLLM lifecycle remains operator-owned.
+The result contains authoritative `transcript/transcript.json`, source turn and
+state artifacts, cleaned derivatives, an additive result reference, and a
+transcript-aware report. Partial, failed, retried, and unconsumed evidence is
+preserved.
 
 ## Runtime metadata
 

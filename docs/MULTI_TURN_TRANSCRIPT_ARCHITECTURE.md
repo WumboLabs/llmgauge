@@ -95,26 +95,36 @@ A transcript is an append-only ordered evidence sequence. At minimum it
 represents:
 
 1. the initial task or user turn and its visible initial state;
-2. every model response attempt, including failed or malformed attempts;
-3. each feedback item or observation admitted between responses;
-4. the exact later model turn that consumed each feedback item;
-5. every observable protocol-state transition;
-6. the response selected as the final response, if one exists; and
-7. the terminal event and reason.
+2. every declared feedback item's exact content, origin, schedule, declaration
+   order, and terminal lifecycle disposition;
+3. every model response attempt, including failed or malformed attempts;
+4. each feedback item actually supplied between responses;
+5. the exact later model turn that consumed each supplied feedback item;
+6. every observable protocol-state transition;
+7. the response selected as the final response, if one exists; and
+8. the terminal event and reason.
 
-Each turn has a stable identity that is unique within the conversation and is
-not derived solely from its current list position. The transcript also preserves
-a canonical total order. Identities are immutable: correction, retry, recovery,
-or import may append a linked record but may not reuse an identity or overwrite
-an earlier turn. The protocol must reject duplicate identities, gaps where a
-required item is absent, order conflicts, forward references that violate the
-protocol, and references to unknown turns or feedback.
+Each logical model turn has a stable identity that is unique within the
+conversation and is not derived solely from its current list position. Every
+attempt within that turn has its own stable attempt and event identities. The
+transcript also preserves a canonical total order. Identities are immutable:
+retry may append a uniquely identified attempt under the same logical turn;
+correction, recovery, or import may append a linked record but may not reuse its
+record identity or overwrite earlier evidence. The protocol must reject
+duplicate record identities, unrelated reuse of a logical-turn identity, gaps
+where a required item is absent, order conflicts, forward references that
+violate the protocol, and references to unknown turns or feedback.
 
 A model turn must identify the observable message/state input it consumed.
-Feedback must identify its creation or observation position and its exact
-consuming model turn. Merely placing feedback somewhere before a response is
-not sufficient association. Unconsumed feedback remains explicit and cannot be
-silently attributed to the final response.
+Feedback declaration, actual supply, and logical-turn consumption are distinct
+facts. One authority must preserve every declared item's exact content, origin,
+schedule, declaration order, whether its scheduling point was reached, whether
+it was supplied, and the exact consuming logical turn when consumed. A future
+declaration cannot disappear when execution stops early, and unreachable
+feedback cannot be described as supplied. Merely placing feedback somewhere
+before a response is not sufficient association. Supplied but unconsumed
+feedback remains distinct from unreached feedback and cannot be silently
+attributed to the final response.
 
 The final response is an explicitly designated preserved model response, not a
 cleaned rendering or reconstructed concatenation. A transcript assembled from

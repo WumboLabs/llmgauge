@@ -71,6 +71,40 @@ validation; it is not ignored or repaired.
 Genuine legacy results that contain neither `suite.selection` nor per-prompt
 `coding_core` evidence remain valid.
 
+When the optional top-level native `transcript` reference is present,
+validation additionally checks:
+
+- the exact closed result reference and contained
+  `llmgauge.transcript.v0`/`llmgauge.sequential_supplied_feedback` `0.1.0`
+  identities;
+- transcript artifact hash, bounded JSON load, strict result containment, and
+  required source artifact existence/hash;
+- unique event, attempt, declared-feedback, state, and branch IDs; unique
+  logical-turn IDs except across retries; exact integer per-attempt exit status
+  independent of closed attempt state; contiguous canonical event order;
+  required first task and final terminal events; and closed event/role/status
+  vocabularies;
+- backward parent, retry, recovery, state, branch, and source relationships,
+  including branch/retry acyclicity and unchanged retry logical-turn identity,
+  parent, branch, input state, rendered input, and consumed feedback;
+- complete ordered feedback-plan identity, origin, schedule, exact content,
+  lifecycle and disposition; actual supply-event consistency; scheduling order;
+  unreached and supplied-unconsumed non-consumption; and exact reciprocal
+  consuming-turn association on every attempt;
+- completion state, actor, reason, selected branch, and final response
+  consistency;
+- source/derivative, availability, capture, truncation, redaction, and
+  duplicate-authority consistency;
+- declared turn, attempt, and feedback limits;
+- null existing prompt score, closed non-numeric review hooks, exact suite/task
+  relationship, and prompt compatibility link; and
+- the transcript-aware immutable run fingerprint when present.
+
+These checks establish represented structure only. They do not establish
+semantic correctness, execution of supplied feedback or generated content,
+safety, model quality, human approval, publication readiness, or Agent Harness
+success.
+
 
 ## Compatibility expectations
 

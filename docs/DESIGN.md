@@ -45,6 +45,11 @@ Current non-goals / deliberate project boundaries:
   privacy, compatibility, Agent Harness, comparison, validation, and milestone
   boundaries before schema or implementation.
 
+- [Multi-turn Transcript Schema and Native Evaluation Contract](MULTI_TURN_TRANSCRIPT_SCHEMA_CONTRACT.md)
+  — accepted single-authority contained transcript representation, closed event
+  model, bounded supplied-feedback protocol, validation, additive result and
+  fingerprint integration, reporting, and compatibility boundary.
+
 - [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
   — accepted `coding-core-v1` native single-turn identity, capability and
   task-family boundaries, evidence/scoring authority, comparison eligibility,

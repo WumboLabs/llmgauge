@@ -52,9 +52,7 @@ def metadata_only_score_prompt_count(scores_data: dict[str, Any]) -> int:
 
 def print_score_init_next_steps(result_dir: Path, scores_path: Path) -> None:
     console.print("Edit scores manually, then validate before applying:")
-    console.print(
-        f"  llmgauge score {result_dir} --scores {scores_path} --check"
-    )
+    console.print(f"  llmgauge score {result_dir} --scores {scores_path} --check")
 
 
 def print_score_check_next_steps(result_dir: Path, scores_path: Path) -> None:
@@ -83,7 +81,6 @@ def print_metadata_only_score_warning(count: int) -> None:
         "values. The result will report review_metadata_only until numeric "
         "dimensions are filled."
     )
-
 
 
 def score(
@@ -138,6 +135,11 @@ def score(
         raise typer.BadParameter(mismatch)
 
     result = load_result(result_dir)
+    if result.get("transcript") is not None:
+        raise typer.BadParameter(
+            "Native multi-turn scoring is not implemented; transcript review "
+            "hooks remain unreviewed or unscoreable"
+        )
 
     if auto_draft:
         if isinstance(result.get("run"), dict):
@@ -149,14 +151,13 @@ def score(
             fail_cli_validation(str(exc))
 
         action = "Overwrote" if force else "Created"
-        console.print(f"[bold green]{action} auto score draft[/bold green]: {scores_path}")
-        console.print("Draft scores are review-required before applying.")
         console.print(
-            "Do not publish auto-draft scores as final human judgment."
+            f"[bold green]{action} auto score draft[/bold green]: {scores_path}"
         )
+        console.print("Draft scores are review-required before applying.")
+        console.print("Do not publish auto-draft scores as final human judgment.")
         console.print(
-            "Validate next: "
-            f"llmgauge score {result_dir} --scores {scores_path} --check"
+            f"Validate next: llmgauge score {result_dir} --scores {scores_path} --check"
         )
         return
 
@@ -197,7 +198,6 @@ def score(
     print_score_apply_next_steps(result_dir)
 
 
-
 def export_index_command(
     artifact_paths: list[Path] = typer.Argument(
         ...,
@@ -226,13 +226,10 @@ def export_index_command(
     console.print(
         "Per-run report.md files are authoritative for single-run review; comparison reports summarize multiple runs."
     )
-    console.print(
-        "Read source report.md Publish Readiness Notes before publication."
-    )
+    console.print("Read source report.md Publish Readiness Notes before publication.")
     console.print(
         "Regenerate export index after scoring, validation, or report changes."
     )
-
 
 
 def baseline_check_command(
@@ -292,7 +289,6 @@ def baseline_check_command(
 
     if any(check.get("status") in failing_statuses for check in report["checks"]):
         raise typer.Exit(code=1)
-
 
 
 def compare(

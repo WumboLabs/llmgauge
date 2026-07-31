@@ -68,8 +68,7 @@ def resolve_contained_result_artifact(
             cursor = cursor / part
             if cursor.is_symlink():
                 raise FingerprintUnavailable(
-                    f"{label} artifact path escapes result directory: "
-                    f"{relative_path}"
+                    f"{label} artifact path escapes result directory: {relative_path}"
                 )
         if require_file:
             if not cursor.is_file():
@@ -87,8 +86,7 @@ def resolve_contained_result_artifact(
             resolved.relative_to(boundary)
         except ValueError:
             raise FingerprintUnavailable(
-                f"{label} artifact path escapes result directory: "
-                f"{relative_path}"
+                f"{label} artifact path escapes result directory: {relative_path}"
             ) from None
         return cursor
     except FingerprintUnavailable:
@@ -210,7 +208,11 @@ def _prompt_evidence(
     index: int,
 ) -> dict[str, Any]:
     prompt_id = prompt_result.get("prompt_id")
-    label = str(prompt_id) if isinstance(prompt_id, str) and prompt_id else f"results[{index}]"
+    label = (
+        str(prompt_id)
+        if isinstance(prompt_id, str) and prompt_id
+        else f"results[{index}]"
+    )
     artifact_hashes = {
         "raw_prompt": _artifact_sha256(
             result_dir,
@@ -274,9 +276,7 @@ def build_run_fingerprint_payload(
     for index, prompt_result in enumerate(results):
         if not isinstance(prompt_result, Mapping):
             raise FingerprintUnavailable(f"results[{index}] metadata is unavailable")
-        prompt_evidence.append(
-            _prompt_evidence(result_dir, prompt_result, index=index)
-        )
+        prompt_evidence.append(_prompt_evidence(result_dir, prompt_result, index=index))
 
     suite_identity = _selected_mapping(
         suite,
@@ -285,7 +285,7 @@ def build_run_fingerprint_payload(
     if "selection" in suite:
         suite_identity["selection"] = suite.get("selection")
 
-    return {
+    payload = {
         "schema_version": RUN_FINGERPRINT_PAYLOAD_VERSION,
         "result_schema_version": result.get("schema_version"),
         "llmgauge_version": result.get("llmgauge_version"),
@@ -303,6 +303,25 @@ def build_run_fingerprint_payload(
             "cleaned_outputs": "excluded",
         },
     }
+    if result.get("transcript") is not None:
+        from llmgauge.core.multi_turn import (
+            TranscriptDefinitionError,
+            immutable_transcript_payload,
+            load_transcript,
+        )
+
+        reference = result.get("transcript")
+        if not isinstance(reference, Mapping):
+            raise FingerprintUnavailable("transcript reference is unavailable")
+        relative_path = reference.get("path")
+        if not isinstance(relative_path, str):
+            raise FingerprintUnavailable("transcript.path is unavailable")
+        try:
+            transcript = load_transcript(result_dir, relative_path)
+        except TranscriptDefinitionError as exc:
+            raise FingerprintUnavailable(f"transcript is unavailable: {exc}") from None
+        payload["transcript"] = immutable_transcript_payload(transcript)
+    return payload
 
 
 def run_fingerprint_value(result_dir: Path, result: Mapping[str, Any]) -> str:
@@ -348,8 +367,7 @@ def verify_run_fingerprint(
     errors: list[str] = []
     if fingerprint.get("schema_version") != RUN_FINGERPRINT_SCHEMA_VERSION:
         errors.append(
-            "run_fingerprint.schema_version must be "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION}"
+            f"run_fingerprint.schema_version must be {RUN_FINGERPRINT_SCHEMA_VERSION}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
