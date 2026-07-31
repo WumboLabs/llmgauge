@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -1393,7 +1394,14 @@ def test_conflicting_or_incomplete_conversation_selectors_fail_closed(
         ],
     )
     assert missing_id.exit_code != 0
-    assert "--conversation-id is required" in missing_id.output
+    missing_id_output = re.sub(
+        r"\x1b\[[0-?]*[ -/]*[@-~]",
+        "",
+        missing_id.output,
+    )
+    missing_id_output = " ".join(missing_id_output.split())
+    assert "--conversation-id is required" in missing_id_output
+    assert "--conversation-task" in missing_id_output
 
     conflicting = runner.invoke(
         cli.app,
