@@ -56,7 +56,9 @@ def _int_or_none(value: Any) -> int | None:
     return value if isinstance(value, int) else None
 
 
-def _run_scoring_metadata(summary: dict[str, Any], results: list[Any]) -> dict[str, Any]:
+def _run_scoring_metadata(
+    summary: dict[str, Any], results: list[Any]
+) -> dict[str, Any]:
     if not isinstance(results, list):
         results = []
 
@@ -202,6 +204,8 @@ def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any
         "has_logs": (path / "logs").exists(),
         **_run_vram_metadata(path, results),
     }
+    if result.get("transcript") is not None:
+        item["transcript"] = result["transcript"]
 
     if validate:
         item["validation"] = _validation_payload(validate_result_dir(path))
@@ -248,7 +252,9 @@ def build_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, 
     return item
 
 
-def build_fit_ladder_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
+def build_fit_ladder_index_item(
+    path: Path, *, validate: bool = False
+) -> dict[str, Any]:
     summary_path = path / FIT_LADDER_SUMMARY_FILENAME
     fit_ladder = _read_json(summary_path)
 

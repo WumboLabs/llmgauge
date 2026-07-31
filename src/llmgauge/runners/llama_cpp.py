@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ class LlamaCppRunResult:
     stdout: str
     stderr: str
     exit_status: int
+    timed_out: bool = False
     vram_samples: list[dict[str, Any]] = field(default_factory=list)
     vram_summary: dict[str, Any] | None = None
 
@@ -109,12 +111,19 @@ def run_llama_cpp(
     *,
     capture_vram: bool = True,
     vram_poll_seconds: float = 0.5,
+    timeout_seconds: float | None = None,
 ) -> LlamaCppRunResult:
     command = build_llama_command(config, prompt)
     vram_samples: list[dict[str, Any]] = []
     vram_errors: list[str] = []
 
     poll_seconds = max(vram_poll_seconds, 0.1)
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    deadline = (
+        time.monotonic() + timeout_seconds if timeout_seconds is not None else None
+    )
+    timed_out = False
 
     if capture_vram:
         _capture_vram_sample(vram_samples, vram_errors)
@@ -127,8 +136,18 @@ def run_llama_cpp(
     )
 
     while True:
+        wait_seconds = poll_seconds
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                stdout, stderr = process.communicate()
+                stderr = f"{stderr}\nllmgauge: per-turn timeout\n"
+                timed_out = True
+                break
+            wait_seconds = min(wait_seconds, remaining)
         try:
-            stdout, stderr = process.communicate(timeout=poll_seconds)
+            stdout, stderr = process.communicate(timeout=wait_seconds)
             break
         except subprocess.TimeoutExpired:
             if capture_vram:
@@ -142,6 +161,7 @@ def run_llama_cpp(
         stdout=stdout,
         stderr=stderr,
         exit_status=process.returncode if process.returncode is not None else 1,
+        timed_out=timed_out,
         vram_samples=vram_samples,
         vram_summary=_build_vram_summary(vram_samples, vram_errors)
         if capture_vram

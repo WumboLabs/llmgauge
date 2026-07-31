@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from llmgauge.core.scoring import (
     scored_prompt_results,
     scoring_evidence_summary,
     scoring_status_for_result,
+)
+from llmgauge.core.multi_turn import (
+    FeedbackEvent,
+    ModelAttemptEvent,
+    StateEvent,
+    TaskEvent,
+    TerminalEvent,
+    TranscriptDefinitionError,
+    load_transcript,
 )
 from llmgauge.core.static_scoring import CODING_CORE_SUITE_ID, CODING_CORE_VERSION
 
@@ -298,9 +308,7 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
     min_headroom = _result_min_vram_headroom_mib(result)
     run_fingerprint = result.get("run_fingerprint")
     fingerprint_value = (
-        run_fingerprint.get("value")
-        if isinstance(run_fingerprint, dict)
-        else None
+        run_fingerprint.get("value") if isinstance(run_fingerprint, dict) else None
     )
 
     lines = [
@@ -454,15 +462,15 @@ def _score_audit_lines(prompt_result: dict[str, Any]) -> list[str]:
     lines.append(
         f"- Failure labels: {', '.join(failure_labels) if failure_labels else 'None'}"
     )
-    lines.append(
-        f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}"
-    )
+    lines.append(f"- Good labels: {', '.join(good_labels) if good_labels else 'None'}")
 
     score_rationale = score.get("score_rationale", "")
     if score_rationale:
         lines.append(f"- Score rationale: {score_rationale}")
     else:
-        lines.append("- Score rationale: missing (weakens auditability for public claims)")
+        lines.append(
+            "- Score rationale: missing (weakens auditability for public claims)"
+        )
 
     reviewer_notes = score.get("reviewer_notes", "")
     if reviewer_notes:
@@ -509,7 +517,9 @@ def _build_audit_checklist(result: dict[str, Any]) -> list[str]:
         lines.append("")
 
     if evidence["scoring_status"] == "unscored":
-        lines.append("- This run is unscored; quality claims require manual scoring first.")
+        lines.append(
+            "- This run is unscored; quality claims require manual scoring first."
+        )
         lines.append("")
 
     if evidence["unreviewed_score_count"]:
@@ -660,9 +670,7 @@ def _build_prompt_artifact_audit(result: dict[str, Any]) -> list[str]:
 
         vram_samples = prompt_result.get("vram_samples_path")
         if vram_samples:
-            lines.append(
-                f"- VRAM samples (operational telemetry): `{vram_samples}`"
-            )
+            lines.append(f"- VRAM samples (operational telemetry): `{vram_samples}`")
         else:
             lines.append("- VRAM samples (operational telemetry): not captured")
 
@@ -766,7 +774,134 @@ def _vram_headroom_mib(prompt_result: dict[str, Any]) -> int | None:
     return peak_total_mib - peak_used_mib
 
 
-def build_markdown_report(result: dict[str, Any]) -> str:
+def _build_transcript_evidence(
+    result: dict[str, Any], result_dir: Path | None
+) -> list[str]:
+    reference = result.get("transcript")
+    if reference is None:
+        return []
+    lines = ["## Native Multi-turn Transcript", ""]
+    if not isinstance(reference, dict) or result_dir is None:
+        return lines + [
+            "- Transcript evidence is represented but could not be loaded for this report.",
+            "- Run structural validation against the canonical private result directory.",
+            "",
+        ]
+    try:
+        transcript = load_transcript(result_dir, str(reference.get("path", "")))
+    except TranscriptDefinitionError as exc:
+        return lines + [f"- Transcript unavailable: {exc}", ""]
+
+    model_attempts = [
+        event for event in transcript.events if isinstance(event, ModelAttemptEvent)
+    ]
+    feedback_events = [
+        event for event in transcript.events if isinstance(event, FeedbackEvent)
+    ]
+    logical_turns = len({event.turn_id for event in model_attempts})
+    retries = sum(event.relationship == "retry" for event in model_attempts)
+    recoveries = sum(event.relationship == "recovery" for event in model_attempts)
+    consumed_feedback = sum(
+        planned.lifecycle_state == "consumed" for planned in transcript.feedback_plan
+    )
+    unreached_feedback = sum(
+        planned.lifecycle_state == "unreached" for planned in transcript.feedback_plan
+    )
+    unconsumed_feedback = sum(
+        planned.lifecycle_state == "supplied_unconsumed"
+        for planned in transcript.feedback_plan
+    )
+    lines.extend(
+        [
+            f"- Protocol: `{transcript.protocol_id}` `{transcript.protocol_version}`",
+            f"- Conversation ID: `{transcript.conversation_id}`",
+            f"- Task: `{transcript.suite_id}` `{transcript.suite_version}` / `{transcript.task_id}` `{transcript.task_version}`",
+            f"- Completion: `{transcript.completion_state}`",
+            f"- Completion actor: `{transcript.completion_actor}`",
+            f"- Terminal reason: `{transcript.terminal_reason}`",
+            f"- Logical model turns: {logical_turns}",
+            f"- Model attempts: {len(model_attempts)}",
+            f"- Declared feedback items: {len(transcript.feedback_plan)}",
+            f"- Supplied feedback items: {len(feedback_events)}",
+            f"- Consumed feedback items: {consumed_feedback}",
+            f"- Unreached feedback items: {unreached_feedback}",
+            f"- Supplied but unconsumed feedback items: {unconsumed_feedback}",
+            f"- Declared/effective model-turn limits: {transcript.declared_limits.max_model_turns} / {transcript.effective_model_turn_limit}",
+            f"- Retries: {retries}",
+            f"- Recoveries: {recoveries}",
+            f"- Selected final response: `{transcript.final_response_event_id or 'None'}`",
+            f"- Transcript source: `{reference.get('path')}`",
+            f"- Scoreability/review: `{transcript.review.scoreability}` / `{transcript.review.final_response}`",
+            "",
+            "### Declared feedback plan",
+            "",
+        ]
+    )
+    for index, planned in enumerate(transcript.feedback_plan, start=1):
+        lines.append(
+            f"{index}. `{planned.feedback_id}` origin `{planned.origin}`; "
+            f"after model turn `{planned.after_model_turn}`; "
+            f"state `{planned.lifecycle_state}`; reason `{planned.disposition_reason}`; "
+            f"supply event `{planned.supplied_event_id or 'None'}`; consumer "
+            f"`{planned.consumed_by_turn_id or 'None'}`; raw `{planned.raw_content.path}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### Canonical ordered event summary",
+            "",
+        ]
+    )
+    for event in transcript.events:
+        if isinstance(event, TaskEvent):
+            detail = f"initial state `{event.initial_state_id}`; raw `{event.raw_input.path}`"
+        elif isinstance(event, ModelAttemptEvent):
+            detail = (
+                f"turn `{event.turn_id}`; attempt `{event.attempt_id}`; "
+                f"state `{event.attempt_state}`; exit status `{event.exit_status}`; "
+                f"feedback `{', '.join(event.consumed_feedback_ids) or 'none'}`; "
+                f"raw input `{event.raw_input.path}`; raw output `{event.raw_output.path}`; "
+                f"cleaned derivative `{event.cleaned_output.path if event.cleaned_output else 'None'}`"
+            )
+        elif isinstance(event, FeedbackEvent):
+            detail = (
+                f"`{event.feedback_id}` actual inert supply occurrence; "
+                "declaration/content/schedule/lifecycle authority is in feedback plan"
+            )
+        elif isinstance(event, StateEvent):
+            detail = (
+                f"state `{event.state_id}` from `{event.previous_state_id or 'None'}`; "
+                f"visible source `{event.visible_messages.path}`"
+            )
+        elif isinstance(event, TerminalEvent):
+            detail = (
+                f"`{event.completion_state}` / `{event.terminal_reason}`; "
+                f"final `{event.final_response_event_id or 'None'}`"
+            )
+        else:
+            detail = "unsupported event"
+        lines.append(f"{event.sequence}. `{event.kind}` `{event.event_id}` — {detail}")
+    lines.extend(
+        [
+            "",
+            "### Transcript claim limits",
+            "",
+            "- Structural transcript validation does not prove semantic quality, safety, human approval, or publication readiness.",
+            "- Supplied feedback text does not prove compiler, test, command, tool, or generated-content execution.",
+            "- LLMGauge executed no generated content in this protocol.",
+            "- Native transcript evidence is not Agent Harness evidence.",
+            "- No universal multi-turn score exists.",
+            "- Partial, failed, and abandoned transcripts remain evidence but are not complete success.",
+            "- Requested runtime settings and observed runtime evidence remain distinct in the runtime section and source artifacts.",
+            "",
+        ]
+    )
+    return lines
+
+
+def build_markdown_report(
+    result: dict[str, Any], *, result_dir: Path | None = None
+) -> str:
     run = result["run"]
     model = result["model"]
     runtime = result["runtime"]
@@ -789,6 +924,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     lines.extend(_build_evidence_summary(result))
     lines.extend(_build_coding_core_evidence(result))
     lines.extend(_build_single_run_publish_readiness_notes(result))
+    lines.extend(_build_transcript_evidence(result, result_dir))
 
     lines.extend(
         [

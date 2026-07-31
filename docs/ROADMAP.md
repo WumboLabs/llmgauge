@@ -546,20 +546,42 @@ privacy, compatibility, comparison, validation, and Agent Harness boundaries.
 It adds no schema or executable behavior, and existing single-turn results
 remain valid without reinterpretation or migration.
 
+## Multi-turn transcript schema and native evaluation behavior
+
+**Completed:** the accepted
+[Multi-turn Transcript Schema and Native Evaluation Contract](MULTI_TURN_TRANSCRIPT_SCHEMA_CONTRACT.md)
+selects one separately versioned contained `llmgauge.transcript.v0` authority
+referenced additively by `llmgauge.result.v0`. The implementation preserves
+canonical ordered task, model-attempt, supplied inert feedback, observable
+state, retry/recovery, branch, final-selection, and terminal evidence; validates
+contained source artifacts fail closed; orchestrates bounded sequential native
+conversations through existing llama.cpp and operator-managed local vLLM
+request boundaries; discloses non-executing dry-run plans; fingerprints
+immutable transcript evidence; and generates bounded transcript-aware reports.
+
+Synthetic successful, retry/recovery, timeout/failure, partial, turn-limit,
+llama.cpp, and external-vLLM paths pass focused and full repository validation
+without launching a real model or executing generated content. Ordinary
+single-turn result shape and fingerprints remain unchanged when transcript
+evidence is absent. Current single-turn scoring, comparison, and public export
+fail closed for transcripts; no universal multi-turn score is implemented. The
+deferred Coding Core `repair/prior-response-test-feedback` role remains absent.
+
 ## Selected next bounded project milestone
 
-**Multi-turn schema and native evaluation behavior.**
+**Agent Harness import contract.**
 
-This is the only selected next milestone. It is order 2b of the accepted
-architecture, remains separately bounded, and must preserve the transcript
-identity, evidence, compatibility, and milestone gates fixed by the completed
-2a contract. It adds no Agent Harness importer and does not authorize combining
-transcript schema, runner, feedback generation, scoring, validation, reporting,
-bounded live-evidence, publication, or release work into one milestone.
+This is the only selected next milestone. It is order 3a and is
+architecture/contract-only: define the supported read-only external
+agent-environment evidence identity, source authority, containment,
+compatibility, privacy, validation, scoring, and lifecycle boundaries. No Agent
+Harness importer is implemented yet, and this selection does not authorize
+session import, replay, mutation, repair, resume, execution, scoring, or report
+implementation.
 
-The eight-step Full Model Testing order, parallel unselected LocalMaxxing lane
-and its later explicit human selection gate, downstream Generic Core work, and
-existing `v0.73` gate remain unchanged. No release-version decision is made.
+The Full Model Testing order, parallel unselected LocalMaxxing lane and its later
+explicit human selection gate, downstream Generic Core work, and existing
+`v0.73` gate remain unchanged. No release-version decision is made.
 
 ## Full-model-testing fast-track programs
 

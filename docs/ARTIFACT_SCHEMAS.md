@@ -92,6 +92,17 @@ Optional runtime reproducibility artifact (v0.66+):
 
     runtime-command.json
 
+Optional native multi-turn source tree:
+
+    transcript/transcript.json
+    transcript/source/
+    transcript/derived/
+
+`transcript/transcript.json` is the sole ordered transcript and declared
+feedback-plan authority. `transcript/source/` preserves rendered requests, raw
+responses, stderr, declared exact feedback content (whether reached or not), and
+visible-state evidence. `transcript/derived/` contains cleaned review aids only.
+
 Optional public single-run derivative:
 
     public-export-manifest.json
@@ -120,6 +131,9 @@ Authoritative vs derived:
 | `llmgauge-result.json` | Applied score and run metadata source |
 | `runtime-command.json` | Structured resolved llama.cpp command metadata |
 | `report.md` | Regenerable human review summary |
+| `transcript/transcript.json` | Authoritative native multi-turn event sequence and relationships |
+| `transcript/source/*` | Authoritative rendered input, raw output, feedback, stderr, and visible-state evidence |
+| `transcript/derived/*` | Cleaned transcript review aids; never replacement source evidence |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
@@ -198,6 +212,12 @@ Top-level required keys:
 Expected `schema_version`:
 
     llmgauge.result.v0
+
+Optional native multi-turn runs add a closed top-level `transcript` discovery
+index with `path`, `schema_version`, `protocol_id`, `protocol_version`,
+`conversation_id`, and full artifact `sha256`. All fields must equal the
+contained `llmgauge.transcript.v0` authority. The object is absent for ordinary
+single-turn runs.
 
 ### run
 
@@ -489,6 +509,71 @@ Path policy:
 
 - `raw_prompt_path`, `raw_output_path`, `cleaned_output_path`, and `stderr_log_path` are relative to the result directory.
 - Importers should resolve these paths from the containing result directory.
+
+### Native multi-turn transcript
+
+Primary contained file:
+
+    transcript/transcript.json
+
+Expected schema identity:
+
+    llmgauge.transcript.v0
+
+The closed transcript records protocol `llmgauge.sequential_supplied_feedback`
+`0.1.0`, evaluation class `native_multi_turn_response`, conversation/suite/task
+and initial-state identity, fixed `/model` and `/runtime` provenance
+relationships, declared and effective limits, completion and terminal facts,
+one canonical discriminated `events` order, branch relationships,
+final-response selection, and non-numeric review hooks.
+
+The ordered top-level `feedback_plan` is the sole authority for every declared
+feedback item's ID, origin, one-based `after_model_turn` schedule, exact source
+content, and lifecycle. Lifecycle is `unreached`,
+`supplied_unconsumed`, or `consumed`, paired with a closed disposition reason,
+an actual supply event ID when supplied, and an exact logical consuming turn
+when consumed. Declarations beyond an effective `--max-turns` limit and
+declarations not reached before runtime failure, timeout, malformed response,
+operator stop, or abandonment remain preserved as `unreached`; they are not
+silently omitted or mislabeled as supplied. A feedback event represents only
+an actual inert supply occurrence. Consumed feedback has an exact reciprocal
+association on every attempt in its consuming logical turn, including fully
+failed attempts.
+
+Event kinds are `task`, `model_attempt`, `feedback`, `state`, and `terminal`.
+Every response attempt remains represented with a unique attempt/event identity,
+an independent closed attempt state, and its exact integer adapter exit status.
+A malformed response may retain status `0`; a timeout may retain a negative or
+platform-specific status; and a nonzero failure retains its exact code.
+llama.cpp records the runtime subprocess status. vLLM records adapter-level `0`
+for success or `1` for represented request failure, not an operating-system
+subprocess code. Retries of one logical turn share its `turn_id`, input state,
+rendered input, parent, branch, and consumed-feedback identity while retaining
+separate raw input, output, stderr, exit-status, and cleaned-derivative evidence.
+State events preserve exact visible-message snapshots and backward transitions.
+Source references carry full SHA-256, availability, capture, truncation,
+redaction, and source/derivative roles.
+
+The optional prompt-result `transcript_event_id` is a compatibility link to the
+selected final response, not a second transcript authority. Its `exit_status`
+is the exact status of the selected compatibility attempt (the final selected
+response for completion, otherwise the last attempt), not a synthesized
+completion flag. For llama.cpp, compatibility metrics parse the same combined
+authoritative raw output and runtime stderr evidence as ordinary single-turn
+runs; absent metrics in both sources remain absent. Existing `results[].score`
+remains null; transcript completion and terminal state are not generation
+status, manual verdict, or a numeric score.
+
+Loading uses the contained-result resolver and bounded reads. Traversal,
+absolute or escaping paths, unsafe symlinks, missing/unreadable source evidence,
+duplicate authority paths, hash mismatches, unsupported versions, malformed
+vocabularies, order/reference cycles, inconsistent feedback/state/terminal
+facts, and invalid capture roles fail closed.
+
+Structural validity does not prove semantic quality, feedback execution, safety,
+human approval, publication readiness, or Agent Harness success. Current
+single-turn scoring, comparison, and public-export methods fail closed for a
+represented transcript; `export-index` may expose only its discovery index.
 
 ### summary
 

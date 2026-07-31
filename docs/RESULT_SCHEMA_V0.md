@@ -251,6 +251,58 @@ present, validation checks schema version, algorithm, value format, referenced
 artifact availability, and recomputes the canonical SHA-256. Validation reports
 mismatches but never rewrites the fingerprint.
 
+### Optional native multi-turn transcript
+
+Native multi-turn runs add one optional closed top-level reference:
+
+    {
+      "transcript": {
+        "path": "transcript/transcript.json",
+        "schema_version": "llmgauge.transcript.v0",
+        "protocol_id": "llmgauge.sequential_supplied_feedback",
+        "protocol_version": "0.1.0",
+        "conversation_id": "<stable ID>",
+        "sha256": "<64 lowercase hex characters>"
+      }
+    }
+
+The separately versioned contained artifact is the sole transcript authority.
+Its ordered `feedback_plan` is the sole authority for every declared feedback
+item's identity, origin, schedule, exact source content, and lifecycle
+(`unreached`, `supplied_unconsumed`, or `consumed`). The canonical discriminated
+event sequence records actual supply occurrences separately and preserves task,
+every model attempt with independent attempt state and exact integer adapter
+exit status, observable state transitions, retries/recovery, branches, final
+selection, and terminal facts. The result reference is only a
+discovery/integrity index and must match the contained authority exactly.
+Ordinary single-turn results omit it and are never inferred to be transcripts.
+
+A transcript prompt result may add `transcript_event_id` as a compatibility
+link to the selected final response. Existing prompt status remains generation
+status; it does not replace transcript completion, terminal, or review state.
+Its `exit_status` is copied from the selected compatibility attempt rather than
+synthesized from completion. llama.cpp compatibility metrics parse authoritative
+raw output plus authoritative runtime stderr exactly as the single-turn path
+does; no metric is invented when neither contains one. Existing
+`results[].score` remains null because no native multi-turn scoring contract or
+universal numeric score exists.
+
+When a transcript is represented, the existing run-fingerprint payload adds
+immutable transcript schema/protocol/conversation/task/initial-state identity,
+declared and effective limits, branch relationships, the complete ordered
+feedback plan with source hashes and lifecycle associations, ordered event
+identities, actual feedback supply occurrences, attempt states, exact exit
+statuses and source hashes, state transitions, and
+completion/terminal/final-response facts.
+Cleaned derivatives, review hooks, scores, reports, comparisons, export indexes,
+and sanitized exports remain excluded. The payload is unchanged when transcript
+evidence is absent, so historical fingerprints remain stable.
+
+Current single-turn scoring, comparison, and public export fail closed for
+transcript evidence pending protocol-specific contracts. `export-index` may
+include the non-authoritative transcript discovery object. Agent Harness
+evidence must not use this native representation.
+
 ### Reasoning-mode compatibility
 
 v0.66 writes `runtime.reasoning_mode`. Future metadata should add

@@ -6,8 +6,10 @@ import typer
 
 from llmgauge.cli_common import MODEL_PROFILES_FILE_OPTIONS, console
 from llmgauge.commands import run_helpers
-from llmgauge.core.contextgen import build_context_prompt, write_context_prompt_artifacts
-
+from llmgauge.core.contextgen import (
+    build_context_prompt,
+    write_context_prompt_artifacts,
+)
 
 
 def contextgen(
@@ -56,7 +58,6 @@ def contextgen(
     console.print(f"Estimated tokens: {generated['estimated_tokens']}")
 
 
-
 def run(
     suite: Path = typer.Option(..., "--suite", help="Suite directory"),
     profile: str | None = typer.Option(
@@ -73,6 +74,21 @@ def run(
         "all",
         "--include",
         help="Prompt category to run, or 'all'. Ignored when --only is set.",
+    ),
+    conversation_task: Path | None = typer.Option(
+        None,
+        "--conversation-task",
+        help="Local llmgauge.multi_turn_task.v0 JSON for native multi-turn evaluation",
+    ),
+    conversation_id: str | None = typer.Option(
+        None,
+        "--conversation-id",
+        help="Stable native conversation ID; required with --conversation-task",
+    ),
+    max_turns: int | None = typer.Option(
+        None,
+        "--max-turns",
+        help="Reduce the conversation task's declared model-turn limit",
     ),
     model_id: str | None = typer.Option(None, "--model-id", help="Model identifier"),
     model_profile: str | None = typer.Option(
@@ -163,10 +179,16 @@ def run(
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Resolve and print the run plan without launching llama.cpp",
+        help="Resolve and print the run plan without launching or contacting a runtime",
     ),
 ) -> None:
     """Run one or more prompts through llama.cpp or an external vLLM server."""
+    if conversation_task is None and (
+        conversation_id is not None or max_turns is not None
+    ):
+        raise typer.BadParameter(
+            "--conversation-id and --max-turns require --conversation-task"
+        )
     resolved = run_helpers.resolve_run_options(
         model_id=model_id,
         model_profile=model_profile,
@@ -203,6 +225,9 @@ def run(
             auto_name=auto_name,
             runs_root=runs_root,
             run_name=run_name,
+            conversation_task=conversation_task,
+            conversation_id=conversation_id,
+            max_turns=max_turns,
         )
         return
 
@@ -222,4 +247,7 @@ def run(
         resolved=resolved,
         out=resolved_out,
         fail_on_failed_prompts=True,
+        conversation_task=conversation_task,
+        conversation_id=conversation_id,
+        max_turns=max_turns,
     )

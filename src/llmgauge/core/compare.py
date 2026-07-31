@@ -13,6 +13,11 @@ def load_compare_result(result_dir: Path) -> dict[str, Any]:
         raise FileNotFoundError(f"Missing result file: {result_path}")
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
+    if result.get("transcript") is not None:
+        raise ValueError(
+            "Native multi-turn transcripts require a protocol-specific comparison "
+            "contract; current single-turn comparison fails closed"
+        )
     result["_result_dir"] = str(result_dir)
     return result
 
@@ -212,7 +217,9 @@ def _fmt_counts(counts: dict[str, int]) -> str:
 
 
 def _unique_nonempty_values(results: list[dict[str, Any]], getter) -> list[str]:
-    values = sorted({value for value in (getter(result) for result in results) if value is not None})
+    values = sorted(
+        {value for value in (getter(result) for result in results) if value is not None}
+    )
     return values
 
 
@@ -264,7 +271,8 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(
-        len(values) > 1 for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
+        len(values) > 1
+        for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
     )
 
     like_for_like = (
@@ -303,7 +311,9 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         if mixed_suite_versions:
             caveats.append("Suite versions differ across runs.")
         if mixed_model:
-            caveats.append("Model IDs differ across runs (expected for model comparisons).")
+            caveats.append(
+                "Model IDs differ across runs (expected for model comparisons)."
+            )
         if mixed_runtime:
             caveats.append("Runtime settings differ across runs.")
         if prompt_sets_differ:
@@ -383,7 +393,8 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(
-        len(values) > 1 for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
+        len(values) > 1
+        for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
     )
 
     lines = [
@@ -391,46 +402,29 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         "",
         "Comparison reports are evidence summaries for local review. They are not universal rankings, leaderboards, or automatic best-model declarations.",
         "",
-        "- Compared runs: "
-        f"{compared_runs}",
-        "- Runs with scored prompts: "
-        f"{runs_with_scored_prompts}",
-        "- Runs without scored prompts: "
-        f"{runs_without_scored_prompts}",
-        "- Scoring status by run: "
-        f"{_fmt_counts(scoring_status_counts)}",
-        "- Runs with failed prompts: "
-        f"{runs_with_failed_prompts}",
-        "- Runs not completed: "
-        f"{runs_not_completed}",
-        "- Unreviewed applied scores: "
-        f"{total_unreviewed_scores}",
-        "- Unreviewed automatic-rule scores: "
-        f"{total_automatic_unreviewed_scores}",
-        "- Needs-review verdicts across scored prompts: "
-        f"{total_needs_review_verdicts}",
-        "- Scored prompts missing score rationale: "
-        f"{total_missing_score_rationales}",
+        f"- Compared runs: {compared_runs}",
+        f"- Runs with scored prompts: {runs_with_scored_prompts}",
+        f"- Runs without scored prompts: {runs_without_scored_prompts}",
+        f"- Scoring status by run: {_fmt_counts(scoring_status_counts)}",
+        f"- Runs with failed prompts: {runs_with_failed_prompts}",
+        f"- Runs not completed: {runs_not_completed}",
+        f"- Unreviewed applied scores: {total_unreviewed_scores}",
+        f"- Unreviewed automatic-rule scores: {total_automatic_unreviewed_scores}",
+        f"- Needs-review verdicts across scored prompts: {total_needs_review_verdicts}",
+        f"- Scored prompts missing score rationale: {total_missing_score_rationales}",
         "- Completed prompts missing raw or cleaned output paths: "
         f"{total_artifact_gaps}",
-        "- Suite IDs in comparison: "
-        f"{', '.join(suite_ids) if suite_ids else 'None'}",
+        f"- Suite IDs in comparison: {', '.join(suite_ids) if suite_ids else 'None'}",
         "- Suite versions in comparison: "
         f"{', '.join(str(value) for value in suite_versions) if suite_versions else 'None'}",
-        "- Model IDs in comparison: "
-        f"{', '.join(model_ids) if model_ids else 'None'}",
+        f"- Model IDs in comparison: {', '.join(model_ids) if model_ids else 'None'}",
         "- Shared prompt IDs across all runs: "
         f"{len(shared_prompt_ids)} of {len(all_prompt_ids)}",
-        "- Prompt sets differ across runs: "
-        f"{'yes' if prompt_sets_differ else 'no'}",
-        "- Mixed suite IDs: "
-        f"{'yes' if mixed_suite else 'no'}",
-        "- Mixed suite versions: "
-        f"{'yes' if mixed_suite_versions else 'no'}",
-        "- Mixed model IDs: "
-        f"{'yes' if mixed_model else 'no'}",
-        "- Mixed runtime settings: "
-        f"{'yes' if mixed_runtime else 'no'}",
+        f"- Prompt sets differ across runs: {'yes' if prompt_sets_differ else 'no'}",
+        f"- Mixed suite IDs: {'yes' if mixed_suite else 'no'}",
+        f"- Mixed suite versions: {'yes' if mixed_suite_versions else 'no'}",
+        f"- Mixed model IDs: {'yes' if mixed_model else 'no'}",
+        f"- Mixed runtime settings: {'yes' if mixed_runtime else 'no'}",
         "",
         "### Claim boundaries",
         "",

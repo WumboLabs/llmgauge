@@ -36,6 +36,14 @@ from llmgauge.core.identity import (
     discover_llama_runtime_identity,
 )
 from llmgauge.core.metrics import parse_llama_metrics
+from llmgauge.core.multi_turn import (
+    ModelAttemptEvent,
+    ModelInvocationResult,
+    TranscriptDefinitionError,
+    build_result_transcript_reference,
+    execute_native_conversation,
+    load_multi_turn_task,
+)
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
@@ -455,9 +463,7 @@ def resolve_run_options(
         try:
             validate_vllm_endpoint(resolved_endpoint)
         except VllmTransportError as exc:
-            raise typer.BadParameter(
-                f"Invalid vLLM endpoint ({exc.detail})"
-            ) from exc
+            raise typer.BadParameter(f"Invalid vLLM endpoint ({exc.detail})") from exc
 
         resolved_served_model = coalesce(
             served_model,
@@ -475,9 +481,7 @@ def resolve_run_options(
 
         resolved_connect_timeout = float(
             coalesce(
-                _optional_positive_float(
-                    connect_timeout, field_name="connect_timeout"
-                ),
+                _optional_positive_float(connect_timeout, field_name="connect_timeout"),
                 _optional_positive_float(
                     profile.get("connect_timeout"), field_name="connect_timeout"
                 ),
@@ -490,9 +494,7 @@ def resolve_run_options(
         )
         resolved_request_timeout = float(
             coalesce(
-                _optional_positive_float(
-                    request_timeout, field_name="request_timeout"
-                ),
+                _optional_positive_float(request_timeout, field_name="request_timeout"),
                 _optional_positive_float(
                     profile.get("request_timeout"), field_name="request_timeout"
                 ),
@@ -633,7 +635,26 @@ def print_run_preflight(
     auto_name: bool,
     runs_root: Path,
     run_name: str | None,
+    conversation_task: Path | None = None,
+    conversation_id: str | None = None,
+    max_turns: int | None = None,
 ) -> None:
+    if conversation_task is not None:
+        print_multi_turn_preflight(
+            suite=suite,
+            only=only,
+            include=include,
+            profile=profile,
+            resolved=resolved,
+            out=out,
+            auto_name=auto_name,
+            runs_root=runs_root,
+            run_name=run_name,
+            conversation_task=conversation_task,
+            conversation_id=conversation_id,
+            max_turns=max_turns,
+        )
+        return
     resolved_suite = resolve_suite_path(suite)
     loaded_suite, selected_prompts, normalized_suite = load_run_suite(
         resolved_suite,
@@ -647,8 +668,7 @@ def print_run_preflight(
     elif auto_name:
         default_run_name = f"{resolved['model_id']}-{suite.name}"
         output_plan = (
-            f"auto-name under {runs_root} "
-            f"with run name {run_name or default_run_name}"
+            f"auto-name under {runs_root} with run name {run_name or default_run_name}"
         )
     else:
         output_plan = (
@@ -799,6 +819,601 @@ def print_run_preflight(
         )
 
 
+def _load_multi_turn_selection(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    profile: str | None,
+    conversation_task: Path,
+    conversation_id: str | None,
+) -> tuple[
+    Path,
+    dict[str, Any],
+    dict[str, Any],
+    NormalizedSuite,
+    Any,
+    str,
+]:
+    if conversation_id is None:
+        raise typer.BadParameter(
+            "--conversation-id is required with --conversation-task"
+        )
+    if only is None:
+        raise typer.BadParameter("--only is required with --conversation-task")
+    if profile is not None or include != "all":
+        raise typer.BadParameter(
+            "--conversation-task requires exact --only selection; "
+            "--profile and category --include are not supported"
+        )
+    try:
+        task = load_multi_turn_task(conversation_task)
+    except TranscriptDefinitionError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    if task.task_id != only:
+        raise typer.BadParameter(
+            "conversation task task_id must match the exact --only selection"
+        )
+    resolved_suite = resolve_suite_path(suite)
+    loaded_suite, selected_prompts, normalized_suite = load_run_suite(
+        resolved_suite,
+        only=only,
+        include="all",
+        profile=None,
+    )
+    if loaded_suite.get("suite_id") == "coding-core-v1":
+        raise typer.BadParameter(
+            "native multi-turn evaluation does not alter the static Coding Core inventory"
+        )
+    prompt_meta = selected_prompts[0]
+    prompt_text = (
+        (resolved_suite / prompt_meta["file"]).read_text(encoding="utf-8").strip()
+    )
+    initial_message = build_combined_prompt(load_system_prompt(), prompt_text)
+    return (
+        resolved_suite,
+        loaded_suite,
+        prompt_meta,
+        normalized_suite,
+        task,
+        initial_message,
+    )
+
+
+def print_multi_turn_preflight(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    profile: str | None,
+    resolved: dict[str, Any],
+    out: Path | None,
+    auto_name: bool,
+    runs_root: Path,
+    run_name: str | None,
+    conversation_task: Path,
+    conversation_id: str | None,
+    max_turns: int | None,
+) -> None:
+    (
+        resolved_suite,
+        loaded_suite,
+        prompt_meta,
+        _normalized_suite,
+        task,
+        initial_message,
+    ) = _load_multi_turn_selection(
+        suite=suite,
+        only=only,
+        include=include,
+        profile=profile,
+        conversation_task=conversation_task,
+        conversation_id=conversation_id,
+    )
+    effective_turns = task.limits.max_model_turns
+    if max_turns is not None:
+        if max_turns < 1 or max_turns > effective_turns:
+            raise typer.BadParameter(
+                "--max-turns must be positive and cannot exceed the task limit"
+            )
+        effective_turns = max_turns
+    planned_requests = (
+        min(
+            effective_turns,
+            max(feedback.after_model_turn for feedback in task.feedback) + 1,
+        )
+        if task.feedback
+        else 1
+    )
+    if out is not None:
+        output_plan = str(out)
+    elif auto_name:
+        default_name = f"{resolved['model_id']}-{suite.name}"
+        output_plan = (
+            f"auto-name under {runs_root} with run name {run_name or default_name}"
+        )
+    else:
+        output_plan = (
+            "not required for --dry-run; real runs require --out or --auto-name"
+        )
+
+    backend = str(resolved.get("backend") or "llama.cpp")
+    table = Table(title="LLMGauge Native Multi-turn Dry Run")
+    table.add_column("Field", no_wrap=True)
+    table.add_column("Value")
+    table.add_row("Transcript schema", "llmgauge.transcript.v0")
+    table.add_row("Protocol", f"{task.protocol_id} {task.protocol_version}")
+    table.add_row("Conversation ID", str(conversation_id))
+    table.add_row(
+        "Task",
+        f"{loaded_suite['suite_id']} {loaded_suite['suite_version']} / {task.task_id} {task.task_version}",
+    )
+    table.add_row("Suite path", str(resolved_suite))
+    table.add_row("Selection", f"exact --only={only}")
+    table.add_row("Declared model-turn limit", str(task.limits.max_model_turns))
+    table.add_row("Effective model-turn limit", str(effective_turns))
+    table.add_row("Planned model requests", str(planned_requests))
+    table.add_row("Attempts per turn limit", str(task.limits.max_attempts_per_turn))
+    table.add_row("Per-turn timeout s", str(task.limits.per_turn_timeout_seconds))
+    table.add_row("Declared feedback items", str(len(task.feedback)))
+    table.add_row("Backend", backend)
+    table.add_row("Model ID", str(resolved["model_id"]))
+    table.add_row("Model profile", str(resolved["model_profile"]))
+    table.add_row("Context", str(resolved["ctx"]))
+    table.add_row("Max tokens", str(resolved["max_tokens"]))
+    table.add_row("Temperature", str(resolved["temp"]))
+    table.add_row("Top-p", str(resolved["top_p"]))
+    table.add_row("Output plan", output_plan)
+    table.add_row(
+        "Execution boundary",
+        "sequential, non-streaming, supplied inert feedback; no generated content execution",
+    )
+    console.print(table)
+
+    plan = Table(title="Runtime-conditional deterministic protocol plan")
+    plan.add_column("Order", no_wrap=True)
+    plan.add_column("Kind", no_wrap=True)
+    plan.add_column("Condition / association")
+    plan.add_row("1", "initial user/task", initial_message)
+    order = 2
+    for turn in range(1, planned_requests + 1):
+        if turn == 1:
+            request_condition = "planned initial request"
+        elif any(feedback.after_model_turn == turn - 1 for feedback in task.feedback):
+            request_condition = (
+                "conditional on prior request completing and scheduled feedback "
+                "being supplied"
+            )
+        else:
+            request_condition = (
+                "conditional on prior request completing to reach a future "
+                "feedback schedule"
+            )
+        plan.add_row(
+            str(order),
+            f"model request {turn}",
+            request_condition,
+        )
+        order += 1
+        for feedback in task.feedback:
+            if feedback.after_model_turn == turn and turn <= effective_turns:
+                supply_result = (
+                    "supplied but unconsumable: no admitted follow-up request"
+                    if turn == effective_turns
+                    else f"consumed by conditional model request {turn + 1}"
+                )
+                plan.add_row(
+                    str(order),
+                    f"conditional feedback supply {feedback.feedback_id}",
+                    f"if request {turn} completes; {supply_result}",
+                )
+                order += 1
+    console.print(plan)
+
+    feedback_plan = Table(title="Complete declared feedback plan")
+    feedback_plan.add_column("ID", no_wrap=True)
+    feedback_plan.add_column("Origin", no_wrap=True)
+    feedback_plan.add_column("Schedule", no_wrap=True)
+    feedback_plan.add_column("Reachability")
+    feedback_plan.add_column("Exact content")
+    for feedback in task.feedback:
+        if feedback.after_model_turn > effective_turns:
+            reachability = "declared but unreachable under effective turn limit"
+        elif feedback.after_model_turn == effective_turns:
+            reachability = (
+                "conditional supply if scheduling request completes; "
+                "then supplied but unconsumable"
+            )
+        else:
+            reachability = (
+                "conditional supply if scheduling request completes; "
+                f"then consumption by request {feedback.after_model_turn + 1}"
+            )
+        feedback_plan.add_row(
+            feedback.feedback_id,
+            feedback.origin,
+            f"after model turn {feedback.after_model_turn}",
+            reachability,
+            feedback.content,
+        )
+    console.print(feedback_plan)
+    console.print(
+        "[bold green]Dry run complete[/bold green]: no runtime was launched or "
+        "contacted, no generated content was executed, and no result directory "
+        "was created."
+    )
+
+
+def execute_multi_turn_run(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    profile: str | None,
+    resolved: dict[str, Any],
+    out: Path,
+    fail_on_failed_prompts: bool,
+    conversation_task: Path,
+    conversation_id: str | None,
+    max_turns: int | None,
+) -> dict[str, Any]:
+    (
+        resolved_suite,
+        loaded_suite,
+        prompt_meta,
+        normalized_suite,
+        task,
+        initial_message,
+    ) = _load_multi_turn_selection(
+        suite=suite,
+        only=only,
+        include=include,
+        profile=profile,
+        conversation_task=conversation_task,
+        conversation_id=conversation_id,
+    )
+    prepare_result_dir(out)
+    timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
+    backend = str(resolved.get("backend") or "llama.cpp")
+    runtime_command_path: Path | None = None
+    runtime_evidence_path: Path | None = None
+    invocation_results: list[Any] = []
+    endpoint_identity: dict[str, Any] = {}
+    readiness: Any = None
+
+    if backend == "vllm":
+        vllm_config = VllmExternalConfig(
+            endpoint_url=str(resolved["vllm_endpoint"]),
+            served_model=str(resolved["served_model"]),
+            max_tokens=int(resolved["max_tokens"]),
+            temperature=float(resolved["temp"]),
+            top_p=float(resolved["top_p"]),
+            connect_timeout=float(resolved["connect_timeout"]),
+            request_timeout=float(resolved["request_timeout"]),
+            max_response_bytes=int(resolved["max_response_bytes"]),
+            ctx_size=int(resolved["ctx"]),
+        )
+        readiness = check_readiness_and_model(vllm_config)
+        endpoint_identity = readiness.endpoint_identity or {}
+
+        def invoke(prompt: str, timeout_seconds: float) -> ModelInvocationResult:
+            if not readiness.success:
+                return ModelInvocationResult(
+                    stdout="",
+                    stderr=format_failure_log(readiness),
+                    exit_status=1,
+                    timeout=readiness.failure_class == "request_timeout",
+                )
+            bounded_config = VllmExternalConfig(
+                endpoint_url=vllm_config.endpoint_url,
+                served_model=vllm_config.served_model,
+                max_tokens=vllm_config.max_tokens,
+                temperature=vllm_config.temperature,
+                top_p=vllm_config.top_p,
+                connect_timeout=min(vllm_config.connect_timeout, timeout_seconds),
+                request_timeout=min(vllm_config.request_timeout, timeout_seconds),
+                max_response_bytes=vllm_config.max_response_bytes,
+                ctx_size=vllm_config.ctx_size,
+            )
+            request_result = run_chat_completion(
+                bounded_config,
+                prompt=prompt,
+                system_prompt=None,
+            )
+            invocation_results.append(request_result)
+            return ModelInvocationResult(
+                stdout=request_result.generated_text,
+                stderr=(
+                    "vllm request completed\n"
+                    if request_result.success and not request_result.incomplete_usage
+                    else format_failure_log(request_result)
+                ),
+                exit_status=0 if request_result.success else 1,
+                timeout=request_result.failure_class == "request_timeout",
+                malformed=request_result.failure_class == "malformed_response",
+            )
+
+    else:
+        llama_config = LlamaCppRunConfig(
+            llama_cli=resolved["llama_cli"],
+            model_path=resolved["model_path"],
+            ctx_size=resolved["ctx"],
+            max_tokens=resolved["max_tokens"],
+            temperature=resolved["temp"],
+            top_p=resolved["top_p"],
+            batch_size=resolved["batch"],
+            ubatch_size=resolved["ubatch"],
+            gpu_layers=resolved["gpu_layers"],
+            flash_attn=resolved["flash_attn"],
+            reasoning_mode=resolved["reasoning_mode"],
+        )
+        runtime_command_document = build_runtime_command_document(
+            config=llama_config,
+            resolved=resolved,
+            suite_id=loaded_suite["suite_id"],
+            suite_version=str(loaded_suite["suite_version"]),
+            timestamp_utc=timestamp,
+        )
+        runtime_command_path = out / RUNTIME_COMMAND_FILENAME
+        write_json(runtime_command_path, runtime_command_document)
+
+        def invoke(prompt: str, timeout_seconds: float) -> ModelInvocationResult:
+            run_result = run_llama_cpp(
+                llama_config,
+                prompt,
+                timeout_seconds=timeout_seconds,
+            )
+            invocation_results.append(run_result)
+            return ModelInvocationResult(
+                stdout=run_result.stdout,
+                stderr=run_result.stderr,
+                exit_status=run_result.exit_status,
+                timeout=run_result.timed_out,
+            )
+
+    outcome = execute_native_conversation(
+        task=task,
+        conversation_id=str(conversation_id),
+        suite_id=str(loaded_suite["suite_id"]),
+        suite_version=str(loaded_suite["suite_version"]),
+        initial_message=initial_message,
+        invoke=invoke,
+        result_dir=out,
+        max_turns=max_turns,
+    )
+    model_events = [
+        event
+        for event in outcome.transcript.events
+        if isinstance(event, ModelAttemptEvent)
+    ]
+    compatibility_event = outcome.selected_event or model_events[-1]
+    completed = outcome.transcript.completion_state == "completed"
+    selected_runtime_result = invocation_results[-1] if invocation_results else None
+
+    if backend == "vllm":
+        observed_fingerprints = [
+            result.system_fingerprint
+            for result in invocation_results
+            if isinstance(result, VllmRequestResult) and result.system_fingerprint
+        ]
+        runtime_evidence = build_runtime_evidence_document(
+            config=vllm_config,
+            readiness=readiness,
+            endpoint_identity=endpoint_identity,
+            observed_system_fingerprints=observed_fingerprints,
+        )
+        runtime_evidence_path = out / VLLM_RUNTIME_EVIDENCE_FILENAME
+        write_json(runtime_evidence_path, runtime_evidence)
+        for index, request_result in enumerate(invocation_results, start=1):
+            if isinstance(request_result, VllmRequestResult):
+                write_json(
+                    out / "request" / f"multi-turn-{index:03d}.json",
+                    request_result.request_evidence
+                    or {
+                        "schema_version": "llmgauge.vllm_request_evidence.v0",
+                        "lifecycle_ownership": "external_operator",
+                        "failure_class": request_result.failure_class,
+                        "failure_detail": request_result.failure_detail,
+                        "endpoint_identity": request_result.endpoint_identity,
+                    },
+                )
+        model_provenance = {
+            "source_type": resolved["model_source"],
+            "filename": None,
+            "file_size_bytes": None,
+            "sha256": None,
+            "public_fingerprint": None,
+            "status": "unavailable",
+            "warning": (
+                "Directory-model and GGUF provenance are unavailable for backend=vllm; "
+                "identity is the requested/observed served-model name only"
+            ),
+            "served_model": resolved["served_model"],
+            "provenance_kind": "served_model_only",
+        }
+        backend_provenance = {
+            "backend_name": "vllm",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": endpoint_identity,
+            "requested_served_model": resolved["served_model"],
+            "observed_served_model": readiness.observed_model,
+            "status": "available" if readiness.success else "unavailable",
+            "warning": None
+            if readiness.success
+            else (readiness.failure_detail or readiness.failure_class),
+        }
+        runtime: dict[str, Any] = {
+            "backend": "vllm",
+            "lifecycle_ownership": "external_operator",
+            "endpoint_identity": endpoint_identity,
+            "requested_served_model": resolved["served_model"],
+            "observed_served_model": readiness.observed_model,
+            "connect_timeout_seconds": resolved["connect_timeout"],
+            "request_timeout_seconds": resolved["request_timeout"],
+            "max_response_bytes": resolved["max_response_bytes"],
+            "ctx_size": resolved["ctx"],
+            "max_tokens": resolved["max_tokens"],
+            "temperature": resolved["temp"],
+            "top_p": resolved["top_p"],
+            "runtime_label": resolved["runtime_label"],
+            "reasoning_mode": resolved["reasoning_mode"],
+            "runtime_command_captured": False,
+            "runtime_command_path": None,
+            "vllm_runtime_evidence_captured": True,
+            "vllm_runtime_evidence_path": str(runtime_evidence_path.relative_to(out)),
+            "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
+            "command": [],
+            "config_path": str(resolved["config_path"])
+            if resolved["config_path"]
+            else None,
+            "model_profiles_path": str(resolved["model_profiles_path"])
+            if resolved["model_profiles_path"]
+            else None,
+            "backend_provenance": backend_provenance,
+            "proxy_bypass_policy": runtime_evidence.get("proxy_bypass_policy"),
+            "streaming": False,
+            "authentication": "none",
+        }
+        metrics = (
+            build_vllm_metrics(selected_runtime_result)
+            if isinstance(selected_runtime_result, VllmRequestResult)
+            else build_vllm_metrics(VllmRequestResult(success=False))
+        )
+        vram_summary = None
+        command: list[str] = []
+    else:
+        model_provenance = collect_model_provenance(
+            resolved["model_path"],
+            source_type=resolved["model_source"],
+        )
+        backend_provenance = collect_backend_provenance(resolved["llama_cli"])
+        backend_provenance.update(
+            discover_llama_runtime_identity(resolved["llama_cli"])
+        )
+        command = (
+            build_redacted_command(
+                selected_runtime_result.command,
+                resolved["model_path"],
+            )
+            if selected_runtime_result is not None
+            else []
+        )
+        runtime = {
+            "backend": "llama.cpp",
+            "llama_cli": str(resolved["llama_cli"]),
+            "ctx_size": resolved["ctx"],
+            "max_tokens": resolved["max_tokens"],
+            "temperature": resolved["temp"],
+            "top_p": resolved["top_p"],
+            "batch_size": resolved["batch"],
+            "ubatch_size": resolved["ubatch"],
+            "gpu_layers": resolved["gpu_layers"],
+            "flash_attn": resolved["flash_attn"],
+            "runtime_label": resolved["runtime_label"],
+            "reasoning_mode": resolved["reasoning_mode"],
+            "runtime_command_captured": True,
+            "runtime_command_path": str(runtime_command_path.relative_to(out)),
+            "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
+            "command": command,
+            "config_path": str(resolved["config_path"])
+            if resolved["config_path"]
+            else None,
+            "model_profiles_path": str(resolved["model_profiles_path"])
+            if resolved["model_profiles_path"]
+            else None,
+            "backend_provenance": backend_provenance,
+        }
+        raw_output = (
+            (out / compatibility_event.raw_output.path).read_text(encoding="utf-8")
+            if compatibility_event.raw_output.path
+            else ""
+        )
+        runtime_stderr = (
+            (out / compatibility_event.runtime_stderr.path).read_text(encoding="utf-8")
+            if compatibility_event.runtime_stderr.path
+            else ""
+        )
+        metrics = parse_llama_metrics(raw_output + "\n" + runtime_stderr)
+        vram_summary = getattr(selected_runtime_result, "vram_summary", None)
+
+    profile_data = resolved["profile"]
+    prompt_entry: dict[str, Any] = {
+        "prompt_id": task.task_id,
+        "title": prompt_meta.get("title", task.task_id),
+        "category": prompt_meta.get("category"),
+        "status": "completed" if completed else "failed",
+        "raw_prompt_path": compatibility_event.raw_input.path,
+        "raw_output_path": compatibility_event.raw_output.path,
+        "cleaned_output_path": (
+            compatibility_event.cleaned_output.path
+            if compatibility_event.cleaned_output is not None
+            else compatibility_event.raw_output.path
+        ),
+        "stderr_log_path": compatibility_event.runtime_stderr.path,
+        "metrics": metrics,
+        "vram": vram_summary,
+        "vram_samples_path": None,
+        "vram_guardrails": build_vram_guardrails(
+            vram_summary,
+            min_headroom_warn_mib=resolved["vram_min_headroom_warn_mib"],
+        ),
+        "score": None,
+        "failure_labels": [],
+        "notes": "",
+        "exit_status": compatibility_event.exit_status,
+        "error": None if completed else outcome.transcript.terminal_reason,
+        "transcript_event_id": (
+            outcome.transcript.final_response_event_id if completed else None
+        ),
+    }
+    result: dict[str, Any] = {
+        "schema_version": "llmgauge.result.v0",
+        "llmgauge_version": __version__,
+        "run": {
+            "run_id": out.name,
+            "timestamp_utc": timestamp,
+            "status": "completed" if completed else "failed",
+            "result_dir": str(out),
+        },
+        "model": {
+            "model_id": resolved["model_id"],
+            "model_source": resolved["model_source"],
+            "model_profile": resolved["model_profile"],
+            "label": profile_data.get("label"),
+            "family": profile_data.get("family"),
+            "role": profile_data.get("role"),
+            "quant": profile_data.get("quant"),
+            "model_path": "redacted",
+            "model_path_policy": "redacted",
+            "provenance": model_provenance,
+        },
+        "runtime": runtime,
+        "suite": build_result_suite_metadata(
+            loaded_suite=loaded_suite,
+            resolved_suite=resolved_suite,
+            normalized_suite=normalized_suite,
+            prompt_count=1,
+            include="all",
+            only=only,
+        ),
+        "results": [prompt_entry],
+        "summary": {
+            "completed": 1 if completed else 0,
+            "failed": 0 if completed else 1,
+            "manual_score_total": None,
+            "manual_score_max": None,
+            "failure_labels": {},
+        },
+    }
+    result["transcript"] = build_result_transcript_reference(out, outcome.transcript)
+    return _finalize_run_result(
+        out=out,
+        result=result,
+        failed_count=0 if completed else 1,
+        fail_on_failed_prompts=fail_on_failed_prompts,
+    )
+
+
 def _finalize_run_result(
     *,
     out: Path,
@@ -808,8 +1423,8 @@ def _finalize_run_result(
 ) -> dict[str, Any]:
     attach_run_fingerprint(out, result)
     write_json(out / "llmgauge-result.json", result)
-    write_text(out / "report.md", build_markdown_report(result))
-
+    report_kwargs = {"result_dir": out} if result.get("transcript") is not None else {}
+    write_text(out / "report.md", build_markdown_report(result, **report_kwargs))
     if failed_count:
         console.print(f"[bold red]Run completed with failures[/bold red]: {out}")
         if fail_on_failed_prompts:
@@ -829,7 +1444,23 @@ def execute_run(
     resolved: dict[str, Any],
     out: Path,
     fail_on_failed_prompts: bool,
+    conversation_task: Path | None = None,
+    conversation_id: str | None = None,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
+    if conversation_task is not None:
+        return execute_multi_turn_run(
+            suite=suite,
+            only=only,
+            include=include,
+            profile=profile,
+            resolved=resolved,
+            out=out,
+            fail_on_failed_prompts=fail_on_failed_prompts,
+            conversation_task=conversation_task,
+            conversation_id=conversation_id,
+            max_turns=max_turns,
+        )
     if (resolved.get("backend") or "llama.cpp") == "vllm":
         return execute_vllm_run(
             suite=suite,
@@ -883,9 +1514,7 @@ def execute_run(
     backend_provenance = collect_backend_provenance(resolved["llama_cli"])
     if backend_provenance["status"] == "unavailable":
         console.print(f"[yellow]{backend_provenance['warning']}[/yellow]")
-    backend_provenance.update(
-        discover_llama_runtime_identity(resolved["llama_cli"])
-    )
+    backend_provenance.update(discover_llama_runtime_identity(resolved["llama_cli"]))
     if backend_provenance.get("discovery_warning"):
         console.print(f"[yellow]{backend_provenance['discovery_warning']}[/yellow]")
     run_id = out.name
@@ -1027,9 +1656,7 @@ def execute_run(
             "runtime_label": resolved["runtime_label"],
             "reasoning_mode": resolved["reasoning_mode"],
             "runtime_command_captured": True,
-            "runtime_command_path": str(
-                runtime_command_path.relative_to(out)
-            ),
+            "runtime_command_path": str(runtime_command_path.relative_to(out)),
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
             "command": redacted_command or [],
             "config_path": str(resolved["config_path"])
@@ -1169,9 +1796,7 @@ def execute_vllm_run(
                 "raw_output_path": str(raw_output_path.relative_to(out)),
                 "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                "request_evidence_path": str(
-                    request_evidence_path.relative_to(out)
-                ),
+                "request_evidence_path": str(request_evidence_path.relative_to(out)),
                 "metrics": build_vllm_metrics(VllmRequestResult(success=False)),
                 "vram": None,
                 "vram_samples_path": None,
@@ -1273,9 +1898,7 @@ def execute_vllm_run(
                 "raw_output_path": str(raw_output_path.relative_to(out)),
                 "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
-                "request_evidence_path": str(
-                    request_evidence_path.relative_to(out)
-                ),
+                "request_evidence_path": str(request_evidence_path.relative_to(out)),
                 "metrics": build_vllm_metrics(request_result),
                 "vram": None,
                 "vram_samples_path": None,
@@ -1416,9 +2039,7 @@ def execute_vllm_run(
             "runtime_command_captured": False,
             "runtime_command_path": None,
             "vllm_runtime_evidence_captured": True,
-            "vllm_runtime_evidence_path": str(
-                runtime_evidence_path.relative_to(out)
-            ),
+            "vllm_runtime_evidence_path": str(runtime_evidence_path.relative_to(out)),
             "vllm_version": observed_vllm_version,
             "server_state": observed_server_state,
             "observed_system_fingerprints": list(
@@ -1461,7 +2082,6 @@ def execute_vllm_run(
         failed_count=failed_count,
         fail_on_failed_prompts=fail_on_failed_prompts,
     )
-
 
 
 def print_ladder_preflight(
@@ -1653,9 +2273,7 @@ def print_fit_ladder_preflight(
             f"{run_name or default_run_name}"
         )
     else:
-        output_plan = (
-            "not required for --dry-run; real fit-ladder runs require --out or --auto-name"
-        )
+        output_plan = "not required for --dry-run; real fit-ladder runs require --out or --auto-name"
 
     selection = f"only={only}" if only else f"include={include}"
 

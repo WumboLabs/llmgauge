@@ -136,6 +136,39 @@ def test_run_llama_cpp_handles_unavailable_vram(monkeypatch) -> None:
     assert result.vram_summary["error"] == "nvidia-smi not found"
 
 
+def test_run_llama_cpp_enforces_total_timeout(monkeypatch) -> None:
+    class FakeProcess:
+        returncode = -9
+
+        def __init__(self) -> None:
+            self.killed = False
+
+        def kill(self) -> None:
+            self.killed = True
+
+        def communicate(self, timeout=None):
+            assert self.killed is True
+            assert timeout is None
+            return ("partial stdout", "runtime stderr")
+
+    process = FakeProcess()
+    monotonic_values = iter([0.0, 2.0])
+    monkeypatch.setattr(llama_cpp.subprocess, "Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(llama_cpp.time, "monotonic", lambda: next(monotonic_values))
+
+    result = run_llama_cpp(
+        _config(),
+        "hello",
+        capture_vram=False,
+        timeout_seconds=1.0,
+    )
+
+    assert result.timed_out is True
+    assert result.exit_status == -9
+    assert result.stdout == "partial stdout"
+    assert "per-turn timeout" in result.stderr
+
+
 def test_build_llama_command_includes_flash_attention_mode() -> None:
     config = LlamaCppRunConfig(
         llama_cli=Path("/bin/llama-cli"),

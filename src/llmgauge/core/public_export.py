@@ -482,6 +482,12 @@ def export_public_run(source_dir: Path, output_dir: Path) -> dict[str, Any]:
         raise ValueError(
             "Source result validation failed: " + "; ".join(validation_errors)
         )
+    source_result = load_result_json(source_dir)
+    if source_result.get("transcript") is not None:
+        raise ValueError(
+            "Native multi-turn public export is not implemented; current "
+            "single-turn sanitization cannot reinterpret transcript evidence"
+        )
 
     staging_dir = _create_staging_dir(output_dir)
     try:
