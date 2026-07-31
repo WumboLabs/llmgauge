@@ -44,6 +44,11 @@ from llmgauge.runners.vllm_external import (
 
 runner = CliRunner()
 TASK_ID = "tool-honesty/fake-tool-resistance"
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _normalize_cli_output(value: str) -> str:
+    return " ".join(_ANSI_ESCAPE_RE.sub("", value).split())
 
 
 def _task_data(
@@ -1394,12 +1399,7 @@ def test_conflicting_or_incomplete_conversation_selectors_fail_closed(
         ],
     )
     assert missing_id.exit_code != 0
-    missing_id_output = re.sub(
-        r"\x1b\[[0-?]*[ -/]*[@-~]",
-        "",
-        missing_id.output,
-    )
-    missing_id_output = " ".join(missing_id_output.split())
+    missing_id_output = _normalize_cli_output(missing_id.output)
     assert "--conversation-id is required" in missing_id_output
     assert "--conversation-task" in missing_id_output
 
@@ -1423,4 +1423,7 @@ def test_conflicting_or_incomplete_conversation_selectors_fail_closed(
         ],
     )
     assert conflicting.exit_code != 0
-    assert "requires exact --only selection" in conflicting.output
+    conflicting_output = _normalize_cli_output(conflicting.output)
+    assert "requires exact --only selection" in conflicting_output
+    assert "--profile" in conflicting_output
+    assert "--include" in conflicting_output
