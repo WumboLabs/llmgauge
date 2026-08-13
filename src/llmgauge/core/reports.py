@@ -902,6 +902,10 @@ def _build_transcript_evidence(
 def build_markdown_report(
     result: dict[str, Any], *, result_dir: Path | None = None
 ) -> str:
+    from llmgauge.core.agent_harness import require_native_result
+
+    require_native_result(result, consumer="Native report generation")
+
     run = result["run"]
     model = result["model"]
     runtime = result["runtime"]

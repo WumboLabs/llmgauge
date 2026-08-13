@@ -72,6 +72,37 @@ Do not introduce a migration framework until a concrete compatibility need
 exists. Prefer readers that tolerate missing optional fields and preserve unknown
 fields.
 
+## Optional imported Agent Harness evidence
+
+A dedicated read-only Agent Harness import adds one closed top-level reference:
+
+    {
+      "agent_harness_evidence": {
+        "schema_version": "llmgauge.agent_harness_evidence.v0",
+        "contract_version": "0.1.0",
+        "evidence_class": "external_agent_environment",
+        "evidence_id": "sha256:<64 lowercase hex characters>",
+        "path": "agent-harness/evidence.json",
+        "sha256": "<64 lowercase hex characters>"
+      }
+    }
+
+The owning `llmgauge.result.v0` has `run.operation:
+agent_harness_import`, an empty native `results` list, matching zero summary
+counts, and no native `transcript`. Its contained source authority is:
+
+    agent-harness/evidence.json
+    agent-harness/source/session.jsonl
+    agent-harness/source/objects/sha256/<64-lowercase-hex-digest>
+
+The evidence schema is closed and contract-versioned. It preserves source
+identity and completeness, normalized physical-order trajectory, tool
+lifecycle, model and repository availability, terminal state, source-reference
+mapping, and exact source inventory. Unknown or unavailable facts remain
+explicit; import and structural validation do not infer task success,
+scoreability, quality, or publication readiness. See
+[Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md).
+
 ## Canonical evaluation identity design
 
 Canonical identity data is additive metadata for reproducibility and comparison.
@@ -250,6 +281,14 @@ Validation preserves legacy compatibility when `run_fingerprint` is absent. When
 present, validation checks schema version, algorithm, value format, referenced
 artifact availability, and recomputes the canonical SHA-256. Validation reports
 mismatches but never rewrites the fingerprint.
+
+Imported Agent Harness results use a distinct canonical payload containing the
+evidence schema/contract/class, evidence and imported-session identities,
+source-package hash, importer identity, and immutable normalized mapping.
+Ordinary single-turn and native-transcript fingerprint payloads are unchanged.
+Validation recomputes the contained evidence identity, source-package identity,
+member hashes, and imported run fingerprint; it never consults the original
+external session path.
 
 ### Optional native multi-turn transcript
 

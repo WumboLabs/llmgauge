@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.agent_harness import validate_agent_harness_result
 from llmgauge.core.multi_turn import validate_result_transcript
 from llmgauge.core.coding_core_evidence import (
     build_manual_review,
@@ -875,6 +876,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 )
 
     errors.extend(_validate_optional_coding_core(result_dir, data))
+    errors.extend(validate_agent_harness_result(result_dir, data))
 
     errors.extend(validate_result_transcript(result_dir, data))
 

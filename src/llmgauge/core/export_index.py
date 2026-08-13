@@ -159,6 +159,9 @@ def detect_artifact_type(path: Path) -> str:
 def build_run_index_item(path: Path, *, validate: bool = False) -> dict[str, Any]:
     result_path = path / RUN_RESULT_FILENAME
     result = _read_json(result_path)
+    from llmgauge.core.agent_harness import require_native_result
+
+    require_native_result(result, consumer="Export index generation")
 
     run = result.get("run", {})
     model = result.get("model", {})

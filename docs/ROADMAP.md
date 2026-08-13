@@ -567,21 +567,43 @@ evidence is absent. Current single-turn scoring, comparison, and public export
 fail closed for transcripts; no universal multi-turn score is implemented. The
 deferred Coding Core `repair/prior-response-test-feedback` role remains absent.
 
+## Agent Harness import contract and read-only importer
+
+**Completed:** Full Model Testing orders 3a and 3b. The accepted
+[Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md) fixes one
+`llmgauge.agent_harness_evidence.v0` external agent-environment identity for
+read-only WumboLabs OMP session-v3 evidence. The implementation adds strict
+bounded source detection and normalization, exact contained session/object
+copying, privacy and containment gates, atomic result publication, structural
+validation, the additive result reference, imported-evidence fingerprinting,
+and fail-closed native-consumer recognition.
+
+The importer does not replay or resume sessions, inspect or mutate repositories,
+execute commands/tools/tests, contact models/providers/networks, convert to a
+native transcript, score or compare agents, generate a native report or public
+export, run a live Agent Harness, publish evidence, or perform release work.
+Ordinary and native-transcript results retain their existing behavior and
+fingerprint payloads.
+
 ## Selected next bounded project milestone
 
-**Agent Harness import contract.**
+**Agent-session scoring and reporting.**
 
-This is the only selected next milestone. It is order 3a and is
-architecture/contract-only: define the supported read-only external
-agent-environment evidence identity, source authority, containment,
-compatibility, privacy, validation, scoring, and lifecycle boundaries. No Agent
-Harness importer is implemented yet, and this selection does not authorize
-session import, replay, mutation, repair, resume, execution, scoring, or report
+This is the only selected next milestone. It is Full Model Testing order 3c and
+must preserve source verifier outcomes, recovery annotations, evidence
+completeness, and model-versus-harness/tool/repository claim boundaries. Its
+scoring authority, report shape, review state, comparison eligibility, and
+publication boundary require a separate accepted contract before
 implementation.
 
-The Full Model Testing order, parallel unselected LocalMaxxing lane and its later
-explicit human selection gate, downstream Generic Core work, and existing
-`v0.73` gate remain unchanged. No release-version decision is made.
+No runtime-neutral metrics, expanded failure-taxonomy implementation, agent
+comparison, public export, publication, or release work is authorized by this
+selection.
+
+The remainder of the Full Model Testing order is preserved. The parallel
+LocalMaxxing lane remains unselected pending a later explicit human gate;
+downstream Generic Core work and the existing `v0.73` gate remain unchanged. No
+release-version decision is made.
 
 ## Full-model-testing fast-track programs
 

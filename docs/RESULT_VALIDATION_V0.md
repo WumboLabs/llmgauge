@@ -105,6 +105,32 @@ semantic correctness, execution of supplied feedback or generated content,
 safety, model quality, human approval, publication readiness, or Agent Harness
 success.
 
+When the optional top-level `agent_harness_evidence` reference is present,
+validation additionally checks:
+
+- the exact closed result reference and contained
+  `llmgauge.agent_harness_evidence.v0` contract `0.1.0` identities;
+- the dedicated import shape: `run.operation: agent_harness_import`, empty
+  native results, zero prompt summary counts, and no native transcript;
+- bounded evidence JSON loading, strict result containment, exact evidence-file
+  hash, and no dependence on the original external source path;
+- fixed session/object paths, regular-file requirements, unique inventory and
+  logical-reference identities, finite counts and byte totals, full member
+  hashes, and canonical source-package hash;
+- strict OMP session-v3 structure, physical event order, source-entry and tree
+  relationships, supported message/custom entry semantics, and exact reference
+  mappings;
+- normalized trajectory, command/tool request-start-terminal lifecycle,
+  availability, completeness, terminal, model, and repository-state
+  consistency without replay or inference;
+- imported-session and evidence identity recomputation; and
+- the imported-evidence canonical run fingerprint when present.
+
+These checks establish private source containment, represented structure,
+integrity, and internal consistency only. They do not establish harness task
+success, repository correctness, tests passing, model quality, scoreability,
+sanitization, or publication readiness.
+
 
 ## Compatibility expectations
 

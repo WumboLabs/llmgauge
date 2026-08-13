@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from llmgauge.core.agent_harness import require_native_result
 from llmgauge.core.coding_core_evidence import (
     build_manual_review,
     build_method_provenance,
@@ -355,6 +356,7 @@ def _coding_core_score_profile(result: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _score_profile_for_result(result: dict[str, Any]) -> dict[str, Any]:
+    require_native_result(result, consumer="Native scoring")
     return (
         _coding_core_score_profile(result)
         or _load_suite_scoring(result)

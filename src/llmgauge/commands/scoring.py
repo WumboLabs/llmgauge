@@ -135,6 +135,11 @@ def score(
         raise typer.BadParameter(mismatch)
 
     result = load_result(result_dir)
+    if result.get("agent_harness_evidence") is not None:
+        raise typer.BadParameter(
+            "Native scoring does not support imported Agent Harness evidence; "
+            "Agent Harness scoring and reporting are not implemented"
+        )
     if result.get("transcript") is not None:
         raise typer.BadParameter(
             "Native multi-turn scoring is not implemented; transcript review "
