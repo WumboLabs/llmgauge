@@ -483,6 +483,10 @@ def export_public_run(source_dir: Path, output_dir: Path) -> dict[str, Any]:
             "Source result validation failed: " + "; ".join(validation_errors)
         )
     source_result = load_result_json(source_dir)
+    from llmgauge.core.agent_harness import require_native_result
+
+    require_native_result(source_result, consumer="Public export")
+
     if source_result.get("transcript") is not None:
         raise ValueError(
             "Native multi-turn public export is not implemented; current "

@@ -302,6 +302,44 @@ behavior.
 Dry-run output shows `model_source`, `reasoning_mode`, a normalized command
 preview, and where `runtime-command.json` would be written for a real run.
 
+## Import Agent Harness evidence
+
+Import one local WumboLabs OMP session-format-v3 JSONL file into a new,
+self-contained LLMGauge result:
+
+    uv run llmgauge import-agent-harness \
+      /path/to/session.jsonl \
+      results/imported-agent-session
+
+When the session contains `blob:sha256:<digest>` references, supply the
+operator-selected blob root explicitly:
+
+    uv run llmgauge import-agent-harness \
+      /path/to/session.jsonl \
+      results/imported-agent-session \
+      --blob-dir /path/to/omp-blobs
+
+Inspect source admission without writing result artifacts:
+
+    uv run llmgauge import-agent-harness \
+      /path/to/session.jsonl \
+      results/imported-agent-session \
+      --dry-run
+
+The importer reads only the selected session and its format-defined referenced
+objects. It does not replay or resume the session, execute commands or tools,
+inspect or mutate a repository, contact a model/provider/network service, or
+modify source evidence. Imports are bounded, secret-scanned, copied as exact
+private evidence, and atomically published. Repeating an identical import to
+the same destination is an unchanged no-op; other existing or conflicting
+destinations fail closed.
+
+Validate the contained result with `validate-result`. Import or validation
+success does not prove harness task success, tests passing, quality,
+scoreability, sanitization, or publication readiness. Native `score`, report,
+comparison, export-index, and public-export paths reject imported Agent Harness
+results until the separately gated scoring/reporting milestone.
+
 ## Validation
 
 `validate-result` confirms artifact structure and file references. It does not

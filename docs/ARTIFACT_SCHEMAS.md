@@ -103,6 +103,18 @@ feedback-plan authority. `transcript/source/` preserves rendered requests, raw
 responses, stderr, declared exact feedback content (whether reached or not), and
 visible-state evidence. `transcript/derived/` contains cleaned review aids only.
 
+Optional imported Agent Harness source tree:
+
+    agent-harness/evidence.json
+    agent-harness/source/session.jsonl
+    agent-harness/source/objects/sha256/<64-lowercase-hex-digest>
+
+`agent-harness/evidence.json` is the normalized
+`llmgauge.agent_harness_evidence.v0` authority. The session file and referenced
+objects are exact, digest-bound private source copies. This tree belongs only to
+a dedicated external-agent import result; it cannot coexist with a native
+`transcript` reference or native prompt results.
+
 Optional public single-run derivative:
 
     public-export-manifest.json
@@ -134,6 +146,9 @@ Authoritative vs derived:
 | `transcript/transcript.json` | Authoritative native multi-turn event sequence and relationships |
 | `transcript/source/*` | Authoritative rendered input, raw output, feedback, stderr, and visible-state evidence |
 | `transcript/derived/*` | Cleaned transcript review aids; never replacement source evidence |
+| `agent-harness/evidence.json` | Authoritative normalized imported-session identity, mapping, lifecycle, and availability state |
+| `agent-harness/source/session.jsonl` | Exact admitted OMP v3 session source |
+| `agent-harness/source/objects/sha256/*` | Exact referenced source objects, deduplicated by full SHA-256 |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
@@ -218,6 +233,24 @@ index with `path`, `schema_version`, `protocol_id`, `protocol_version`,
 `conversation_id`, and full artifact `sha256`. All fields must equal the
 contained `llmgauge.transcript.v0` authority. The object is absent for ordinary
 single-turn runs.
+
+Optional imported Agent Harness results instead add one closed top-level
+`agent_harness_evidence` discovery reference:
+
+    {
+      "schema_version": "llmgauge.agent_harness_evidence.v0",
+      "contract_version": "0.1.0",
+      "evidence_class": "external_agent_environment",
+      "evidence_id": "sha256:<64 lowercase hex characters>",
+      "path": "agent-harness/evidence.json",
+      "sha256": "<64 lowercase hex characters>"
+    }
+
+Such a result has `run.operation: agent_harness_import`, an empty `results`
+list, zero completed/failed prompt counts, and no native `transcript`.
+`validate-result` understands this dedicated shape. Native scoring, report,
+comparison, export-index, and public-export consumers reject it until an
+Agent Harness-specific scoring/reporting contract is implemented.
 
 ### run
 

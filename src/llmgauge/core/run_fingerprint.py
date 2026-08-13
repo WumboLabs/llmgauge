@@ -271,6 +271,38 @@ def build_run_fingerprint_payload(
         raise FingerprintUnavailable("suite metadata is unavailable")
     if not isinstance(results, list):
         raise FingerprintUnavailable("prompt results are unavailable")
+    agent_harness_reference = result.get("agent_harness_evidence")
+    if agent_harness_reference is not None:
+        if not isinstance(agent_harness_reference, Mapping):
+            raise FingerprintUnavailable(
+                "agent_harness_evidence reference is unavailable"
+            )
+        from llmgauge.core.agent_harness import (
+            immutable_agent_harness_payload,
+            load_agent_harness_evidence,
+        )
+
+        try:
+            evidence = load_agent_harness_evidence(result_dir, agent_harness_reference)
+        except ValueError as exc:
+            raise FingerprintUnavailable(
+                f"agent_harness_evidence is unavailable: {exc}"
+            ) from None
+        return {
+            "schema_version": RUN_FINGERPRINT_PAYLOAD_VERSION,
+            "result_schema_version": result.get("schema_version"),
+            "llmgauge_version": result.get("llmgauge_version"),
+            "agent_harness_evidence": immutable_agent_harness_payload(evidence),
+            "policy": {
+                "run_id": "excluded",
+                "timestamp_utc": "excluded",
+                "paths": "source_member_hashes_only",
+                "scores": "excluded",
+                "reports": "excluded",
+                "comparisons": "excluded",
+                "exports": "excluded",
+            },
+        }
 
     prompt_evidence: list[dict[str, Any]] = []
     for index, prompt_result in enumerate(results):

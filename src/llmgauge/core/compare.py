@@ -556,6 +556,10 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
 def build_compare_report(results: list[dict[str, Any]]) -> str:
     if len(results) < 2:
         raise ValueError("Need at least two result directories to compare")
+    from llmgauge.core.agent_harness import require_native_result
+
+    for result in results:
+        require_native_result(result, consumer="Native comparison")
 
     lines = [
         "# LLMGauge Comparison Report",

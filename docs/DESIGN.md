@@ -50,6 +50,14 @@ Current non-goals / deliberate project boundaries:
   model, bounded supplied-feedback protocol, validation, additive result and
   fingerprint integration, reporting, and compatibility boundary.
 
+- [Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md) — accepted
+  `llmgauge.agent_harness_evidence.v0` external agent-environment identity and
+  implemented bounded OMP-v3 importer: self-contained read-only source
+  authority, repository/tool lifecycle and availability, native-transcript
+  separation, privacy, compatibility, atomic import, additive
+  result/fingerprint integration, structural validation, and fail-closed native
+  consumer boundaries.
+
 - [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
   — accepted `coding-core-v1` native single-turn identity, capability and
   task-family boundaries, evidence/scoring authority, comparison eligibility,

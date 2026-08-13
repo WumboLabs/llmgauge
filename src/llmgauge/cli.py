@@ -4,6 +4,7 @@ import typer
 
 from llmgauge.commands import (
     batch,
+    import_agent_harness,
     export_public,
     ladders,
     models,
@@ -53,6 +54,7 @@ app.command("run-batch")(batch.run_batch)
 app.command("validate-batch")(validate_cmd.validate_batch)
 app.command("validate-fit-ladder")(validate_cmd.validate_fit_ladder)
 app.command("validate-ladder")(validate_cmd.validate_ladder)
+app.command("import-agent-harness")(import_agent_harness.import_agent_harness_command)
 app.command("validate-result")(validate_cmd.validate_result)
 app.command()(scoring.score)
 app.command("export-index")(scoring.export_index_command)
