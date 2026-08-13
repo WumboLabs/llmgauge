@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -13,15 +14,21 @@ from llmgauge.cli import app
 
 
 runner = CliRunner()
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _normalize_cli_output(value: str) -> str:
+    return " ".join(_ANSI_ESCAPE_RE.sub("", value).split())
 
 
 def test_import_agent_harness_help() -> None:
     result = runner.invoke(app, ["import-agent-harness", "--help"])
 
     assert result.exit_code == 0
-    assert "Local OMP v3 session JSONL file" in result.output
-    assert "--blob-dir" in result.output
-    assert "--dry-run" in result.output
+    output = _normalize_cli_output(result.output)
+    assert "Local OMP v3 session JSONL file" in output
+    assert "--blob-dir" in output
+    assert "--dry-run" in output
 
 
 def test_import_agent_harness_valid_source(tmp_path: Path) -> None:
