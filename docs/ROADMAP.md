@@ -585,26 +585,22 @@ export, run a live Agent Harness, publish evidence, or perform release work.
 Ordinary and native-transcript results retain their existing behavior and
 fingerprint payloads.
 
-## Agent-session scoring and reporting contract
+## Agent-session scoring and reporting
 
-**Completed:** Full Model Testing order 3c contract design. The accepted
+**Completed:** Full Model Testing order 3c implementation. The accepted
 [Agent-session Scoring and Reporting Contract](AGENT_SESSION_SCORING_REPORTING_CONTRACT.md)
-preserves `llmgauge.agent_harness_evidence.v0` as private, contained WumboLabs
-OMP-v3 source authority and defines Agent Harness-specific derivative scoring
-authority, verifier separation, evidence completeness, human review,
-attribution, recovery, report shape, comparison eligibility, publication, and
-fingerprint boundaries.
+and [Agent-session Review Interface Contract](AGENT_SESSION_REVIEW_INTERFACE_CONTRACT.md)
+now have one bounded `agent-session-review-v0` manual-review implementation:
+closed mutable review metadata, exact imported-evidence binding, inert contained
+source references, atomic template/apply workflows, deterministic check, and a
+separate seven-section Agent Harness review report.
 
-The accepted [Agent-session Review Interface Contract](AGENT_SESSION_REVIEW_INTERFACE_CONTRACT.md)
-now fixes the one `agent-session-review-v0` persisted derivative, contained
-path, source binding, review validation boundary, Agent Harness-specific CLI,
-and report path. It changes no source or result schema, importer, structural
-validator, fingerprint, native consumer, or executable behavior.
-
-Implementation remains the next separately human-gated milestone. It is limited
-to that interface; comparison, public export, publication, export-index,
-runtime-neutral metrics, expanded failure taxonomy, and the optional evidence
-observation method remain deferred.
+The implementation adds the dedicated Agent Harness review workflow. It changes
+no existing source or result schema, importer semantics, structural
+`validate-result` semantics, fingerprint semantics, or existing native consumer
+semantics. Comparison, public export, publication, export-index, runtime-neutral
+metrics, expanded failure taxonomy, and the optional evidence observation method
+remain deferred.
 
 The remainder of the Full Model Testing order is preserved. The parallel
 LocalMaxxing lane remains unselected pending a later explicit human gate;

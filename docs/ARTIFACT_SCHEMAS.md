@@ -103,17 +103,23 @@ feedback-plan authority. `transcript/source/` preserves rendered requests, raw
 responses, stderr, declared exact feedback content (whether reached or not), and
 visible-state evidence. `transcript/derived/` contains cleaned review aids only.
 
-Optional imported Agent Harness source tree:
+Optional imported Agent Harness source and review tree:
 
     agent-harness/evidence.json
     agent-harness/source/session.jsonl
     agent-harness/source/objects/sha256/<64-lowercase-hex-digest>
+    agent-harness/review/agent-session-review.template.json
+    agent-harness/review/agent-session-review.json
+    agent-harness/review/agent-session-review.md
 
 `agent-harness/evidence.json` is the normalized
 `llmgauge.agent_harness_evidence.v0` authority. The session file and referenced
-objects are exact, digest-bound private source copies. This tree belongs only to
-a dedicated external-agent import result; it cannot coexist with a native
-`transcript` reference or native prompt results.
+objects are exact, digest-bound private source copies. The template, canonical
+`llmgauge.agent_session_review.v0` reviewer metadata, and generated review
+report are mutable derivatives; they are not evidence authority, result-envelope
+discovery fields, or fingerprint inputs. This tree belongs only to a dedicated
+external-agent import result; it cannot coexist with a native `transcript`
+reference or native prompt results.
 
 Optional public single-run derivative:
 
@@ -149,6 +155,9 @@ Authoritative vs derived:
 | `agent-harness/evidence.json` | Authoritative normalized imported-session identity, mapping, lifecycle, and availability state |
 | `agent-harness/source/session.jsonl` | Exact admitted OMP v3 session source |
 | `agent-harness/source/objects/sha256/*` | Exact referenced source objects, deduplicated by full SHA-256 |
+| `agent-harness/review/agent-session-review.template.json` | Editable unreviewed review template; never report input |
+| `agent-harness/review/agent-session-review.json` | Mutable manual reviewer metadata; never source authority |
+| `agent-harness/review/agent-session-review.md` | Regenerable Agent Harness review aid |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
