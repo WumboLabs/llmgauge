@@ -39,6 +39,13 @@ Current non-goals / deliberate project boundaries:
   capability sequence, the parallel LocalMaxxing performance-benchmark lane,
   and release gates without merging their evaluation classes.
 
+- [Runtime-neutral Metrics and Expanded Failure Taxonomy Contract](RUNTIME_NEUTRAL_METRICS_FAILURE_TAXONOMY_CONTRACT.md)
+  — accepted Area 4 additive evidence contract for versioned neutral metric
+  records and derived closed failure classifications. It preserves native
+  runtime evidence, legacy result validity, source authority, and explicit
+  non-equivalence boundaries; it admits no collector, transport, or execution
+  behavior.
+
 - [Multi-turn Transcript Architecture](MULTI_TURN_TRANSCRIPT_ARCHITECTURE.md)
   — accepted native multi-turn conversation identity, ordered-turn, observable
   state, feedback provenance, completion/recovery, scoring, source authority,

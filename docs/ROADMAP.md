@@ -655,6 +655,15 @@ dependency, schema, implementation, integration, and release gates defined by
 the architecture. The order is a program sequence, not authorization to combine
 milestones or describe deferred capability as current behavior.
 
+### Area 4 contract accepted
+
+The [Runtime-neutral Metrics and Expanded Failure Taxonomy Contract](RUNTIME_NEUTRAL_METRICS_FAILURE_TAXONOMY_CONTRACT.md)
+is accepted for Area 4. It defines future additive neutral-metric and derived
+failure-classification evidence, but Area 4 implementation does not yet exist.
+It does not change the Area 5+ order, select the parallel LocalMaxxing lane,
+start downstream Generic Core work, alter the `v0.73` gate, or make a release
+version decision.
+
 ### Parallel LocalMaxxing performance-benchmark program
 
 LocalMaxxing remains a distinct **performance benchmark** evaluation class. Its
