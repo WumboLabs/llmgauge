@@ -585,20 +585,20 @@ export, run a live Agent Harness, publish evidence, or perform release work.
 Ordinary and native-transcript results retain their existing behavior and
 fingerprint payloads.
 
-## Selected next bounded project milestone
+## Agent-session scoring and reporting contract
 
-**Agent-session scoring and reporting.**
+**Completed:** Full Model Testing order 3c contract design. The accepted
+[Agent-session Scoring and Reporting Contract](AGENT_SESSION_SCORING_REPORTING_CONTRACT.md)
+preserves `llmgauge.agent_harness_evidence.v0` as private, contained WumboLabs
+OMP-v3 source authority and defines Agent Harness-specific derivative scoring
+authority, verifier separation, evidence completeness, human review,
+attribution, recovery, report shape, comparison eligibility, publication, and
+fingerprint boundaries.
 
-This is the only selected next milestone. It is Full Model Testing order 3c and
-must preserve source verifier outcomes, recovery annotations, evidence
-completeness, and model-versus-harness/tool/repository claim boundaries. Its
-scoring authority, report shape, review state, comparison eligibility, and
-publication boundary require a separate accepted contract before
-implementation.
-
-No runtime-neutral metrics, expanded failure-taxonomy implementation, agent
-comparison, public export, publication, or release work is authorized by this
-selection.
+Implementation remains a separately human-gated milestone. This contract adds
+no scoring, report generation, comparison, public export, publication,
+export-index, runtime-neutral metric, failure-taxonomy, importer, schema, or
+fingerprint behavior.
 
 The remainder of the Full Model Testing order is preserved. The parallel
 LocalMaxxing lane remains unselected pending a later explicit human gate;

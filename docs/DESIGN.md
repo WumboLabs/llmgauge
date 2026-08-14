@@ -57,6 +57,12 @@ Current non-goals / deliberate project boundaries:
   separation, privacy, compatibility, atomic import, additive
   result/fingerprint integration, structural validation, and fail-closed native
   consumer boundaries.
+- [Agent-session Scoring and Reporting Contract](AGENT_SESSION_SCORING_REPORTING_CONTRACT.md)
+  — accepted order-3c contract for Agent Harness-specific derivative scoring
+  authority, source-verifier separation, evidence completeness, human review,
+  attribution, recovery, reporting, comparison eligibility, publication, and
+  fingerprint boundaries before any implementation.
+
 
 - [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)
   — accepted `coding-core-v1` native single-turn identity, capability and
