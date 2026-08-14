@@ -62,6 +62,11 @@ Current non-goals / deliberate project boundaries:
   authority, source-verifier separation, evidence completeness, human review,
   attribution, recovery, reporting, comparison eligibility, publication, and
   fingerprint boundaries before any implementation.
+- [Agent-session Review Interface Contract](AGENT_SESSION_REVIEW_INTERFACE_CONTRACT.md)
+  — accepted concrete `agent-session-review-v0` review-artifact, contained
+  source-reference, derivative-validation, CLI, and Agent-Harness-report
+  interface for the separately human-gated 3c implementation milestone.
+
 
 
 - [Coding Suite Architecture and Scoring Contract](CODING_SUITE_ARCHITECTURE_SCORING_CONTRACT.md)

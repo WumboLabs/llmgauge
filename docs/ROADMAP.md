@@ -595,10 +595,16 @@ authority, verifier separation, evidence completeness, human review,
 attribution, recovery, report shape, comparison eligibility, publication, and
 fingerprint boundaries.
 
-Implementation remains a separately human-gated milestone. This contract adds
-no scoring, report generation, comparison, public export, publication,
-export-index, runtime-neutral metric, failure-taxonomy, importer, schema, or
-fingerprint behavior.
+The accepted [Agent-session Review Interface Contract](AGENT_SESSION_REVIEW_INTERFACE_CONTRACT.md)
+now fixes the one `agent-session-review-v0` persisted derivative, contained
+path, source binding, review validation boundary, Agent Harness-specific CLI,
+and report path. It changes no source or result schema, importer, structural
+validator, fingerprint, native consumer, or executable behavior.
+
+Implementation remains the next separately human-gated milestone. It is limited
+to that interface; comparison, public export, publication, export-index,
+runtime-neutral metrics, expanded failure taxonomy, and the optional evidence
+observation method remain deferred.
 
 The remainder of the Full Model Testing order is preserved. The parallel
 LocalMaxxing lane remains unselected pending a later explicit human gate;
