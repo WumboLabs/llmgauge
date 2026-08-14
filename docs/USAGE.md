@@ -336,9 +336,27 @@ destinations fail closed.
 
 Validate the contained result with `validate-result`. Import or validation
 success does not prove harness task success, tests passing, quality,
-scoreability, sanitization, or publication readiness. Native `score`, report,
-comparison, export-index, and public-export paths reject imported Agent Harness
-results until the separately gated scoring/reporting milestone.
+scoreability, sanitization, or publication readiness. Native `score`, native
+report, comparison, export-index, and public-export paths reject imported Agent
+Harness results.
+
+Create an editable template, copy and complete it as candidate review metadata,
+validate the completed candidate, apply it, then generate the derivative report:
+
+    uv run llmgauge agent-session-review results/imported-agent-session --init
+    cp results/imported-agent-session/agent-harness/review/agent-session-review.template.json \
+      results/imported-agent-session/review-candidate.json
+    # Edit results/imported-agent-session/review-candidate.json with reviewer metadata.
+    uv run llmgauge agent-session-review results/imported-agent-session \
+      --review results/imported-agent-session/review-candidate.json --check
+    uv run llmgauge agent-session-review results/imported-agent-session \
+      --review results/imported-agent-session/review-candidate.json --apply
+    uv run llmgauge agent-session-review results/imported-agent-session --report
+
+The editable template and canonical review are bounded mutable metadata under
+`agent-harness/review/`; neither changes imported evidence or its fingerprint.
+The generated Agent Harness report is a derivative review aid, not a transcript,
+score, comparison, or publication decision.
 
 ## Validation
 
