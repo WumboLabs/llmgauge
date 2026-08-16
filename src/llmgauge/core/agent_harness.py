@@ -354,6 +354,9 @@ class ModelObservation(_ClosedModel):
     provider: SourceFact
     model: SourceFact
     role: SourceFact
+    resolved_model_is_fallback: SourceFact | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def validate_observation(self) -> ModelObservation:
@@ -631,7 +634,7 @@ _HEADER_FIELDS = frozenset(
 _ENTRY_FIELDS: dict[str, frozenset[str]] = {
     "message": frozenset({"message"}),
     "thinking_level_change": frozenset({"thinkingLevel", "configured"}),
-    "model_change": frozenset({"model", "role"}),
+    "model_change": frozenset({"model", "role", "resolvedModelIsFallback"}),
     "service_tier_change": frozenset({"serviceTier"}),
     "compaction": frozenset(
         {
@@ -1045,6 +1048,14 @@ def _validate_entry(record: dict[str, Any], prior_ids: set[str]) -> None:
     if not isinstance(record.get("timestamp"), str):
         raise AgentHarnessImportError(
             "malformed_source", "source entry timestamp is missing or malformed"
+        )
+    if (
+        entry_type == "model_change"
+        and "resolvedModelIsFallback" in record
+        and not isinstance(record["resolvedModelIsFallback"], bool)
+    ):
+        raise AgentHarnessImportError(
+            "malformed_source", "source model fallback flag is malformed"
         )
     if entry_type == "message":
         message = record.get("message")
@@ -2142,6 +2153,14 @@ def normalize_model_observations(parsed: ParsedSession) -> list[ModelObservation
                     provider=_fact(None, source_entry_id=data["id"], missing="absent"),
                     model=_fact(data.get("model"), source_entry_id=data["id"]),
                     role=_fact(data.get("role", "default"), source_entry_id=data["id"]),
+                    resolved_model_is_fallback=(
+                        _fact(
+                            data["resolvedModelIsFallback"],
+                            source_entry_id=data["id"],
+                        )
+                        if "resolvedModelIsFallback" in data
+                        else None
+                    ),
                 )
             )
         elif data["type"] == "message" and data["message"].get("role") == "assistant":

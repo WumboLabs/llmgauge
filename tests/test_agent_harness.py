@@ -26,6 +26,7 @@ from llmgauge.core.agent_harness import (
     AgentHarnessEvidence,
     AgentHarnessImportError,
     evidence_identity,
+    immutable_mapping_projection,
     import_agent_harness_session,
     load_agent_harness_evidence,
 )
@@ -79,6 +80,30 @@ def _rewrite_evidence(
     return result
 
 
+_MISSING = object()
+
+
+def _records_with_model_change(
+    resolved_model_is_fallback: object = _MISSING,
+    *,
+    extra_fields: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    records = completed_records()
+    model_change: dict[str, Any] = {
+        "type": "model_change",
+        "id": "model-change-1",
+        "parentId": "e001",
+        "timestamp": "2026-08-12T00:00:01.500Z",
+        "model": "synthetic-model",
+        "role": "default",
+    }
+    if resolved_model_is_fallback is not _MISSING:
+        model_change["resolvedModelIsFallback"] = resolved_model_is_fallback
+    if extra_fields:
+        model_change.update(extra_fields)
+    return [records[0], model_change, *records[1:]]
+
+
 def test_valid_import_is_self_contained_and_structurally_valid(tmp_path: Path) -> None:
     synthetic = write_synthetic_omp_session(tmp_path / "source", physical_title=True)
     source_bytes = synthetic.source.read_bytes()
@@ -106,6 +131,172 @@ def test_valid_import_is_self_contained_and_structurally_valid(tmp_path: Path) -
     assert all(event.kind != "assistant_final_answer" for event in evidence.trajectory)
     assert "stdout" not in json.dumps(evidence.model_dump(mode="json"))
     assert "stderr" not in json.dumps(evidence.model_dump(mode="json"))
+
+
+@pytest.mark.parametrize(
+    ("fallback_value", "expected_value"),
+    [(_MISSING, None), (False, False), (True, True)],
+    ids=["omitted", "false", "true"],
+)
+def test_model_change_fallback_fact_is_optional_and_preserved(
+    tmp_path: Path,
+    fallback_value: object,
+    expected_value: bool | None,
+) -> None:
+    source = write_session(
+        tmp_path / "source",
+        _records_with_model_change(fallback_value),
+    )
+    result_dir = tmp_path / "result"
+
+    import_agent_harness_session(source, result_dir)
+
+    assert validate_result_dir(result_dir) == []
+    evidence = _read_evidence(result_dir)
+    observation = next(
+        item
+        for item in evidence.model_observations
+        if item.source_entry_id == "model-change-1"
+    )
+    evidence_data = json.loads(
+        (result_dir / EVIDENCE_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    normalized = next(
+        item
+        for item in evidence_data["model_observations"]
+        if item["source_entry_id"] == "model-change-1"
+    )
+    if expected_value is None:
+        assert observation.resolved_model_is_fallback is None
+        assert "resolved_model_is_fallback" not in normalized
+    else:
+        assert observation.resolved_model_is_fallback is not None
+        assert observation.resolved_model_is_fallback.availability == "available"
+        assert observation.resolved_model_is_fallback.value is expected_value
+        assert (
+            observation.resolved_model_is_fallback.source_entry_id == "model-change-1"
+        )
+        assert normalized["resolved_model_is_fallback"] == {
+            "availability": "available",
+            "source_entry_id": "model-change-1",
+            "value": expected_value,
+        }
+
+
+@pytest.mark.parametrize(
+    "fallback_value",
+    ["false", 0, 1, None, {}, []],
+    ids=["string", "integer-zero", "integer-one", "null", "object", "array"],
+)
+def test_model_change_fallback_fact_rejects_non_booleans(
+    tmp_path: Path, fallback_value: object
+) -> None:
+    source = write_session(
+        tmp_path / "source",
+        _records_with_model_change(fallback_value),
+    )
+
+    with pytest.raises(AgentHarnessImportError) as captured:
+        import_agent_harness_session(source, tmp_path / "result")
+
+    assert captured.value.outcome == "malformed_source"
+    assert not (tmp_path / "result").exists()
+
+
+def test_model_change_fallback_fact_keeps_unknown_fields_fail_closed(
+    tmp_path: Path,
+) -> None:
+    source = write_session(
+        tmp_path / "source",
+        _records_with_model_change(
+            False,
+            extra_fields={"unsupportedFutureField": False},
+        ),
+    )
+
+    with pytest.raises(AgentHarnessImportError) as captured:
+        import_agent_harness_session(source, tmp_path / "result")
+
+    assert captured.value.outcome == "unsupported_source"
+    assert not (tmp_path / "result").exists()
+
+
+def test_model_change_fallback_fact_binds_normalized_identity(
+    tmp_path: Path,
+) -> None:
+    false_source_one = write_session(
+        tmp_path / "false-source-one",
+        _records_with_model_change(False),
+    )
+    false_source_two = write_session(
+        tmp_path / "false-source-two",
+        _records_with_model_change(False),
+    )
+    true_source = write_session(
+        tmp_path / "true-source",
+        _records_with_model_change(True),
+    )
+    omitted_source = write_session(
+        tmp_path / "omitted-source",
+        _records_with_model_change(),
+    )
+    result_dirs = {
+        "false_one": tmp_path / "false-result-one",
+        "false_two": tmp_path / "false-result-two",
+        "true": tmp_path / "true-result",
+        "omitted": tmp_path / "omitted-result",
+    }
+    for source, result_dir in (
+        (false_source_one, result_dirs["false_one"]),
+        (false_source_two, result_dirs["false_two"]),
+        (true_source, result_dirs["true"]),
+        (omitted_source, result_dirs["omitted"]),
+    ):
+        import_agent_harness_session(source, result_dir)
+
+    false_one = _read_evidence(result_dirs["false_one"])
+    false_two = _read_evidence(result_dirs["false_two"])
+    true = _read_evidence(result_dirs["true"])
+    omitted = _read_evidence(result_dirs["omitted"])
+    assert false_one.imported_session_id == false_two.imported_session_id
+    assert false_one.evidence_id == false_two.evidence_id
+    assert run_fingerprint_value(
+        result_dirs["false_one"], _read_result(result_dirs["false_one"])
+    ) == run_fingerprint_value(
+        result_dirs["false_two"], _read_result(result_dirs["false_two"])
+    )
+
+    false_mapping = immutable_mapping_projection(false_one)
+    false_observation = next(
+        item
+        for item in false_mapping["model_observations"]
+        if item["source_entry_id"] == "model-change-1"
+    )
+    omitted_mapping = immutable_mapping_projection(omitted)
+    omitted_observation = next(
+        item
+        for item in omitted_mapping["model_observations"]
+        if item["source_entry_id"] == "model-change-1"
+    )
+    assert false_observation["resolved_model_is_fallback"]["value"] is False
+    assert "resolved_model_is_fallback" not in omitted_observation
+
+    assert false_one.imported_session_id != true.imported_session_id
+    assert false_one.evidence_id != true.evidence_id
+    assert false_one.evidence_id != omitted.evidence_id
+    assert run_fingerprint_value(
+        result_dirs["false_one"], _read_result(result_dirs["false_one"])
+    ) != run_fingerprint_value(result_dirs["true"], _read_result(result_dirs["true"]))
+
+    changed_mapping = false_one.model_copy(deep=True)
+    changed_observation = next(
+        item
+        for item in changed_mapping.model_observations
+        if item.source_entry_id == "model-change-1"
+    )
+    assert changed_observation.resolved_model_is_fallback is not None
+    changed_observation.resolved_model_is_fallback.value = True
+    assert evidence_identity(changed_mapping) != false_one.evidence_id
 
 
 @pytest.mark.parametrize("version", [1, 2, 4, None, "3"])

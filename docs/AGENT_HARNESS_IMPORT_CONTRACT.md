@@ -293,6 +293,13 @@ references and visibility classification:
 - token, timing, and runtime metadata when the source records them; and
 - requested versus observed model/provider/runtime facts separately.
 
+For OMP v3 `model_change` entries,
+`resolvedModelIsFallback` is an optional source-backed model-observation fact
+whose exact domain is JSON boolean. `false` means the resolved selected model is
+not a fallback; `true` means it is a fallback. When present, the value and source
+entry reference are preserved in the immutable normalized mapping. Omission
+remains distinct from explicit `false` and does not cause a value to be inferred.
+
 Normalized interaction visibility is one of `user_visible`, `model_visible`,
 `user_and_model_visible`, `harness_internal`, `redacted`, or `unknown`, and
 requires a source-backed mapping. Source-declared message roles are preserved;
