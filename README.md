@@ -154,6 +154,34 @@ review **Report Scope**, **Audit Checklist**, **Prompt Artifact Audit**, and
 
 See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
+## LocalMaxxing performance benchmark
+
+LocalMaxxing is a dedicated llama.cpp speed-benchmark integration, not a
+quality-suite result. Normal `run`, `report`, export, and validation commands
+never contact LocalMaxxing.
+
+Create a local artifact using a configured model profile, validate it, and export
+its API payload offline:
+
+    uv run llmgauge localmaxxing run --output results/lmx --profile qwen3 \
+      --hf-id Qwen/Qwen3-8B --gpu-name "RTX 4090" --vram-gb 24 \
+      --llama-bench /path/to/llama-bench
+    uv run llmgauge localmaxxing validate results/lmx
+    uv run llmgauge localmaxxing export results/lmx
+
+When available, the local artifact also captures source-backed CPU/RAM/OS and
+GPU identity, total-device NVIDIA telemetry, llama.cpp runtime flags, a
+separately measured combined TPS companion, and a localhost llama-server TTFT
+companion. Optional metrics remain absent when their probes cannot prove them;
+sampler settings, context length, and hardware cost are never guessed.
+
+`dry-run` is an explicit authenticated non-writing validation and reads
+`LOCALMAXXING_API_KEY` only from the environment. `submit` is public and refuses
+without `--confirm-public`; no normal command publishes, submits, or polls.
+vLLM is not supported. Future Area 4 normalized metrics may be used as an input,
+but Area 4 is not implemented. See
+[the integration contract](docs/LOCALMAXXING_INTEGRATION_CONTRACT.md).
+
 ## Source-checkout usage vs installed CLI usage
 
 Audience split:
