@@ -692,6 +692,29 @@ reviewer metadata, comparison reports, export indexes, and public-export
 manifests. Validation accepts legacy results without the optional field; when
 present, it recomputes and checks the fingerprint without rewriting it.
 
+### Area 4 native llama.cpp evidence
+
+Native single-turn llama.cpp results may include optional top-level
+`runtime_neutral_metrics` (`llmgauge.runtime_neutral_metrics.v1`) and
+`failure_taxonomy` (`llmgauge.failure_taxonomy.v1`) objects. Their absence
+remains valid for historical results. The first slice records only
+LLMGauge-observed request wall time for each measured prompt attempt when its
+monotonic process-launch-to-terminal-output boundary was captured. It does not
+map native prompt or generation throughput, fabricate TTFT, or establish
+runtime equivalence.
+
+The associated contained `native/*.execution.json` artifacts preserve bounded
+native execution evidence. The derived taxonomy is limited to runtime
+environment launch failure, model-weight-load OOM, KV-cache OOM, and
+unclassified unknown; it does not replace source stderr, exit status, or
+timeout evidence. Exact IDs, references, availability, and v1 fingerprint
+rules are defined in [Area 4 native llama.cpp evidence v1](AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md).
+
+Results with Area 4 evidence use `llmgauge.run_fingerprint.v1` and a v1 payload
+that adds canonical Area 4 records and hashes their referenced native execution
+artifacts. Existing `llmgauge.run_fingerprint.v0` payloads remain unchanged and
+continue to verify unchanged.
+
 ## Context ladder directory
 
 A context ladder directory contains:

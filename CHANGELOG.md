@@ -4,6 +4,11 @@
 
 ### Added
 
+- Added optional runtime-neutral request-wall-time evidence and bounded derived
+  failure taxonomy for measured native single-turn llama.cpp attempts. The
+  slice preserves native throughput semantics, legacy result validity, and v0
+  fingerprint verification; vLLM, TTFT, transcripts, comparisons, and exporter
+  changes remain out of scope.
 - Implemented the optional Coding Core suite schema and normalized loader fields
   with exact fail-closed `coding-core-v1` `0.1.0` invariants, without adding
   suite content, scoring execution, or result behavior.

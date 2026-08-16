@@ -673,13 +673,16 @@ implementation, integration, and release gates defined by the architecture.
 The order is a program sequence, not authorization to combine milestones or
 describe deferred capability as current behavior.
 
-### Area 4 contract accepted
+### Area 4 first native llama.cpp slice implemented
 
 The [Runtime-neutral Metrics and Expanded Failure Taxonomy Contract](RUNTIME_NEUTRAL_METRICS_FAILURE_TAXONOMY_CONTRACT.md)
-is accepted for Area 4. It defines future additive neutral-metric and derived
-failure-classification evidence, but Area 4 implementation does not yet exist.
-It does not start downstream Generic Core work, alter the `v0.73` gate, or make
-a release-version decision.
+now has its first bounded implementation: optional per-prompt measured
+request-wall-time evidence for native single-turn llama.cpp execution, plus
+derived failure observations limited to launch-environment failure,
+model-weight-load OOM, KV-cache OOM, and unclassified unknown. Native
+prompt/generation throughput remains non-neutral; TTFT, vLLM, transcripts,
+comparisons, reporting/export expansion, and all other Area 4 categories remain
+deferred. Historical results remain valid unchanged.
 
 ### LocalMaxxing performance-benchmark integration
 
