@@ -664,31 +664,26 @@ It does not change the Area 5+ order, select the parallel LocalMaxxing lane,
 start downstream Generic Core work, alter the `v0.73` gate, or make a release
 version decision.
 
-### Parallel LocalMaxxing performance-benchmark program
+### LocalMaxxing performance-benchmark integration
 
-LocalMaxxing remains a distinct **performance benchmark** evaluation class. Its
-current support is missing beyond the accepted architecture lane: no benchmark
-identity/version contract, artifact mapping, runner, offline exporter,
-validator, automatic submission, or leaderboard behavior is implemented.
+The LocalMaxxing integration milestone is the selected current implementation
+work: it establishes a versioned local artifact, llama.cpp-first benchmark
+method, offline validation/export, and explicit authenticated
+dry-run/public-submit boundaries.
+It remains distinct performance evidence under the
+[general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md), never a normal
+quality-suite side effect.
 
-The admitted parallel sequence is:
+The method records additive, source-backed hardware, NVIDIA telemetry,
+llama.cpp runtime, combined-throughput, and localhost TTFT companion evidence
+when probes succeed. These optional fields do not alter core speed-method
+semantics or make Area 4 implemented.
 
-1. LocalMaxxing architecture and offline-export contract.
-2. Artifact/schema mapping and provenance contract.
-3. Offline benchmark execution/export implementation.
-4. Validation, compatibility, and publication-boundary hardening.
-
-Each item remains a separate milestone. This lane does not depend on completing
-coding, multi-turn, or Agent Harness evaluation, and it does not alter the
-eight-step capability order. The first LocalMaxxing contract is admitted
-parallel fast-track work but is not selected now; selecting it requires a later
-explicit human roadmap gate.
-
-LocalMaxxing artifacts remain performance-benchmark evidence under the
-[general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md). Offline export
-does not authorize automatic network submission or leaderboard upload. Any
-network transfer requires a separate human-approved publication milestone and
-explicit operator action.
+The next selected work after LocalMaxxing acceptance is Area 4:
+runtime-neutral metrics and expanded failure-taxonomy interface/implementation.
+Future Area 4 measurements may feed the LocalMaxxing exporter without changing
+its public benchmark semantics. Area 4 is still unimplemented here and this
+does not alter the v0.73 Generic Core release gate.
 
 ## Admitted downstream Generic Core delivery
 
