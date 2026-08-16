@@ -58,11 +58,29 @@ policy instead of choosing silently.
 > Stop.
 
 A milestone must be bounded, independently inspectable, testable, and mergeable.
-Use a focused branch rather than editing `main`. Closing or replacing a session
-does not justify creating another branch for the same unfinished milestone. Keep
-architecture or contract definition, meaningful dependency admission,
+Use a focused branch rather than editing `main`. The canonical repository
+directory is the default and preferred working location. Closing or replacing a
+session does not justify creating another branch for the same unfinished
+milestone.
+
+Secondary Git worktrees are exceptional, not routine. Use one only when another
+accepted milestone has unavoidable uncommitted work in the canonical checkout,
+the new milestone must proceed before that work is resolved, isolation is
+materially safer than moving or stashing user work, and the human explicitly
+approves the worktree. Treat any approved worktree as a temporary checkout of
+the same repository and remove it after its branch is merged.
+
+Once a milestone is admitted, the agent owns the complete bounded in-scope
+delta: implementation, affected tests and documentation, required validation,
+final-diff review, and report. Ordinary unfinished in-scope work is not a
+blocker. Continue working until the milestone is complete or a genuine blocker
+requires a human decision.
+
+Keep architecture or contract definition, meaningful dependency admission,
 implementation, presentation, publication, and release preparation separate
-when they create distinct durable boundaries.
+only when they create genuinely distinct durable boundaries. Do not split a
+coherent feature into artificial milestones merely because it touches a CLI,
+schema, integration, or external service.
 
 The agent may:
 
@@ -101,8 +119,8 @@ and explicit release work later.
 
 ## Compact handoffs
 
-Every repository handoff must contain exactly the information needed to execute
-the bounded milestone:
+Repository handoffs must be compact and contain only the information needed to
+execute the bounded milestone:
 
 - **Repository** — repository path or identity.
 - **Expected baseline** — branch, commit, synchronization, and expected tree
@@ -114,13 +132,21 @@ the bounded milestone:
 - **Milestone-specific non-goals** — nearby work intentionally excluded.
 - **Special validation** — checks beyond this file's defaults.
 - **Report path** — exact ignored `tmp/*-review-report.md` path.
-- **Subagents** — explicit authorization or `none`.
 - **Git boundary** — the exact instruction: `Do not stage, commit, merge, or
   push. Leave all changes unstaged and uncommitted.`
 
-Stable security, privacy, reporting, and validation rules from this file need
-not be repeated. The Git boundary above must be explicit in every handoff. Keep
-model recommendations and client-specific orchestration commands outside
+Mention subagents only when they are materially relevant; otherwise the default
+policy in this file applies.
+
+Stable workflow, security, privacy, reporting, and validation rules from this
+file must not be copied into handoffs as procedural checklists. The Git boundary
+above must remain explicit. A handoff defines the milestone and its special
+constraints; this file defines how the agent works.
+
+Do not turn a bounded milestone into a long sequence of instructions for every
+ordinary implementation step. State the outcome, accepted boundaries, evidence
+required, and stop condition, then let the agent solve the admitted problem.
+Keep model recommendations and client-specific orchestration commands outside
 repository handoffs.
 
 A handoff cannot silently authorize scope expansion, dependency admission,
@@ -129,26 +155,28 @@ or publication.
 
 ## Session and subagent policy
 
-Default: one primary agent, one integrated session, no subagents. Every handoff
-must explicitly authorize subagents or state `none`.
+Default: one primary agent owns one milestone. Continue the same session while
+practical. If the session closes before the milestone is complete, a new session
+may continue the same milestone and branch after inspecting the current branch,
+unstaged diff, and existing report. Do not restart or reimplement completed
+work. Session closure alone never creates a new milestone or authorizes a
+replacement branch.
 
-Start a new session for a new milestone or to resume unfinished work after its
-prior session closes. Keep direct review corrections and validation fixes in
-the same session and branch. A fresh continuation session must receive exactly:
-`This is a fresh session. First inspect the current unstaged branch state and
-the existing report. Do not restart or reimplement completed work.` Session
-closure alone never authorizes a replacement branch.
+Direct review corrections, validation fixes, documentation corrections, and
+other bounded in-scope findings remain part of the same milestone unless they
+materially reopen architecture or scope.
 
 Keep tightly coupled schema, lifecycle, recovery, protocol, containment, or
 security work in one integrated session. Use slices only for genuinely
 independent, non-overlapping work. Slicing must not split one invariant or
 accepted contract across competing owners.
 
-When explicitly authorized, the primary agent may use at most two narrow,
-read-only subagents for independent research. Editing subagents require
-authorized, isolated, non-overlapping file ownership. The primary agent remains
-responsible for integration, validation, and the report; subagents must not
-evade scope, validation, responsibility, or the human Git gate.
+Subagents are optional, not a required handoff field. When explicitly
+authorized, the primary agent may use at most two narrow, read-only subagents
+for independent research. Editing subagents require authorized, isolated,
+non-overlapping file ownership. The primary agent remains responsible for
+integration, validation, and the report; subagents must not evade scope,
+validation, responsibility, or the human Git gate.
 
 ## Scope and architecture discipline
 
@@ -162,27 +190,35 @@ Before editing, perform a minimal preflight:
 
 Preflight must not read the repository broadly or run broad tests. Read only
 the named sources and directly relevant references. `PASS` admits only the
-smallest safe implementation slice. `FAIL` admits no implementation; report the
-blocker under the centralized fail-closed policy. When implementation is not
-admitted because architecture or contract work is required first, use a
-separate, explicitly handed-off architecture-only branch rather than mixing
-architecture and implementation.
+smallest safe implementation needed to complete the named milestone. After
+`PASS`, continue through the complete admitted delta, validation, final-diff
+review, and report. Do not treat incomplete ordinary work as a reason to stop.
+`FAIL` admits no unsafe implementation; report the blocker under the centralized
+fail-closed policy.
+
+Use a separate architecture-only milestone only when a material unresolved
+architecture or contract decision must be accepted before implementation can
+proceed safely. A small contract or semantic definition may be written and
+implemented within one bounded feature milestone when the decision is local,
+coherent, testable, and does not require a separate human architecture gate.
 
 Reuse existing patterns; do not create a second convention beside an
 established one. Prefer small, explicit, deterministic changes and boring
 designs. Fix root causes. Remove obsolete in-scope code without aliases, shims,
 or misleading comments. Do not perform unrelated cleanup or abstraction.
 
-Architecture-first sequencing is required for public APIs, CLI contracts,
-result or configuration schemas, persistence formats, external runtimes,
-meaningful dependencies, security boundaries, lifecycle ownership, and
-long-lived integrations:
+Architecture-first sequencing is required only when the requested work contains
+a material unresolved decision affecting compatibility, persistence, security,
+public API stability, meaningful dependency admission, lifecycle ownership, or
+multiple later implementations.
 
-1. accept the contract;
-2. admit any meaningful dependency in a separate milestone;
-3. implement the accepted contract;
-4. add presentation or integration separately;
-5. prepare publication or release separately.
+Do not mechanically split every public API, CLI change, schema addition,
+external runtime, or long-lived integration into contract, implementation,
+presentation, and validation branches. Keep a coherent change together when its
+contract can be accepted and proved within the same bounded milestone.
+
+Meaningful new dependencies still require explicit admission before use.
+Publication and release remain separate human-controlled boundaries.
 
 Implementation must not silently reopen an accepted contract. Do not add
 hypothetical backends, broad migration frameworks, arbitrary runtime argument
@@ -215,6 +251,22 @@ retry away, document around, rename, wrap, mock, or special-case an unresolved
 failure. No partial implementation, placeholder, stub, or deferred promise may
 be presented as completion.
 
+Ordinary unfinished in-scope work is not a blocker and must not cause an early
+`FAIL` or progress-only stop. Continue working when:
+
+- implementation remains to be completed;
+- tests remain to be written or corrected;
+- documentation remains to be updated;
+- the required report has not yet been written;
+- an in-scope defect is discovered and can be corrected without reopening the
+  accepted architecture;
+- a required focused test fails for a correctable in-scope reason.
+
+A genuine blocker exists only when safe continuation requires an unresolved
+human decision, unavailable required capability or permission, unauthorized
+scope expansion, incompatible external contract, material new dependency, or a
+violation of security, privacy, compatibility, or evidence integrity.
+
 ## Local-first, offline-safe, and runtime boundaries
 
 Default behavior must remain local, offline-safe, explicit, and non-destructive.
@@ -222,6 +274,12 @@ Do not introduce automatic model downloads, telemetry, cloud services, hosted
 judges, network submission, background agents, external databases, or hardware
 mutation. Do not install or modify drivers, CUDA, packages, firewalls, clocks,
 GPU state, or host configuration. Do not add network behavior by default.
+
+Explicit user-invoked network integrations admitted by an accepted product
+contract are allowed. They must remain opt-in, isolated from normal evaluation,
+fail closed, and never run automatically as a side effect of ordinary local
+commands. Authentication, dry-run, publication, and submission boundaries must
+remain explicit and testable.
 
 LLMGauge may integrate only with explicitly accepted local runtimes. Respect
 runtime lifecycle ownership: do not install, launch, supervise, or mutate an
@@ -445,6 +503,17 @@ milestone must end with the required untracked `tmp/` report. Small read-only
 inspections need no report unless requested. About 150 lines is the normal
 ceiling unless evidence requires more.
 
+A progress update is not the milestone report. Do not write or present the
+completion report merely because some implementation has succeeded while
+ordinary required work remains. Unless the milestone genuinely `FAIL`s, write
+the report only after the full admitted delta, required validation, and
+final-diff review are complete.
+
+Agents may communicate concise progress only for genuine blockers, required
+approval, an authorized real-model launch review, a material defect, or a scope
+conflict. "More implementation remains," "tests remain," or "the report remains
+to be written" are not completion states and do not justify stopping.
+
 Use these six core sections:
 
 1. **State** — branches and HEADs; admission; subagent authorization and actual
@@ -477,10 +546,11 @@ computation, and broad exception swallowing. Raise clear `ValueError`,
 
 Keep agent chat concise and evidence-based. Send progress only for blockers,
 approval needs, real-model launch review, material defects, or scope conflicts.
-Do not paste routine inspection, successful logs, complete diffs, or report
-contents unless requested or needed to diagnose failure. The final response
-states completion, important findings or limitations, repository state,
-readiness, and the absolute report path.
+Do not emit routine partial-completion messages merely because the milestone
+takes multiple implementation steps. Do not paste routine inspection,
+successful logs, complete diffs, or report contents unless requested or needed
+to diagnose failure. The final response states completion, important findings
+or limitations, repository state, readiness, and the absolute report path.
 
 ## Documentation standards
 
@@ -502,15 +572,24 @@ Required delta: Align current scoring language and add one Unreleased entry.
 Milestone-specific non-goals: No CLI, schema, or scoring behavior changes.
 Special validation: Check changed links and contradictory scoring claims.
 Report path: tmp/clarify-score-review-report.md
-Subagents: none
 Git boundary: Do not stage, commit, merge, or push. Leave all changes unstaged and uncommitted.
 ```
 
 ## Completion rule
 
-Stop as soon as acceptance criteria pass and required evidence is recorded.
-Proceed to the human Git gate only when the scope is complete, affected
-callsites/tests/docs are updated or intentionally unchanged, validation passed
-honestly, the diff is bounded, no secrets or generated results are tracked, and
-the untracked report is the last intentional task artifact. Recommend a commit
-message if useful; never stage or commit it.
+After admission, continue until the complete bounded milestone is implemented
+and proved. Do not stop at an intermediate state merely because part of the
+feature works.
+
+Stop only when either:
+
+1. the milestone is complete: acceptance criteria pass, affected
+   callsites/tests/docs are updated or intentionally unchanged, required
+   validation passed honestly, the complete diff was reviewed, the scope is
+   bounded, no secrets or generated results are tracked, and the untracked
+   report is the last intentional task artifact; or
+2. a genuine fail-closed blocker prevents safe continuation and is documented
+   with evidence and the exact required human decision.
+
+Proceed to the human Git gate only in the first case. Recommend a commit message
+if useful; never stage or commit it.
