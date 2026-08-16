@@ -34,7 +34,7 @@ LLMGauge answers practical local-model questions such as:
 - an automatic judge that hides review
 - a hardware tuning tool
 - a general autonomous agent framework
-- a benchmark submission or telemetry system
+- a hosted benchmark submission system or telemetry service
 
 ## Current capabilities
 
@@ -58,6 +58,22 @@ LLMGauge currently provides:
 - artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
 - identity, provenance, and evidence-equivalence fingerprint foundations
+
+## Evaluation identities and boundaries
+
+LLMGauge-owned native suites evaluate preserved LLMGauge prompts and retain
+LLMGauge scoring authority. LocalMaxxing is an operational, opt-in llama.cpp
+performance benchmark with its own versioned artifact and measurement protocol;
+it is not a native-suite result. Future external benchmark imports must retain
+the named benchmark's official dataset, harness, and metric authority. Agent
+Harness evidence is an agent-environment evaluation with its imported session
+evidence authority. These classes are not interchangeable and are never
+combined into a universal score.
+
+Mainstream external benchmarks are not currently integrated: MMLU-Pro, GPQA,
+GSM8K, HellaSwag, ARC-Challenge, TruthfulQA, IFEval, and HumanEval/MBPP belong
+to the upcoming external-benchmark track. They must be imported under their
+official contracts, not recreated as native LLMGauge prompts.
 
 ## vLLM evidence track
 
@@ -475,8 +491,8 @@ and non-execution invariants are implemented. Existing suites retain their
 prior requirements and identities. Contained-resource and public-safe
 diagnostic behavior remain fail closed. This does not install or make Coding
 Core runnable and adds no suite content, scoring execution, or result behavior.
-The Full Model Testing order, parallel LocalMaxxing lane, downstream Generic
-Core work, and `v0.73` gate remain unchanged.
+The Full Model Testing order, completed LocalMaxxing integration, downstream
+Generic Core work, and the `v0.73` gate remain separate.
 
 ## Coding-suite content and package implementation
 
@@ -602,10 +618,10 @@ semantics. Comparison, public export, publication, export-index, runtime-neutral
 metrics, expanded failure taxonomy, and the optional evidence observation method
 remain deferred.
 
-The remainder of the Full Model Testing order is preserved. The parallel
-LocalMaxxing lane remains unselected pending a later explicit human gate;
-downstream Generic Core work and the existing `v0.73` gate remain unchanged. No
-release-version decision is made.
+The completed Full Model Testing work preserves its remaining deferred areas.
+LocalMaxxing is operational as a separate performance-benchmark integration;
+downstream Generic Core work and the existing `v0.73` gate remain unchanged.
+No release-version decision is made.
 
 ## Full-model-testing fast-track programs
 
@@ -639,51 +655,52 @@ The fast track covers these required capability areas:
    architecture/quantization/kernel, weight-load OOM, KV-cache OOM, endpoint,
    tool, generation, malformed-response, and agent-recovery failures.
 
-The initial ordered implementation path is:
+The completed prerequisite sequence is Coding Core, native multi-turn
+transcripts, Agent Harness import, and Agent Session Review. The selected next
+development order is:
 
-1. coding-oriented text suite;
-2. multi-turn transcript contract;
-3. Agent Harness evidence importer;
-4. runtime-neutral metrics and expanded failure taxonomy;
-5. existing vLLM audit and shared OpenAI-compatible transport generalization;
-6. reasoning and sampling profile completion;
-7. multimodal support; and
-8. diffusion and non-autoregressive support.
+1. Area 4 runtime-neutral metrics and expanded failure taxonomy;
+2. external benchmark integration foundation;
+3. first mainstream external benchmark bundle;
+4. Generic Core v1 completion; and
+5. reasoning and sampling profile work.
 
-Each numbered implementation area remains subject to the bounded contract,
-dependency, schema, implementation, integration, and release gates defined by
-the architecture. The order is a program sequence, not authorization to combine
-milestones or describe deferred capability as current behavior.
+The remaining multimodal and non-autoregressive areas remain later fast-track
+work. External-benchmark milestones preserve official benchmark authority and
+do not authorize recreating their prompts as native LLMGauge suites. Each
+numbered area remains subject to the bounded contract, dependency, schema,
+implementation, integration, and release gates defined by the architecture.
+The order is a program sequence, not authorization to combine milestones or
+describe deferred capability as current behavior.
 
 ### Area 4 contract accepted
 
 The [Runtime-neutral Metrics and Expanded Failure Taxonomy Contract](RUNTIME_NEUTRAL_METRICS_FAILURE_TAXONOMY_CONTRACT.md)
 is accepted for Area 4. It defines future additive neutral-metric and derived
 failure-classification evidence, but Area 4 implementation does not yet exist.
-It does not change the Area 5+ order, select the parallel LocalMaxxing lane,
-start downstream Generic Core work, alter the `v0.73` gate, or make a release
-version decision.
+It does not start downstream Generic Core work, alter the `v0.73` gate, or make
+a release-version decision.
 
 ### LocalMaxxing performance-benchmark integration
 
-The LocalMaxxing integration milestone is the selected current implementation
-work: it establishes a versioned local artifact, llama.cpp-first benchmark
-method, offline validation/export, and explicit authenticated
-dry-run/public-submit boundaries.
-It remains distinct performance evidence under the
+**Operational on `main`:** the LocalMaxxing integration provides a versioned
+local artifact, llama.cpp-first benchmark method, offline validation and export,
+and explicit authenticated dry-run and public-submit boundaries. It remains
+distinct performance evidence under the
 [general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md), never a normal
 quality-suite side effect.
 
 The method records additive, source-backed hardware, NVIDIA telemetry,
 llama.cpp runtime, combined-throughput, and localhost TTFT companion evidence
-when probes succeed. These optional fields do not alter core speed-method
-semantics or make Area 4 implemented.
+when probes succeed. Optional metrics remain absent when unproven; they do not
+alter core speed-method semantics or make Area 4 implemented. Network use is
+limited to the explicit `dry-run` and `submit` commands; public submission
+requires explicit confirmation and no ordinary command publishes, submits, or
+polls.
 
-The next selected work after LocalMaxxing acceptance is Area 4:
-runtime-neutral metrics and expanded failure-taxonomy interface/implementation.
 Future Area 4 measurements may feed the LocalMaxxing exporter without changing
-its public benchmark semantics. Area 4 is still unimplemented here and this
-does not alter the v0.73 Generic Core release gate.
+its public benchmark semantics. Area 4 remains unimplemented, and
+LocalMaxxing does not alter the `v0.73` Generic Core release gate.
 
 ## Admitted downstream Generic Core delivery
 
@@ -788,20 +805,26 @@ fast-track order only through its separately accepted contracts.
 
 ## Expanded evaluation track
 
-Other future evaluation-class work remains separate from Generic Core delivery,
-the Full Model Testing capability program, and the parallel LocalMaxxing
-performance-benchmark lane:
+External benchmark work follows Area 4 and precedes Generic Core v1 completion
+in the selected development order. It remains separate from LLMGauge-owned
+native suites, the Full Model Testing capability program, LocalMaxxing
+performance benchmarking, and agent-environment evaluations:
 
-1. External text benchmark read-only imports.
-2. Agent drift evaluation contract.
-3. Terminal-Bench/Harbor contract and read-only import.
-4. SWE-bench.
-5. Browser, computer-use, and OSWorld later.
+1. external benchmark integration foundation;
+2. first mainstream external benchmark bundle;
+3. additional external text benchmark read-only imports;
+4. Agent drift evaluation contract;
+5. Terminal-Bench/Harbor contract and read-only import;
+6. SWE-bench; and
+7. Browser, computer-use, and OSWorld later.
+
+MMLU-Pro, GPQA, GSM8K, HellaSwag, ARC-Challenge, TruthfulQA, IFEval, and
+HumanEval/MBPP are not integrated today. Any future integration preserves the
+external dataset, harness, and official metric as authoritative; LLMGauge does
+not recreate them as native prompts.
 
 These items retain the distinct evaluation classes and evidence authorities
 defined by the [general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md).
-LocalMaxxing is tracked in the parallel fast-track lane above rather than this
-future-work list.
 
 ## Recently completed releases
 

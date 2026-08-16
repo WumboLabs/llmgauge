@@ -20,23 +20,43 @@
 - Exposed named suite-profile selection through `llmgauge run --profile`,
   including manifest-default preservation, dry-run planning, portable selection
   metadata, and explicit rejection of ambiguous prompt selectors.
+- Completed bounded Coding Core live evidence with preserved manual and
+  non-executing structural outcomes; no generated response content was executed
+  or applied.
+- Added native multi-turn transcript evaluation with versioned, contained
+  transcript evidence, bounded sequential orchestration, immutable
+  fingerprinting, and transcript-aware reporting. Existing single-turn results
+  remain unchanged; transcript scoring, comparison, and public export remain
+  fail closed.
+- Added read-only OMP Agent Harness evidence import and the separate
+  `agent-session-review-v0` manual-review workflow and report. The importer
+  neither replays sessions nor executes tools, commands, tests, or model calls.
+- Added OMP 17.3.4 fallback-model metadata compatibility without changing
+  fallback selection or reinterpreting imported evidence.
+- Added the operational LocalMaxxing llama.cpp performance-benchmark
+  integration: versioned local artifacts, offline validation/export, enriched
+  source-backed hardware, telemetry, combined-throughput, and localhost-TTFT
+  companion metrics when available, plus explicit authenticated dry-run and
+  confirmed public-submit boundaries. It remains separate from native suites,
+  external benchmarks, and agent-environment evaluations.
 
 ### Documentation
 
 - Accepted the Full Model Testing capability architecture and roadmap fast
   tracks for its eight-step capability program and the separate LocalMaxxing
-  performance-benchmark architecture/offline-export lane, without adding
-  benchmark, export, submission, leaderboard, or other implementation behavior.
+  performance-benchmark architecture/offline-export lane. At acceptance, it
+  added no implementation behavior; subsequent Unreleased entries record the
+  completed bounded work.
 - Accepted the `coding-core-v1` architecture and scoring contract with static
-  coding capability, evidence, scoring, comparison, and containment boundaries;
-  prompts, schemas, suite behavior, and execution remain deferred.
+  coding capability, evidence, scoring, comparison, and containment boundaries.
 - Proposed the bounded `coding-core-v1` prompt and task-family inventory,
   capability ownership, response forms, profiles, and per-role scoring
-  authority while keeping prompts, fixtures, scoring methods, and behavior
-  deferred.
+  authority.
 - Accepted the combined `coding-core-v1` scoring-method and schema/loader
   foundation, fixing versioned manual/hybrid authority and additive contained
-  representation while leaving content and all executable behavior deferred.
+  representation.
+- Realigned the agent workflow policy around one bounded milestone, one agent,
+  one review report, and the human Git gate.
 
 ## v0.72.0 - 2026-07-28
 
