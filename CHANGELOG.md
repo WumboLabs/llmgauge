@@ -62,6 +62,12 @@
   representation.
 - Realigned the agent workflow policy around one bounded milestone, one agent,
   one review report, and the human Git gate.
+- Accepted the external benchmark and LocalMaxxing interoperability
+  contract. It locks official-harness authority, imported-evidence
+  identity, Bundle 1/2 compatibility as of 2026-08-16, and the
+  conceptual `llmgauge benchmark` CLI without adding importer, schema,
+  or submit behavior. The selected next order is now A–F after the
+  completed Area 4 native llama.cpp slice.
 
 ## v0.72.0 - 2026-07-28
 

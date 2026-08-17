@@ -33,6 +33,13 @@ Current non-goals / deliberate project boundaries:
   benchmark, and agent-environment evaluation, including authority, scoring,
   comparison, and integration sequencing.
 
+- [External Benchmark and LocalMaxxing Interoperability Contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
+  — accepted external-text-benchmark evidence model, official-harness
+  authority, imported-source containment, native-metric preservation,
+  Bundle 1/2 LocalMaxxing compatibility as of 2026-08-16, and the
+  conceptual `llmgauge benchmark` CLI. It adds no importer, schema code,
+  or LocalMaxxing quality-submit behavior.
+
 - [Full Model Testing Capability Architecture](FULL_MODEL_TESTING_CAPABILITY_ARCHITECTURE.md)
   — accepted capability classification, evidence and trust boundaries,
   prerequisite contracts, blocking scope, the eight-step Full Model Testing
