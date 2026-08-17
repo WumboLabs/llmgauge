@@ -52,7 +52,7 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _DIGEST_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$")
 _HF_ID_RE = re.compile(r"^[^./][^/\s]{0,126}/[^/\s]{1,127}$")
-_NON_METRIC_RESULT_KEYS = frozenset({"alias", "name", "sample_len"})
+_NON_METRIC_RESULT_KEYS = frozenset({"alias", "name", "sample_len", "sample_count"})
 
 Availability = Literal[
     "available", "absent", "unknown", "unavailable", "redacted", "unsupported"

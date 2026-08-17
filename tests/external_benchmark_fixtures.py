@@ -417,6 +417,7 @@ def official_mmlu_results() -> dict[str, Any]:
             "acc,none": 0.5,
             "acc_stderr,none": 0.01,
             "sample_len": len(task_ids),
+            "sample_count": {"acc,none": len(task_ids)},
         }
         results[subgroup_id] = dict(groups[subgroup_id])
         higher[subgroup_id] = {"acc": True}
@@ -448,6 +449,7 @@ def official_mmlu_results() -> dict[str, Any]:
         "acc,none": 0.5,
         "acc_stderr,none": 0.01,
         "sample_len": len(MMLU_SUBJECT_SUBGROUPS),
+        "sample_count": {"acc,none": len(MMLU_SUBJECT_SUBGROUPS)},
     }
     results["mmlu"] = dict(groups["mmlu"])
     return {
@@ -465,6 +467,61 @@ def official_mmlu_results() -> dict[str, Any]:
         "model_name": "org/demo-model",
         "model_source": "hf",
     }
+
+
+OFFICIAL_V0412_GIT_DESCRIBE = "v0.4.10-81-g6d642546"
+
+
+def official_v0412_writer_group_results() -> dict[str, Any]:
+    leaf = {
+        "alias": "leaf",
+        "name": "writer_leaf",
+        "sample_len": 1,
+        "acc,none": 1.0,
+        "acc_stderr,none": "N/A",
+    }
+    group = {
+        "alias": "group",
+        "name": "writer_group",
+        "sample_len": 1,
+        "acc,none": 1.0,
+        "acc_stderr,none": "N/A",
+        "sample_count": {"acc,none": 1},
+    }
+    return {
+        "results": {"writer_leaf": leaf, "writer_group": dict(group)},
+        "groups": {"writer_group": dict(group)},
+        "group_subtasks": {"writer_group": ["writer_leaf"]},
+        "configs": {
+            "writer_leaf": _task_config(
+                task="writer_leaf",
+                dataset_path="example/dataset",
+                dataset_name=None,
+                split_key="validation_split",
+                split="validation",
+                num_fewshot=0,
+                output_type="multiple_choice",
+                metrics=["acc"],
+                version=1.0,
+            )
+        },
+        "n-shot": {"writer_leaf": 0},
+        "versions": {"writer_leaf": 1.0},
+        "higher_is_better": {
+            "writer_leaf": {"acc": True},
+            "writer_group": {"acc": True},
+        },
+        "n-samples": {"writer_leaf": {"original": 10, "effective": 1}},
+        "config": {"model": "dummy", "model_args": "{}"},
+        "lm_eval_version": "0.4.12",
+        "git_hash": OFFICIAL_V0412_GIT_DESCRIBE,
+        "model_name": "dummy",
+        "model_source": "dummy",
+    }
+
+
+def write_official_v0412_writer_group_file(root: Path) -> Path:
+    return write_json(root / "results.json", official_v0412_writer_group_results())
 
 
 def official_task_results(

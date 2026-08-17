@@ -25,6 +25,16 @@ validating, or reporting.
 This is a versioned pin, not floating `latest`. The GitHub `v0.4.12` tag object
 resolves to that commit. Display names are not identities.
 
+Official isolated `v0.4.12` writer output uses `git describe --always`,
+which emits `v0.4.10-81-g6d642546` at this commit. Pin matching accepts
+that describe form when the abbreviated hash prefixes the pinned
+commit. Official group aggregates also emit a `sample_count` object
+beside `sample_len`; both are writer metadata, not native metrics.
+Stderr values may be the string `N/A` when bootstrap is disabled.
+Official MMLU `group_subtasks` lists expanded `mmlu_*` subject IDs, not
+the YAML tags such as `mmlu_stem_tasks`. HumanEval and MBPP cannot emit
+official pass@1 without upstream generated-code execution.
+
 ## Fail-closed statuses
 
 Each intended member is independently:
