@@ -126,13 +126,16 @@ Optional imported external-benchmark source tree:
     external-benchmark/evidence.json
     external-benchmark/source/<original source members, exact bytes>
     external-benchmark/source/objects/sha256/<64-lowercase-hex-digest>
+    external-benchmark/report.md
 
 `external-benchmark/evidence.json` is the normalized
 `llmgauge.external_benchmark_evidence.v0` identity and validation layer. It
 does not replace the authoritative lm-eval source. Contained source members
-are exact, digest-bound private copies. This tree belongs only to a dedicated
-external-benchmark import result; it cannot coexist with native prompt
-results, a native `transcript` reference, or `agent_harness_evidence`.
+are exact, digest-bound private copies. `external-benchmark/report.md` is a
+regenerable read-only summary and Bundle 1 qualification view; it is not
+written into evidence and is not a native `report.md`. This tree belongs only
+to a dedicated external-benchmark import result; it cannot coexist with native
+prompt results, a native `transcript` reference, or `agent_harness_evidence`.
 
 
 Optional public single-run derivative:
@@ -174,6 +177,7 @@ Authoritative vs derived:
 | `agent-harness/review/agent-session-review.md` | Regenerable Agent Harness review aid |
 | `external-benchmark/evidence.json` | Authoritative normalized imported-benchmark identity, native metrics, and validation state |
 | `external-benchmark/source/*` | Exact admitted lm-eval result members |
+| `external-benchmark/report.md` | Regenerable read-only imported-benchmark summary and Bundle 1 qualification view |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
@@ -294,7 +298,10 @@ Such a result has `run.operation: external_benchmark_import`, an empty
 `transcript` or `agent_harness_evidence`. `validate-result` and
 `llmgauge benchmark validate` understand this dedicated shape. Native
 scoring, report, comparison, export-index, and public-export consumers
-reject it. `benchmark report` is not part of this foundation.
+reject it. Use `llmgauge benchmark report` to write
+`external-benchmark/report.md`. Bundle 1 qualification is computed from
+source-backed identities at report time and is not persisted into
+`evidence.json`. See [Bundle 1 qualification](BUNDLE1_QUALIFICATION.md).
 
 Normalized evidence records source-backed task identity, harness
 identity/version/commit, dataset/config/revision, few-shot and generation

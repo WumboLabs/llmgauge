@@ -277,3 +277,437 @@ def write_unsafe_tree(root: Path) -> Path:
     write_json(root / "results.json", single_task_results())
     (root / "escape").symlink_to("/etc/passwd")
     return root
+
+
+def _metric_block(
+    *,
+    alias: str,
+    metrics: dict[str, float],
+    include_sample_len: bool = False,
+) -> dict[str, Any]:
+    block: dict[str, Any] = {"alias": alias}
+    block.update(metrics)
+    if include_sample_len:
+        block["sample_len"] = 100
+    return block
+
+
+def _task_config(
+    *,
+    task: str,
+    dataset_path: str,
+    dataset_name: str | None,
+    split_key: str,
+    split: str,
+    num_fewshot: int | None,
+    output_type: str,
+    metrics: list[str],
+    version: float | str,
+) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "task": task,
+        "dataset_path": dataset_path,
+        "dataset_name": dataset_name,
+        split_key: split,
+        "output_type": output_type,
+        "metric_list": [
+            {"metric": name, "aggregation": "mean", "higher_is_better": True}
+            for name in metrics
+        ],
+        "metadata": {"version": version},
+    }
+    if num_fewshot is not None:
+        config["num_fewshot"] = num_fewshot
+    return config
+
+
+def nested_group_results() -> dict[str, Any]:
+    return {
+        "results": {
+            "leaf_a": _metric_block(alias="leaf_a", metrics={"acc,none": 0.4}),
+            "leaf_b": _metric_block(alias="leaf_b", metrics={"acc,none": 0.6}),
+            "child_group": _metric_block(
+                alias="child",
+                metrics={"acc,none": 0.5, "sample_len": 2},
+                include_sample_len=False,
+            ),
+            "parent_group": _metric_block(
+                alias="parent",
+                metrics={"acc,none": 0.5},
+                include_sample_len=True,
+            ),
+        },
+        "groups": {
+            "child_group": {
+                "alias": "child",
+                "acc,none": 0.5,
+                "acc_stderr,none": 0.01,
+                "sample_len": 2,
+            },
+            "parent_group": {
+                "alias": "parent",
+                "acc,none": 0.5,
+                "acc_stderr,none": 0.01,
+                "sample_len": 2,
+            },
+        },
+        "group_subtasks": {
+            "parent_group": ["child_group"],
+            "child_group": ["leaf_a", "leaf_b"],
+        },
+        "configs": {
+            "leaf_a": _task_config(
+                task="leaf_a",
+                dataset_path="org/demo",
+                dataset_name="a",
+                split_key="test_split",
+                split="test",
+                num_fewshot=0,
+                output_type="multiple_choice",
+                metrics=["acc"],
+                version=1.0,
+            ),
+            "leaf_b": _task_config(
+                task="leaf_b",
+                dataset_path="org/demo",
+                dataset_name="b",
+                split_key="test_split",
+                split="test",
+                num_fewshot=0,
+                output_type="multiple_choice",
+                metrics=["acc"],
+                version=1.0,
+            ),
+        },
+        "n-shot": {"leaf_a": 0, "leaf_b": 0},
+        "versions": {"leaf_a": 1.0, "leaf_b": 1.0},
+        "higher_is_better": {
+            "leaf_a": {"acc": True},
+            "leaf_b": {"acc": True},
+            "child_group": {"acc": True},
+            "parent_group": {"acc": True},
+        },
+        "config": {"model": "hf", "model_args": "pretrained=org/demo-model"},
+        "lm_eval_version": "0.4.12",
+        "git_hash": "6d642546f4688648fced259eb3302efd36ece5af",
+        "model_name": "org/demo-model",
+        "model_source": "hf",
+    }
+
+
+def official_mmlu_results() -> dict[str, Any]:
+    from llmgauge.core.bundle1 import (
+        MMLU_SUBJECT_SUBGROUPS,
+        MMLU_SUBGROUP_IDS,
+        MMLU_SUBGROUP_TASK_IDS,
+    )
+
+    results: dict[str, Any] = {}
+    groups: dict[str, Any] = {}
+    group_subtasks: dict[str, list[str]] = {"mmlu": list(MMLU_SUBGROUP_IDS)}
+    configs: dict[str, Any] = {}
+    n_shot: dict[str, int] = {}
+    versions: dict[str, Any] = {}
+    higher: dict[str, Any] = {"mmlu": {"acc": True}}
+    n_samples: dict[str, Any] = {}
+    for subgroup_id, task_ids in MMLU_SUBGROUP_TASK_IDS.items():
+        group_subtasks[subgroup_id] = list(task_ids)
+        groups[subgroup_id] = {
+            "alias": subgroup_id.removeprefix("mmlu_"),
+            "acc,none": 0.5,
+            "acc_stderr,none": 0.01,
+            "sample_len": len(task_ids),
+        }
+        results[subgroup_id] = dict(groups[subgroup_id])
+        higher[subgroup_id] = {"acc": True}
+        for task_id in task_ids:
+            subject = task_id.removeprefix("mmlu_")
+            results[task_id] = {
+                "alias": subject,
+                "acc,none": 0.5,
+                "acc_stderr,none": 0.02,
+                "sample_len": 10,
+            }
+            configs[task_id] = _task_config(
+                task=task_id,
+                dataset_path="cais/mmlu",
+                dataset_name=subject,
+                split_key="test_split",
+                split="test",
+                num_fewshot=5,
+                output_type="multiple_choice",
+                metrics=["acc"],
+                version=1.0,
+            )
+            n_shot[task_id] = 5
+            versions[task_id] = 1.0
+            higher[task_id] = {"acc": True}
+            n_samples[task_id] = {"original": 10, "effective": 10}
+    groups["mmlu"] = {
+        "alias": "mmlu",
+        "acc,none": 0.5,
+        "acc_stderr,none": 0.01,
+        "sample_len": len(MMLU_SUBJECT_SUBGROUPS),
+    }
+    results["mmlu"] = dict(groups["mmlu"])
+    return {
+        "results": results,
+        "groups": groups,
+        "group_subtasks": group_subtasks,
+        "configs": configs,
+        "n-shot": n_shot,
+        "versions": versions,
+        "higher_is_better": higher,
+        "n-samples": n_samples,
+        "config": {"model": "hf", "model_args": "pretrained=org/demo-model"},
+        "lm_eval_version": "0.4.12",
+        "git_hash": "6d642546f4688648fced259eb3302efd36ece5af",
+        "model_name": "org/demo-model",
+        "model_source": "hf",
+    }
+
+
+def official_task_results(
+    *,
+    task_id: str,
+    dataset_path: str,
+    dataset_name: str | None,
+    split_key: str,
+    split: str,
+    num_fewshot: int,
+    output_type: str,
+    metrics: dict[str, float],
+    metric_names: list[str],
+    version: float | str,
+) -> dict[str, Any]:
+    payload = {
+        "results": {
+            task_id: _metric_block(
+                alias=task_id, metrics=metrics, include_sample_len=True
+            )
+        },
+        "groups": {},
+        "group_subtasks": {},
+        "configs": {
+            task_id: _task_config(
+                task=task_id,
+                dataset_path=dataset_path,
+                dataset_name=dataset_name,
+                split_key=split_key,
+                split=split,
+                num_fewshot=num_fewshot,
+                output_type=output_type,
+                metrics=metric_names,
+                version=version,
+            )
+        },
+        "n-shot": {task_id: num_fewshot},
+        "versions": {task_id: version},
+        "higher_is_better": {task_id: {name: True for name in metric_names}},
+        "n-samples": {task_id: {"original": 100, "effective": 100}},
+        "config": {"model": "hf", "model_args": "pretrained=org/demo-model"},
+        "lm_eval_version": "0.4.12",
+        "git_hash": "6d642546f4688648fced259eb3302efd36ece5af",
+        "model_name": "org/demo-model",
+        "model_source": "hf",
+    }
+    return payload
+
+
+def official_arc_challenge_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="arc_challenge",
+        dataset_path="allenai/ai2_arc",
+        dataset_name="ARC-Challenge",
+        split_key="test_split",
+        split="test",
+        num_fewshot=25,
+        output_type="multiple_choice",
+        metrics={"acc,none": 0.5, "acc_norm,none": 0.52},
+        metric_names=["acc", "acc_norm"],
+        version=1.0,
+    )
+
+
+def official_hellaswag_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="hellaswag",
+        dataset_path="Rowan/hellaswag",
+        dataset_name=None,
+        split_key="validation_split",
+        split="validation",
+        num_fewshot=10,
+        output_type="multiple_choice",
+        metrics={"acc,none": 0.7, "acc_norm,none": 0.72},
+        metric_names=["acc", "acc_norm"],
+        version=1.0,
+    )
+
+
+def official_winogrande_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="winogrande",
+        dataset_path="allenai/winogrande",
+        dataset_name="winogrande_xl",
+        split_key="validation_split",
+        split="validation",
+        num_fewshot=5,
+        output_type="multiple_choice",
+        metrics={"acc,none": 0.68},
+        metric_names=["acc"],
+        version=1.0,
+    )
+
+
+def official_truthfulqa_mc2_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="truthfulqa_mc2",
+        dataset_path="truthfulqa/truthful_qa",
+        dataset_name="multiple_choice",
+        split_key="validation_split",
+        split="validation",
+        num_fewshot=0,
+        output_type="multiple_choice",
+        metrics={"acc,none": 0.45},
+        metric_names=["acc"],
+        version=3.0,
+    )
+
+
+def official_gsm8k_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="gsm8k",
+        dataset_path="openai/gsm8k",
+        dataset_name="main",
+        split_key="test_split",
+        split="test",
+        num_fewshot=5,
+        output_type="generate_until",
+        metrics={
+            "exact_match,strict-match": 0.4,
+            "exact_match,flexible-extract": 0.42,
+        },
+        metric_names=["exact_match"],
+        version=3.0,
+    )
+
+
+def official_humaneval_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="humaneval",
+        dataset_path="openai/openai_humaneval",
+        dataset_name=None,
+        split_key="test_split",
+        split="test",
+        num_fewshot=0,
+        output_type="generate_until",
+        metrics={"pass@1": 0.2},
+        metric_names=["pass@1"],
+        version=1.0,
+    )
+
+
+def official_mbpp_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="mbpp",
+        dataset_path="google-research-datasets/mbpp",
+        dataset_name="full",
+        split_key="test_split",
+        split="test",
+        num_fewshot=3,
+        output_type="generate_until",
+        metrics={"pass@1": 0.3},
+        metric_names=["pass@1"],
+        version=1.0,
+    )
+
+
+def merge_lm_eval_results(*payloads: dict[str, Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = {
+        "results": {},
+        "groups": {},
+        "group_subtasks": {},
+        "configs": {},
+        "n-shot": {},
+        "versions": {},
+        "higher_is_better": {},
+        "n-samples": {},
+        "config": {"model": "hf", "model_args": "pretrained=org/demo-model"},
+        "lm_eval_version": "0.4.12",
+        "git_hash": "6d642546f4688648fced259eb3302efd36ece5af",
+        "model_name": "org/demo-model",
+        "model_source": "hf",
+    }
+    for payload in payloads:
+        for key in (
+            "results",
+            "groups",
+            "group_subtasks",
+            "configs",
+            "n-shot",
+            "versions",
+            "higher_is_better",
+            "n-samples",
+        ):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                merged[key].update(value)
+    return merged
+
+
+def official_bundle1_results() -> dict[str, Any]:
+    return merge_lm_eval_results(
+        official_mmlu_results(),
+        official_arc_challenge_results(),
+        official_hellaswag_results(),
+        official_winogrande_results(),
+        official_truthfulqa_mc2_results(),
+        official_gsm8k_results(),
+        official_humaneval_results(),
+        official_mbpp_results(),
+    )
+
+
+def conflicting_humaneval_results() -> dict[str, Any]:
+    payload = official_humaneval_results()
+    payload["configs"]["humaneval"]["dataset_path"] = "evalplus/humanevalplus"
+    return payload
+
+
+def lookalike_mmlu_pro_results() -> dict[str, Any]:
+    return official_task_results(
+        task_id="mmlu_pro",
+        dataset_path="TIGER-Lab/MMLU-Pro",
+        dataset_name=None,
+        split_key="test_split",
+        split="test",
+        num_fewshot=5,
+        output_type="multiple_choice",
+        metrics={"acc,none": 0.4},
+        metric_names=["acc"],
+        version=1.0,
+    )
+
+
+def write_nested_group_file(root: Path) -> Path:
+    return write_json(root / "results.json", nested_group_results())
+
+
+def write_official_bundle1_file(root: Path) -> Path:
+    return write_json(root / "results.json", official_bundle1_results())
+
+
+def write_official_humaneval_file(root: Path) -> Path:
+    return write_json(root / "results.json", official_humaneval_results())
+
+
+def write_conflicting_humaneval_file(root: Path) -> Path:
+    return write_json(root / "results.json", conflicting_humaneval_results())
+
+
+def write_lookalike_mmlu_pro_file(root: Path) -> Path:
+    return write_json(root / "results.json", lookalike_mmlu_pro_results())
+
+
+def write_official_mmlu_file(root: Path) -> Path:
+    return write_json(root / "results.json", official_mmlu_results())

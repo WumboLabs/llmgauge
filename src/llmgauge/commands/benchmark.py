@@ -10,10 +10,15 @@ from llmgauge.core.external_benchmark import (
     ExternalBenchmarkImportError,
     import_lm_eval_harness_results,
 )
+from llmgauge.core.external_benchmark_report import (
+    ExternalBenchmarkReportError,
+    write_external_benchmark_report,
+)
 from llmgauge.core.result_validation import load_result_json, validate_result_dir
 
+
 app = typer.Typer(
-    help="Read-only external benchmark import and validation.",
+    help="Read-only external benchmark import, validation, and reporting.",
     no_args_is_help=True,
 )
 
@@ -106,4 +111,31 @@ def validate_command(
     console.print(
         "Structural validation passed; this does not prove official acceptance, "
         "answer quality, or publication readiness."
+    )
+
+
+@app.command("report")
+def report_command(
+    result_dir: Path = typer.Argument(
+        ..., help="Imported external-benchmark result directory"
+    ),
+) -> None:
+    """Write a read-only report from imported external-benchmark evidence."""
+
+    try:
+        path, qualification = write_external_benchmark_report(result_dir)
+    except ExternalBenchmarkReportError as exc:
+        console.print(f"[bold red]External benchmark report failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
+    except (OSError, ValueError) as exc:
+        console.print(
+            "[bold red]External benchmark report failed[/bold red]: "
+            "result could not be reported"
+        )
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[bold green]Wrote external benchmark report[/bold green]: {path}")
+    console.print(
+        f"Bundle 1 status: {qualification.overall_status}. "
+        "This is not a quality score, ranking, or publication decision."
     )

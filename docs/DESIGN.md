@@ -39,6 +39,9 @@ Current non-goals / deliberate project boundaries:
   Bundle 1/2 LocalMaxxing compatibility as of 2026-08-16, and the
   conceptual `llmgauge benchmark` CLI. It adds no importer, schema code,
   or LocalMaxxing quality-submit behavior.
+- [Bundle 1 qualification](BUNDLE1_QUALIFICATION.md) — pinned official
+  EleutherAI `lm-evaluation-harness` `v0.4.12` identities, fail-closed
+  qualification statuses, and the read-only `benchmark report` boundary.
 
 - [Full Model Testing Capability Architecture](FULL_MODEL_TESTING_CAPABILITY_ARCHITECTURE.md)
   — accepted capability classification, evidence and trust boundaries,

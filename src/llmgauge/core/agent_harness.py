@@ -3069,5 +3069,5 @@ def require_native_result(result: Mapping[str, Any], *, consumer: str) -> None:
     if result.get("external_benchmark_evidence") is not None:
         raise ValueError(
             f"{consumer} does not support imported external benchmark evidence; "
-            "external benchmark scoring and reporting are not implemented"
+            "use `llmgauge benchmark report` for imported external-benchmark evidence"
         )

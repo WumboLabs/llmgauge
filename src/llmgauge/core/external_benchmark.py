@@ -30,6 +30,7 @@ IMPORTER_ID = "llmgauge.external_benchmark_importer"
 EVIDENCE_RELATIVE_PATH = "external-benchmark/evidence.json"
 SOURCE_RELATIVE_DIR = "external-benchmark/source"
 OBJECTS_RELATIVE_DIR = "external-benchmark/source/objects/sha256"
+REPORT_RELATIVE_PATH = "external-benchmark/report.md"
 RESULT_OPERATION = "external_benchmark_import"
 
 MAX_RESULTS_JSON_BYTES = 32 * 1024 * 1024
@@ -51,6 +52,7 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _DIGEST_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$")
 _HF_ID_RE = re.compile(r"^[^./][^/\s]{0,126}/[^/\s]{1,127}$")
+_NON_METRIC_RESULT_KEYS = frozenset({"alias", "name", "sample_len"})
 
 Availability = Literal[
     "available", "absent", "unknown", "unavailable", "redacted", "unsupported"
@@ -270,12 +272,18 @@ class ExternalBenchmarkEvidence(_ClosedModel):
         if overlap:
             raise ValueError("task and group identities must not collide")
         known_tasks = set(task_ids)
+        known_groups = set(group_ids)
         for group in self.groups:
             missing = [
-                task_id for task_id in group.subtask_ids if task_id not in known_tasks
+                item_id
+                for item_id in group.subtask_ids
+                if item_id not in known_tasks and item_id not in known_groups
             ]
             if missing:
-                raise ValueError("group subtasks must name represented tasks")
+                raise ValueError("group subtasks must name represented tasks or groups")
+            if group.group_id in group.subtask_ids:
+                raise ValueError("group cannot list itself as a subtask")
+        _require_acyclic_groups(self.groups)
         return self
 
 
@@ -353,6 +361,28 @@ def _require_digest_id(value: str, label: str) -> None:
 def _require_unique(values: list[str], label: str) -> None:
     if len(values) != len(set(values)):
         raise ValueError(f"{label} must be unique")
+
+
+def _require_acyclic_groups(groups: list[GroupAggregation]) -> None:
+    children = {item.group_id: list(item.subtask_ids) for item in groups}
+    known_groups = set(children)
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def walk(group_id: str) -> None:
+        if group_id in visited:
+            return
+        if group_id in visiting:
+            raise ValueError("group membership must be acyclic")
+        visiting.add(group_id)
+        for child_id in children.get(group_id, ()):
+            if child_id in known_groups:
+                walk(child_id)
+        visiting.remove(group_id)
+        visited.add(group_id)
+
+    for group_id in children:
+        walk(group_id)
 
 
 def _require_contained_path(value: str, label: str) -> None:
@@ -821,7 +851,7 @@ def _extract_metrics(
 ) -> list[NativeMetric]:
     numeric: dict[str, float] = {}
     for key, value in payload.items():
-        if key == "alias":
+        if key in _NON_METRIC_RESULT_KEYS:
             continue
         if not isinstance(key, str) or not key:
             raise ExternalBenchmarkImportError(
@@ -1019,16 +1049,26 @@ def _build_groups(
     known_tasks = {item.task_id for item in tasks}
     groups: list[GroupAggregation] = []
     group_ids = sorted(set(parsed.groups) | set(parsed.group_subtasks))
+    known_groups = set(group_ids)
     for group_id in group_ids:
         subtasks = parsed.group_subtasks.get(group_id)
         if subtasks is None:
             raise ExternalBenchmarkImportError(
                 "malformed_source", "group is missing subtask membership"
             )
-        missing = [task_id for task_id in subtasks if task_id not in known_tasks]
+        missing = [
+            item_id
+            for item_id in subtasks
+            if item_id not in known_tasks and item_id not in known_groups
+        ]
         if missing:
             raise ExternalBenchmarkImportError(
-                "malformed_source", "group subtasks are not represented as tasks"
+                "malformed_source",
+                "group subtasks are not represented as tasks or groups",
+            )
+        if group_id in subtasks:
+            raise ExternalBenchmarkImportError(
+                "malformed_source", "group cannot list itself as a subtask"
             )
         payload = parsed.groups.get(group_id)
         metrics: list[NativeMetric] = []
@@ -1045,6 +1085,10 @@ def _build_groups(
                 metrics=metrics,
             )
         )
+    try:
+        _require_acyclic_groups(groups)
+    except ValueError as exc:
+        raise ExternalBenchmarkImportError("malformed_source", str(exc)) from exc
     return groups
 
 

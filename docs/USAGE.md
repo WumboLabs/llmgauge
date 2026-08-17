@@ -378,6 +378,10 @@ Validate the contained imported evidence:
 
     uv run llmgauge benchmark validate results/imported-lm-eval
 
+Write a read-only imported-benchmark report and Bundle 1 qualification view:
+
+    uv run llmgauge benchmark report results/imported-lm-eval
+
 `validate-result` also understands this dedicated imported result. Import or
 validation success does not prove official harness acceptance, answer quality,
 or publication readiness. The importer copies admitted source bytes and writes
@@ -386,11 +390,16 @@ reinterpret, or overwrite the authoritative lm-eval result. It does not
 execute generated code, install lm-eval, download datasets, or contact a
 network service.
 
+`benchmark report` writes regenerable `external-benchmark/report.md`. Bundle 1
+qualification is computed from pinned official identities at report time and
+is not written into evidence. A generic lm-eval import remains valid when it
+is not Bundle 1-qualified. See
+[Bundle 1 qualification](BUNDLE1_QUALIFICATION.md).
+
 Native `score`, native report, comparison, export-index, and public-export
-paths reject imported external-benchmark results. `benchmark report` is not
-implemented in this foundation; reporting remains a later bounded milestone.
-The existing `llmgauge localmaxxing` namespace remains the llama.cpp
-speed/performance integration and is unchanged.
+paths reject imported external-benchmark results. The existing
+`llmgauge localmaxxing` namespace remains the llama.cpp speed/performance
+integration and is unchanged.
 
 
 ## Validation
