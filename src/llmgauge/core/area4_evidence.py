@@ -286,9 +286,11 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
     if (
         data.get("transcript") is not None
         or data.get("agent_harness_evidence") is not None
+        or data.get("external_benchmark_evidence") is not None
     ):
         errors.append(
-            "Area 4 evidence is unsupported for transcript or Agent Harness results"
+            "Area 4 evidence is unsupported for transcript, Agent Harness, "
+            "or external benchmark results"
         )
     prompt_results = data.get("results")
     if not isinstance(prompt_results, list):

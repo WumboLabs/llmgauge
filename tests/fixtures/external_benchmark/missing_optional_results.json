@@ -1,0 +1,10 @@
+{
+  "group_subtasks": {},
+  "groups": {},
+  "results": {
+    "winogrande": {
+      "acc,none": 0.72,
+      "alias": "winogrande"
+    }
+  }
+}

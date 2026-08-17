@@ -2931,6 +2931,10 @@ def validate_agent_harness_result(
         errors.append(
             "imported Agent Harness evidence cannot include a native transcript"
         )
+    if result.get("external_benchmark_evidence") is not None:
+        errors.append(
+            "imported Agent Harness evidence cannot include external benchmark evidence"
+        )
     results = result.get("results")
     if results != []:
         errors.append("imported Agent Harness evidence requires empty native results")
@@ -3061,4 +3065,9 @@ def require_native_result(result: Mapping[str, Any], *, consumer: str) -> None:
         raise ValueError(
             f"{consumer} does not support imported Agent Harness evidence; "
             "Agent Harness scoring and reporting are not implemented"
+        )
+    if result.get("external_benchmark_evidence") is not None:
+        raise ValueError(
+            f"{consumer} does not support imported external benchmark evidence; "
+            "external benchmark scoring and reporting are not implemented"
         )

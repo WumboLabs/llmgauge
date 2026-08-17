@@ -11,6 +11,8 @@ RUN_FINGERPRINT_SCHEMA_VERSION = "llmgauge.run_fingerprint.v0"
 RUN_FINGERPRINT_PAYLOAD_VERSION = "llmgauge.run_fingerprint_payload.v0"
 RUN_FINGERPRINT_SCHEMA_VERSION_V1 = "llmgauge.run_fingerprint.v1"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V1 = "llmgauge.run_fingerprint_payload.v1"
+RUN_FINGERPRINT_SCHEMA_VERSION_V2 = "llmgauge.run_fingerprint.v2"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V2 = "llmgauge.run_fingerprint_payload.v2"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -274,7 +276,13 @@ def _area4_is_represented(result: Mapping[str, Any]) -> bool:
     )
 
 
+def _external_benchmark_is_represented(result: Mapping[str, Any]) -> bool:
+    return result.get("external_benchmark_evidence") is not None
+
+
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _external_benchmark_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V2, RUN_FINGERPRINT_PAYLOAD_VERSION_V2
     if _area4_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V1, RUN_FINGERPRINT_PAYLOAD_VERSION_V1
     return RUN_FINGERPRINT_SCHEMA_VERSION, RUN_FINGERPRINT_PAYLOAD_VERSION
@@ -305,6 +313,47 @@ def build_run_fingerprint_payload(
         raise FingerprintUnavailable("suite metadata is unavailable")
     if not isinstance(results, list):
         raise FingerprintUnavailable("prompt results are unavailable")
+    external_reference = result.get("external_benchmark_evidence")
+    if external_reference is not None:
+        if payload_version != RUN_FINGERPRINT_PAYLOAD_VERSION_V2:
+            raise FingerprintUnavailable(
+                "external_benchmark_evidence requires a v2 fingerprint payload"
+            )
+        if not isinstance(external_reference, Mapping):
+            raise FingerprintUnavailable(
+                "external_benchmark_evidence reference is unavailable"
+            )
+        from llmgauge.core.external_benchmark import (
+            immutable_external_benchmark_payload,
+            load_external_benchmark_evidence,
+        )
+
+        try:
+            evidence = load_external_benchmark_evidence(result_dir, external_reference)
+        except ValueError as exc:
+            raise FingerprintUnavailable(
+                f"external_benchmark_evidence is unavailable: {exc}"
+            ) from None
+        return {
+            "schema_version": payload_version,
+            "result_schema_version": result.get("schema_version"),
+            "llmgauge_version": result.get("llmgauge_version"),
+            "external_benchmark_evidence": immutable_external_benchmark_payload(
+                evidence
+            ),
+            "policy": {
+                "run_id": "excluded",
+                "timestamp_utc": "excluded",
+                "import_timestamp": "excluded",
+                "external_locator": "excluded",
+                "paths": "source_member_hashes_only",
+                "scores": "excluded",
+                "reports": "excluded",
+                "comparisons": "excluded",
+                "exports": "excluded",
+                "localmaxxing": "excluded",
+            },
+        }
     agent_harness_reference = result.get("agent_harness_evidence")
     if agent_harness_reference is not None:
         if not isinstance(agent_harness_reference, Mapping):
@@ -461,10 +510,13 @@ def verify_run_fingerprint(
     if schema_version not in {
         RUN_FINGERPRINT_SCHEMA_VERSION,
         RUN_FINGERPRINT_SCHEMA_VERSION_V1,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V2,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION} or {RUN_FINGERPRINT_SCHEMA_VERSION_V1}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V1}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -476,21 +528,32 @@ def verify_run_fingerprint(
     if errors:
         return errors
     if (
+        _external_benchmark_is_represented(result)
+        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V2
+    ):
+        errors.append(
+            "external benchmark evidence requires a v2 run_fingerprint when represented"
+        )
+        return errors
+    if (
         _area4_is_represented(result)
         and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V1
     ):
         errors.append("Area 4 evidence requires a v1 run_fingerprint when represented")
         return errors
 
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V2:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V2
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V1:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V1
+    else:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION
+
     try:
         expected = run_fingerprint_value(
             result_dir,
             result,
-            payload_version=(
-                RUN_FINGERPRINT_PAYLOAD_VERSION_V1
-                if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V1
-                else RUN_FINGERPRINT_PAYLOAD_VERSION
-            ),
+            payload_version=payload_version,
         )
     except FingerprintUnavailable as exc:
         return [f"run_fingerprint cannot be verified: {exc}"]

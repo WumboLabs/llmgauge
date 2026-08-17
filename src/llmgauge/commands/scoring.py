@@ -140,6 +140,11 @@ def score(
             "Native scoring does not support imported Agent Harness evidence; "
             "Agent Harness scoring and reporting are not implemented"
         )
+    if result.get("external_benchmark_evidence") is not None:
+        raise typer.BadParameter(
+            "Native scoring does not support imported external benchmark evidence; "
+            "external benchmark scoring and reporting are not implemented"
+        )
     if result.get("transcript") is not None:
         raise typer.BadParameter(
             "Native multi-turn scoring is not implemented; transcript review "

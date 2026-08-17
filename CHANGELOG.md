@@ -4,6 +4,15 @@
 
 ### Added
 
+- Added read-only import of supported EleutherAI `lm-eval` harness
+  results as `llmgauge.external_benchmark_evidence.v0` under a dedicated
+  `llmgauge.result.v0`. The importer copies admitted source bytes,
+  preserves native metric names, fail-closes on malformed or mixed-class
+  evidence, and participates in `llmgauge.run_fingerprint.v2` without
+  changing historical v0/v1 verification. CLI: `llmgauge benchmark
+  import` and `llmgauge benchmark validate`. `benchmark report`, Bundle
+  1 completion, and LocalMaxxing quality export/submit remain later.
+
 - Added optional runtime-neutral request-wall-time evidence and bounded derived
   failure taxonomy for measured native single-turn llama.cpp attempts. The
   slice preserves native throughput semantics, legacy result validity, and v0
@@ -68,6 +77,10 @@
   conceptual `llmgauge benchmark` CLI without adding importer, schema,
   or submit behavior. The selected next order is now A–F after the
   completed Area 4 native llama.cpp slice.
+- Documented the completed external-benchmark importer foundation, the
+  dedicated result/evidence layout, v2 fingerprint participation, and
+  the remaining Bundle 1 / `benchmark report` gate.
+
 
 ## v0.72.0 - 2026-07-28
 
