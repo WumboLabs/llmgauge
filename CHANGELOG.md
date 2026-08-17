@@ -10,8 +10,14 @@
   preserves native metric names, fail-closes on malformed or mixed-class
   evidence, and participates in `llmgauge.run_fingerprint.v2` without
   changing historical v0/v1 verification. CLI: `llmgauge benchmark
-  import` and `llmgauge benchmark validate`. `benchmark report`, Bundle
-  1 completion, and LocalMaxxing quality export/submit remain later.
+  import`, `llmgauge benchmark validate`, and `llmgauge benchmark
+  report`.
+- Pinned official Bundle 1 identities against EleutherAI
+  `lm-evaluation-harness` `v0.4.12` and added fail-closed qualification
+  plus an isolated `external-benchmark/report.md`. Qualification is not
+  persisted into evidence. Generic lm-eval import remains valid when not
+  Bundle 1-qualified. HumanEval and MBPP remain import-only. LocalMaxxing
+  quality export/submit remains later.
 
 - Added optional runtime-neutral request-wall-time evidence and bounded derived
   failure taxonomy for measured native single-turn llama.cpp attempts. The
@@ -78,8 +84,10 @@
   or submit behavior. The selected next order is now A–F after the
   completed Area 4 native llama.cpp slice.
 - Documented the completed external-benchmark importer foundation, the
-  dedicated result/evidence layout, v2 fingerprint participation, and
-  the remaining Bundle 1 / `benchmark report` gate.
+  dedicated result/evidence layout, and v2 fingerprint participation.
+- Documented pinned Bundle 1 qualification, isolated
+  `llmgauge benchmark report`, and the HumanEval/MBPP non-execution
+  boundary.
 
 
 ## v0.72.0 - 2026-07-28

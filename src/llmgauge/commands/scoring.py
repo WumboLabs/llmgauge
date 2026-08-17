@@ -143,7 +143,7 @@ def score(
     if result.get("external_benchmark_evidence") is not None:
         raise typer.BadParameter(
             "Native scoring does not support imported external benchmark evidence; "
-            "external benchmark scoring and reporting are not implemented"
+            "external benchmark scoring is not implemented"
         )
     if result.get("transcript") is not None:
         raise typer.BadParameter(

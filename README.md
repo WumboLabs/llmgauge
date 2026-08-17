@@ -190,10 +190,13 @@ code, or contact a network:
 
     uv run llmgauge benchmark import /path/to/results.json results/imported-lm-eval
     uv run llmgauge benchmark validate results/imported-lm-eval
+    uv run llmgauge benchmark report results/imported-lm-eval
 
-Import success is structural only. It does not complete Bundle 1 or
-prove official acceptance. Native score/report/export paths reject these
-results. The existing `localmaxxing` namespace remains speed-only.
+Import success is structural only. Bundle 1 qualification is a separate
+exact-identity check against the pinned official harness tasks. Native
+score/report/export paths reject these results. The existing
+`localmaxxing` namespace remains speed-only. See
+[Bundle 1 qualification](docs/BUNDLE1_QUALIFICATION.md).
 
 ## Source-checkout usage vs installed CLI usage
 
