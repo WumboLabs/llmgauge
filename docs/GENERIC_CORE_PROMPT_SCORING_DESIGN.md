@@ -1,13 +1,14 @@
 # Generic Core Prompt and Scoring Design
 
-Status: Proposed design for `generic-core-v1` version `0.1.0`.
+Status: Accepted prompt-role design for `generic-core-v1` version `0.1.0`.
+Suite content for this inventory is implemented. Deterministic checks D1-D7
+remain unimplemented.
 
-This document fixes the proposed prompt-role inventory, scoring ownership, and
+This document fixes the prompt-role inventory, scoring ownership, and
 ordered `smoke` and `core` membership required by the accepted
-[Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md). It is a design
-artifact, not an executable suite. Prompt objectives and fixture concepts below
-are not final prompt wording or committed fixture files. Proposed checks and
-rubric mappings are scoring design, not scoring implementation.
+[Generic Core suite contract](GENERIC_CORE_SUITE_CONTRACT.md). Implemented
+prompt wording and committed fixtures must preserve these roles. Proposed
+checks and rubric mappings remain scoring design, not scoring implementation.
 
 ## Scope and authority
 
@@ -576,30 +577,24 @@ conditions.
 
 ## Deferred implementation requirements and risks
 
-The next bounded milestone is the **Generic Core schema and loader contract**.
-It must define the minimum representation and loading support needed for named
-profiles, exact prompt ordering, primary capability and secondary stressor tags,
-scoring roles and versioned references, and fixture references before any suite
-implementation is admitted.
+Final prompt wording, committed fixtures, and suite discovery for version
+`0.1.0` are implemented. The next bounded milestone is **deterministic-check
+implementation** for D1-D7.
 
-Later, separately admitted work must:
+Remaining separately admitted work must:
 
-1. write and review final production prompt wording without changing these task
-   objectives, identities, ownership boundaries, or profile order;
-2. commit self-contained fixture files and deterministic expected inputs under
-   the accepted schema and package-data rules;
-3. specify response grammars, word counting, code extraction, JSON
+1. specify response grammars, word counting, code extraction, JSON
    canonicalization, diagnostic bounds, and check-error handling precisely;
-4. accept a safe local containment and resource-limit design before D5 executes
+2. accept a safe local containment and resource-limit design before D5 executes
    generated code, or fail implementation admission;
-5. implement checks without lexical semantic substitution and preserve their
+3. implement checks without lexical semantic substitution and preserve their
    input, outcome, version, and error provenance;
-6. map manual review without modifying `default-manual-v0` and preserve null,
+4. map manual review without modifying `default-manual-v0` and preserve null,
    missing, partial, unreviewed, and reviewed states;
-7. add focused loader, ordering, profile-subset, fixture, check, provenance, and
-   compatibility tests without launching a model;
-8. validate that final wording and fixtures remain portable and do not introduce
-   private, platform, hardware, network, currentness, or project dependencies.
+5. add focused check, provenance, and compatibility tests without launching a
+   model;
+6. keep final wording and fixtures portable and free of private, platform,
+   hardware, network, currentness, or project dependencies.
 
 Material unresolved risks are final wording accidentally changing an objective,
 ambiguous response grammars creating false negatives, finite coding cases
@@ -609,7 +604,7 @@ not reasons to invent behavior in this design milestone.
 
 This document therefore distinguishes four boundaries explicitly:
 
-- prompt design records are not final rendered prompts;
-- fixture concepts are not committed fixture files;
+- prompt design records are now realized by the implemented `0.1.0` prompts;
+- fixture concepts are now committed versioned suite-owned files;
 - scoring ownership and check contracts are not scoring code;
 - native tool-request preparation is not executed agent-environment evaluation.

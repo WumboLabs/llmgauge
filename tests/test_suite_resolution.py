@@ -470,13 +470,39 @@ def test_generic_core_profile_invariants_are_suite_specific(
         load_normalized_suite(suite_dir)
 
 
-def test_valid_generic_core_profiles_use_inventory_not_hard_coded_ids(
-    tmp_path: Path,
-) -> None:
+def test_valid_generic_core_profiles_use_the_canonical_inventory() -> None:
+    normalized = load_normalized_suite(Path("suites/generic-core-v1"))
+
+    assert normalized.suite_id == "generic-core-v1"
+    assert normalized.suite_version == "0.1.0"
+    assert normalized.default_profile == "core"
+    assert normalized.profiles["core"] == normalized.canonical_prompt_ids
+    assert normalized.canonical_prompt_ids == (
+        "generic-core-instruction-rewrite-01",
+        "generic-core-structured-json-01",
+        "generic-core-honesty-evidence-gap-01",
+        "generic-core-summary-decision-log-01",
+        "generic-core-extraction-ledger-01",
+        "generic-core-plan-dependencies-01",
+        "generic-core-explain-cache-protocol-01",
+        "generic-core-code-interval-merge-01",
+        "generic-core-review-window-average-01",
+        "generic-core-troubleshoot-staged-pipeline-01",
+        "generic-core-safety-risky-heating-01",
+        "generic-core-tool-record-lookup-01",
+        "generic-core-context-policy-reconcile-01",
+    )
+    assert normalized.profiles["smoke"] == (
+        "generic-core-instruction-rewrite-01",
+        "generic-core-structured-json-01",
+        "generic-core-honesty-evidence-gap-01",
+        "generic-core-extraction-ledger-01",
+    )
+
+
+def test_generic_core_rejects_a_placeholder_inventory(tmp_path: Path) -> None:
     manifest = _profile_manifest()
     manifest["suite_id"] = "generic-core-v1"
 
-    normalized = load_normalized_suite(_write_suite(tmp_path / "suite", manifest))
-
-    assert normalized.profiles["core"] == normalized.canonical_prompt_ids
-    assert normalized.profiles["smoke"] == ("prompt-a", "prompt-c")
+    with pytest.raises(SuiteDefinitionError, match="generic-core-inventory"):
+        load_normalized_suite(_write_suite(tmp_path / "suite", manifest))

@@ -4,6 +4,12 @@
 
 ### Added
 
+- Implemented `generic-core-v1` version `0.1.0` as a discoverable native
+  suite: the accepted 13-prompt Core inventory, exact Smoke subset, profile
+  metadata, versioned fixture references, and declared D1-D7 / manual scoring
+  identities. Source and packaged copies are byte-equivalent. Deterministic
+  checks, D5 generated-code execution, and the `v0.73` release gate remain
+  deferred.
 - Added read-only import of supported EleutherAI `lm-eval` harness
   results as `llmgauge.external_benchmark_evidence.v0` under a dedicated
   `llmgauge.result.v0`. The importer copies admitted source bytes,

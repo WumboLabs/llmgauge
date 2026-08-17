@@ -12,7 +12,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 - Current package version: `0.72.0`
 - Current stable release line: `v0.72.0`
 - Current release state: `v0.72` is the completed profile-aware suite foundation
-  release. `generic-core-v1` is not yet an executable suite.
+  release. Unreleased work now includes the `generic-core-v1` `0.1.0` suite
+  content. Deterministic checks D1-D7 and the D5 containment gate remain
+  required for `v0.73`.
 
 ## What LLMGauge is
 
@@ -426,6 +428,15 @@ source/package portability, bounded-diagnostic, legacy-suite, and historical
 source-only-suite contracts. No Generic Core manifest, prompt, scoring, CLI,
 result, or runtime behavior is added.
 
+### Generic Core suite content and discovery
+
+**Completed:** `generic-core-v1` version `0.1.0` is now a real native suite
+with the accepted 13-prompt Core inventory, exact Smoke subset, final portable
+prompt wording, versioned fixture and scoring references, and source/package
+discovery through the existing profile-aware loader. Deterministic checks
+D1-D7, D5 generated-code execution, result-provenance integration, and the
+`v0.73` release-preparation milestone remain deferred.
+
 ## v0.72 completed release scope
 
 The following profile-aware suite foundation is complete in `v0.72`:
@@ -443,7 +454,9 @@ The following profile-aware suite foundation is complete in `v0.72`:
 - Generic Core compatibility and security hardening; and
 - source-only-suite CI repair.
 
-This foundation does not make `generic-core-v1` executable. Details remain in
+This foundation does not make Generic Core scoring complete. Unreleased
+`generic-core-v1` `0.1.0` suite content is now discoverable; D1-D7 and D5
+containment remain later `v0.73` work. Details remain in
 [CHANGELOG.md](../CHANGELOG.md).
 
 ## Full Model Testing Capability Architecture
@@ -794,7 +807,8 @@ preceding implementation and validation gates are complete.
 
 `v0.72` does not claim that `generic-core-v1` is available. It includes the
 profile-aware foundation and versioned Generic Core package resources, but no
-suite manifest or final prompts.
+suite manifest or final prompts. Unreleased work after `v0.72` adds the
+`0.1.0` suite content without completing scoring or the `v0.73` release gate.
 
 ### `v0.73` — Generic Core v1
 
