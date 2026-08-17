@@ -476,8 +476,10 @@ separate bounded milestone unless a later handoff explicitly admits it:
 
 ## Selected next milestone
 
-The only admitted next implementation milestone is **Generic Core schema model
-and validation implementation**, corresponding to sequence item 1. It may add
-the additive model and validation behavior only. Profile selection, path
-resolution, fixtures, package data, suite content, checks, D5 containment, result
-provenance, CLI behavior, and release work remain later milestones.
+Suite-content sequence item 5 is implemented: `generic-core-v1` `0.1.0` is a
+loadable native suite with exact Core/Smoke membership, final prompts, and
+declared references. The next admitted implementation milestone is
+**deterministic-check implementation**, corresponding to sequence item 6. It
+may implement D1-D7 and preserve check provenance without lexical semantic
+substitution or model execution in tests. D5 generated-code execution still
+requires the separate containment gate in item 7.

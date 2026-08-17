@@ -112,9 +112,10 @@ Current non-goals / deliberate project boundaries:
   historical-suite coexistence boundaries before prompt design or implementation.
 
 - [Generic Core prompt and scoring design](GENERIC_CORE_PROMPT_SCORING_DESIGN.md)
-  — proposed `generic-core-v1` `0.1.0` prompt-role inventory, ordered Smoke/Core
+  — accepted `generic-core-v1` `0.1.0` prompt-role inventory, ordered Smoke/Core
   membership, task and fixture ownership, deterministic-check feasibility, and
-  manual/hybrid scoring provenance before schema or suite implementation.
+  manual/hybrid scoring provenance. Suite content now implements that inventory;
+  D1-D7 scoring remains later work.
 
 - [Generic Core schema and loader contract](GENERIC_CORE_SCHEMA_LOADER_CONTRACT.md)
   — accepted additive manifest, ordered-profile, scoring-reference, contained

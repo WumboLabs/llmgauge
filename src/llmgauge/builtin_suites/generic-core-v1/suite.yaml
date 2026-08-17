@@ -1,0 +1,238 @@
+schema_version: llmgauge.suite.v0
+suite_id: generic-core-v1
+suite_version: 0.1.0
+title: Generic Core v1
+description: >
+  Portable native-response suite for general-purpose model evaluation.
+  Named profiles share one prompt inventory. Deterministic checks D1-D7
+  are declared references only; this suite version does not execute them.
+default_profile: core
+profiles:
+  core:
+    prompt_ids:
+      - generic-core-instruction-rewrite-01
+      - generic-core-structured-json-01
+      - generic-core-honesty-evidence-gap-01
+      - generic-core-summary-decision-log-01
+      - generic-core-extraction-ledger-01
+      - generic-core-plan-dependencies-01
+      - generic-core-explain-cache-protocol-01
+      - generic-core-code-interval-merge-01
+      - generic-core-review-window-average-01
+      - generic-core-troubleshoot-staged-pipeline-01
+      - generic-core-safety-risky-heating-01
+      - generic-core-tool-record-lookup-01
+      - generic-core-context-policy-reconcile-01
+  smoke:
+    prompt_ids:
+      - generic-core-instruction-rewrite-01
+      - generic-core-structured-json-01
+      - generic-core-honesty-evidence-gap-01
+      - generic-core-extraction-ledger-01
+prompts:
+  - id: generic-core-instruction-rewrite-01
+    title: Constrained announcement rewrite
+    file: prompts/generic-core-instruction-rewrite-01.md
+    task_family: constrained-rewrite
+    primary_capability: instruction-following
+    secondary_stressors:
+      - late-constraints
+      - strict-length
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: generic-core-constraint-envelope-v0
+        version: 0.1.0
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+    fixtures:
+      - id: generic-core-constraint-envelope-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/deterministic/constraint-envelope.json
+  - id: generic-core-structured-json-01
+    title: Typed record serialization
+    file: prompts/generic-core-structured-json-01.md
+    task_family: typed-record-serialization
+    primary_capability: structured-output
+    secondary_stressors:
+      - noise
+    scoring:
+      role: deterministic
+      deterministic_check:
+        id: generic-core-typed-record-json-v0
+        version: 0.1.0
+    fixtures:
+      - id: generic-core-typed-record-json-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/deterministic/typed-record-json.json
+  - id: generic-core-honesty-evidence-gap-01
+    title: Evidence-sufficiency judgment
+    file: prompts/generic-core-honesty-evidence-gap-01.md
+    task_family: evidence-sufficiency-judgment
+    primary_capability: honesty-uncertainty
+    secondary_stressors: []
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-summary-decision-log-01
+    title: Grounded decision-log summary
+    file: prompts/generic-core-summary-decision-log-01.md
+    task_family: grounded-decision-summary
+    primary_capability: summarization
+    secondary_stressors:
+      - noise
+      - strict-length
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: generic-core-summary-envelope-v0
+        version: 0.1.0
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+    fixtures:
+      - id: generic-core-summary-envelope-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/deterministic/summary-envelope.json
+  - id: generic-core-extraction-ledger-01
+    title: Grounded ledger extraction
+    file: prompts/generic-core-extraction-ledger-01.md
+    task_family: grounded-field-extraction
+    primary_capability: extraction
+    secondary_stressors:
+      - noise
+    scoring:
+      role: deterministic
+      deterministic_check:
+        id: generic-core-ledger-extraction-v0
+        version: 0.1.0
+    fixtures:
+      - id: generic-core-ledger-extraction-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/deterministic/ledger-extraction.json
+  - id: generic-core-plan-dependencies-01
+    title: Dependency-aware digitization plan
+    file: prompts/generic-core-plan-dependencies-01.md
+    task_family: dependency-aware-planning
+    primary_capability: planning
+    secondary_stressors:
+      - late-constraints
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-explain-cache-protocol-01
+    title: Audience-calibrated cache explanation
+    file: prompts/generic-core-explain-cache-protocol-01.md
+    task_family: audience-calibrated-mechanism-explanation
+    primary_capability: technical-explanation
+    secondary_stressors: []
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-code-interval-merge-01
+    title: Inclusive interval-merge function
+    file: prompts/generic-core-code-interval-merge-01.md
+    task_family: pure-function-implementation
+    primary_capability: coding
+    secondary_stressors: []
+    scoring:
+      role: hybrid
+      deterministic_check:
+        id: generic-core-interval-function-v0
+        version: 0.1.0
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+      hybrid_rule: side-by-side
+    fixtures:
+      - id: generic-core-interval-function-cases-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/coding/interval-function-cases.json
+      - id: generic-core-interval-execution-limits-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/coding/execution-limits.json
+  - id: generic-core-review-window-average-01
+    title: Window-average defect review
+    file: prompts/generic-core-review-window-average-01.md
+    task_family: defect-prioritization
+    primary_capability: code-review
+    secondary_stressors: []
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-troubleshoot-staged-pipeline-01
+    title: Staged-pipeline diagnosis
+    file: prompts/generic-core-troubleshoot-staged-pipeline-01.md
+    task_family: discriminating-diagnosis
+    primary_capability: troubleshooting
+    secondary_stressors:
+      - noise
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-safety-risky-heating-01
+    title: Risky sealed-heating boundary
+    file: prompts/generic-core-safety-risky-heating-01.md
+    task_family: calibrated-risk-boundary
+    primary_capability: safety-refusal
+    secondary_stressors:
+      - adversarial-instructions
+    scoring:
+      role: manual
+      manual_rubric:
+        id: default-manual-v0
+        version: 0.1.0
+    fixtures: []
+  - id: generic-core-tool-record-lookup-01
+    title: Declared archive-record lookup
+    file: prompts/generic-core-tool-record-lookup-01.md
+    task_family: declared-tool-request-preparation
+    primary_capability: tool-preparation
+    secondary_stressors: []
+    scoring:
+      role: deterministic
+      deterministic_check:
+        id: generic-core-tool-request-v0
+        version: 0.1.0
+    fixtures:
+      - id: generic-core-tool-request-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/deterministic/tool-request.json
+  - id: generic-core-context-policy-reconcile-01
+    title: Bounded policy reconciliation
+    file: prompts/generic-core-context-policy-reconcile-01.md
+    task_family: bounded-source-reconciliation
+    primary_capability: bounded-context
+    secondary_stressors:
+      - noise
+      - adversarial-instructions
+    scoring:
+      role: deterministic
+      deterministic_check:
+        id: generic-core-context-reconciliation-v0
+        version: 0.1.0
+    fixtures:
+      - id: generic-core-context-policy-excerpts-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/bounded-context/policy-excerpts.json
+      - id: generic-core-context-reconciliation-v0
+        version: 0.1.0
+        path: fixtures/v0.1.0/bounded-context/reconciliation.json

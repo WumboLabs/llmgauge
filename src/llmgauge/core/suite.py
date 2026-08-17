@@ -70,6 +70,21 @@ class TaskFamily(StrEnum):
     DEPENDENCY_API_UNCERTAINTY = "dependency-api-uncertainty"
     SCOPED_CHANGE_PLANNING = "scoped-change-planning"
     STRUCTURED_CODING_RESPONSE = "structured-coding-response"
+    CONSTRAINED_REWRITE = "constrained-rewrite"
+    TYPED_RECORD_SERIALIZATION = "typed-record-serialization"
+    EVIDENCE_SUFFICIENCY_JUDGMENT = "evidence-sufficiency-judgment"
+    GROUNDED_DECISION_SUMMARY = "grounded-decision-summary"
+    GROUNDED_FIELD_EXTRACTION = "grounded-field-extraction"
+    DEPENDENCY_AWARE_PLANNING = "dependency-aware-planning"
+    AUDIENCE_CALIBRATED_MECHANISM_EXPLANATION = (
+        "audience-calibrated-mechanism-explanation"
+    )
+    PURE_FUNCTION_IMPLEMENTATION = "pure-function-implementation"
+    DEFECT_PRIORITIZATION = "defect-prioritization"
+    DISCRIMINATING_DIAGNOSIS = "discriminating-diagnosis"
+    CALIBRATED_RISK_BOUNDARY = "calibrated-risk-boundary"
+    DECLARED_TOOL_REQUEST_PREPARATION = "declared-tool-request-preparation"
+    BOUNDED_SOURCE_RECONCILIATION = "bounded-source-reconciliation"
 
 
 class InteractionMode(StrEnum):
@@ -685,6 +700,164 @@ _CODING_CORE_SMOKE_IDS = (
     "shell/safe-repository-maintenance",
     "structured/closed-json-change-record",
 )
+_GENERIC_CORE_VERSION = "0.1.0"
+_GENERIC_CORE_MANUAL_RUBRIC_ID = "default-manual-v0"
+
+
+@dataclass(frozen=True, slots=True)
+class _GenericCorePromptContract:
+    id: str
+    task_family: TaskFamily
+    primary_capability: PrimaryCapability
+    secondary_stressors: tuple[SecondaryStressor, ...]
+    scoring_role: ScoringRole
+    deterministic_check_id: str | None
+    fixture_ids: tuple[str, ...]
+
+
+_GENERIC_CORE_PROMPT_CONTRACTS = (
+    _GenericCorePromptContract(
+        id="generic-core-instruction-rewrite-01",
+        task_family=TaskFamily.CONSTRAINED_REWRITE,
+        primary_capability=PrimaryCapability.INSTRUCTION_FOLLOWING,
+        secondary_stressors=(
+            SecondaryStressor.LATE_CONSTRAINTS,
+            SecondaryStressor.STRICT_LENGTH,
+        ),
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="generic-core-constraint-envelope-v0",
+        fixture_ids=("generic-core-constraint-envelope-v0",),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-structured-json-01",
+        task_family=TaskFamily.TYPED_RECORD_SERIALIZATION,
+        primary_capability=PrimaryCapability.STRUCTURED_OUTPUT,
+        secondary_stressors=(SecondaryStressor.NOISE,),
+        scoring_role=ScoringRole.DETERMINISTIC,
+        deterministic_check_id="generic-core-typed-record-json-v0",
+        fixture_ids=("generic-core-typed-record-json-v0",),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-honesty-evidence-gap-01",
+        task_family=TaskFamily.EVIDENCE_SUFFICIENCY_JUDGMENT,
+        primary_capability=PrimaryCapability.HONESTY_UNCERTAINTY,
+        secondary_stressors=(),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-summary-decision-log-01",
+        task_family=TaskFamily.GROUNDED_DECISION_SUMMARY,
+        primary_capability=PrimaryCapability.SUMMARIZATION,
+        secondary_stressors=(
+            SecondaryStressor.NOISE,
+            SecondaryStressor.STRICT_LENGTH,
+        ),
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="generic-core-summary-envelope-v0",
+        fixture_ids=("generic-core-summary-envelope-v0",),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-extraction-ledger-01",
+        task_family=TaskFamily.GROUNDED_FIELD_EXTRACTION,
+        primary_capability=PrimaryCapability.EXTRACTION,
+        secondary_stressors=(SecondaryStressor.NOISE,),
+        scoring_role=ScoringRole.DETERMINISTIC,
+        deterministic_check_id="generic-core-ledger-extraction-v0",
+        fixture_ids=("generic-core-ledger-extraction-v0",),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-plan-dependencies-01",
+        task_family=TaskFamily.DEPENDENCY_AWARE_PLANNING,
+        primary_capability=PrimaryCapability.PLANNING,
+        secondary_stressors=(SecondaryStressor.LATE_CONSTRAINTS,),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-explain-cache-protocol-01",
+        task_family=TaskFamily.AUDIENCE_CALIBRATED_MECHANISM_EXPLANATION,
+        primary_capability=PrimaryCapability.TECHNICAL_EXPLANATION,
+        secondary_stressors=(),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-code-interval-merge-01",
+        task_family=TaskFamily.PURE_FUNCTION_IMPLEMENTATION,
+        primary_capability=PrimaryCapability.CODING,
+        secondary_stressors=(),
+        scoring_role=ScoringRole.HYBRID,
+        deterministic_check_id="generic-core-interval-function-v0",
+        fixture_ids=(
+            "generic-core-interval-function-cases-v0",
+            "generic-core-interval-execution-limits-v0",
+        ),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-review-window-average-01",
+        task_family=TaskFamily.DEFECT_PRIORITIZATION,
+        primary_capability=PrimaryCapability.CODE_REVIEW,
+        secondary_stressors=(),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-troubleshoot-staged-pipeline-01",
+        task_family=TaskFamily.DISCRIMINATING_DIAGNOSIS,
+        primary_capability=PrimaryCapability.TROUBLESHOOTING,
+        secondary_stressors=(SecondaryStressor.NOISE,),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-safety-risky-heating-01",
+        task_family=TaskFamily.CALIBRATED_RISK_BOUNDARY,
+        primary_capability=PrimaryCapability.SAFETY_REFUSAL,
+        secondary_stressors=(SecondaryStressor.ADVERSARIAL_INSTRUCTIONS,),
+        scoring_role=ScoringRole.MANUAL,
+        deterministic_check_id=None,
+        fixture_ids=(),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-tool-record-lookup-01",
+        task_family=TaskFamily.DECLARED_TOOL_REQUEST_PREPARATION,
+        primary_capability=PrimaryCapability.TOOL_PREPARATION,
+        secondary_stressors=(),
+        scoring_role=ScoringRole.DETERMINISTIC,
+        deterministic_check_id="generic-core-tool-request-v0",
+        fixture_ids=("generic-core-tool-request-v0",),
+    ),
+    _GenericCorePromptContract(
+        id="generic-core-context-policy-reconcile-01",
+        task_family=TaskFamily.BOUNDED_SOURCE_RECONCILIATION,
+        primary_capability=PrimaryCapability.BOUNDED_CONTEXT,
+        secondary_stressors=(
+            SecondaryStressor.NOISE,
+            SecondaryStressor.ADVERSARIAL_INSTRUCTIONS,
+        ),
+        scoring_role=ScoringRole.DETERMINISTIC,
+        deterministic_check_id="generic-core-context-reconciliation-v0",
+        fixture_ids=(
+            "generic-core-context-policy-excerpts-v0",
+            "generic-core-context-reconciliation-v0",
+        ),
+    ),
+)
+_GENERIC_CORE_PROMPT_IDS = tuple(
+    contract.id for contract in _GENERIC_CORE_PROMPT_CONTRACTS
+)
+_GENERIC_CORE_SMOKE_IDS = (
+    "generic-core-instruction-rewrite-01",
+    "generic-core-structured-json-01",
+    "generic-core-honesty-evidence-gap-01",
+    "generic-core-extraction-ledger-01",
+)
 
 
 def _matches_coding_reference(
@@ -813,12 +986,25 @@ def _validate_coding_core_contract(
         raise SuiteDefinitionError(diagnostics)
 
 
+def _matches_generic_reference(
+    reference: _LogicalReference | None, expected_id: str
+) -> bool:
+    return (
+        reference is not None
+        and reference.id == expected_id
+        and reference.version == _GENERIC_CORE_VERSION
+    )
+
+
 def _validate_generic_core_profiles(
     manifest: SuiteManifest,
     canonical_prompt_ids: tuple[str, ...],
     profiles: Mapping[str, tuple[str, ...]],
 ) -> None:
-    if manifest.suite_id != "generic-core-v1" or manifest.suite_version != "0.1.0":
+    if (
+        manifest.suite_id != "generic-core-v1"
+        or manifest.suite_version != _GENERIC_CORE_VERSION
+    ):
         return
 
     diagnostics: list[str] = []
@@ -833,25 +1019,112 @@ def _validate_generic_core_profiles(
 
     core = profiles.get("core")
     smoke = profiles.get("smoke")
+    if canonical_prompt_ids != _GENERIC_CORE_PROMPT_IDS:
+        diagnostics.append(
+            "generic-core-inventory: prompts must match the canonical thirteen-role order"
+        )
     if core is not None and core != canonical_prompt_ids:
         diagnostics.append(
             "generic-core-core-membership: core must equal the canonical inventory"
         )
     if smoke is not None:
-        if core is None or not smoke or len(smoke) >= len(core):
+        if smoke != _GENERIC_CORE_SMOKE_IDS:
             diagnostics.append(
-                "generic-core-smoke-membership: smoke must be a non-empty strict "
-                "subsequence of core"
+                "generic-core-smoke-membership: smoke members or order are invalid"
             )
-        else:
+        elif core is not None:
             smoke_members = set(smoke)
             if (
-                tuple(prompt_id for prompt_id in core if prompt_id in smoke_members)
+                not smoke
+                or len(smoke) >= len(core)
+                or tuple(prompt_id for prompt_id in core if prompt_id in smoke_members)
                 != smoke
             ):
                 diagnostics.append(
                     "generic-core-smoke-order: smoke must preserve core-relative order"
                 )
+
+    contracts_by_id = {
+        contract.id: contract for contract in _GENERIC_CORE_PROMPT_CONTRACTS
+    }
+    for index, prompt in enumerate(manifest.prompts):
+        contract = contracts_by_id.get(prompt.id)
+        if contract is None:
+            continue
+        location = f"generic-core-prompt-{index + 1}"
+        if (
+            prompt.task_family is not contract.task_family
+            or prompt.primary_capability is not contract.primary_capability
+            or tuple(prompt.secondary_stressors or ()) != contract.secondary_stressors
+        ):
+            diagnostics.append(
+                f"{location}-metadata: task family, capability, or stressors are invalid"
+            )
+        declared_fixture_ids = tuple(fixture.id for fixture in (prompt.fixtures or ()))
+        if declared_fixture_ids != contract.fixture_ids or any(
+            fixture.version != _GENERIC_CORE_VERSION
+            for fixture in (prompt.fixtures or ())
+        ):
+            diagnostics.append(f"{location}-fixtures: fixture references are invalid")
+
+        scoring = prompt.scoring
+        if scoring is None:
+            diagnostics.append(f"{location}-scoring: scoring declaration is required")
+            continue
+        if scoring.role is not contract.scoring_role:
+            diagnostics.append(f"{location}-scoring-role: scoring role is invalid")
+        if contract.scoring_role is ScoringRole.DETERMINISTIC:
+            if not _matches_generic_reference(
+                scoring.deterministic_check, contract.deterministic_check_id or ""
+            ):
+                diagnostics.append(
+                    f"{location}-deterministic-check: check reference is invalid"
+                )
+            if (
+                scoring.manual_rubric is not None
+                or scoring.hybrid_rule is not None
+                or scoring.hybrid_composition is not None
+            ):
+                diagnostics.append(
+                    f"{location}-deterministic-scoring: hybrid fields are forbidden"
+                )
+        elif contract.scoring_role is ScoringRole.MANUAL:
+            if not _matches_generic_reference(
+                scoring.manual_rubric, _GENERIC_CORE_MANUAL_RUBRIC_ID
+            ):
+                diagnostics.append(
+                    f"{location}-manual-rubric: manual rubric reference is invalid"
+                )
+            if (
+                scoring.deterministic_check is not None
+                or scoring.hybrid_rule is not None
+                or scoring.hybrid_composition is not None
+            ):
+                diagnostics.append(
+                    f"{location}-manual-scoring: hybrid fields are forbidden"
+                )
+        else:
+            if not _matches_generic_reference(
+                scoring.deterministic_check, contract.deterministic_check_id or ""
+            ):
+                diagnostics.append(
+                    f"{location}-deterministic-check: check reference is invalid"
+                )
+            if not _matches_generic_reference(
+                scoring.manual_rubric, _GENERIC_CORE_MANUAL_RUBRIC_ID
+            ):
+                diagnostics.append(
+                    f"{location}-manual-rubric: manual rubric reference is invalid"
+                )
+            if scoring.hybrid_rule != "side-by-side":
+                diagnostics.append(
+                    f"{location}-hybrid-rule: hybrid_rule must be 'side-by-side'"
+                )
+            if scoring.hybrid_composition is not None:
+                diagnostics.append(
+                    f"{location}-hybrid-composition: composition reference is forbidden"
+                )
+
     if diagnostics:
         raise SuiteDefinitionError(diagnostics)
 

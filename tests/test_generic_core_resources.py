@@ -13,7 +13,7 @@ REPOSITORY_ROOT = Path(__file__).parents[1]
 SOURCE_SUITE_ROOT = REPOSITORY_ROOT / "suites"
 BUILTIN_SUITE_ROOT = REPOSITORY_ROOT / "src/llmgauge/builtin_suites"
 GENERIC_CORE_RESOURCE_ROOT = Path("generic-core-v1/fixtures/v0.1.0")
-EXPECTED_GENERIC_CORE_RESOURCES = frozenset(
+EXPECTED_GENERIC_CORE_FIXTURES = frozenset(
     {
         GENERIC_CORE_RESOURCE_ROOT / "bounded-context/policy-excerpts.json",
         GENERIC_CORE_RESOURCE_ROOT / "bounded-context/reconciliation.json",
@@ -24,6 +24,24 @@ EXPECTED_GENERIC_CORE_RESOURCES = frozenset(
         GENERIC_CORE_RESOURCE_ROOT / "deterministic/summary-envelope.json",
         GENERIC_CORE_RESOURCE_ROOT / "deterministic/tool-request.json",
         GENERIC_CORE_RESOURCE_ROOT / "deterministic/typed-record-json.json",
+    }
+)
+EXPECTED_GENERIC_CORE_RESOURCES = EXPECTED_GENERIC_CORE_FIXTURES | frozenset(
+    {
+        Path("generic-core-v1/suite.yaml"),
+        Path("generic-core-v1/prompts/generic-core-instruction-rewrite-01.md"),
+        Path("generic-core-v1/prompts/generic-core-structured-json-01.md"),
+        Path("generic-core-v1/prompts/generic-core-honesty-evidence-gap-01.md"),
+        Path("generic-core-v1/prompts/generic-core-summary-decision-log-01.md"),
+        Path("generic-core-v1/prompts/generic-core-extraction-ledger-01.md"),
+        Path("generic-core-v1/prompts/generic-core-plan-dependencies-01.md"),
+        Path("generic-core-v1/prompts/generic-core-explain-cache-protocol-01.md"),
+        Path("generic-core-v1/prompts/generic-core-code-interval-merge-01.md"),
+        Path("generic-core-v1/prompts/generic-core-review-window-average-01.md"),
+        Path("generic-core-v1/prompts/generic-core-troubleshoot-staged-pipeline-01.md"),
+        Path("generic-core-v1/prompts/generic-core-safety-risky-heating-01.md"),
+        Path("generic-core-v1/prompts/generic-core-tool-record-lookup-01.md"),
+        Path("generic-core-v1/prompts/generic-core-context-policy-reconcile-01.md"),
     }
 )
 
@@ -69,6 +87,8 @@ def test_generic_core_resource_inventory_and_mirror_are_exact() -> None:
         source = SOURCE_SUITE_ROOT / relative_path
         packaged = BUILTIN_SUITE_ROOT / relative_path
         assert source.read_bytes() == packaged.read_bytes()
+    for relative_path in EXPECTED_GENERIC_CORE_FIXTURES:
+        source = SOURCE_SUITE_ROOT / relative_path
         assert json.loads(source.read_bytes())["version"] == "0.1.0"
 
 
@@ -132,13 +152,18 @@ def test_isolated_wheel_install_can_read_every_resource(
         timeout=120,
     )
     expected = sorted(path.as_posix() for path in EXPECTED_GENERIC_CORE_RESOURCES)
+    fixtures = sorted(path.as_posix() for path in EXPECTED_GENERIC_CORE_FIXTURES)
     script = f"""
 import importlib.resources
 import json
 
 root = importlib.resources.files('llmgauge.builtin_suites')
 expected = {expected!r}
+fixtures = {fixtures!r}
 for relative in expected:
+    payload = root.joinpath(relative).read_bytes()
+    assert payload
+for relative in fixtures:
     payload = root.joinpath(relative).read_bytes()
     assert json.loads(payload)['version'] == '0.1.0'
 print(len(expected))

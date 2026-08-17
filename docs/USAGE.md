@@ -142,6 +142,11 @@ Built-in aliases:
     agent     -> agent-backend-v1
     context   -> context-v1
 
+`generic-core-v1` is a profile-aware built-in suite with no alias. Omit
+`--profile` to use its declared default (`core`), or pass `--profile smoke`
+or `--profile core`. Declared D1-D7 scoring references are identities only;
+those checks are not implemented yet.
+
 Aliases are accepted anywhere a built-in suite is resolved. Result artifacts
 still record canonical suite IDs.
 
