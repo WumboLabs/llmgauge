@@ -101,6 +101,8 @@ def test_run_llama_cpp_captures_vram(monkeypatch) -> None:
     assert captured["stdout"] == subprocess.PIPE
     assert captured["stderr"] == subprocess.PIPE
     assert captured["text"] is True
+    assert result.elapsed_seconds is not None
+    assert result.elapsed_seconds >= 0
 
 
 def test_run_llama_cpp_handles_unavailable_vram(monkeypatch) -> None:
@@ -152,7 +154,7 @@ def test_run_llama_cpp_enforces_total_timeout(monkeypatch) -> None:
             return ("partial stdout", "runtime stderr")
 
     process = FakeProcess()
-    monotonic_values = iter([0.0, 2.0])
+    monotonic_values = iter([0.0, 2.0, 3.0])
     monkeypatch.setattr(llama_cpp.subprocess, "Popen", lambda *args, **kwargs: process)
     monkeypatch.setattr(llama_cpp.time, "monotonic", lambda: next(monotonic_values))
 
@@ -167,6 +169,7 @@ def test_run_llama_cpp_enforces_total_timeout(monkeypatch) -> None:
     assert result.exit_status == -9
     assert result.stdout == "partial stdout"
     assert "per-turn timeout" in result.stderr
+    assert result.elapsed_seconds == 3.0
 
 
 def test_build_llama_command_includes_flash_attention_mode() -> None:

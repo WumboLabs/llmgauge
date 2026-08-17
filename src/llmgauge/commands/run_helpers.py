@@ -18,6 +18,10 @@ from llmgauge.cli_common import (
     user_model_profiles_path,
 )
 from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
+from llmgauge.core.area4_evidence import (
+    build_area4_evidence,
+    build_native_execution_evidence,
+)
 from llmgauge.core.config import (
     coalesce,
     get_config_value,
@@ -1552,6 +1556,19 @@ def execute_run(
         write_text(raw_output_path, run_result.stdout)
         write_text(cleaned_output_path, clean_llama_output(run_result.stdout))
         write_text(stderr_log_path, run_result.stderr)
+        native_execution_evidence = build_native_execution_evidence(
+            prompt_id=prompt_id,
+            elapsed_seconds=getattr(run_result, "elapsed_seconds", None),
+            stdout=run_result.stdout,
+            stderr=run_result.stderr,
+            exit_status=run_result.exit_status,
+            timed_out=getattr(run_result, "timed_out", False),
+            launch_error=getattr(run_result, "launch_error", None),
+        )
+        native_execution_path = (
+            out / "native" / f"{prompt_id.replace('/', '__')}.execution.json"
+        )
+        write_json(native_execution_path, native_execution_evidence)
 
         vram_samples = getattr(run_result, "vram_samples", [])
         vram_summary = getattr(run_result, "vram_summary", None)
@@ -1591,6 +1608,10 @@ def execute_run(
             "vram_samples_path": str(vram_samples_path.relative_to(out))
             if vram_samples_path is not None
             else None,
+            "native_execution_evidence_path": str(
+                native_execution_path.relative_to(out)
+            ),
+            "_area4_native_execution_evidence": native_execution_evidence,
             "vram_guardrails": vram_guardrails,
             "score": None,
             "failure_labels": [],
@@ -1684,6 +1705,15 @@ def execute_run(
             "failure_labels": {},
         },
     }
+    runtime_neutral_metrics, failure_taxonomy = build_area4_evidence(
+        prompt_results=prompt_results,
+        suite=result["suite"],
+        runtime=result["runtime"],
+    )
+    for prompt_entry in prompt_results:
+        prompt_entry.pop("_area4_native_execution_evidence")
+    result["runtime_neutral_metrics"] = runtime_neutral_metrics
+    result["failure_taxonomy"] = failure_taxonomy
 
     return _finalize_run_result(
         out=out,

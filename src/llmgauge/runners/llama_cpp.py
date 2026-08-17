@@ -37,6 +37,8 @@ class LlamaCppRunResult:
     stderr: str
     exit_status: int
     timed_out: bool = False
+    elapsed_seconds: float | None = None
+    launch_error: str | None = None
     vram_samples: list[dict[str, Any]] = field(default_factory=list)
     vram_summary: dict[str, Any] | None = None
 
@@ -120,20 +122,35 @@ def run_llama_cpp(
     poll_seconds = max(vram_poll_seconds, 0.1)
     if timeout_seconds is not None and timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be positive")
-    deadline = (
-        time.monotonic() + timeout_seconds if timeout_seconds is not None else None
-    )
     timed_out = False
 
     if capture_vram:
         _capture_vram_sample(vram_samples, vram_errors)
 
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    started_at = time.monotonic()
+    deadline = started_at + timeout_seconds if timeout_seconds is not None else None
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError as exc:
+        if capture_vram:
+            _capture_vram_sample(vram_samples, vram_errors)
+        return LlamaCppRunResult(
+            command=command,
+            stdout="",
+            stderr=f"llmgauge: failed to launch llama-cli: {exc}\n",
+            exit_status=1,
+            elapsed_seconds=time.monotonic() - started_at,
+            launch_error="process_launch_failed",
+            vram_samples=vram_samples,
+            vram_summary=_build_vram_summary(vram_samples, vram_errors)
+            if capture_vram
+            else None,
+        )
 
     while True:
         wait_seconds = poll_seconds
@@ -162,6 +179,7 @@ def run_llama_cpp(
         stderr=stderr,
         exit_status=process.returncode if process.returncode is not None else 1,
         timed_out=timed_out,
+        elapsed_seconds=time.monotonic() - started_at,
         vram_samples=vram_samples,
         vram_summary=_build_vram_summary(vram_samples, vram_errors)
         if capture_vram

@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from llmgauge import __version__
 import llmgauge.cli as cli
 from llmgauge.commands import run_helpers
+from llmgauge.core.result_validation import validate_result_dir
 
 runner = CliRunner()
 
@@ -137,8 +138,9 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
     assert result["llmgauge_version"] == __version__
     assert result["model"]["model_source"] == "model_profile"
     assert result["runtime"]["runtime_command_captured"] is True
-    assert result["run_fingerprint"]["schema_version"] == "llmgauge.run_fingerprint.v0"
+    assert result["run_fingerprint"]["schema_version"] == "llmgauge.run_fingerprint.v1"
     assert result["run_fingerprint"]["value"].startswith("sha256:")
+    assert validate_result_dir(tmp_path / "result") == []
     assert (tmp_path / "result" / "runtime-command.json").exists()
     assert result["run"]["status"] == "completed"
     assert result["suite"]["suite_id"] == "agent-backend-v1"

@@ -9,6 +9,8 @@ from typing import Any
 
 RUN_FINGERPRINT_SCHEMA_VERSION = "llmgauge.run_fingerprint.v0"
 RUN_FINGERPRINT_PAYLOAD_VERSION = "llmgauge.run_fingerprint_payload.v0"
+RUN_FINGERPRINT_SCHEMA_VERSION_V1 = "llmgauge.run_fingerprint.v1"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V1 = "llmgauge.run_fingerprint_payload.v1"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -206,6 +208,7 @@ def _prompt_evidence(
     prompt_result: Mapping[str, Any],
     *,
     index: int,
+    include_native_execution_evidence: bool,
 ) -> dict[str, Any]:
     prompt_id = prompt_result.get("prompt_id")
     label = (
@@ -236,6 +239,12 @@ def _prompt_evidence(
             prompt_result.get("vram_samples_path"),
             label=f"{label}.vram_samples_path",
         )
+    if include_native_execution_evidence:
+        artifact_hashes["native_execution_evidence"] = _artifact_sha256(
+            result_dir,
+            prompt_result.get("native_execution_evidence_path"),
+            label=f"{label}.native_execution_evidence_path",
+        )
 
     return {
         "prompt_id": prompt_id,
@@ -248,16 +257,41 @@ def _prompt_evidence(
             "raw_output_path": prompt_result.get("raw_output_path"),
             "stderr_log_path": prompt_result.get("stderr_log_path"),
             "vram_samples_path": prompt_result.get("vram_samples_path"),
+            "native_execution_evidence_path": (
+                prompt_result.get("native_execution_evidence_path")
+                if include_native_execution_evidence
+                else None
+            ),
         },
         "artifact_sha256": artifact_hashes,
     }
 
 
+def _area4_is_represented(result: Mapping[str, Any]) -> bool:
+    return (
+        result.get("runtime_neutral_metrics") is not None
+        or result.get("failure_taxonomy") is not None
+    )
+
+
+def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _area4_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V1, RUN_FINGERPRINT_PAYLOAD_VERSION_V1
+    return RUN_FINGERPRINT_SCHEMA_VERSION, RUN_FINGERPRINT_PAYLOAD_VERSION
+
+
 def build_run_fingerprint_payload(
     result_dir: Path,
     result: Mapping[str, Any],
+    *,
+    payload_version: str | None = None,
 ) -> dict[str, Any]:
     """Build the canonical private-evidence payload without hashing the payload."""
+
+    _, resolved_payload_version = _fingerprint_versions(result)
+    if payload_version is None:
+        payload_version = resolved_payload_version
+    include_area4 = payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V1
 
     model = result.get("model")
     runtime = result.get("runtime")
@@ -289,7 +323,7 @@ def build_run_fingerprint_payload(
                 f"agent_harness_evidence is unavailable: {exc}"
             ) from None
         return {
-            "schema_version": RUN_FINGERPRINT_PAYLOAD_VERSION,
+            "schema_version": payload_version,
             "result_schema_version": result.get("schema_version"),
             "llmgauge_version": result.get("llmgauge_version"),
             "agent_harness_evidence": immutable_agent_harness_payload(evidence),
@@ -308,7 +342,14 @@ def build_run_fingerprint_payload(
     for index, prompt_result in enumerate(results):
         if not isinstance(prompt_result, Mapping):
             raise FingerprintUnavailable(f"results[{index}] metadata is unavailable")
-        prompt_evidence.append(_prompt_evidence(result_dir, prompt_result, index=index))
+        prompt_evidence.append(
+            _prompt_evidence(
+                result_dir,
+                prompt_result,
+                index=index,
+                include_native_execution_evidence=include_area4,
+            )
+        )
 
     suite_identity = _selected_mapping(
         suite,
@@ -318,7 +359,7 @@ def build_run_fingerprint_payload(
         suite_identity["selection"] = suite.get("selection")
 
     payload = {
-        "schema_version": RUN_FINGERPRINT_PAYLOAD_VERSION,
+        "schema_version": payload_version,
         "result_schema_version": result.get("schema_version"),
         "llmgauge_version": result.get("llmgauge_version"),
         "model": _model_identity(model),
@@ -335,6 +376,15 @@ def build_run_fingerprint_payload(
             "cleaned_outputs": "excluded",
         },
     }
+    if include_area4:
+        runtime_neutral_metrics = result.get("runtime_neutral_metrics")
+        failure_taxonomy = result.get("failure_taxonomy")
+        if not isinstance(runtime_neutral_metrics, Mapping):
+            raise FingerprintUnavailable("runtime_neutral_metrics is unavailable")
+        if not isinstance(failure_taxonomy, Mapping):
+            raise FingerprintUnavailable("failure_taxonomy is unavailable")
+        payload["runtime_neutral_metrics"] = runtime_neutral_metrics
+        payload["failure_taxonomy"] = failure_taxonomy
     if result.get("transcript") is not None:
         from llmgauge.core.multi_turn import (
             TranscriptDefinitionError,
@@ -356,8 +406,15 @@ def build_run_fingerprint_payload(
     return payload
 
 
-def run_fingerprint_value(result_dir: Path, result: Mapping[str, Any]) -> str:
-    payload = build_run_fingerprint_payload(result_dir, result)
+def run_fingerprint_value(
+    result_dir: Path,
+    result: Mapping[str, Any],
+    *,
+    payload_version: str | None = None,
+) -> str:
+    payload = build_run_fingerprint_payload(
+        result_dir, result, payload_version=payload_version
+    )
     return "sha256:" + hashlib.sha256(canonical_payload_bytes(payload)).hexdigest()
 
 
@@ -365,10 +422,13 @@ def build_run_fingerprint_metadata(
     result_dir: Path,
     result: Mapping[str, Any],
 ) -> dict[str, str]:
+    schema_version, payload_version = _fingerprint_versions(result)
     return {
-        "schema_version": RUN_FINGERPRINT_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "algorithm": "sha256",
-        "value": run_fingerprint_value(result_dir, result),
+        "value": run_fingerprint_value(
+            result_dir, result, payload_version=payload_version
+        ),
     }
 
 
@@ -397,9 +457,14 @@ def verify_run_fingerprint(
         return ["run_fingerprint must be an object"]
 
     errors: list[str] = []
-    if fingerprint.get("schema_version") != RUN_FINGERPRINT_SCHEMA_VERSION:
+    schema_version = fingerprint.get("schema_version")
+    if schema_version not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V1,
+    }:
         errors.append(
-            f"run_fingerprint.schema_version must be {RUN_FINGERPRINT_SCHEMA_VERSION}"
+            "run_fingerprint.schema_version must be "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION} or {RUN_FINGERPRINT_SCHEMA_VERSION_V1}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -410,9 +475,23 @@ def verify_run_fingerprint(
 
     if errors:
         return errors
+    if (
+        _area4_is_represented(result)
+        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V1
+    ):
+        errors.append("Area 4 evidence requires a v1 run_fingerprint when represented")
+        return errors
 
     try:
-        expected = run_fingerprint_value(result_dir, result)
+        expected = run_fingerprint_value(
+            result_dir,
+            result,
+            payload_version=(
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V1
+                if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V1
+                else RUN_FINGERPRINT_PAYLOAD_VERSION
+            ),
+        )
     except FingerprintUnavailable as exc:
         return [f"run_fingerprint cannot be verified: {exc}"]
 
