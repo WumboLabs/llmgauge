@@ -58,6 +58,8 @@ LLMGauge currently provides:
 - artifact schema documentation and result-directory audit guidance
 - publish-readiness notes and explicit claim boundaries
 - identity, provenance, and evidence-equivalence fingerprint foundations
+- read-only `lm_eval_harness_results` import into
+  `llmgauge.external_benchmark_evidence.v0`
 
 ## Evaluation identities and boundaries
 
@@ -70,15 +72,17 @@ Harness evidence is an agent-environment evaluation with its imported session
 evidence authority. These classes are not interchangeable and are never
 combined into a universal score.
 
-Mainstream external benchmarks are not currently integrated. The accepted
+Mainstream external benchmarks are not currently executed or completed as
+Bundle 1. The accepted
 [external benchmark and LocalMaxxing interoperability contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
 locks official-harness authority, imported-evidence identity, and the
-`llmgauge benchmark` surface. Bundle 1 (MMLU, ARC Challenge, HellaSwag,
-WinoGrande, TruthfulQA MC2, GSM8K, HumanEval, MBPP) and Bundle 2
-(MMLU-Pro, GPQA, IFEval) must be imported under those official contracts,
-not recreated as native LLMGauge prompts. LocalMaxxing official shard
-evals are a different protocol and are not interchangeable with official
-lm-eval metrics.
+`llmgauge benchmark` surface. Milestone B implements the bounded read-only
+`lm_eval_harness_results` importer and evidence foundation. Bundle 1 (MMLU,
+ARC Challenge, HellaSwag, WinoGrande, TruthfulQA MC2, GSM8K, HumanEval, MBPP)
+and Bundle 2 (MMLU-Pro, GPQA, IFEval) remain later integration/testing and
+must be imported under those official contracts, not recreated as native
+LLMGauge prompts. LocalMaxxing official shard evals are a different protocol
+and are not interchangeable with official lm-eval metrics.
 
 ## vLLM evidence track
 
@@ -661,18 +665,17 @@ The fast track covers these required capability areas:
    tool, generation, malformed-response, and agent-recovery failures.
 
 The completed prerequisite sequence is Coding Core, native multi-turn
-transcripts, Agent Harness import, Agent Session Review, and the Area 4
-first native llama.cpp slice. The selected next development order is:
+transcripts, Agent Harness import, Agent Session Review, the Area 4
+first native llama.cpp slice, the external-benchmark interoperability
+contract, and the external-benchmark importer foundation. The selected
+next development order is:
 
-1. A. external benchmark and LocalMaxxing interoperability contract
-   (this milestone);
-2. B. external benchmark importer/foundation;
-3. C. first mainstream external benchmark bundle;
-4. D. LocalMaxxing quality-benchmark export, dry-run, and
+1. C. first mainstream external benchmark bundle;
+2. D. LocalMaxxing quality-benchmark export, dry-run, and
    `--confirm-public` submit, only after an approved matching suite path
    exists;
-5. E. Generic Core v1 completion; and
-6. F. reasoning and sampling profile work.
+3. E. Generic Core v1 completion; and
+4. F. reasoning and sampling profile work.
 
 The remaining multimodal and non-autoregressive areas remain later fast-track
 work. External-benchmark milestones preserve official benchmark authority and
@@ -693,24 +696,26 @@ prompt/generation throughput remains non-neutral; TTFT, vLLM, transcripts,
 comparisons, reporting/export expansion, and all other Area 4 categories remain
 deferred. Historical results remain valid unchanged.
 
-### External benchmark and LocalMaxxing interoperability contract
+### External benchmark importer foundation
 
-**Completed:** the
-[External Benchmark and LocalMaxxing Interoperability Contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
-is the accepted next-phase contract. It preserves evaluation-class
-authority, defines imported `lm_eval` evidence identity and the
-conceptual `llmgauge benchmark` CLI, and records 2026-08-16 LocalMaxxing
-quality-API support. No official mainstream lm-eval suite is currently
-integrated. Public LocalMaxxing support for Bundle 1 is shard-eval
-(GSM8K, HellaSwag, ARC Challenge) or plus-variants (HumanEval+, MBPP+),
-not original HumanEval/MBPP/MMLU/WinoGrande/TruthfulQA MC2. Bundle 2 is
-unconfirmed on the public catalog. The existing `llmgauge localmaxxing`
-namespace remains speed-only.
+**Completed:** Milestone B implements read-only import of supported
+EleutherAI `lm-eval` result JSON into
+`llmgauge.external_benchmark_evidence.v0` under a dedicated
+`llmgauge.result.v0`. Contained source copies remain authoritative;
+normalized evidence records source-backed identity and native metrics
+without inventing missing metadata or a universal score. CLI:
+`llmgauge benchmark import` and `llmgauge benchmark validate`.
+`benchmark report` and LocalMaxxing quality export/submit remain later.
+Bundle 1 is not completed merely because the generic importer can parse
+representative fixtures.
 
-A separate later investigation remains for captured LocalMaxxing
-speed-result fields (CPU, RAM, GPU utilization, temperature, peak power,
-and split mode) versus public UI display. That investigation does not
-change the operational speed integration.
+The accepted
+[interoperability contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
+remains the authority/identity contract. Public LocalMaxxing support for
+Bundle 1 is still shard-eval or plus-variants, not official lm-eval
+metrics. The existing `llmgauge localmaxxing` namespace remains
+speed-only.
+
 
 ### LocalMaxxing performance-benchmark integration
 
@@ -838,15 +843,14 @@ fast-track order only through its separately accepted contracts.
 ## Expanded evaluation track
 
 External benchmark work follows the completed Area 4 first native slice
-and precedes Generic Core v1 completion. The accepted
-[interoperability contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
-is the current gate. The track remains separate from LLMGauge-owned
-native suites, the Full Model Testing capability program, LocalMaxxing
-performance benchmarking, and agent-environment evaluations:
+and the completed interoperability contract plus importer foundation.
+The track remains separate from LLMGauge-owned native suites, the Full
+Model Testing capability program, LocalMaxxing performance
+benchmarking, and agent-environment evaluations:
 
 1. A. external benchmark and LocalMaxxing interoperability contract
    (completed);
-2. B. external benchmark importer/foundation;
+2. B. external benchmark importer/foundation (completed);
 3. C. first mainstream external benchmark bundle;
 4. D. LocalMaxxing quality export / dry-run / explicit submit, only after
    an approved matching suite path exists;
@@ -858,11 +862,13 @@ performance benchmarking, and agent-environment evaluations:
 9. Browser, computer-use, and OSWorld later.
 
 MMLU, ARC Challenge, HellaSwag, WinoGrande, TruthfulQA MC2, GSM8K,
-HumanEval, MBPP, MMLU-Pro, GPQA, and IFEval are not integrated today.
-Any future integration preserves the external dataset, harness, and
-official metric as authoritative; LLMGauge does not recreate them as
-native prompts. LocalMaxxing official shard evals and plus-variants are
-not those official metrics.
+HumanEval, MBPP, MMLU-Pro, GPQA, and IFEval are not completed as Bundle
+1 or Bundle 2 integrations. The generic importer can parse representative
+lm-eval fixtures; that is not a Bundle 1 completion claim. Any future
+integration preserves the external dataset, harness, and official metric
+as authoritative; LLMGauge does not recreate them as native prompts.
+LocalMaxxing official shard evals and plus-variants are not those official
+metrics.
 
 These items retain the distinct evaluation classes and evidence authorities
 defined by the [general evaluation taxonomy](GENERAL_EVALUATION_TAXONOMY.md).

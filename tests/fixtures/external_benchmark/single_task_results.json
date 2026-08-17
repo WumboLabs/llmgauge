@@ -1,0 +1,79 @@
+{
+  "config": {
+    "batch_size": 8,
+    "device": "cuda:0",
+    "fewshot_random_seed": 1234,
+    "limit": null,
+    "model": "hf",
+    "model_args": "pretrained=org/demo-model,dtype=float16",
+    "numpy_random_seed": 1234,
+    "random_seed": 0,
+    "torch_random_seed": 1234
+  },
+  "configs": {
+    "hellaswag": {
+      "dataset_kwargs": {
+        "revision": "main"
+      },
+      "dataset_name": null,
+      "dataset_path": "Rowan/hellaswag",
+      "generation_kwargs": {
+        "do_sample": false,
+        "temperature": 0.0
+      },
+      "metadata": {
+        "version": 1.0
+      },
+      "metric_list": [
+        {
+          "aggregation": "mean",
+          "higher_is_better": true,
+          "metric": "acc"
+        },
+        {
+          "aggregation": "mean",
+          "higher_is_better": true,
+          "metric": "acc_norm"
+        }
+      ],
+      "num_fewshot": 0,
+      "output_type": "multiple_choice",
+      "task": "hellaswag",
+      "test_split": "validation"
+    }
+  },
+  "git_hash": "abc1234",
+  "group_subtasks": {},
+  "groups": {},
+  "higher_is_better": {
+    "hellaswag": {
+      "acc": true,
+      "acc_norm": true
+    }
+  },
+  "lm_eval_version": "0.4.8",
+  "model_name": "org/demo-model",
+  "model_source": "hf",
+  "n-samples": {
+    "hellaswag": {
+      "effective": 10042,
+      "original": 10042
+    }
+  },
+  "n-shot": {
+    "hellaswag": 0
+  },
+  "results": {
+    "hellaswag": {
+      "acc,none": 0.85,
+      "acc_norm,none": 0.87,
+      "acc_norm_stderr,none": 0.012,
+      "acc_stderr,none": 0.01,
+      "alias": "hellaswag"
+    }
+  },
+  "transformers_version": "4.40.0",
+  "versions": {
+    "hellaswag": 1.0
+  }
+}

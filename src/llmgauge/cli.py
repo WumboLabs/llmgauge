@@ -5,6 +5,7 @@ import typer
 from llmgauge.commands import (
     agent_session_review,
     batch,
+    benchmark,
     import_agent_harness,
     export_public,
     localmaxxing,
@@ -59,6 +60,7 @@ app.command("validate-ladder")(validate_cmd.validate_ladder)
 app.command("import-agent-harness")(import_agent_harness.import_agent_harness_command)
 app.command("agent-session-review")(agent_session_review.agent_session_review)
 app.add_typer(localmaxxing.app, name="localmaxxing")
+app.add_typer(benchmark.app, name="benchmark")
 app.command("validate-result")(validate_cmd.validate_result)
 app.command()(scoring.score)
 app.command("export-index")(scoring.export_index_command)

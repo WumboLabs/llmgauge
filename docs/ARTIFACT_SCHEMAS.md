@@ -121,6 +121,20 @@ discovery fields, or fingerprint inputs. This tree belongs only to a dedicated
 external-agent import result; it cannot coexist with a native `transcript`
 reference or native prompt results.
 
+Optional imported external-benchmark source tree:
+
+    external-benchmark/evidence.json
+    external-benchmark/source/<original source members, exact bytes>
+    external-benchmark/source/objects/sha256/<64-lowercase-hex-digest>
+
+`external-benchmark/evidence.json` is the normalized
+`llmgauge.external_benchmark_evidence.v0` identity and validation layer. It
+does not replace the authoritative lm-eval source. Contained source members
+are exact, digest-bound private copies. This tree belongs only to a dedicated
+external-benchmark import result; it cannot coexist with native prompt
+results, a native `transcript` reference, or `agent_harness_evidence`.
+
+
 Optional public single-run derivative:
 
     public-export-manifest.json
@@ -158,6 +172,8 @@ Authoritative vs derived:
 | `agent-harness/review/agent-session-review.template.json` | Editable unreviewed review template; never report input |
 | `agent-harness/review/agent-session-review.json` | Mutable manual reviewer metadata; never source authority |
 | `agent-harness/review/agent-session-review.md` | Regenerable Agent Harness review aid |
+| `external-benchmark/evidence.json` | Authoritative normalized imported-benchmark identity, native metrics, and validation state |
+| `external-benchmark/source/*` | Exact admitted lm-eval result members |
 
 Retain raw outputs, logs, `llmgauge-result.json`, and `scores.yaml` for audit. Regenerate `report.md` after scoring changes.
 
@@ -260,6 +276,34 @@ list, zero completed/failed prompt counts, and no native `transcript`.
 `validate-result` understands this dedicated shape. Native scoring, report,
 comparison, export-index, and public-export consumers reject it until an
 Agent Harness-specific scoring/reporting contract is implemented.
+
+Optional imported external-benchmark results instead add one closed top-level
+`external_benchmark_evidence` discovery reference:
+
+    {
+      "schema_version": "llmgauge.external_benchmark_evidence.v0",
+      "contract_version": "0.1.0",
+      "evaluation_class": "external_text_benchmark",
+      "evidence_id": "sha256:<64 lowercase hex characters>",
+      "path": "external-benchmark/evidence.json",
+      "sha256": "<64 lowercase hex characters>"
+    }
+
+Such a result has `run.operation: external_benchmark_import`, an empty
+`results` list, zero completed/failed prompt counts, and no native
+`transcript` or `agent_harness_evidence`. `validate-result` and
+`llmgauge benchmark validate` understand this dedicated shape. Native
+scoring, report, comparison, export-index, and public-export consumers
+reject it. `benchmark report` is not part of this foundation.
+
+Normalized evidence records source-backed task identity, harness
+identity/version/commit, dataset/config/revision, few-shot and generation
+settings, seeds, model identity, runtime facts, native metric names/values,
+native aggregation, sample/denominator metadata, source integrity, and import
+provenance. Missing facts use the closed availability vocabulary. Native
+metric names remain exact; unlike metrics are never renamed into a common
+score.
+
 
 ### run
 
@@ -714,6 +758,15 @@ Results with Area 4 evidence use `llmgauge.run_fingerprint.v1` and a v1 payload
 that adds canonical Area 4 records and hashes their referenced native execution
 artifacts. Existing `llmgauge.run_fingerprint.v0` payloads remain unchanged and
 continue to verify unchanged.
+
+Results with imported external-benchmark evidence use
+`llmgauge.run_fingerprint.v2` and a v2 payload that includes the evidence
+schema and contract versions, evaluation class, source type, source-package
+SHA-256, immutable identity and native-metric projection, and hashes of
+contained source members. Import timestamps, external locators, review notes,
+reports, comparisons, public exports, and LocalMaxxing payloads are excluded.
+Existing `llmgauge.run_fingerprint.v0` and `llmgauge.run_fingerprint.v1`
+payloads remain unchanged and continue to verify unchanged.
 
 ## Context ladder directory
 
@@ -1215,14 +1268,6 @@ Expected values:
     status: valid | invalid
     errors: list of strings
 
-Example:
-
-    {
-      "checked": true,
-      "status": "valid",
-      "errors": []
-    }
-
 ## Current validation commands
 
 Validate a run directory:
@@ -1272,6 +1317,8 @@ Known schemas:
     llmgauge.context_prompt.v0
     llmgauge.suite.v0
     llmgauge.export_index.v0
+    llmgauge.external_benchmark_evidence.v0
+    llmgauge.run_fingerprint.v2
 
 Future changes should prefer additive fields over breaking changes.
 

@@ -182,6 +182,19 @@ vLLM is not supported. Future Area 4 normalized metrics may be used as an input,
 but Area 4 is not implemented. See
 [the integration contract](docs/LOCALMAXXING_INTEGRATION_CONTRACT.md).
 
+## External benchmark import
+
+Import a local EleutherAI `lm-eval` results JSON file as contained
+read-only evidence. This does not run a benchmark, execute generated
+code, or contact a network:
+
+    uv run llmgauge benchmark import /path/to/results.json results/imported-lm-eval
+    uv run llmgauge benchmark validate results/imported-lm-eval
+
+Import success is structural only. It does not complete Bundle 1 or
+prove official acceptance. Native score/report/export paths reject these
+results. The existing `localmaxxing` namespace remains speed-only.
+
 ## Source-checkout usage vs installed CLI usage
 
 Audience split:

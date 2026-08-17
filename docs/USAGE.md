@@ -358,6 +358,41 @@ The editable template and canonical review are bounded mutable metadata under
 The generated Agent Harness report is a derivative review aid, not a transcript,
 score, comparison, or publication decision.
 
+## Import external benchmark evidence
+
+Import one local EleutherAI `lm-eval` results JSON file or result directory
+into a new, self-contained LLMGauge result:
+
+    uv run llmgauge benchmark import \
+      /path/to/results.json \
+      results/imported-lm-eval
+
+Inspect source admission without writing result artifacts:
+
+    uv run llmgauge benchmark import \
+      /path/to/results.json \
+      results/imported-lm-eval \
+      --dry-run
+
+Validate the contained imported evidence:
+
+    uv run llmgauge benchmark validate results/imported-lm-eval
+
+`validate-result` also understands this dedicated imported result. Import or
+validation success does not prove official harness acceptance, answer quality,
+or publication readiness. The importer copies admitted source bytes and writes
+normalized `external-benchmark/evidence.json`; it does not repair, rescore,
+reinterpret, or overwrite the authoritative lm-eval result. It does not
+execute generated code, install lm-eval, download datasets, or contact a
+network service.
+
+Native `score`, native report, comparison, export-index, and public-export
+paths reject imported external-benchmark results. `benchmark report` is not
+implemented in this foundation; reporting remains a later bounded milestone.
+The existing `llmgauge localmaxxing` namespace remains the llama.cpp
+speed/performance integration and is unchanged.
+
+
 ## Validation
 
 `validate-result` confirms artifact structure and file references. It does not
