@@ -715,7 +715,9 @@ EleutherAI `lm-evaluation-harness` `v0.4.12` and adds read-only
 `llmgauge benchmark report`. Qualification is computed at report time
 and is not persisted into evidence. Generic lm-eval import remains valid
 when a result is not Bundle 1-qualified. HumanEval and MBPP remain
-import-only; LLMGauge does not execute generated code. See
+import-only; LLMGauge does not execute generated code. Isolated official
+`v0.4.12` writer artifacts confirmed the MMLU nested group layout,
+ordinary-task metric names, and the HumanEval/MBPP execution gate. See
 [Bundle 1 qualification](BUNDLE1_QUALIFICATION.md). LocalMaxxing quality
 export/submit remains later. Public LocalMaxxing support for Bundle 1 is
 still shard-eval or plus-variants, not official lm-eval metrics. The

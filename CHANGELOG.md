@@ -18,6 +18,10 @@
   persisted into evidence. Generic lm-eval import remains valid when not
   Bundle 1-qualified. HumanEval and MBPP remain import-only. LocalMaxxing
   quality export/submit remains later.
+- Official `lm-eval` `v0.4.12` group results import `sample_count` as
+  writer metadata rather than a metric, and Bundle 1 pin matching
+  accepts the official `git describe` form `v0.4.10-81-g6d642546` for
+  the pinned commit. Dummy or reduced-run scores remain non-comparable.
 
 - Added optional runtime-neutral request-wall-time evidence and bounded derived
   failure taxonomy for measured native single-turn llama.cpp attempts. The

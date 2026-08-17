@@ -22,6 +22,7 @@ from external_benchmark_fixtures import (
     write_official_humaneval_file,
     write_official_mmlu_file,
     write_single_task_file,
+    write_official_v0412_writer_group_file,
 )
 from llmgauge.core.agent_harness import require_native_result
 from llmgauge.core.bundle1 import (
@@ -82,6 +83,29 @@ def test_nested_official_group_shape_imports(tmp_path: Path) -> None:
     parent = next(item for item in evidence.groups if item.group_id == "parent_group")
     assert parent.subtask_ids == ["child_group"]
     assert all(item.metric_name != "sample_len" for item in parent.metrics)
+    assert all(item.metric_name != "sample_count" for item in parent.metrics)
+
+
+def test_official_v0412_writer_group_extras_import(tmp_path: Path) -> None:
+    source = write_official_v0412_writer_group_file(tmp_path / "source")
+    evidence = _import(source, tmp_path / "result")
+    assert evidence.harness.git_hash.value == "v0.4.10-81-g6d642546"
+    group = next(item for item in evidence.groups if item.group_id == "writer_group")
+    metric_names = {item.metric_name for item in group.metrics}
+    assert metric_names == {"acc,none"}
+    assert all(item.stderr.availability == "absent" for item in group.metrics)
+    qualification = qualify_bundle1(evidence)
+    assert qualification.harness_pin_match == "matched"
+
+
+def test_unrelated_git_describe_hash_is_different(tmp_path: Path) -> None:
+    source = write_official_v0412_writer_group_file(tmp_path / "source")
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["git_hash"] = "v0.72-60-g9023a7f"
+    source.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    evidence = _import(source, tmp_path / "result")
+    qualification = qualify_bundle1(evidence)
+    assert qualification.harness_pin_match == "different"
 
 
 def test_official_mmlu_group_qualifies(tmp_path: Path) -> None:

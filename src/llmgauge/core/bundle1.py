@@ -558,6 +558,26 @@ def _qualify_task_member(
     )
 
 
+def _git_hash_matches_pin(hash_text: str | None) -> bool:
+    if hash_text is None:
+        return True
+    text = hash_text.strip()
+    if not text:
+        return False
+    if HARNESS_COMMIT.startswith(text):
+        return True
+    if text.lstrip("v") == HARNESS_TAG.lstrip("v"):
+        return True
+    marker = "-g"
+    if marker in text:
+        abbrev = text.rsplit(marker, 1)[-1].split("-", 1)[0]
+        if len(abbrev) >= 7 and all(
+            character in "0123456789abcdefABCDEF" for character in abbrev
+        ):
+            return HARNESS_COMMIT.startswith(abbrev.lower())
+    return False
+
+
 def _harness_pin_match(
     evidence: ExternalBenchmarkEvidence,
 ) -> Literal["matched", "absent", "different"]:
@@ -570,7 +590,7 @@ def _harness_pin_match(
     version_ok = version_text is None or version_text.lstrip("v") == HARNESS_TAG.lstrip(
         "v"
     )
-    hash_ok = hash_text is None or HARNESS_COMMIT.startswith(hash_text)
+    hash_ok = hash_text is None or _git_hash_matches_pin(hash_text)
     if version_ok and hash_ok:
         if version_text is not None or hash_text is not None:
             if version_text is not None and hash_text is not None:
