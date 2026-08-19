@@ -13,6 +13,15 @@ from llmgauge.core.coding_core_evidence import (
     build_manual_review,
     build_method_provenance,
 )
+from llmgauge.core.generic_core_evidence import (
+    build_manual_review as build_generic_manual_review,
+    build_method_provenance as build_generic_method_provenance,
+)
+from llmgauge.core.generic_core_scoring import (
+    GENERIC_CORE_SUITE_ID,
+    GENERIC_CORE_VERSION,
+)
+
 from llmgauge.core.static_scoring import (
     CODING_CORE_SUITE_ID,
     CODING_CORE_VERSION,
@@ -554,6 +563,8 @@ def _validate_optional_coding_core(
     ]
     if selection is None and not coding_results:
         return errors
+    if not coding_results and suite_data.get("suite_id") != CODING_CORE_SUITE_ID:
+        return errors
 
     if (
         suite_data.get("suite_id") != CODING_CORE_SUITE_ID
@@ -788,6 +799,119 @@ def _validate_optional_coding_core(
                 f"{prompt_id}.coding_core deterministic result does not match authoritative raw response replay"
             )
 
+    return errors
+
+
+def _validate_optional_generic_core(
+    result_dir: Path, data: dict[str, Any]
+) -> list[str]:
+    errors: list[str] = []
+    suite_data = data.get("suite")
+    results = data.get("results")
+    if not isinstance(suite_data, dict) or not isinstance(results, list):
+        return errors
+    generic_results = [
+        item for item in results if isinstance(item, dict) and "generic_core" in item
+    ]
+    if not generic_results:
+        return errors
+    if (
+        suite_data.get("suite_id") != GENERIC_CORE_SUITE_ID
+        or suite_data.get("suite_version") != GENERIC_CORE_VERSION
+    ):
+        return ["Generic Core evidence requires the supported suite ID/version"]
+    try:
+        contract = load_normalized_suite(
+            resolve_suite_path(Path(GENERIC_CORE_SUITE_ID))
+        )
+    except (FileNotFoundError, SuiteDefinitionError, OSError, RuntimeError):
+        return [
+            "Generic Core result evidence cannot be validated because the logical suite contract is unavailable"
+        ]
+    prompts = {prompt.id: prompt for prompt in contract.prompts}
+    for prompt_result in generic_results:
+        prompt_id = prompt_result.get("prompt_id")
+        prompt = prompts.get(prompt_id)
+        evidence = prompt_result.get("generic_core")
+        if prompt is None or not isinstance(evidence, dict):
+            errors.append("Generic Core prompt evidence is malformed or foreign")
+            continue
+        expected_method = build_generic_method_provenance(prompt)
+        if (
+            evidence.get("scoring_method") != expected_method["scoring_method"]
+            or evidence.get("fixture_references")
+            != expected_method["fixture_references"]
+        ):
+            errors.append(
+                f"{prompt_id}.generic_core method or fixture provenance is inconsistent"
+            )
+            continue
+        scoring = prompt.scoring
+        if scoring is None:
+            errors.append(f"{prompt_id}.generic_core scoring declaration is absent")
+            continue
+        if scoring.role is ScoringRole.MANUAL:
+            if set(evidence) != {
+                "scoring_method",
+                "fixture_references",
+                "manual_review",
+            }:
+                errors.append(
+                    f"{prompt_id}.generic_core manual-only evidence has an invalid shape"
+                )
+            continue
+        deterministic = evidence.get("deterministic_result")
+        if not isinstance(deterministic, dict):
+            errors.append(
+                f"{prompt_id}.generic_core deterministic result is absent or malformed"
+            )
+            continue
+        raw_response, raw_error = _read_coding_raw_response(result_dir, prompt_result)
+        if raw_error is not None:
+            errors.append(f"{prompt_id}.generic_core {raw_error}")
+            continue
+        try:
+            replayed = apply_deterministic_check(
+                contract,
+                prompt_id,
+                raw_response,
+                generation_failed=prompt_result.get("status") == "failed",
+            )
+        except StaticScoringError:
+            errors.append(
+                f"{prompt_id}.generic_core deterministic replay could not be evaluated"
+            )
+            continue
+        if replayed != deterministic:
+            errors.append(
+                f"{prompt_id}.generic_core deterministic result does not match authoritative raw response replay"
+            )
+        if scoring.role is ScoringRole.HYBRID:
+            try:
+                expected_manual = build_generic_manual_review(
+                    prompt, prompt_result.get("score")
+                )
+                expected_hybrid = compose_hybrid_score(
+                    contract, prompt_id, deterministic, prompt_result.get("score")
+                )
+            except (StaticScoringError, ValueError):
+                errors.append(f"{prompt_id}.generic_core hybrid evidence is malformed")
+                continue
+            if (
+                evidence.get("manual_review") != expected_manual
+                or evidence.get("hybrid_composition") != expected_hybrid
+            ):
+                errors.append(
+                    f"{prompt_id}.generic_core hybrid composition is inconsistent"
+                )
+        elif set(evidence) != {
+            "scoring_method",
+            "fixture_references",
+            "deterministic_result",
+        }:
+            errors.append(
+                f"{prompt_id}.generic_core deterministic evidence has an invalid shape"
+            )
     return errors
 
 
@@ -1089,6 +1213,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                 )
 
     errors.extend(_validate_optional_coding_core(result_dir, data))
+    errors.extend(_validate_optional_generic_core(result_dir, data))
     errors.extend(validate_agent_harness_result(result_dir, data))
     errors.extend(validate_external_benchmark_result(result_dir, data))
     errors.extend(validate_result_transcript(result_dir, data))

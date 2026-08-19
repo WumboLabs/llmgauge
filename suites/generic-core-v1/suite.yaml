@@ -4,8 +4,8 @@ suite_version: 0.1.0
 title: Generic Core v1
 description: >
   Portable native-response suite for general-purpose model evaluation.
-  Named profiles share one prompt inventory. Deterministic checks D1-D7
-  are declared references only; this suite version does not execute them.
+  Named profiles share one prompt inventory. D1-D7 evaluate preserved raw
+  responses against versioned contained resources; D5 remains non-executing.
 default_profile: core
 profiles:
   core:

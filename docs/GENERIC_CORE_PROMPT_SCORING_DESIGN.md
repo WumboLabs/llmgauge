@@ -1,8 +1,8 @@
 # Generic Core Prompt and Scoring Design
 
-Status: Accepted prompt-role design for `generic-core-v1` version `0.1.0`.
-Suite content for this inventory is implemented. Deterministic checks D1-D7
-remain unimplemented.
+Status: Accepted and implemented deterministic-check design for
+`generic-core-v1` version `0.1.0`. D1-D7 retain their stated claim boundaries;
+D5 remains deliberately non-executing while its resource authorization is false.
 
 This document fixes the prompt-role inventory, scoring ownership, and
 ordered `smoke` and `core` membership required by the accepted
@@ -577,30 +577,18 @@ conditions.
 
 ## Deferred implementation requirements and risks
 
-Final prompt wording, committed fixtures, and suite discovery for version
-`0.1.0` are implemented. The next bounded milestone is **deterministic-check
-implementation** for D1-D7.
+Final prompt wording, committed fixtures, suite discovery, and D1-D7
+deterministic evidence are implemented for `0.1.0`. Checks preserve raw input,
+outcome, version, fixture provenance, and independent manual state without
+lexical semantic substitution. D5 returns `not_run` while
+`execution_authorized` remains false and does not extract, execute, or test
+candidate code.
 
-Remaining separately admitted work must:
+Remaining separately admitted work is a safe containment and resource-limit
+design before D5 may execute generated code. Material risks remain ambiguous
+response grammars creating false negatives, finite coding cases creating false
+confidence, unsafe containment, and pressure to collapse hybrid evidence.
 
-1. specify response grammars, word counting, code extraction, JSON
-   canonicalization, diagnostic bounds, and check-error handling precisely;
-2. accept a safe local containment and resource-limit design before D5 executes
-   generated code, or fail implementation admission;
-3. implement checks without lexical semantic substitution and preserve their
-   input, outcome, version, and error provenance;
-4. map manual review without modifying `default-manual-v0` and preserve null,
-   missing, partial, unreviewed, and reviewed states;
-5. add focused check, provenance, and compatibility tests without launching a
-   model;
-6. keep final wording and fixtures portable and free of private, platform,
-   hardware, network, currentness, or project dependencies.
-
-Material unresolved risks are final wording accidentally changing an objective,
-ambiguous response grammars creating false negatives, finite coding cases
-creating false confidence, unsafe generated-code containment, and future schema
-pressure to collapse hybrid evidence. These are implementation admission gates,
-not reasons to invent behavior in this design milestone.
 
 This document therefore distinguishes four boundaries explicitly:
 
