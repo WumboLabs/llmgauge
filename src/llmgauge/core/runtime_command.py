@@ -13,16 +13,14 @@ from llmgauge.runners.llama_cpp import LlamaCppRunConfig, build_llama_command
 RUNTIME_COMMAND_FILENAME = "runtime-command.json"
 RUNTIME_COMMAND_SCHEMA_VERSION = "llmgauge.runtime_command.v0"
 PROMPT_PLACEHOLDER = "__PROMPT_FROM_RAW_ARTIFACT__"
-
+PROMPT_FILE_THRESHOLD_BYTES = 64 * 1024
 ReasoningMode = Literal["off", "on", "auto", "default", "unknown"]
 ModelSource = Literal["model_profile", "direct_model_path"]
 REASONING_MODE_FIELD = "reasoning_mode"
 REASONING_MODE_REQUESTED_FIELD = "reasoning_mode_requested"
 
 
-REASONING_MODES: frozenset[str] = frozenset(
-    {"off", "on", "auto", "default", "unknown"}
-)
+REASONING_MODES: frozenset[str] = frozenset({"off", "on", "auto", "default", "unknown"})
 
 
 def resolve_model_source(*, model_profile: str | None) -> ModelSource:
@@ -70,8 +68,19 @@ def resolve_reasoning_mode_requested_from_metadata(
 
 
 def redact_command_argv(command_argv: list[str], model_path: Path) -> list[str]:
-    model_text = str(model_path)
-    return [arg if arg != model_text else "REDACTED_MODEL_PATH" for arg in command_argv]
+    redacted: list[str] = []
+    redact_next = False
+    for argument in command_argv:
+        if redact_next:
+            redacted.append(PROMPT_PLACEHOLDER)
+            redact_next = False
+            continue
+        redacted.append(
+            "REDACTED_MODEL_PATH" if argument == str(model_path) else argument
+        )
+        if argument in {"-p", "--prompt", "-f", "--file"}:
+            redact_next = True
+    return redacted
 
 
 def build_runtime_command_document(
@@ -102,16 +111,58 @@ def build_runtime_command_document(
         "max_tokens": config.max_tokens,
         "temperature": config.temperature,
         "top_p": config.top_p,
+        "top_k": config.top_k,
+        "top_k_state": "explicit" if config.top_k is not None else "runtime_default",
+        "seed": config.seed,
+        "seed_state": "explicit" if config.seed is not None else "runtime_default",
         "batch": config.batch_size,
         "ubatch": config.ubatch_size,
+        "parallel_sequences": 1,
         "gpu_layers": config.gpu_layers,
+        "kv_offload": "requested_on",
+        "cache_type_k": config.cache_type_k,
+        "cache_type_k_state": (
+            "explicit" if config.cache_type_k is not None else "runtime_default"
+        ),
+        "cache_type_v": config.cache_type_v,
+        "cache_type_v_state": (
+            "explicit" if config.cache_type_v is not None else "runtime_default"
+        ),
         "flash_attn": config.flash_attn,
         "runtime_label": resolved.get("runtime_label"),
         "reasoning_mode": config.reasoning_mode,
+        "reasoning_effort": config.reasoning_effort,
+        "reasoning_effort_state": (
+            "explicit" if config.reasoning_effort is not None else "runtime_default"
+        ),
+        "reasoning_budget": config.reasoning_budget,
+        "reasoning_budget_state": (
+            "explicit" if config.reasoning_budget is not None else "runtime_default"
+        ),
+        "fit": config.fit,
+        "fit_state": "explicit" if config.fit is not None else "runtime_default",
+        "reasoning_preserve": config.reasoning_preserve,
+        "reasoning_preserve_state": (
+            "explicit" if config.reasoning_preserve is not None else "runtime_default"
+        ),
+        "spec_type": config.spec_type,
+        "spec_type_state": (
+            "explicit" if config.spec_type is not None else "runtime_default"
+        ),
+        "prompt_transport": {
+            "mode": "per_prompt",
+            "argv_max_utf8_bytes": PROMPT_FILE_THRESHOLD_BYTES,
+            "argv": {"flag": "--prompt", "source": "raw/*.prompt.md"},
+            "file": {
+                "flag": "--file",
+                "source": "temporary local UTF-8 prompt file",
+                "raw_evidence_source": "raw/*.prompt.md",
+            },
+        },
         "prompt_placeholder": PROMPT_PLACEHOLDER,
         "prompt_source_note": (
-            "Per-prompt text is stored under raw/*.prompt.md; substitute the placeholder "
-            "when reproducing a prompt-level invocation."
+            "Per-prompt transport evidence is recorded after execution; raw prompt text "
+            "is stored under raw/*.prompt.md."
         ),
         "created_at": created_at,
     }

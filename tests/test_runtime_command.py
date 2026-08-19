@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from llmgauge.core.result_validation import validate_result_dir
 
 from llmgauge.core.runtime_command import (
     RUNTIME_COMMAND_FILENAME,
@@ -43,9 +44,7 @@ def test_resolve_model_source_profile_vs_direct_path() -> None:
 
 
 def test_resolve_reasoning_mode_defaults_to_off() -> None:
-    assert (
-        resolve_reasoning_mode(cli_value=None, profile={}, config_data={}) == "off"
-    )
+    assert resolve_reasoning_mode(cli_value=None, profile={}, config_data={}) == "off"
 
 
 def test_resolve_reasoning_mode_cli_overrides_profile() -> None:
@@ -99,6 +98,12 @@ def test_build_runtime_command_document_redacts_model_path() -> None:
     assert document["reasoning_mode"] == "off"
     assert "REDACTED_MODEL_PATH" in document["command_argv"]
     assert "/models/model.gguf" not in document["command_argv"]
+    assert document["fit"] is None
+    assert document["fit_state"] == "runtime_default"
+    assert document["reasoning_preserve"] is None
+    assert document["reasoning_preserve_state"] == "runtime_default"
+    assert document["spec_type"] is None
+    assert document["spec_type_state"] == "runtime_default"
 
 
 def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) -> None:
@@ -148,12 +153,21 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         "max_tokens": 64,
         "temp": 0.2,
         "top_p": 0.95,
+        "top_k": 20,
+        "seed": 424242,
         "batch": 256,
         "ubatch": 64,
         "gpu_layers": 999,
         "flash_attn": "auto",
+        "cache_type_k": "q8_0",
+        "cache_type_v": "q4_0",
         "runtime_label": None,
         "reasoning_mode": "off",
+        "reasoning_effort": "medium",
+        "reasoning_budget": 16384,
+        "fit": "off",
+        "reasoning_preserve": True,
+        "spec_type": "draft-mtp",
         "vram_min_headroom_warn_mib": None,
     }
 
@@ -178,16 +192,66 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     assert result["model"]["provenance"]["filename"] == "model.bin"
     assert result["model"]["provenance"]["sha256"]
     assert result["runtime"]["backend_provenance"]["status"] == "available"
-    assert (
-        result["runtime"]["backend_provenance"]["executable_filename"]
-        == "llama-cli"
-    )
+    assert result["runtime"]["backend_provenance"]["executable_filename"] == "llama-cli"
     assert result["runtime"]["backend_provenance"]["executable_sha256"]
-    assert (
-        result["runtime"]["backend_provenance"]["reported_version"] == "b1234"
-    )
+    assert result["runtime"]["backend_provenance"]["reported_version"] == "b1234"
     assert result["runtime"]["backend_provenance"]["commit"] == "abcdef1"
     assert str(tmp_path) not in str(result["runtime"]["backend_provenance"])
     assert result["runtime"]["reasoning_mode"] == "off"
+    assert result["runtime"]["top_k"] == 20
+    assert result["runtime"]["seed"] == 424242
+    assert result["runtime"]["cache_type_k"] == "q8_0"
+    assert result["runtime"]["reasoning_effort"] == "medium"
+    assert result["runtime"]["fit"] == "off"
+    assert result["runtime"]["reasoning_preserve"] is True
+    assert result["runtime"]["spec_type"] == "draft-mtp"
     assert result["runtime"]["runtime_command_captured"] is True
     assert result["runtime"]["runtime_command_path"] == RUNTIME_COMMAND_FILENAME
+    assert validate_result_dir(tmp_path / "result") == []
+
+
+def test_runtime_command_records_extended_requested_configuration() -> None:
+    config = LlamaCppRunConfig(
+        llama_cli=Path("/bin/llama-cli"),
+        model_path=Path("/models/model.gguf"),
+        ctx_size=8192,
+        max_tokens=800,
+        temperature=0.2,
+        top_p=0.95,
+        batch_size=256,
+        ubatch_size=64,
+        gpu_layers=999,
+        top_k=20,
+        seed=424242,
+        cache_type_k="q8_0",
+        cache_type_v="q4_0",
+        reasoning_effort="medium",
+        reasoning_budget=16384,
+        fit="off",
+        reasoning_preserve=False,
+        spec_type="none",
+    )
+
+    document = build_runtime_command_document(
+        config=config,
+        resolved=_resolved(),
+        suite_id="wumbolabs-practical-v1",
+        suite_version="0.2.0",
+    )
+
+    assert document["top_k"] == 20
+    assert document["top_k_state"] == "explicit"
+    assert document["seed"] == 424242
+    assert document["seed_state"] == "explicit"
+    assert document["cache_type_k"] == "q8_0"
+    assert document["cache_type_v"] == "q4_0"
+    assert document["kv_offload"] == "requested_on"
+    assert document["reasoning_effort"] == "medium"
+    assert document["reasoning_budget"] == 16384
+    assert document["fit"] == "off"
+    assert document["fit_state"] == "explicit"
+    assert document["reasoning_preserve"] is False
+    assert document["reasoning_preserve_state"] == "explicit"
+    assert document["spec_type"] == "none"
+    assert document["spec_type_state"] == "explicit"
+    assert document["prompt_transport"]["file"]["flag"] == "--file"

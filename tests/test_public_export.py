@@ -7,6 +7,10 @@ from pathlib import Path
 import pytest
 
 import llmgauge.core.public_export as public_export_module
+from llmgauge.core.area4_evidence import (
+    build_area4_evidence,
+    build_native_execution_evidence,
+)
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.run_fingerprint import attach_run_fingerprint
@@ -18,12 +22,15 @@ def _write_run(
     with_provenance: bool = True,
     model_filename: str = "model.gguf",
     executable_filename: str = "llama-cli",
+    with_area4: bool = False,
 ) -> Path:
     result_dir = tmp_path / "source-run"
     (result_dir / "raw").mkdir(parents=True)
     (result_dir / "cleaned").mkdir()
     (result_dir / "logs").mkdir()
     (result_dir / "vram").mkdir()
+    if with_area4:
+        (result_dir / "native").mkdir()
 
     model = {
         "model_id": "test-model",
@@ -94,6 +101,31 @@ def _write_run(
             }
         ],
     }
+    if with_area4:
+        native_evidence = build_native_execution_evidence(
+            prompt_id="honesty-unknown-tool",
+            elapsed_seconds=1.0,
+            stdout="output",
+            stderr="",
+            exit_status=0,
+            timed_out=False,
+            launch_error=None,
+        )
+        native_path = "native/honesty-unknown-tool.execution.json"
+        result["results"][0]["native_execution_evidence_path"] = native_path
+        result["results"][0]["_area4_native_execution_evidence"] = native_evidence
+        metrics, taxonomy = build_area4_evidence(
+            prompt_results=result["results"],
+            suite=result["suite"],
+            runtime=result["runtime"],
+        )
+        result["results"][0].pop("_area4_native_execution_evidence")
+        result["runtime_neutral_metrics"] = metrics
+        result["failure_taxonomy"] = taxonomy
+        (result_dir / native_path).write_text(
+            json.dumps(native_evidence, indent=2) + "\n",
+            encoding="utf-8",
+        )
     (result_dir / "llmgauge-result.json").write_text(
         json.dumps(result, indent=2) + "\n", encoding="utf-8"
     )
@@ -196,6 +228,24 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     assert "REDACTED_SECRET" in (
         output_dir / "raw" / "honesty-unknown-tool.output.txt"
     ).read_text(encoding="utf-8")
+
+
+def test_public_export_preserves_native_execution_evidence(tmp_path: Path) -> None:
+    source_dir = _write_run(tmp_path, with_area4=True)
+    output_dir = tmp_path / "public-export"
+
+    manifest = export_public_run(source_dir, output_dir)
+
+    native_path = "native/honesty-unknown-tool.execution.json"
+    assert native_path in manifest["files_transformed"]
+    assert (output_dir / native_path).is_file()
+    exported = json.loads(
+        (output_dir / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    assert exported["runtime_neutral_metrics"]["measurements"][0]["metrics"][0][
+        "evidence_refs"
+    ] == [f"{native_path}#/request_wall_time_seconds"]
+    assert validate_result_dir(output_dir) == []
 
 
 def test_public_export_redacts_local_hostname_and_username(
@@ -455,3 +505,87 @@ def test_public_export_docs_do_not_claim_transformed_byte_authentication() -> No
         "does not verify or authenticate transformed public-export bytes"
         in normalized_doc
     )
+
+
+def test_public_export_preserves_non_sensitive_extended_runtime_settings(
+    tmp_path: Path,
+) -> None:
+    source_dir = _write_run(tmp_path)
+    result_path = source_dir / "llmgauge-result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    runtime = result["runtime"]
+    runtime.update(
+        {
+            "top_k": 20,
+            "top_k_state": "explicit",
+            "seed": 424242,
+            "seed_state": "explicit",
+            "kv_offload": "requested_on",
+            "cache_type_k": "q8_0",
+            "cache_type_k_state": "explicit",
+            "cache_type_v": "q4_0",
+            "cache_type_v_state": "explicit",
+            "reasoning_effort": "medium",
+            "reasoning_effort_state": "explicit",
+            "reasoning_budget": 16384,
+            "reasoning_budget_state": "explicit",
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": False,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "draft-mtp",
+            "spec_type_state": "explicit",
+        }
+    )
+    command_path = source_dir / "runtime-command.json"
+    command = json.loads(command_path.read_text(encoding="utf-8"))
+    command.update(
+        {
+            field: runtime[field]
+            for field in runtime
+            if field
+            in {
+                "top_k",
+                "top_k_state",
+                "seed",
+                "seed_state",
+                "kv_offload",
+                "cache_type_k",
+                "cache_type_k_state",
+                "cache_type_v",
+                "cache_type_v_state",
+                "reasoning_effort",
+                "reasoning_effort_state",
+                "reasoning_budget",
+                "reasoning_budget_state",
+                "fit",
+                "fit_state",
+                "reasoning_preserve",
+                "reasoning_preserve_state",
+                "spec_type",
+                "spec_type_state",
+            }
+        }
+    )
+    command_path.write_text(json.dumps(command) + "\n", encoding="utf-8")
+    attach_run_fingerprint(source_dir, result)
+    result_path.write_text(json.dumps(result) + "\n", encoding="utf-8")
+
+    export_public_run(source_dir, tmp_path / "public-run")
+
+    exported = json.loads(
+        (tmp_path / "public-run" / "llmgauge-result.json").read_text(encoding="utf-8")
+    )
+    assert exported["runtime"]["top_k"] == 20
+    assert exported["runtime"]["seed"] == 424242
+    assert exported["runtime"]["cache_type_k"] == "q8_0"
+    assert exported["runtime"]["reasoning_budget"] == 16384
+    assert exported["runtime"]["fit"] == "off"
+    assert exported["runtime"]["reasoning_preserve"] is False
+    assert exported["runtime"]["spec_type"] == "draft-mtp"
+    exported_command = json.loads(
+        (tmp_path / "public-run" / "runtime-command.json").read_text(encoding="utf-8")
+    )
+    assert exported_command["fit"] == "off"
+    assert exported_command["reasoning_preserve"] is False
+    assert exported_command["spec_type"] == "draft-mtp"

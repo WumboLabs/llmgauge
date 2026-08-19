@@ -165,9 +165,18 @@ Preview one exact prompt without launching `llama.cpp`:
       --model-profile example_model \
       --ctx 8192 \
       --max-tokens 800 \
+      --top-k 20 \
+      --seed 424242 \
+      --cache-type-k q8_0 \
+      --cache-type-v q4_0 \
       --flash-attn auto \
       --runtime-label stock-reference \
-      --reasoning-mode off \
+      --reasoning-mode on \
+      --reasoning-effort medium \
+      --reasoning-budget 16384 \
+      --fit off \
+      --reasoning-preserve \
+      --spec-type none \
       --dry-run
 
 Preview a category:
@@ -304,8 +313,69 @@ Record reasoning intent for reasoning-capable models:
 `--reasoning` flag. When omitted, LLMGauge defaults to `off` to preserve prior
 behavior.
 
-Dry-run output shows `model_source`, `reasoning_mode`, a normalized command
-preview, and where `runtime-command.json` would be written for a real run.
+For llama.cpp runs, sampling and KV-cache controls are first-class:
+
+    --top-k 20
+    --seed 424242
+    --cache-type-k q8_0
+    --cache-type-v q4_0
+    --reasoning-effort medium
+    --reasoning-budget 16384
+    --fit off
+    --reasoning-preserve
+    --no-reasoning-preserve
+    --spec-type none
+    --spec-type draft-mtp
+
+`--top-k 0` disables top-k. Omitting `--top-k` leaves the runtime default in
+effect. Omitting `--seed` likewise leaves llama.cpp's default/random behavior
+in effect; `--seed -1` records an explicit request for llama.cpp random seeding.
+The supported cache types are the admitted current llama.cpp values: `f32`,
+`f16`, `bf16`, `q8_0`, `q4_0`, `q4_1`, `iq4_nl`, `q5_0`, and `q5_1`.
+LLMGauge always requests KV offload for this runner and records the request; it
+does not infer observed GPU residency from that request.
+
+Reasoning effort accepts `default`, `minimal`, `low`, `medium`, `high`, `xhigh`,
+or `max`; the model template can still ignore a runtime-accepted request.
+Reasoning budget accepts `-1` for unrestricted, `0` for immediate end, or a
+positive token budget. The artifact distinguishes an explicit request from a
+runtime default, but command acceptance is not proof that a model template
+honored it. Reasoning-off means the llama.cpp `--reasoning off` request; it is
+never represented by post-generation output stripping.
+
+Fit accepts `on` or `off`; YAML may also use booleans, normalized to those
+canonical values. Omission leaves llama.cpp's runtime default in effect and is
+distinct from explicit `on` or `off`. A successful load does not prove which
+fit behavior was used.
+
+`--reasoning-preserve` and `--no-reasoning-preserve` explicitly request whether
+llama.cpp retains prior reasoning in multi-turn chat history. Omission leaves
+the template/runtime default. Passing either flag proves only the request, not
+that the selected template or model complied.
+
+`--spec-type` accepts a canonical comma-separated selection from `none`,
+`draft-simple`, `draft-eagle3`, `draft-mtp`, `draft-dflash`, `draft-dspark`,
+`ngram-simple`, `ngram-map-k`, `ngram-map-k4v`, `ngram-mod`, and
+`ngram-cache`. Duplicate values, unsupported values, and combining `none` with
+another mode are rejected. Omission uses the runtime default; explicit `none`
+records speculation off. LLMGauge never enables speculation implicitly.
+
+Prompts up to 64 KiB UTF-8 are passed as structured argv. Larger prompts are
+written to a temporary local UTF-8 file and supplied with llama.cpp `--file`;
+the original prompt remains authoritative under `raw/*.prompt.md`. Per-prompt
+transport mode and a sanitized command argv are recorded in
+`runtime-command.json`. This removes the per-argument Linux limit without shell
+interpolation.
+
+Native function/tool schemas are not supported by the current `llama-cli`
+execution contract. LLMGauge continues to distinguish static tool-related
+prompts from native schemas; it neither pretends schemas were supplied nor
+executes model-requested tools. A llama-server native-tools backend requires a
+separate accepted runtime contract.
+
+Dry-run output shows `model_source`, resolved runtime controls, a normalized
+command preview, and where `runtime-command.json` would be written for a real
+run.
 
 ## Import Agent Harness evidence
 

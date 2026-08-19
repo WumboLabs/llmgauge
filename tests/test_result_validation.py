@@ -66,7 +66,9 @@ def test_validate_result_dir_success(tmp_path: Path) -> None:
     assert validate_result_dir(result_dir) == []
 
 
-def test_validate_result_dir_accepts_missing_v070_optional_fields(tmp_path: Path) -> None:
+def test_validate_result_dir_accepts_missing_v070_optional_fields(
+    tmp_path: Path,
+) -> None:
     result_dir = _write_valid_result_dir(tmp_path)
 
     assert validate_result_dir(result_dir) == []
@@ -151,7 +153,9 @@ def test_validate_result_data_accepts_score_shape(tmp_path: Path) -> None:
     assert not any("score" in error for error in errors)
 
 
-def test_validate_result_data_accepts_optional_cleaned_output_path(tmp_path: Path) -> None:
+def test_validate_result_data_accepts_optional_cleaned_output_path(
+    tmp_path: Path,
+) -> None:
     result_dir = _write_valid_result_dir(tmp_path)
     data = _valid_result()
     data["results"][0]["cleaned_output_path"] = (
@@ -164,7 +168,9 @@ def test_validate_result_data_accepts_optional_cleaned_output_path(tmp_path: Pat
     assert errors == []
 
 
-def test_validate_result_data_rejects_missing_cleaned_output_path(tmp_path: Path) -> None:
+def test_validate_result_data_rejects_missing_cleaned_output_path(
+    tmp_path: Path,
+) -> None:
     result_dir = _write_valid_result_dir(tmp_path)
     data = _valid_result()
     data["results"][0]["cleaned_output_path"] = (
@@ -230,6 +236,7 @@ def _load_result(result_dir: Path) -> dict:
         ],
     }
 
+
 def test_validate_result_data_accepts_hardened_score_metadata(tmp_path: Path) -> None:
     result_dir = _write_minimal_result(tmp_path)
     data = _load_result(result_dir)
@@ -259,7 +266,9 @@ def test_validate_result_data_accepts_hardened_score_metadata(tmp_path: Path) ->
     assert not any("score" in error for error in errors)
 
 
-def test_validate_result_data_rejects_non_string_score_rationale(tmp_path: Path) -> None:
+def test_validate_result_data_rejects_non_string_score_rationale(
+    tmp_path: Path,
+) -> None:
     result_dir = _write_minimal_result(tmp_path)
     data = _load_result(result_dir)
     data["results"][0]["score"] = {
@@ -274,6 +283,7 @@ def test_validate_result_data_rejects_non_string_score_rationale(tmp_path: Path)
     errors = validate_result_data(result_dir, data)
 
     assert any("score.score_rationale must be a string" in error for error in errors)
+
 
 def test_validate_result_data_rejects_invalid_score_provenance(tmp_path: Path) -> None:
     result_dir = _write_minimal_result(tmp_path)
@@ -297,3 +307,60 @@ def test_validate_result_data_rejects_invalid_score_provenance(tmp_path: Path) -
     assert any("score.evidence must be a list of strings" in error for error in errors)
     assert any("score.warnings must be a list of strings" in error for error in errors)
     assert any("score.reviewed must be a boolean" in error for error in errors)
+
+
+def test_validate_result_data_rejects_contradictory_extended_runtime_state(
+    tmp_path: Path,
+) -> None:
+    data = _valid_result()
+    data["runtime"].update(
+        {
+            "top_k": 20,
+            "top_k_state": "runtime_default",
+            "seed": None,
+            "seed_state": "explicit",
+            "cache_type_k": "invalid",
+            "cache_type_k_state": "explicit",
+            "kv_offload": "off",
+            "fit": "automatic",
+            "fit_state": "explicit",
+            "reasoning_preserve": "false",
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "none,draft-mtp",
+            "spec_type_state": "explicit",
+        }
+    )
+
+    errors = validate_result_data(tmp_path, data)
+
+    assert "runtime.top_k_state=runtime_default requires runtime.top_k=null" in errors
+    assert "runtime.seed_state=explicit requires runtime.seed" in errors
+    assert any(
+        error.startswith("runtime.cache_type_k must be one of:") for error in errors
+    )
+    assert "runtime.kv_offload must be requested_on when present" in errors
+    assert any(error.startswith("runtime.fit must be one of:") for error in errors)
+    assert "runtime.reasoning_preserve must be a boolean when present" in errors
+    assert "runtime.spec_type=none cannot be combined with other values" in errors
+
+
+def test_validate_result_data_accepts_new_controls_and_legacy_omission(
+    tmp_path: Path,
+) -> None:
+    result_dir = _write_valid_result_dir(tmp_path)
+    legacy = _valid_result()
+    assert validate_result_data(result_dir, legacy) == []
+
+    controlled = _valid_result()
+    controlled["runtime"].update(
+        {
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": False,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "draft-mtp,ngram-cache",
+            "spec_type_state": "explicit",
+        }
+    )
+
+    assert validate_result_data(result_dir, controlled) == []

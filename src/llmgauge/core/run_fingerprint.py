@@ -13,6 +13,10 @@ RUN_FINGERPRINT_SCHEMA_VERSION_V1 = "llmgauge.run_fingerprint.v1"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V1 = "llmgauge.run_fingerprint_payload.v1"
 RUN_FINGERPRINT_SCHEMA_VERSION_V2 = "llmgauge.run_fingerprint.v2"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V2 = "llmgauge.run_fingerprint_payload.v2"
+RUN_FINGERPRINT_SCHEMA_VERSION_V3 = "llmgauge.run_fingerprint.v3"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V3 = "llmgauge.run_fingerprint_payload.v3"
+RUN_FINGERPRINT_SCHEMA_VERSION_V4 = "llmgauge.run_fingerprint.v4"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V4 = "llmgauge.run_fingerprint_payload.v4"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -182,27 +186,60 @@ def _backend_identity(runtime: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _runtime_settings(runtime: Mapping[str, Any]) -> dict[str, Any]:
+def _runtime_settings(
+    runtime: Mapping[str, Any],
+    *,
+    include_extended_settings: bool = False,
+    include_control_settings: bool = False,
+) -> dict[str, Any]:
     # Material generation / execution knobs only.
     # Excluded from common result runtime blob: runtime_label (label),
     # vram_min_headroom_warn_mib (warning threshold), local paths
     # (llama_cli, config_path, model_profiles_path), command argv (prompt
     # and paths), runtime_command_* capture flags/paths, and
     # backend_provenance (handled under backend identity).
-    return _selected_mapping(
-        runtime,
-        [
-            "ctx_size",
-            "max_tokens",
-            "temperature",
-            "top_p",
-            "batch_size",
-            "ubatch_size",
-            "gpu_layers",
-            "flash_attn",
-            "reasoning_mode",
-        ],
-    )
+    fields = [
+        "ctx_size",
+        "max_tokens",
+        "temperature",
+        "top_p",
+        "batch_size",
+        "ubatch_size",
+        "gpu_layers",
+        "flash_attn",
+        "reasoning_mode",
+    ]
+    if include_extended_settings:
+        fields.extend(
+            [
+                "parallel_sequences",
+                "top_k",
+                "top_k_state",
+                "seed",
+                "seed_state",
+                "kv_offload",
+                "cache_type_k",
+                "cache_type_k_state",
+                "cache_type_v",
+                "cache_type_v_state",
+                "reasoning_effort",
+                "reasoning_effort_state",
+                "reasoning_budget",
+                "reasoning_budget_state",
+            ]
+        )
+    if include_control_settings:
+        fields.extend(
+            [
+                "fit",
+                "fit_state",
+                "reasoning_preserve",
+                "reasoning_preserve_state",
+                "spec_type",
+                "spec_type_state",
+            ]
+        )
+    return _selected_mapping(runtime, fields)
 
 
 def _prompt_evidence(
@@ -280,7 +317,36 @@ def _external_benchmark_is_represented(result: Mapping[str, Any]) -> bool:
     return result.get("external_benchmark_evidence") is not None
 
 
+def _extended_runtime_evidence_is_represented(result: Mapping[str, Any]) -> bool:
+    runtime = result.get("runtime")
+    return isinstance(runtime, Mapping) and any(
+        field in runtime
+        for field in (
+            "top_k",
+            "seed",
+            "cache_type_k",
+            "cache_type_v",
+            "reasoning_effort",
+            "reasoning_budget",
+            "fit",
+            "reasoning_preserve",
+            "spec_type",
+        )
+    )
+
+
+def _control_runtime_evidence_is_represented(result: Mapping[str, Any]) -> bool:
+    runtime = result.get("runtime")
+    return isinstance(runtime, Mapping) and any(
+        field in runtime for field in ("fit", "reasoning_preserve", "spec_type")
+    )
+
+
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _control_runtime_evidence_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V4, RUN_FINGERPRINT_PAYLOAD_VERSION_V4
+    if _extended_runtime_evidence_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V3, RUN_FINGERPRINT_PAYLOAD_VERSION_V3
     if _external_benchmark_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V2, RUN_FINGERPRINT_PAYLOAD_VERSION_V2
     if _area4_is_represented(result):
@@ -299,8 +365,14 @@ def build_run_fingerprint_payload(
     _, resolved_payload_version = _fingerprint_versions(result)
     if payload_version is None:
         payload_version = resolved_payload_version
-    include_area4 = payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V1
-
+    include_area4 = payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V1 or (
+        payload_version
+        in {
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+        }
+        and _area4_is_represented(result)
+    )
     model = result.get("model")
     runtime = result.get("runtime")
     suite = result.get("suite")
@@ -315,9 +387,14 @@ def build_run_fingerprint_payload(
         raise FingerprintUnavailable("prompt results are unavailable")
     external_reference = result.get("external_benchmark_evidence")
     if external_reference is not None:
-        if payload_version != RUN_FINGERPRINT_PAYLOAD_VERSION_V2:
+        if payload_version not in {
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V2,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+        }:
             raise FingerprintUnavailable(
-                "external_benchmark_evidence requires a v2 fingerprint payload"
+                "external_benchmark_evidence requires a v2, v3, or v4 "
+                "fingerprint payload"
             )
         if not isinstance(external_reference, Mapping):
             raise FingerprintUnavailable(
@@ -413,7 +490,21 @@ def build_run_fingerprint_payload(
         "llmgauge_version": result.get("llmgauge_version"),
         "model": _model_identity(model),
         "backend": _backend_identity(runtime),
-        "runtime_settings": _runtime_settings(runtime),
+        "runtime_settings": _runtime_settings(
+            runtime,
+            include_extended_settings=payload_version
+            in {
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+            },
+            include_control_settings=(
+                payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V4
+                or (
+                    payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V3
+                    and _control_runtime_evidence_is_represented(result)
+                )
+            ),
+        ),
         "suite": suite_identity,
         "prompts": prompt_evidence,
         "policy": {
@@ -511,12 +602,16 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION,
         RUN_FINGERPRINT_SCHEMA_VERSION_V1,
         RUN_FINGERPRINT_SCHEMA_VERSION_V2,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V4,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION}, "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V1}, or "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V1}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -527,22 +622,49 @@ def verify_run_fingerprint(
 
     if errors:
         return errors
-    if (
-        _external_benchmark_is_represented(result)
-        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V2
-    ):
+    if _control_runtime_evidence_is_represented(result) and schema_version not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+    }:
         errors.append(
-            "external benchmark evidence requires a v2 run_fingerprint when represented"
+            "llama.cpp control evidence requires a v3 or v4 run_fingerprint "
+            "when represented"
         )
         return errors
-    if (
-        _area4_is_represented(result)
-        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V1
-    ):
-        errors.append("Area 4 evidence requires a v1 run_fingerprint when represented")
+    if _extended_runtime_evidence_is_represented(result) and schema_version not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+    }:
+        errors.append(
+            "extended runtime evidence requires a v3 or v4 run_fingerprint "
+            "when represented"
+        )
+        return errors
+    if _external_benchmark_is_represented(result) and schema_version not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION_V2,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+    }:
+        errors.append(
+            "external benchmark evidence requires a v2, v3, or v4 "
+            "run_fingerprint when represented"
+        )
+        return errors
+    if _area4_is_represented(result) and schema_version not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION_V1,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+    }:
+        errors.append(
+            "Area 4 evidence requires a v1, v3, or v4 run_fingerprint when represented"
+        )
         return errors
 
-    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V2:
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V4:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V4
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V3:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V3
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V2:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V2
     elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V1:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V1

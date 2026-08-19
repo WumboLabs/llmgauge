@@ -381,28 +381,61 @@ Expected fields:
     max_tokens
     temperature
     top_p
+    top_k
+    top_k_state
+    seed
+    seed_state
     batch_size
     ubatch_size
+    parallel_sequences
     gpu_layers
+    kv_offload
+    cache_type_k
+    cache_type_k_state
+    cache_type_v
+    cache_type_v_state
     flash_attn
     runtime_label
     reasoning_mode
+    reasoning_effort
+    reasoning_effort_state
+    reasoning_budget
+    reasoning_budget_state
+    fit
+    fit_state
+    reasoning_preserve
+    reasoning_preserve_state
+    spec_type
+    spec_type_state
     runtime_command_captured
     runtime_command_path
     command
     config_path
     model_profiles_path
-
 Notes:
 
 - `backend` is `llama.cpp` (default) or `vllm` for the external-server slice.
 - `reasoning_mode` is one of `off`, `on`, `auto`, `default`, or `unknown`.
-- `command` should redact the model path (legacy inline summary).
+- `top_k`, `seed`, cache types, reasoning effort, reasoning budget, fit,
+  reasoning preservation, and speculative type are nullable requested values.
+  Their paired `*_state` is `explicit` or `runtime_default`; omitted/default
+  does not claim an observed runtime value.
+- `fit` canonically serializes as `on` or `off`; `reasoning_preserve` is a
+  boolean; `spec_type` is a canonical comma-separated current llama.cpp
+  selection. Explicit `spec_type: none` is distinct from omission.
+- Requested fit or reasoning preservation and accepted speculation flags do not
+  prove effective model/template behavior, observed placement, or acceptance.
+- `kv_offload` is `requested_on` for current llama.cpp runs. This is a command
+  request, not proof of observed GPU residency.
+- `parallel_sequences` is `1` for current llama.cpp runs.
+- `command` is a redacted legacy inline summary; prompt values are replaced by
+  a raw-artifact placeholder.
 - `runtime_command_path` points to `runtime-command.json` when captured.
 - For `backend=vllm`, command metadata is not captured; use
   `vllm-runtime-evidence.json` and per-prompt `request/*.json` instead.
 - `config_path` and `model_profiles_path` may be local-machine specific.
-- Future hardening may add stronger path redaction for public exports.
+- All fields above are additive. Historical v0 artifacts without them remain
+  readable and validate under their original evidence contract.
 
 ## Schema: llmgauge.vllm_runtime_evidence.v0
 
@@ -510,21 +543,50 @@ Expected fields:
     max_tokens
     temperature
     top_p
+    top_k
+    top_k_state
+    seed
+    seed_state
     batch
     ubatch
+    parallel_sequences
     gpu_layers
+    kv_offload
+    cache_type_k
+    cache_type_k_state
+    cache_type_v
+    cache_type_v_state
     flash_attn
     runtime_label
     reasoning_mode
+    reasoning_effort
+    reasoning_effort_state
+    reasoning_budget
+    reasoning_budget_state
+    fit
+    fit_state
+    reasoning_preserve
+    reasoning_preserve_state
+    spec_type
+    spec_type_state
+    prompt_transport
+    prompt_commands
+    command_argv_scope
     prompt_placeholder
     prompt_source_note
     created_at
 
-Notes:
-
-- `command_argv` is structured argv, not a shell string.
+- `command_argv` is structured argv, not a shell string. For a one-prompt run
+  it is that invocation; otherwise `command_argv_scope` marks it as a template
+  and `prompt_commands[]` is authoritative.
 - Model paths in `command_argv` are redacted.
-- The prompt argument uses a placeholder; per-prompt text lives under `raw/*.prompt.md`.
+- Prompt values in `command_argv` and `prompt_commands[].command_argv` use a
+  raw-artifact placeholder. `prompt_commands[]` records the exact `argv` or
+  temporary `file` transport per prompt; raw text remains under
+  `raw/*.prompt.md`.
+- `prompt_transport.argv_max_utf8_bytes` is the deterministic 64 KiB selection
+  threshold. `file` transport is local, temporary, and passed as structured
+  `--file` argv; its transient path is never presented as durable evidence.
 - Older runs may omit this file; `runtime.runtime_command_captured` records availability.
 
 
@@ -774,6 +836,20 @@ contained source members. Import timestamps, external locators, review notes,
 reports, comparisons, public exports, and LocalMaxxing payloads are excluded.
 Existing `llmgauge.run_fingerprint.v0` and `llmgauge.run_fingerprint.v1`
 payloads remain unchanged and continue to verify unchanged.
+
+Results that record extended llama.cpp sampling, seed, KV-cache, or reasoning
+configuration use `llmgauge.run_fingerprint.v3`. Its v3 payload adds those
+requested values and request states, the KV offload request, and one parallel
+sequence to the material runtime-settings boundary. It retains Area 4 evidence
+when present.
+
+Results that record llama.cpp fit, reasoning-preservation, or
+speculative-decoding controls use `llmgauge.run_fingerprint.v4`. Its v4
+payload extends the v3 runtime-settings boundary with those requested values
+and request states. Historical v3 artifacts without the controls remain
+byte-verifiable. Controlled v3 artifacts produced during the additive control
+rollout also remain verifiable; newly generated controlled runs use v4.
+Existing v0, v1, v2, and v3 payloads are not reinterpreted or rewritten.
 
 ## Context ladder directory
 

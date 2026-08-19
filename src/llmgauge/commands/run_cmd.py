@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
+
 
 import typer
 
@@ -112,7 +114,17 @@ def run(
     ),
     temp: float | None = typer.Option(None, "--temp", help="Temperature"),
     top_p: float | None = typer.Option(None, "--top-p", help="Top-p"),
-    batch: int | None = typer.Option(None, "--batch", help="Batch size"),
+    top_k: int | None = typer.Option(
+        None,
+        "--top-k",
+        help="Top-k sampling; 0 disables top-k",
+    ),
+    seed: int | None = typer.Option(
+        None,
+        "--seed",
+        help="RNG seed; backend semantics are recorded in runtime evidence",
+    ),
+    batch: Optional[int] = typer.Option(None, "--batch", help="Batch size"),
     ubatch: int | None = typer.Option(None, "--ubatch", help="Micro-batch size"),
     gpu_layers: int | None = typer.Option(None, "--gpu-layers", help="GPU layers"),
     flash_attn: str | None = typer.Option(
@@ -129,6 +141,41 @@ def run(
         None,
         "--reasoning-mode",
         help="Reasoning mode: off, on, auto, default, or unknown",
+    ),
+    reasoning_effort: str | None = typer.Option(
+        None,
+        "--reasoning-effort",
+        help="Requested reasoning effort; backend support is recorded in runtime evidence",
+    ),
+    reasoning_budget: int | None = typer.Option(
+        None,
+        "--reasoning-budget",
+        help="Requested reasoning token budget; -1 is unrestricted where supported",
+    ),
+    fit: str | None = typer.Option(
+        None,
+        "--fit",
+        help="llama.cpp runtime fit mode: on or off; omitted uses runtime default",
+    ),
+    reasoning_preserve: bool | None = typer.Option(
+        None,
+        "--reasoning-preserve/--no-reasoning-preserve",
+        help="Preserve or discard prior reasoning in llama.cpp chat history",
+    ),
+    spec_type: str | None = typer.Option(
+        None,
+        "--spec-type",
+        help="llama.cpp comma-separated speculative decoding type(s); omitted uses default",
+    ),
+    cache_type_k: str | None = typer.Option(
+        None,
+        "--cache-type-k",
+        help="llama.cpp K KV-cache type",
+    ),
+    cache_type_v: str | None = typer.Option(
+        None,
+        "--cache-type-v",
+        help="llama.cpp V KV-cache type",
     ),
     backend: str | None = typer.Option(
         None,
@@ -200,12 +247,21 @@ def run(
         max_tokens=max_tokens,
         temp=temp,
         top_p=top_p,
+        top_k=top_k,
+        seed=seed,
         batch=batch,
         ubatch=ubatch,
         gpu_layers=gpu_layers,
         flash_attn=flash_attn,
+        cache_type_k=cache_type_k,
+        cache_type_v=cache_type_v,
         runtime_label=runtime_label,
         reasoning_mode=reasoning_mode,
+        reasoning_effort=reasoning_effort,
+        reasoning_budget=reasoning_budget,
+        fit=fit,
+        reasoning_preserve=reasoning_preserve,
+        spec_type=spec_type,
         backend=backend,
         vllm_endpoint=vllm_endpoint,
         served_model=served_model,
