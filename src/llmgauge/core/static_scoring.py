@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 from typing import Any, Literal
+from llmgauge.core.generic_core_scoring import (
+    apply_deterministic_check as apply_generic_core_deterministic_check,
+    compose_hybrid_score as compose_generic_core_hybrid_score,
+    is_generic_core_suite,
+)
+
 
 from llmgauge.core.suite import (
     NormalizedPrompt,
@@ -758,6 +764,13 @@ def apply_deterministic_check(
     generation_failed: bool = False,
 ) -> dict[str, Any]:
     """Apply one declared non-executing check to preserved raw response evidence."""
+    if is_generic_core_suite(suite):
+        return apply_generic_core_deterministic_check(
+            suite,
+            prompt_id,
+            raw_response,
+            generation_failed=generation_failed,
+        )
     prompt = _prompt_by_id(suite, prompt_id)
     scoring = prompt.scoring
     if scoring is None or scoring.deterministic_check is None:
@@ -1067,6 +1080,10 @@ def compose_hybrid_score(
     manual_score_entry: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Compose independent structural and manual state without a numeric blend."""
+    if is_generic_core_suite(suite):
+        return compose_generic_core_hybrid_score(
+            suite, prompt_id, deterministic_result, manual_score_entry
+        )
     prompt = _prompt_by_id(suite, prompt_id)
     scoring = prompt.scoring
     if (

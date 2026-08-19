@@ -30,8 +30,12 @@ from llmgauge.core.config import (
     resolve_model_profile,
 )
 from llmgauge.core.coding_core_evidence import (
-    build_portable_selection,
-    build_prompt_evidence,
+    build_portable_selection as build_coding_portable_selection,
+    build_prompt_evidence as build_coding_prompt_evidence,
+)
+from llmgauge.core.generic_core_evidence import (
+    build_portable_selection as build_generic_portable_selection,
+    build_prompt_evidence as build_generic_prompt_evidence,
 )
 from llmgauge.core.fit_ladder import build_fit_attempt_record
 from llmgauge.core.identity import (
@@ -156,7 +160,9 @@ def build_result_suite_metadata(
         "include": include,
         "only": only,
     }
-    selection = build_portable_selection(normalized_suite)
+    selection = build_coding_portable_selection(
+        normalized_suite
+    ) or build_generic_portable_selection(normalized_suite)
     if selection is not None:
         result["selection"] = selection
     return result
@@ -1969,7 +1975,13 @@ def execute_run(
             if run_result.exit_status == 0
             else "llama-cli exited nonzero",
         }
-        coding_evidence = build_prompt_evidence(
+        coding_evidence = build_coding_prompt_evidence(
+            normalized_suite,
+            normalized_prompts[prompt_id],
+            run_result.stdout,
+            generation_failed=status == "failed",
+        )
+        generic_evidence = build_generic_prompt_evidence(
             normalized_suite,
             normalized_prompts[prompt_id],
             run_result.stdout,
@@ -1977,6 +1989,8 @@ def execute_run(
         )
         if coding_evidence is not None:
             prompt_entry["coding_core"] = coding_evidence
+        if generic_evidence is not None:
+            prompt_entry["generic_core"] = generic_evidence
         prompt_results.append(prompt_entry)
 
     runtime_command_document["prompt_commands"] = prompt_command_entries
@@ -2250,7 +2264,13 @@ def execute_vllm_run(
                 "failure_detail": readiness.failure_detail,
                 "finish_reason": None,
             }
-            coding_evidence = build_prompt_evidence(
+            coding_evidence = build_coding_prompt_evidence(
+                normalized_suite,
+                normalized_prompts[prompt_id],
+                None,
+                generation_failed=True,
+            )
+            generic_evidence = build_generic_prompt_evidence(
                 normalized_suite,
                 normalized_prompts[prompt_id],
                 None,
@@ -2258,6 +2278,8 @@ def execute_vllm_run(
             )
             if coding_evidence is not None:
                 prompt_entry["coding_core"] = coding_evidence
+            if generic_evidence is not None:
+                prompt_entry["generic_core"] = generic_evidence
             prompt_results.append(prompt_entry)
     else:
         for index, prompt_meta in enumerate(selected_prompts, start=1):
@@ -2359,7 +2381,13 @@ def execute_vllm_run(
                 prompt_entry["system_fingerprint_status"] = (
                     request_result.system_fingerprint_status
                 )
-            coding_evidence = build_prompt_evidence(
+            coding_evidence = build_coding_prompt_evidence(
+                normalized_suite,
+                normalized_prompts[prompt_id],
+                request_result.generated_text,
+                generation_failed=status == "failed",
+            )
+            generic_evidence = build_generic_prompt_evidence(
                 normalized_suite,
                 normalized_prompts[prompt_id],
                 request_result.generated_text,
@@ -2367,6 +2395,8 @@ def execute_vllm_run(
             )
             if coding_evidence is not None:
                 prompt_entry["coding_core"] = coding_evidence
+            if generic_evidence is not None:
+                prompt_entry["generic_core"] = generic_evidence
             prompt_results.append(prompt_entry)
 
     # Rewrite runtime evidence with ordered-unique observed fingerprints.

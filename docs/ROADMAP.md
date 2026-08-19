@@ -12,9 +12,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 - Current package version: `0.72.0`
 - Current stable release line: `v0.72.0`
 - Current release state: `v0.72` is the completed profile-aware suite foundation
-  release. Unreleased work now includes the `generic-core-v1` `0.1.0` suite
-  content. Deterministic checks D1-D7 and the D5 containment gate remain
-  required for `v0.73`.
+  release. Unreleased work includes `generic-core-v1` `0.1.0` deterministic
+  D1-D7 evidence with D5 deliberately non-executing; containment and any future
+  authorized generated-code execution remain required for `v0.73`.
 
 ## What LLMGauge is
 
@@ -400,8 +400,9 @@ behavior.
 **Completed:** the additive profile-aware suite manifest model now validates
 ordered profile declarations, capability and stressor metadata, scoring-role
 references, and lexical fixture references while preserving unchanged legacy
-manifests and their source/package behavior. Generic Core content, scoring
-execution, CLI behavior, and result provenance remain deferred.
+manifests and their source/package behavior. Generic Core deterministic
+evidence now evaluates preserved raw response artifacts; D5 remains explicitly
+non-executing.
 
 ### Generic Core profile selection and reference resolution
 
@@ -432,10 +433,10 @@ result, or runtime behavior is added.
 
 **Completed:** `generic-core-v1` version `0.1.0` is now a real native suite
 with the accepted 13-prompt Core inventory, exact Smoke subset, final portable
-prompt wording, versioned fixture and scoring references, and source/package
-discovery through the existing profile-aware loader. Deterministic checks
-D1-D7, D5 generated-code execution, result-provenance integration, and the
-`v0.73` release-preparation milestone remain deferred.
+prompt wording, versioned fixture and scoring references, D1-D7 preserved-raw
+deterministic evidence, and source/package discovery through the existing
+profile-aware loader. D5 generated-code execution and the `v0.73`
+release-preparation milestone remain deferred.
 
 ## v0.72 completed release scope
 

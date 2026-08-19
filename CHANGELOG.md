@@ -8,12 +8,10 @@
   controls with explicit omitted/on/off state, command/result/report/comparison/
   export evidence, validation, and material runtime fingerprint coverage.
 
-- Implemented `generic-core-v1` version `0.1.0` as a discoverable native
-  suite: the accepted 13-prompt Core inventory, exact Smoke subset, profile
-  metadata, versioned fixture references, and declared D1-D7 / manual scoring
-  identities. Source and packaged copies are byte-equivalent. Deterministic
-  checks, D5 generated-code execution, and the `v0.73` release gate remain
-  deferred.
+- Implemented `generic-core-v1` deterministic checks D1-D7 against preserved
+  raw responses and versioned contained fixtures. D1/D3/D5 retain independent
+  side-by-side manual review; D5 is explicitly `not_run` because generated-code
+  execution remains unauthorized. No profile aggregate was added.
 - Added read-only import of supported EleutherAI `lm-eval` harness
   results as `llmgauge.external_benchmark_evidence.v0` under a dedicated
   `llmgauge.result.v0`. The importer copies admitted source bytes,
