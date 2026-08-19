@@ -28,7 +28,7 @@ _SECRET_VALUE_RE = re.compile(
     r"(?i)(\b(?:api[_-]?key|access[_-]?token|authorization|password|secret|token)\b\s*[:=]\s*)([^\s,;]+)"
 )
 _CREDENTIAL_URL_RE = re.compile(r"(?i)https?://[^\s/@]+:[^\s/@]+@[^\s]+")
-_ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/])/(?!/)[^\s\"'<>`]+")
+_ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9_:/#])/(?!/)[^\s\"'<>`]+")
 _WINDOWS_PATH_RE = re.compile(r"(?i)(?<![A-Za-z0-9])(?:[a-z]:\\|\\\\)[^\s\"'<>`]+")
 _FULL_HASH_SEGMENT_RE = re.compile(
     r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])", re.IGNORECASE
@@ -323,6 +323,7 @@ def _is_known_artifact(relative_path: Path) -> bool:
         "logs",
         "vram",
         "request",
+        "native",
     }:
         return False
 

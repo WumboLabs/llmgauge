@@ -155,6 +155,211 @@ def _validate_optional_vllm_runtime_metadata(
     return errors
 
 
+_LLAMA_REQUEST_STATES = frozenset({"explicit", "runtime_default"})
+
+_LLAMA_CACHE_TYPES = frozenset(
+    {"f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"}
+)
+_LLAMA_REASONING_EFFORTS = frozenset(
+    {"default", "minimal", "low", "medium", "high", "xhigh", "max"}
+)
+_LLAMA_FIT_MODES = frozenset({"on", "off"})
+_LLAMA_SPEC_TYPES = frozenset(
+    {
+        "none",
+        "draft-simple",
+        "draft-eagle3",
+        "draft-mtp",
+        "draft-dflash",
+        "draft-dspark",
+        "ngram-simple",
+        "ngram-map-k",
+        "ngram-map-k4v",
+        "ngram-mod",
+        "ngram-cache",
+    }
+)
+
+
+def _validate_optional_llama_runtime_metadata(runtime: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    integer_minimums = {
+        "top_k": 0,
+        "reasoning_budget": -1,
+    }
+    for field, minimum in integer_minimums.items():
+        value = runtime.get(field)
+        if value is not None and (
+            isinstance(value, bool) or not isinstance(value, int) or value < minimum
+        ):
+            errors.append(f"runtime.{field} must be an integer at least {minimum}")
+    seed = runtime.get("seed")
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
+        errors.append("runtime.seed must be an integer when present")
+
+    for field, allowed_values in (
+        ("cache_type_k", _LLAMA_CACHE_TYPES),
+        ("cache_type_v", _LLAMA_CACHE_TYPES),
+        ("reasoning_effort", _LLAMA_REASONING_EFFORTS),
+        ("fit", _LLAMA_FIT_MODES),
+    ):
+        value = runtime.get(field)
+        if value is not None and (
+            not isinstance(value, str) or value not in allowed_values
+        ):
+            errors.append(
+                f"runtime.{field} must be one of: {', '.join(sorted(allowed_values))}"
+            )
+
+    reasoning_preserve = runtime.get("reasoning_preserve")
+    if reasoning_preserve is not None and not isinstance(reasoning_preserve, bool):
+        errors.append("runtime.reasoning_preserve must be a boolean when present")
+
+    spec_type = runtime.get("spec_type")
+    if spec_type is not None:
+        if not isinstance(spec_type, str):
+            errors.append("runtime.spec_type must be a string when present")
+        else:
+            spec_tokens = spec_type.split(",")
+            if (
+                not spec_tokens
+                or any(not token for token in spec_tokens)
+                or spec_type != spec_type.strip().lower()
+                or any(token != token.strip() for token in spec_tokens)
+            ):
+                errors.append(
+                    "runtime.spec_type must be a canonical comma-separated value"
+                )
+            elif any(token not in _LLAMA_SPEC_TYPES for token in spec_tokens):
+                errors.append(
+                    "runtime.spec_type contains an unsupported speculative type"
+                )
+            elif len(spec_tokens) != len(set(spec_tokens)):
+                errors.append("runtime.spec_type must not contain duplicate values")
+            elif "none" in spec_tokens and len(spec_tokens) != 1:
+                errors.append(
+                    "runtime.spec_type=none cannot be combined with other values"
+                )
+
+    for field in (
+        "top_k",
+        "seed",
+        "cache_type_k",
+        "cache_type_v",
+        "reasoning_effort",
+        "reasoning_budget",
+        "fit",
+        "reasoning_preserve",
+        "spec_type",
+    ):
+        state_field = f"{field}_state"
+        state = runtime.get(state_field)
+        if state is None:
+            continue
+        if state not in _LLAMA_REQUEST_STATES:
+            errors.append(f"runtime.{state_field} must be explicit or runtime_default")
+            continue
+        if state == "explicit" and runtime.get(field) is None:
+            errors.append(f"runtime.{state_field}=explicit requires runtime.{field}")
+        if state == "runtime_default" and runtime.get(field) is not None:
+            errors.append(
+                f"runtime.{state_field}=runtime_default requires runtime.{field}=null"
+            )
+
+    parallel_sequences = runtime.get("parallel_sequences")
+    if parallel_sequences is not None and parallel_sequences != 1:
+        errors.append("runtime.parallel_sequences must be 1 when present")
+    kv_offload = runtime.get("kv_offload")
+    if kv_offload is not None and kv_offload != "requested_on":
+        errors.append("runtime.kv_offload must be requested_on when present")
+    return errors
+
+
+def _validate_runtime_command_consistency(
+    runtime: dict[str, Any],
+    command_data: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for field in (
+        "top_k",
+        "top_k_state",
+        "seed",
+        "seed_state",
+        "kv_offload",
+        "parallel_sequences",
+        "cache_type_k",
+        "cache_type_k_state",
+        "cache_type_v",
+        "cache_type_v_state",
+        "reasoning_mode",
+        "reasoning_effort",
+        "reasoning_effort_state",
+        "reasoning_budget",
+        "reasoning_budget_state",
+        "fit",
+        "fit_state",
+        "reasoning_preserve",
+        "reasoning_preserve_state",
+        "spec_type",
+        "spec_type_state",
+    ):
+        if field in runtime and command_data.get(field) != runtime.get(field):
+            errors.append(
+                f"runtime command artifact {field} disagrees with runtime.{field}"
+            )
+    prompt_commands = command_data.get("prompt_commands")
+    if prompt_commands is not None:
+        if not isinstance(prompt_commands, list):
+            errors.append("runtime command artifact prompt_commands must be a list")
+        else:
+            for index, prompt_command in enumerate(prompt_commands):
+                if not isinstance(prompt_command, dict):
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}] must be an object"
+                    )
+                    continue
+                command_argv = prompt_command.get("command_argv")
+                if not isinstance(command_argv, list) or not all(
+                    isinstance(value, str) for value in command_argv
+                ):
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}].command_argv "
+                        "must be a string list"
+                    )
+                transport = prompt_command.get("prompt_transport")
+                if not isinstance(transport, dict):
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}].prompt_transport "
+                        "must be an object"
+                    )
+                    continue
+                mode = transport.get("mode")
+                if mode not in {"argv", "file", "unknown"}:
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}].prompt_transport "
+                        "has an invalid mode"
+                    )
+                if (
+                    mode == "file"
+                    and isinstance(command_argv, list)
+                    and "--file" not in command_argv
+                ):
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}] "
+                        "file transport requires --file argv"
+                    )
+                if (
+                    mode == "argv"
+                    and isinstance(command_argv, list)
+                    and not {"-p", "--prompt"}.intersection(command_argv)
+                ):
+                    errors.append(
+                        f"runtime command artifact prompt_commands[{index}] "
+                        "argv transport requires prompt argv"
+                    )
+    return errors
+
+
 def load_result_json(result_dir: Path) -> dict[str, Any]:
     result_path = result_dir / "llmgauge-result.json"
     if not result_path.exists():
@@ -677,6 +882,8 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
             errors.append("model.model_path must be redacted")
 
     runtime = data.get("runtime", {})
+    if isinstance(runtime, dict) and runtime.get("backend") == "llama.cpp":
+        errors.extend(_validate_optional_llama_runtime_metadata(runtime))
     if isinstance(runtime, dict) and runtime.get("runtime_command_captured"):
         command_path_value = runtime.get("runtime_command_path")
         if not isinstance(command_path_value, str) or not command_path_value:
@@ -708,6 +915,10 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                         errors.append(
                             "runtime command artifact schema_version must be "
                             "llmgauge.runtime_command.v0"
+                        )
+                    if isinstance(command_data, dict):
+                        errors.extend(
+                            _validate_runtime_command_consistency(runtime, command_data)
                         )
 
     if isinstance(runtime, dict) and runtime.get("vllm_runtime_evidence_captured"):

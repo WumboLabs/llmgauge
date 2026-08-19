@@ -56,6 +56,7 @@ from llmgauge.core.runtime_command import (
     RUNTIME_COMMAND_FILENAME,
     build_runtime_command_document,
     format_command_preview,
+    redact_command_argv,
     resolve_model_source,
     resolve_reasoning_mode,
 )
@@ -185,7 +186,7 @@ def build_combined_prompt(system_prompt: str, prompt_text: str) -> str:
 
 
 def build_redacted_command(command: list[str], model_path: Path) -> list[str]:
-    return [arg if arg != str(model_path) else "REDACTED_MODEL_PATH" for arg in command]
+    return redact_command_argv(command, model_path)
 
 
 def optional_nonnegative_int(value: Any, *, field_name: str) -> int | None:
@@ -196,6 +197,128 @@ def optional_nonnegative_int(value: Any, *, field_name: str) -> int | None:
     if resolved < 0:
         raise typer.BadParameter(f"{field_name} must be non-negative")
 
+    return resolved
+
+
+LLAMA_CACHE_TYPES = frozenset(
+    {"f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"}
+)
+LLAMA_REASONING_EFFORTS = frozenset(
+    {"default", "minimal", "low", "medium", "high", "xhigh", "max"}
+)
+LLAMA_FIT_MODES = frozenset({"on", "off"})
+LLAMA_SPEC_TYPES = frozenset(
+    {
+        "none",
+        "draft-simple",
+        "draft-eagle3",
+        "draft-mtp",
+        "draft-dflash",
+        "draft-dspark",
+        "ngram-simple",
+        "ngram-map-k",
+        "ngram-map-k4v",
+        "ngram-mod",
+        "ngram-cache",
+    }
+)
+
+
+def optional_fit_mode(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    if not isinstance(value, str):
+        raise typer.BadParameter("fit must be one of: off, on")
+    resolved = value.strip().lower()
+    if resolved not in LLAMA_FIT_MODES:
+        raise typer.BadParameter("fit must be one of: off, on")
+    return resolved
+
+
+def optional_bool(value: Any, *, field_name: str) -> bool | None:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise typer.BadParameter(f"{field_name} must be true or false")
+    return value
+
+
+def optional_spec_type(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise typer.BadParameter(
+            f"spec_type must use: {', '.join(sorted(LLAMA_SPEC_TYPES))}"
+        )
+    tokens = [token.strip().lower() for token in value.split(",")]
+    if not tokens or any(not token for token in tokens):
+        raise typer.BadParameter(
+            f"spec_type must use: {', '.join(sorted(LLAMA_SPEC_TYPES))}"
+        )
+    invalid = sorted(set(tokens) - LLAMA_SPEC_TYPES)
+    if invalid:
+        raise typer.BadParameter(
+            "spec_type contains unsupported value(s): "
+            f"{', '.join(invalid)}; supported values: "
+            f"{', '.join(sorted(LLAMA_SPEC_TYPES))}"
+        )
+    if len(tokens) != len(set(tokens)):
+        raise typer.BadParameter("spec_type must not contain duplicate values")
+    if "none" in tokens and len(tokens) != 1:
+        raise typer.BadParameter("spec_type=none cannot be combined with other values")
+    return ",".join(tokens)
+
+
+def optional_int(
+    value: Any,
+    *,
+    field_name: str,
+    minimum: int | None = None,
+) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise typer.BadParameter(f"{field_name} must be an integer")
+    try:
+        resolved = int(value)
+    except (TypeError, ValueError) as exc:
+        raise typer.BadParameter(f"{field_name} must be an integer") from exc
+    if minimum is not None and resolved < minimum:
+        raise typer.BadParameter(f"{field_name} must be at least {minimum}")
+    return resolved
+
+
+def optional_llama_cache_type(value: Any, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise typer.BadParameter(
+            f"{field_name} must be one of: {', '.join(sorted(LLAMA_CACHE_TYPES))}"
+        )
+    resolved = value.strip().lower()
+    if resolved not in LLAMA_CACHE_TYPES:
+        raise typer.BadParameter(
+            f"{field_name} must be one of: {', '.join(sorted(LLAMA_CACHE_TYPES))}"
+        )
+    return resolved
+
+
+def optional_reasoning_effort(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise typer.BadParameter(
+            "reasoning_effort must be one of: "
+            f"{', '.join(sorted(LLAMA_REASONING_EFFORTS))}"
+        )
+    resolved = value.strip().lower()
+    if resolved not in LLAMA_REASONING_EFFORTS:
+        raise typer.BadParameter(
+            "reasoning_effort must be one of: "
+            f"{', '.join(sorted(LLAMA_REASONING_EFFORTS))}"
+        )
     return resolved
 
 
@@ -320,12 +443,21 @@ def resolve_run_options(
     max_tokens: int | None,
     temp: float | None,
     top_p: float | None,
-    batch: int | None,
-    ubatch: int | None,
-    gpu_layers: int | None,
+    top_k: int | None = None,
+    seed: int | None = None,
+    batch: int | None = None,
+    ubatch: int | None = None,
+    gpu_layers: int | None = None,
     flash_attn: str | None = None,
+    cache_type_k: str | None = None,
+    cache_type_v: str | None = None,
     runtime_label: str | None = None,
     reasoning_mode: str | None = None,
+    reasoning_effort: str | None = None,
+    reasoning_budget: int | None = None,
+    fit: str | None = None,
+    reasoning_preserve: bool | None = None,
+    spec_type: str | None = None,
     backend: str | None = None,
     vllm_endpoint: str | None = None,
     served_model: str | None = None,
@@ -391,6 +523,23 @@ def resolve_run_options(
             0.95,
         )
     )
+    resolved_top_k = optional_int(
+        coalesce(
+            top_k,
+            profile.get("top_k"),
+            get_config_value(config_data, "defaults.top_k"),
+        ),
+        field_name="top_k",
+        minimum=0,
+    )
+    resolved_seed = optional_int(
+        coalesce(
+            seed,
+            profile.get("seed"),
+            get_config_value(config_data, "defaults.seed"),
+        ),
+        field_name="seed",
+    )
     resolved_batch = int(
         coalesce(
             batch,
@@ -439,6 +588,69 @@ def resolve_run_options(
     )
     if resolved_runtime_label == "":
         resolved_runtime_label = None
+    resolved_cache_type_k = optional_llama_cache_type(
+        coalesce(
+            cache_type_k,
+            profile.get("cache_type_k"),
+            get_config_value(config_data, "defaults.cache_type_k"),
+        ),
+        field_name="cache_type_k",
+    )
+    resolved_cache_type_v = optional_llama_cache_type(
+        coalesce(
+            cache_type_v,
+            profile.get("cache_type_v"),
+            get_config_value(config_data, "defaults.cache_type_v"),
+        ),
+        field_name="cache_type_v",
+    )
+    if (
+        resolved_backend == "llama.cpp"
+        and resolved_cache_type_v not in {None, "f16"}
+        and resolved_flash_attn != "on"
+    ):
+        raise typer.BadParameter(
+            "cache_type_v quantization requires --flash-attn on for llama.cpp"
+        )
+
+    resolved_reasoning_effort = optional_reasoning_effort(
+        coalesce(
+            reasoning_effort,
+            profile.get("reasoning_effort"),
+            get_config_value(config_data, "defaults.reasoning_effort"),
+        )
+    )
+    resolved_reasoning_budget = optional_int(
+        coalesce(
+            reasoning_budget,
+            profile.get("reasoning_budget"),
+            get_config_value(config_data, "defaults.reasoning_budget"),
+        ),
+        field_name="reasoning_budget",
+        minimum=-1,
+    )
+    resolved_fit = optional_fit_mode(
+        coalesce(
+            fit,
+            profile.get("fit"),
+            get_config_value(config_data, "defaults.fit"),
+        )
+    )
+    resolved_reasoning_preserve = optional_bool(
+        coalesce(
+            reasoning_preserve,
+            profile.get("reasoning_preserve"),
+            get_config_value(config_data, "defaults.reasoning_preserve"),
+        ),
+        field_name="reasoning_preserve",
+    )
+    resolved_spec_type = optional_spec_type(
+        coalesce(
+            spec_type,
+            profile.get("spec_type"),
+            get_config_value(config_data, "defaults.spec_type"),
+        )
+    )
 
     resolved_reasoning_mode = resolve_reasoning_mode(
         cli_value=reasoning_mode,
@@ -451,6 +663,31 @@ def resolve_run_options(
         get_config_value(config_data, "vram.min_headroom_warn_mib"),
         field_name="vram.min_headroom_warn_mib",
     )
+
+    if resolved_backend != "llama.cpp" and any(
+        value is not None
+        for value in (resolved_fit, resolved_reasoning_preserve, resolved_spec_type)
+    ):
+        raise typer.BadParameter(
+            "fit, reasoning_preserve, and spec_type are supported only by "
+            "backend=llama.cpp"
+        )
+
+    if resolved_backend == "vllm" and any(
+        value is not None
+        for value in (
+            resolved_top_k,
+            resolved_seed,
+            resolved_cache_type_k,
+            resolved_cache_type_v,
+            resolved_reasoning_effort,
+            resolved_reasoning_budget,
+        )
+    ):
+        raise typer.BadParameter(
+            "top_k, seed, cache_type_k, cache_type_v, reasoning_effort, and "
+            "reasoning_budget are currently supported only by backend=llama.cpp"
+        )
 
     if resolved_backend == "vllm":
         resolved_endpoint = coalesce(
@@ -617,12 +854,21 @@ def resolve_run_options(
         "max_tokens": resolved_max_tokens,
         "temp": resolved_temp,
         "top_p": resolved_top_p,
+        "top_k": resolved_top_k,
+        "seed": resolved_seed,
         "batch": resolved_batch,
         "ubatch": resolved_ubatch,
         "gpu_layers": resolved_gpu_layers,
         "flash_attn": resolved_flash_attn,
+        "cache_type_k": resolved_cache_type_k,
+        "cache_type_v": resolved_cache_type_v,
         "runtime_label": resolved_runtime_label,
         "reasoning_mode": resolved_reasoning_mode,
+        "reasoning_effort": resolved_reasoning_effort,
+        "reasoning_budget": resolved_reasoning_budget,
+        "fit": resolved_fit,
+        "reasoning_preserve": resolved_reasoning_preserve,
+        "spec_type": resolved_spec_type,
         "model_source": resolved_model_source,
         "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
     }
@@ -728,9 +974,14 @@ def print_run_preflight(
     table.add_row("Temperature", str(resolved["temp"]))
     table.add_row("Top-p", str(resolved["top_p"]))
     if backend != "vllm":
+        table.add_row("Top-k", str(resolved.get("top_k")))
+        table.add_row("Seed", str(resolved.get("seed")))
         table.add_row("Batch", str(resolved["batch"]))
         table.add_row("UBatch", str(resolved["ubatch"]))
         table.add_row("GPU layers", str(resolved["gpu_layers"]))
+        table.add_row("KV cache K type", str(resolved.get("cache_type_k")))
+        table.add_row("KV cache V type", str(resolved.get("cache_type_v")))
+        table.add_row("KV offload", "requested on")
         table.add_row("Flash attention", str(resolved["flash_attn"]))
     table.add_row("Runtime label", str(resolved["runtime_label"] or "unknown"))
     table.add_row("Reasoning mode", str(resolved["reasoning_mode"]))
@@ -764,11 +1015,20 @@ def print_run_preflight(
             max_tokens=resolved["max_tokens"],
             temperature=resolved["temp"],
             top_p=resolved["top_p"],
+            top_k=resolved.get("top_k"),
+            seed=resolved.get("seed"),
             batch_size=resolved["batch"],
             ubatch_size=resolved["ubatch"],
             gpu_layers=resolved["gpu_layers"],
             flash_attn=resolved["flash_attn"],
+            cache_type_k=resolved.get("cache_type_k"),
+            cache_type_v=resolved.get("cache_type_v"),
             reasoning_mode=resolved["reasoning_mode"],
+            reasoning_effort=resolved.get("reasoning_effort"),
+            reasoning_budget=resolved.get("reasoning_budget"),
+            fit=resolved.get("fit"),
+            reasoning_preserve=resolved.get("reasoning_preserve"),
+            spec_type=resolved.get("spec_type"),
         )
         preview_document = build_runtime_command_document(
             config=preview_config,
@@ -1145,11 +1405,20 @@ def execute_multi_turn_run(
             max_tokens=resolved["max_tokens"],
             temperature=resolved["temp"],
             top_p=resolved["top_p"],
+            top_k=resolved.get("top_k"),
+            seed=resolved.get("seed"),
             batch_size=resolved["batch"],
             ubatch_size=resolved["ubatch"],
             gpu_layers=resolved["gpu_layers"],
             flash_attn=resolved["flash_attn"],
+            cache_type_k=resolved.get("cache_type_k"),
+            cache_type_v=resolved.get("cache_type_v"),
             reasoning_mode=resolved["reasoning_mode"],
+            reasoning_effort=resolved.get("reasoning_effort"),
+            reasoning_budget=resolved.get("reasoning_budget"),
+            fit=resolved.get("fit"),
+            reasoning_preserve=resolved.get("reasoning_preserve"),
+            spec_type=resolved.get("spec_type"),
         )
         runtime_command_document = build_runtime_command_document(
             config=llama_config,
@@ -1309,12 +1578,62 @@ def execute_multi_turn_run(
             "max_tokens": resolved["max_tokens"],
             "temperature": resolved["temp"],
             "top_p": resolved["top_p"],
+            "top_k": resolved.get("top_k"),
+            "top_k_state": (
+                "explicit" if resolved.get("top_k") is not None else "runtime_default"
+            ),
+            "seed": resolved.get("seed"),
+            "seed_state": (
+                "explicit" if resolved.get("seed") is not None else "runtime_default"
+            ),
             "batch_size": resolved["batch"],
+            "parallel_sequences": 1,
             "ubatch_size": resolved["ubatch"],
             "gpu_layers": resolved["gpu_layers"],
+            "kv_offload": "requested_on",
+            "cache_type_k": resolved.get("cache_type_k"),
+            "cache_type_k_state": (
+                "explicit"
+                if resolved.get("cache_type_k") is not None
+                else "runtime_default"
+            ),
+            "cache_type_v": resolved.get("cache_type_v"),
+            "cache_type_v_state": (
+                "explicit"
+                if resolved.get("cache_type_v") is not None
+                else "runtime_default"
+            ),
             "flash_attn": resolved["flash_attn"],
             "runtime_label": resolved["runtime_label"],
             "reasoning_mode": resolved["reasoning_mode"],
+            "reasoning_effort": resolved.get("reasoning_effort"),
+            "reasoning_effort_state": (
+                "explicit"
+                if resolved.get("reasoning_effort") is not None
+                else "runtime_default"
+            ),
+            "reasoning_budget": resolved.get("reasoning_budget"),
+            "reasoning_budget_state": (
+                "explicit"
+                if resolved.get("reasoning_budget") is not None
+                else "runtime_default"
+            ),
+            "fit": resolved.get("fit"),
+            "fit_state": (
+                "explicit" if resolved.get("fit") is not None else "runtime_default"
+            ),
+            "reasoning_preserve": resolved.get("reasoning_preserve"),
+            "reasoning_preserve_state": (
+                "explicit"
+                if resolved.get("reasoning_preserve") is not None
+                else "runtime_default"
+            ),
+            "spec_type": resolved.get("spec_type"),
+            "spec_type_state": (
+                "explicit"
+                if resolved.get("spec_type") is not None
+                else "runtime_default"
+            ),
             "runtime_command_captured": True,
             "runtime_command_path": str(runtime_command_path.relative_to(out)),
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],
@@ -1498,11 +1817,20 @@ def execute_run(
         max_tokens=resolved["max_tokens"],
         temperature=resolved["temp"],
         top_p=resolved["top_p"],
+        top_k=resolved.get("top_k"),
+        seed=resolved.get("seed"),
         batch_size=resolved["batch"],
         ubatch_size=resolved["ubatch"],
         gpu_layers=resolved["gpu_layers"],
         flash_attn=resolved["flash_attn"],
+        cache_type_k=resolved.get("cache_type_k"),
+        cache_type_v=resolved.get("cache_type_v"),
         reasoning_mode=resolved["reasoning_mode"],
+        reasoning_effort=resolved.get("reasoning_effort"),
+        reasoning_budget=resolved.get("reasoning_budget"),
+        fit=resolved.get("fit"),
+        reasoning_preserve=resolved.get("reasoning_preserve"),
+        spec_type=resolved.get("spec_type"),
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -1524,6 +1852,7 @@ def execute_run(
     run_id = out.name
     prompt_results: list[dict] = []
     redacted_command: list[str] | None = None
+    prompt_command_entries: list[dict[str, Any]] = []
 
     console.print(
         f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
@@ -1552,6 +1881,24 @@ def execute_run(
                 run_result.command,
                 resolved["model_path"],
             )
+        raw_prompt_relative_path = str(raw_prompt_path.relative_to(out))
+        prompt_transport = getattr(run_result, "prompt_transport", None)
+        if not isinstance(prompt_transport, dict):
+            prompt_transport = {"mode": "unknown"}
+        prompt_transport = {
+            **prompt_transport,
+            "raw_prompt_path": raw_prompt_relative_path,
+        }
+        prompt_command_entries.append(
+            {
+                "prompt_id": prompt_id,
+                "command_argv": build_redacted_command(
+                    run_result.command,
+                    resolved["model_path"],
+                ),
+                "prompt_transport": prompt_transport,
+            }
+        )
 
         write_text(raw_output_path, run_result.stdout)
         write_text(cleaned_output_path, clean_llama_output(run_result.stdout))
@@ -1599,7 +1946,7 @@ def execute_run(
             "title": prompt_meta.get("title", prompt_id),
             "category": prompt_meta.get("category"),
             "status": status,
-            "raw_prompt_path": str(raw_prompt_path.relative_to(out)),
+            "raw_prompt_path": raw_prompt_relative_path,
             "raw_output_path": str(raw_output_path.relative_to(out)),
             "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
             "stderr_log_path": str(stderr_log_path.relative_to(out)),
@@ -1612,6 +1959,7 @@ def execute_run(
                 native_execution_path.relative_to(out)
             ),
             "_area4_native_execution_evidence": native_execution_evidence,
+            "prompt_transport": prompt_transport,
             "vram_guardrails": vram_guardrails,
             "score": None,
             "failure_labels": [],
@@ -1630,6 +1978,18 @@ def execute_run(
         if coding_evidence is not None:
             prompt_entry["coding_core"] = coding_evidence
         prompt_results.append(prompt_entry)
+
+    runtime_command_document["prompt_commands"] = prompt_command_entries
+    if len(prompt_command_entries) == 1:
+        runtime_command_document["command_argv"] = prompt_command_entries[0][
+            "command_argv"
+        ]
+        runtime_command_document["command_argv_scope"] = "single_prompt_invocation"
+    else:
+        runtime_command_document["command_argv_scope"] = (
+            "template; inspect prompt_commands for exact per-prompt transport"
+        )
+    write_json(runtime_command_path, runtime_command_document)
 
     completed_count = sum(1 for item in prompt_results if item["status"] == "completed")
     failed_count = sum(1 for item in prompt_results if item["status"] == "failed")
@@ -1670,12 +2030,62 @@ def execute_run(
             "max_tokens": resolved["max_tokens"],
             "temperature": resolved["temp"],
             "top_p": resolved["top_p"],
+            "top_k": resolved.get("top_k"),
+            "top_k_state": (
+                "explicit" if resolved.get("top_k") is not None else "runtime_default"
+            ),
+            "seed": resolved.get("seed"),
+            "seed_state": (
+                "explicit" if resolved.get("seed") is not None else "runtime_default"
+            ),
             "batch_size": resolved["batch"],
+            "parallel_sequences": 1,
             "ubatch_size": resolved["ubatch"],
             "gpu_layers": resolved["gpu_layers"],
+            "kv_offload": "requested_on",
+            "cache_type_k": resolved.get("cache_type_k"),
+            "cache_type_k_state": (
+                "explicit"
+                if resolved.get("cache_type_k") is not None
+                else "runtime_default"
+            ),
+            "cache_type_v": resolved.get("cache_type_v"),
+            "cache_type_v_state": (
+                "explicit"
+                if resolved.get("cache_type_v") is not None
+                else "runtime_default"
+            ),
             "flash_attn": resolved["flash_attn"],
             "runtime_label": resolved["runtime_label"],
             "reasoning_mode": resolved["reasoning_mode"],
+            "reasoning_effort": resolved.get("reasoning_effort"),
+            "reasoning_effort_state": (
+                "explicit"
+                if resolved.get("reasoning_effort") is not None
+                else "runtime_default"
+            ),
+            "reasoning_budget": resolved.get("reasoning_budget"),
+            "reasoning_budget_state": (
+                "explicit"
+                if resolved.get("reasoning_budget") is not None
+                else "runtime_default"
+            ),
+            "fit": resolved.get("fit"),
+            "fit_state": (
+                "explicit" if resolved.get("fit") is not None else "runtime_default"
+            ),
+            "reasoning_preserve": resolved.get("reasoning_preserve"),
+            "reasoning_preserve_state": (
+                "explicit"
+                if resolved.get("reasoning_preserve") is not None
+                else "runtime_default"
+            ),
+            "spec_type": resolved.get("spec_type"),
+            "spec_type_state": (
+                "explicit"
+                if resolved.get("spec_type") is not None
+                else "runtime_default"
+            ),
             "runtime_command_captured": True,
             "runtime_command_path": str(runtime_command_path.relative_to(out)),
             "vram_min_headroom_warn_mib": resolved["vram_min_headroom_warn_mib"],

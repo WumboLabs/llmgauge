@@ -87,7 +87,10 @@ def test_build_compare_report() -> None:
     )
 
     assert "# LLMGauge Comparison Report" in report
-    assert "not a universal ranking, model recommendation, or production-readiness proof" in report
+    assert (
+        "not a universal ranking, model recommendation, or production-readiness proof"
+        in report
+    )
     assert "## Comparison Scope" in report
     assert "- Like-for-like quality comparison: yes" in report
     assert "Use this comparison for:" in report
@@ -112,10 +115,19 @@ def test_build_compare_report() -> None:
         in report
     )
     assert "## Quality Signals" in report
-    assert "| model-b (run-b) | 3.5 | mixed: 1 | 0 | 1 | honesty-unknown-tool (3.5) |" in report
+    assert (
+        "| model-b (run-b) | 3.5 | mixed: 1 | 0 | 1 | honesty-unknown-tool (3.5) |"
+        in report
+    )
     assert "## Performance Signals" in report
-    assert "| Run | Backend | Context | Max tokens | Temp | Top-p | Batch | UBatch | GPU layers | Flash attention | Runtime label |" in report
-    assert "| model-a (run-a) | llama.cpp | 8192 | 600 | 0.2 | 0.95 | 256 | 64 | 999 | on | daily-tuned |" in report
+    assert (
+        "| Run | Backend | Context | Max tokens | Temp | Top-p | Batch | UBatch | GPU layers | Flash attention | Runtime label |"
+        in report
+    )
+    assert (
+        "| model-a (run-a) | llama.cpp | 8192 | 600 | 0.2 | 0.95 | 256 | 64 | 999 | on | daily-tuned |"
+        in report
+    )
     assert "| model-a (run-a) | 50.0 | 1000.0 | 7535 | 4692 |" in report
     assert "| honesty-unknown-tool | 4.0 | 3.5 |" in report
     assert (
@@ -172,7 +184,9 @@ def test_build_compare_report_publish_readiness_warns_for_unreviewed_scores() ->
     assert "unreviewed assisted drafts" in report
 
 
-def test_build_compare_report_publish_readiness_warns_for_needs_review_verdicts() -> None:
+def test_build_compare_report_publish_readiness_warns_for_needs_review_verdicts() -> (
+    None
+):
     needs_review = _result("run-a", "model-a", 3.0, 50.0)
     needs_review["results"][0]["score"]["verdict"] = "needs_review"
     needs_review["results"][0]["score"]["score_rationale"] = ""
@@ -191,7 +205,9 @@ def test_build_compare_report_publish_readiness_warns_for_needs_review_verdicts(
     assert "authoritative single-run review artifacts" in report
 
 
-def test_build_compare_report_publish_readiness_warns_for_mixed_suite_versions() -> None:
+def test_build_compare_report_publish_readiness_warns_for_mixed_suite_versions() -> (
+    None
+):
     older_suite = _result("run-a", "model-a", 4.0, 50.0)
     older_suite["suite"]["suite_version"] = "0.1.0"
     newer_suite = _result("run-b", "model-b", 4.0, 55.0)
@@ -201,3 +217,56 @@ def test_build_compare_report_publish_readiness_warns_for_mixed_suite_versions()
 
     assert "- Mixed suite versions: yes" in report
     assert "Suite versions differ across runs" in report
+
+
+def test_comparison_marks_extended_runtime_settings_as_mixed() -> None:
+    first = _result("run-a", "model-a", 4.0, 50.0)
+    second = _result("run-b", "model-b", 4.0, 50.0)
+    first["runtime"].update(
+        {
+            "top_k": 20,
+            "top_k_state": "explicit",
+            "seed": 1,
+            "seed_state": "explicit",
+            "cache_type_k": "f16",
+            "cache_type_k_state": "explicit",
+            "cache_type_v": "f16",
+            "cache_type_v_state": "explicit",
+            "reasoning_effort": "medium",
+            "reasoning_effort_state": "explicit",
+            "reasoning_budget": 16384,
+            "reasoning_budget_state": "explicit",
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": True,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "none",
+            "spec_type_state": "explicit",
+        }
+    )
+    second["runtime"].update(
+        {
+            **first["runtime"],
+            "seed": 2,
+            "fit": "on",
+            "reasoning_preserve": False,
+            "spec_type": "draft-mtp",
+        }
+    )
+
+    report = build_compare_report([first, second])
+
+    assert "- Like-for-like quality comparison: no" in report
+    assert "Seed (value, request state): 1 (explicit), 2 (explicit)" in report
+    assert (
+        "Runtime fit (value, request state): 'off' (explicit), 'on' (explicit)"
+        in report
+    )
+    assert (
+        "Preserve reasoning (value, request state): False (explicit), True (explicit)"
+        in report
+    )
+    assert (
+        "Speculative type (value, request state): 'draft-mtp' (explicit), "
+        "'none' (explicit)" in report
+    )

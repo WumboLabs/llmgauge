@@ -12,6 +12,9 @@ from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.run_fingerprint import (
     RUN_FINGERPRINT_FIELD,
     RUN_FINGERPRINT_SCHEMA_VERSION,
+    RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
+    RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+    RUN_FINGERPRINT_SCHEMA_VERSION_V4,
     FingerprintUnavailable,
     attach_run_fingerprint,
     build_run_fingerprint_metadata,
@@ -173,7 +176,9 @@ def test_paths_run_id_and_timestamp_do_not_affect_fingerprint(tmp_path: Path) ->
     assert _value(first_dir, first) == _value(second_dir, second)
 
 
-def test_material_identity_and_runtime_changes_affect_fingerprint(tmp_path: Path) -> None:
+def test_material_identity_and_runtime_changes_affect_fingerprint(
+    tmp_path: Path,
+) -> None:
     result_dir, result = _write_fingerprintable_run(tmp_path)
     baseline = _value(result_dir, result)
 
@@ -192,6 +197,84 @@ def test_material_identity_and_runtime_changes_affect_fingerprint(tmp_path: Path
     changed_prompt = copy.deepcopy(result)
     changed_prompt["results"][0]["prompt_id"] = "other-prompt"
     assert _value(result_dir, changed_prompt) != baseline
+
+
+def test_llama_control_surface_changes_affect_v4_fingerprint(tmp_path: Path) -> None:
+    result_dir, result = _write_fingerprintable_run(tmp_path)
+    controlled = copy.deepcopy(result)
+    controlled["runtime"].update(
+        {
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": False,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "none",
+            "spec_type_state": "explicit",
+        }
+    )
+    assert (
+        build_run_fingerprint_metadata(result_dir, controlled)["schema_version"]
+        == RUN_FINGERPRINT_SCHEMA_VERSION_V4
+    )
+    baseline = _value(result_dir, controlled)
+
+    for field, value in (
+        ("fit", "on"),
+        ("reasoning_preserve", True),
+        ("spec_type", "draft-mtp"),
+    ):
+        changed = copy.deepcopy(controlled)
+        changed["runtime"][field] = value
+        assert _value(result_dir, changed) != baseline
+
+
+def test_historical_v3_fingerprints_remain_verifiable(tmp_path: Path) -> None:
+    result_dir, result = _write_fingerprintable_run(tmp_path)
+    historical = copy.deepcopy(result)
+    historical["runtime"].update(
+        {
+            "top_k": 20,
+            "top_k_state": "explicit",
+        }
+    )
+    historical[RUN_FINGERPRINT_FIELD] = build_run_fingerprint_metadata(
+        result_dir, historical
+    )
+
+    assert historical[RUN_FINGERPRINT_FIELD]["schema_version"] == (
+        RUN_FINGERPRINT_SCHEMA_VERSION_V3
+    )
+    assert verify_run_fingerprint(result_dir, historical) == []
+
+
+def test_transitional_controlled_v3_fingerprints_remain_verifiable(
+    tmp_path: Path,
+) -> None:
+    result_dir, result = _write_fingerprintable_run(tmp_path)
+    controlled = copy.deepcopy(result)
+    controlled["runtime"].update(
+        {
+            "top_k": 20,
+            "top_k_state": "explicit",
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": False,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "none",
+            "spec_type_state": "explicit",
+        }
+    )
+    controlled[RUN_FINGERPRINT_FIELD] = {
+        "schema_version": RUN_FINGERPRINT_SCHEMA_VERSION_V3,
+        "algorithm": "sha256",
+        "value": run_fingerprint_value(
+            result_dir,
+            controlled,
+            payload_version=RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
+        ),
+    }
+
+    assert verify_run_fingerprint(result_dir, controlled) == []
 
 
 def test_authoritative_artifact_bytes_affect_fingerprint(tmp_path: Path) -> None:
@@ -225,7 +308,9 @@ def test_mutable_derived_and_review_artifacts_do_not_affect_fingerprint(
     (result_dir / "cleaned" / "prompt.output.txt").write_text(
         "changed cleaned output\n", encoding="utf-8"
     )
-    (result_dir / "scores.yaml").write_text("reviewer_notes: changed\n", encoding="utf-8")
+    (result_dir / "scores.yaml").write_text(
+        "reviewer_notes: changed\n", encoding="utf-8"
+    )
     result["results"][0]["score"] = {
         "reviewer_notes": "changed",
         "score_rationale": "changed",
@@ -254,7 +339,10 @@ def test_mismatched_and_malformed_fingerprints_fail_validation(tmp_path: Path) -
 
     result[RUN_FINGERPRINT_FIELD]["value"] = "not-a-fingerprint"
     write_json(result_dir / "llmgauge-result.json", result)
-    assert any("sha256:<64 lowercase hex>" in error for error in validate_result_dir(result_dir))
+    assert any(
+        "sha256:<64 lowercase hex>" in error
+        for error in validate_result_dir(result_dir)
+    )
 
 
 def test_missing_authoritative_artifact_fails_fingerprint_verification(

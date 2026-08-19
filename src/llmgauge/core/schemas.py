@@ -25,6 +25,9 @@ class ModelProfileEntry(BaseModel):
     flash_attn: str | bool | None = None
     runtime_label: str | None = None
     reasoning_mode: str | None = None
+    fit: str | bool | None = None
+    reasoning_preserve: bool | None = None
+    spec_type: str | None = None
     recommended_contexts: list[int] | None = None
     # Additive vLLM external-server fields (optional; llama.cpp profiles ignore).
     backend: str | None = None
@@ -107,12 +110,21 @@ class DefaultsConfig(BaseModel):
     max_tokens: int | None = None
     temperature: float | None = None
     top_p: float | None = None
+    top_k: int | None = None
+    seed: int | None = None
     batch_size: int | None = None
     ubatch_size: int | None = None
     gpu_layers: int | None = None
     flash_attn: str | bool | None = None
+    cache_type_k: str | None = None
+    cache_type_v: str | None = None
     runtime_label: str | None = None
     reasoning_mode: str | None = None
+    reasoning_effort: str | None = None
+    reasoning_budget: int | None = None
+    fit: str | bool | None = None
+    reasoning_preserve: bool | None = None
+    spec_type: str | None = None
 
 
 class LlmgaugeConfigDocument(BaseModel):

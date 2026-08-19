@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added first-class llama.cpp fit, reasoning-preservation, and speculative-type
+  controls with explicit omitted/on/off state, command/result/report/comparison/
+  export evidence, validation, and material runtime fingerprint coverage.
+
 - Implemented `generic-core-v1` version `0.1.0` as a discoverable native
   suite: the accepted 13-prompt Core inventory, exact Smoke subset, profile
   metadata, versioned fixture references, and declared D1-D7 / manual scoring

@@ -138,7 +138,7 @@ def test_execute_run_resolves_builtin_suite_prompt_paths(
     assert result["llmgauge_version"] == __version__
     assert result["model"]["model_source"] == "model_profile"
     assert result["runtime"]["runtime_command_captured"] is True
-    assert result["run_fingerprint"]["schema_version"] == "llmgauge.run_fingerprint.v1"
+    assert result["run_fingerprint"]["schema_version"] == "llmgauge.run_fingerprint.v4"
     assert result["run_fingerprint"]["value"].startswith("sha256:")
     assert validate_result_dir(tmp_path / "result") == []
     assert (tmp_path / "result" / "runtime-command.json").exists()
@@ -689,3 +689,179 @@ models:
     assert "12288" in result.output
     assert "honesty-unknown-tool" in result.output
     assert not Path("results").exists()
+
+
+def test_run_dry_run_parses_extended_llama_controls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "core-v1",
+            "--include",
+            "honesty",
+            "--model-profile",
+            "example_model",
+            "--top-k",
+            "20",
+            "--seed",
+            "424242",
+            "--cache-type-k",
+            "q8_0",
+            "--cache-type-v",
+            "q4_0",
+            "--flash-attn",
+            "on",
+            "--reasoning-effort",
+            "medium",
+            "--reasoning-budget",
+            "16384",
+            "--fit",
+            "off",
+            "--reasoning-preserve",
+            "--spec-type",
+            "none",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Top-k" in result.output
+    assert "424242" in result.output
+    assert "q8_0" in result.output
+    assert "16384" in result.output
+    assert "--reasoning-effort medium" in result.output
+    assert "--fit off" in result.output
+    assert "--reasoning-preserve" in result.output
+    assert "--spec-type none" in result.output
+
+
+def test_run_controls_resolve_profile_over_defaults_and_normalize_fit_bool(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+    examples_dir = tmp_path / "examples" / "configs"
+    model_path = tmp_path / "model.gguf"
+    llama_cli = tmp_path / "llama-cli"
+    (examples_dir / "llmgauge.local.yaml").write_text(
+        f"""schema_version: llmgauge.config.v0
+runtime:
+  llama_cli: {llama_cli}
+defaults:
+  fit: true
+  reasoning_preserve: true
+  spec_type: none
+""",
+        encoding="utf-8",
+    )
+    (examples_dir / "model-profiles.local.yaml").write_text(
+        f"""schema_version: llmgauge.model_profiles.v0
+models:
+  profile_controls:
+    label: Profile controls
+    path: {model_path}
+    fit: false
+    reasoning_preserve: false
+    spec_type: draft-mtp
+  default_controls:
+    label: Default controls
+    path: {model_path}
+""",
+        encoding="utf-8",
+    )
+
+    profile_resolved = run_helpers.resolve_run_options(
+        model_id=None,
+        model_profile="profile_controls",
+        config_path=examples_dir / "llmgauge.local.yaml",
+        model_profiles_path=examples_dir / "model-profiles.local.yaml",
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+    )
+    default_resolved = run_helpers.resolve_run_options(
+        model_id=None,
+        model_profile="default_controls",
+        config_path=examples_dir / "llmgauge.local.yaml",
+        model_profiles_path=examples_dir / "model-profiles.local.yaml",
+        model_path=None,
+        llama_cli=None,
+        ctx=None,
+        max_tokens=None,
+        temp=None,
+        top_p=None,
+    )
+
+    assert profile_resolved["fit"] == "off"
+    assert profile_resolved["reasoning_preserve"] is False
+    assert profile_resolved["spec_type"] == "draft-mtp"
+    assert default_resolved["fit"] == "on"
+    assert default_resolved["reasoning_preserve"] is True
+    assert default_resolved["spec_type"] == "none"
+
+
+def test_run_rejects_unsupported_or_ambiguous_spec_types(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    for spec_type, expected in (
+        ("future-mode", "unsupported value"),
+        ("draft-mtp,draft-mtp", "duplicate"),
+        ("none,draft-mtp", "cannot be combined"),
+    ):
+        result = runner.invoke(
+            cli.app,
+            [
+                "run",
+                "--suite",
+                "core-v1",
+                "--model-profile",
+                "example_model",
+                "--spec-type",
+                spec_type,
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code != 0
+        assert expected in " ".join(result.output.split())
+
+
+def test_run_rejects_llama_only_controls_for_external_backends(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_dry_run_config(tmp_path)
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            "core-v1",
+            "--model-profile",
+            "example_model",
+            "--backend",
+            "vllm",
+            "--fit",
+            "off",
+            "--dry-run",
+        ],
+    )
+
+    assert "reasoning_preserve" in result.output
+    assert "backend=llama.cpp" in result.output

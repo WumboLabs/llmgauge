@@ -261,6 +261,69 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     runtime_labels = _unique_nonempty_values(
         results, lambda result: result.get("runtime", {}).get("runtime_label")
     )
+    top_ks = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('top_k')!r} "
+            f"({result.get('runtime', {}).get('top_k_state', 'unknown')})"
+        ),
+    )
+    seeds = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('seed')!r} "
+            f"({result.get('runtime', {}).get('seed_state', 'unknown')})"
+        ),
+    )
+    cache_types_k = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('cache_type_k')!r} "
+            f"({result.get('runtime', {}).get('cache_type_k_state', 'unknown')})"
+        ),
+    )
+    cache_types_v = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('cache_type_v')!r} "
+            f"({result.get('runtime', {}).get('cache_type_v_state', 'unknown')})"
+        ),
+    )
+    reasoning_efforts = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('reasoning_effort')!r} "
+            f"({result.get('runtime', {}).get('reasoning_effort_state', 'unknown')})"
+        ),
+    )
+    reasoning_budgets = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('reasoning_budget')!r} "
+            f"({result.get('runtime', {}).get('reasoning_budget_state', 'unknown')})"
+        ),
+    )
+    fit_modes = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('fit')!r} "
+            f"({result.get('runtime', {}).get('fit_state', 'unknown')})"
+        ),
+    )
+    reasoning_preserve_states = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('reasoning_preserve')!r} "
+            f"({result.get('runtime', {}).get('reasoning_preserve_state', 'unknown')})"
+        ),
+    )
+    spec_types = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('spec_type')!r} "
+            f"({result.get('runtime', {}).get('spec_type_state', 'unknown')})"
+        ),
+    )
 
     prompt_sets = [_prompt_id_set(result) for result in results]
     shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
@@ -272,7 +335,21 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(
         len(values) > 1
-        for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
+        for values in (
+            ctx_sizes,
+            max_tokens,
+            temperatures,
+            runtime_labels,
+            top_ks,
+            seeds,
+            cache_types_k,
+            cache_types_v,
+            reasoning_efforts,
+            reasoning_budgets,
+            fit_modes,
+            reasoning_preserve_states,
+            spec_types,
+        )
     )
 
     like_for_like = (
@@ -291,6 +368,42 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         f"- Suite versions: {', '.join(str(value) for value in suite_versions) if suite_versions else 'None'}",
         f"- Shared prompt IDs: {len(shared_prompt_ids)} of {len(all_prompt_ids)}",
         f"- Like-for-like quality comparison: {'yes' if like_for_like else 'no — see Publish Readiness Notes'}",
+        (
+            "- Top-k (value, request state): "
+            f"{', '.join(map(str, top_ks)) if top_ks else 'unknown'}"
+        ),
+        (
+            "- Seed (value, request state): "
+            f"{', '.join(map(str, seeds)) if seeds else 'unknown'}"
+        ),
+        (
+            "- KV cache K type (value, request state): "
+            f"{', '.join(map(str, cache_types_k)) if cache_types_k else 'unknown'}"
+        ),
+        (
+            "- KV cache V type (value, request state): "
+            f"{', '.join(map(str, cache_types_v)) if cache_types_v else 'unknown'}"
+        ),
+        (
+            "- Reasoning effort (value, request state): "
+            f"{', '.join(map(str, reasoning_efforts)) if reasoning_efforts else 'unknown'}"
+        ),
+        (
+            "- Reasoning budget (value, request state): "
+            f"{', '.join(map(str, reasoning_budgets)) if reasoning_budgets else 'unknown'}"
+        ),
+        (
+            "- Runtime fit (value, request state): "
+            f"{', '.join(map(str, fit_modes)) if fit_modes else 'unknown'}"
+        ),
+        (
+            "- Preserve reasoning (value, request state): "
+            f"{', '.join(map(str, reasoning_preserve_states)) if reasoning_preserve_states else 'unknown'}"
+        ),
+        (
+            "- Speculative type (value, request state): "
+            f"{', '.join(map(str, spec_types)) if spec_types else 'unknown'}"
+        ),
         "",
         "Use this comparison for:",
         "- Cross-run evidence review when runs share suite, prompt subset, and runtime settings.",

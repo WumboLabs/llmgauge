@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import subprocess
 
@@ -211,3 +212,86 @@ def test_build_llama_command_default_reasoning_mode_omits_flag() -> None:
     command = llama_cpp.build_llama_command(config, "hello")
 
     assert "--reasoning" not in command
+
+
+def test_build_llama_command_includes_extended_runtime_controls() -> None:
+    config = LlamaCppRunConfig(
+        llama_cli=Path("/bin/llama-cli"),
+        model_path=Path("/models/model.gguf"),
+        ctx_size=8192,
+        max_tokens=100,
+        temperature=0.2,
+        top_p=0.95,
+        batch_size=1024,
+        ubatch_size=256,
+        gpu_layers=999,
+        top_k=20,
+        seed=424242,
+        cache_type_k="q8_0",
+        cache_type_v="q4_0",
+        reasoning_effort="medium",
+        reasoning_budget=16384,
+        fit="off",
+        reasoning_preserve=True,
+        spec_type="draft-mtp",
+    )
+
+    command = llama_cpp.build_llama_command(config, "hello")
+
+    assert command[command.index("--parallel") + 1] == "1"
+    assert "--kv-offload" in command
+    assert command[command.index("--top-k") + 1] == "20"
+    assert command[command.index("--seed") + 1] == "424242"
+    assert command[command.index("--cache-type-k") + 1] == "q8_0"
+    assert command[command.index("--cache-type-v") + 1] == "q4_0"
+    assert command[command.index("--reasoning-effort") + 1] == "medium"
+    assert command[command.index("--reasoning-budget") + 1] == "16384"
+    assert command[command.index("--fit") + 1] == "off"
+    assert "--reasoning-preserve" in command
+    assert command[command.index("--spec-type") + 1] == "draft-mtp"
+
+
+def test_build_llama_command_distinguishes_defaults_and_explicit_disables() -> None:
+    default_command = llama_cpp.build_llama_command(_config(), "hello")
+    disabled_command = llama_cpp.build_llama_command(
+        replace(
+            _config(),
+            fit="on",
+            reasoning_preserve=False,
+            spec_type="none",
+        ),
+        "hello",
+    )
+    assert "--fit" not in default_command
+    assert "--reasoning-preserve" not in default_command
+    assert "--no-reasoning-preserve" not in default_command
+    assert "--spec-type" not in default_command
+    assert disabled_command[disabled_command.index("--fit") + 1] == "on"
+    assert "--no-reasoning-preserve" in disabled_command
+    assert disabled_command[disabled_command.index("--spec-type") + 1] == "none"
+
+
+def test_run_llama_cpp_transports_large_prompt_by_temporary_file(monkeypatch) -> None:
+    class FakeProcess:
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return ("answer", "")
+
+    captured: dict[str, str] = {}
+
+    def fake_popen(command, stdout, stderr, text):
+        prompt_file = Path(command[command.index("--file") + 1])
+        captured["path"] = str(prompt_file)
+        captured["content"] = prompt_file.read_text(encoding="utf-8")
+        return FakeProcess()
+
+    monkeypatch.setattr(llama_cpp.subprocess, "Popen", fake_popen)
+
+    prompt = "x" * (llama_cpp.PROMPT_FILE_THRESHOLD_BYTES + 1)
+    result = run_llama_cpp(_config(), prompt, capture_vram=False)
+
+    assert result.exit_status == 0
+    assert result.prompt_transport["mode"] == "file"
+    assert captured["content"] == prompt
+    assert not Path(captured["path"]).exists()

@@ -245,7 +245,10 @@ def test_build_markdown_report_multiple_prompts() -> None:
     report = build_markdown_report(result)
 
     assert "# LLMGauge Report: test-run" in report
-    assert "not a universal ranking, model recommendation, or production-readiness proof" in report
+    assert (
+        "not a universal ranking, model recommendation, or production-readiness proof"
+        in report
+    )
     assert "## Report Scope" in report
     assert "Use this report for:" in report
     assert "Do not use this report for:" in report
@@ -618,3 +621,44 @@ def test_build_markdown_report_treats_legacy_scores_as_reviewed_manual() -> None
     assert "- Reviewed scores: 1" in report
     assert "- Unreviewed scores: 0" in report
     assert "unreviewed assisted drafts" not in report
+
+
+def test_report_discloses_extended_llama_runtime_configuration() -> None:
+    result = _result_with_metrics({})
+    runtime = result["runtime"]
+    assert isinstance(runtime, dict)
+    runtime.update(
+        {
+            "top_k": 20,
+            "top_k_state": "explicit",
+            "seed": 424242,
+            "seed_state": "explicit",
+            "kv_offload": "requested_on",
+            "cache_type_k": "q8_0",
+            "cache_type_k_state": "explicit",
+            "cache_type_v": "q4_0",
+            "cache_type_v_state": "explicit",
+            "reasoning_effort": "medium",
+            "reasoning_effort_state": "explicit",
+            "reasoning_budget": 16384,
+            "reasoning_budget_state": "explicit",
+            "fit": "off",
+            "fit_state": "explicit",
+            "reasoning_preserve": True,
+            "reasoning_preserve_state": "explicit",
+            "spec_type": "draft-mtp",
+            "spec_type_state": "explicit",
+        }
+    )
+
+    report = build_markdown_report(result)
+
+    assert "Top-k: 20 (explicit)" in report
+    assert "Seed: 424242 (explicit)" in report
+    assert "KV cache K type: q8_0 (explicit)" in report
+    assert "Reasoning effort: medium (explicit)" in report
+    assert "Reasoning budget: 16384 (explicit)" in report
+    assert "Runtime fit: off (explicit)" in report
+    assert "Preserve reasoning: True (explicit)" in report
+    assert "does not prove template/model compliance" in report
+    assert "Speculative type: draft-mtp (explicit)" in report

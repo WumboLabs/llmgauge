@@ -115,12 +115,48 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
             f"- Max tokens: {runtime.get('max_tokens')}",
             f"- Temperature: {runtime.get('temperature')}",
             f"- Top-p: {runtime.get('top_p')}",
+            (
+                f"- Top-k: {runtime.get('top_k')} "
+                f"({runtime.get('top_k_state', 'unknown')})"
+            ),
+            (f"- Seed: {runtime.get('seed')} ({runtime.get('seed_state', 'unknown')})"),
             f"- Batch: {runtime.get('batch_size')}",
+            f"- Parallel sequences: {runtime.get('parallel_sequences', 'unknown')}",
             f"- UBatch: {runtime.get('ubatch_size')}",
             f"- GPU layers: {runtime.get('gpu_layers')}",
+            f"- KV offload: {runtime.get('kv_offload', 'unknown')}",
+            (
+                f"- KV cache K type: {runtime.get('cache_type_k')} "
+                f"({runtime.get('cache_type_k_state', 'unknown')})"
+            ),
+            (
+                f"- KV cache V type: {runtime.get('cache_type_v')} "
+                f"({runtime.get('cache_type_v_state', 'unknown')})"
+            ),
             f"- Flash attention: {runtime.get('flash_attn', 'unknown')}",
             f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
             f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
+            (
+                f"- Reasoning effort: {runtime.get('reasoning_effort')} "
+                f"({runtime.get('reasoning_effort_state', 'unknown')})"
+            ),
+            (
+                f"- Reasoning budget: {runtime.get('reasoning_budget')} "
+                f"({runtime.get('reasoning_budget_state', 'unknown')})"
+            ),
+            (
+                f"- Runtime fit: {runtime.get('fit')} "
+                f"({runtime.get('fit_state', 'unknown')})"
+            ),
+            (
+                f"- Preserve reasoning: {runtime.get('reasoning_preserve')} "
+                f"({runtime.get('reasoning_preserve_state', 'unknown')}); "
+                "requested state does not prove template/model compliance"
+            ),
+            (
+                f"- Speculative type: {runtime.get('spec_type')} "
+                f"({runtime.get('spec_type_state', 'unknown')})"
+            ),
             (
                 "- Command metadata: captured"
                 if runtime.get("runtime_command_captured")
