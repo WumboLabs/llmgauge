@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- Hardened Python package metadata for future PyPI publication: updated the
+  build backend requirement to `uv_build>=0.12.6,<0.13`, added `license-files`
+  so built wheels and sdists carry the LICENSE text, and declared project
+  URLs (Homepage, Repository, Issues, Changelog). Added a regression test
+  guarding `pyproject.toml` version against the runtime `__version__` and a
+  distribution-metadata test suite covering artifact names, metadata,
+  license inclusion, packaged resources, and local/private content leakage.
+  No publication occurred; package version remains 0.73.0.
+
 ## v0.73.0 - 2026-08-25
 
 ### Added
