@@ -438,8 +438,11 @@ The loader boundary is local, deterministic, and data-only:
 - no trust in model-generated paths or model output as suite metadata;
 - no filesystem search or fallback outside the selected suite root;
 - no unbounded diagnostics or inclusion of private contents in diagnostics; and
-- no execution of D5 generated code without its separately accepted containment
-  and resource-limit gate.
+- no execution of D5 generated code without its separately accepted
+  containment and resource-limit gate. For Generic Core `0.1.0`, the versioned
+  execution-limit resource must keep `execution_authorized` false; any other
+  value fails closed, because executing generated code is outside this suite
+  version;
 
 Failure to preserve any boundary is an admission failure, not a reason to add a
 fallback or weaken validation.
@@ -466,19 +469,28 @@ separate bounded milestone unless a later handoff explicitly admits it:
    exact Core/Smoke membership, final prompts, and declared references.
 6. **Deterministic-check implementation** — implement D1-D7 and preserve check
    provenance without lexical semantic substitution or model execution in tests.
-7. **Separate D5 containment gate** — accept and prove local isolation and
-   resource limits before any generated candidate code executes; fail admission
-   rather than substitute a heuristic.
+7. **Future executable-D5 suite version** — accept a separate containment and
+   resource-limit contract, prove local isolation and limits, and ship a new
+   Generic Core suite version before any generated candidate code executes;
+   fail admission rather than substitute a heuristic. This item is outside
+   version `0.1.0` and is not a prerequisite for completing `v0.73`.
 8. **Result-provenance integration** — record selected profile, exact ordered
    membership, reference identities/versions, check outcomes, and manual-review
    state without changing historical evidence.
 
-## Selected next milestone
+## Implementation status
 
-Suite-content sequence item 5 is implemented: `generic-core-v1` `0.1.0` is a
+Sequence items 1-6 and item 8 are implemented: `generic-core-v1` `0.1.0` is a
 loadable native suite with exact Core/Smoke membership, final prompts, and
-declared references. The next admitted implementation milestone is
-**deterministic-check implementation**, corresponding to sequence item 6. It
-may implement D1-D7 and preserve check provenance without lexical semantic
-substitution or model execution in tests. D5 generated-code execution still
-requires the separate containment gate in item 7.
+declared references; D1-D7 preserve check provenance without lexical semantic
+substitution or model execution in tests; and results carry fail-closed
+selection provenance and manual-review state without changing historical
+evidence.
+
+D5 remains deliberately non-executing in `0.1.0`: the versioned
+execution-limit resource keeps `execution_authorized` false, D5 returns the
+disclosed `not_run` state, and any unexpected authorization value fails
+closed. Sequence item 7 — a new suite version with an accepted containment
+and resource-limit contract — is future-version work outside `0.1.0`; it is
+not required to complete or release the current suite, and it must not be
+started by silently changing `0.1.0`.

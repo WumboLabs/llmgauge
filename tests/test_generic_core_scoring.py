@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -96,6 +97,27 @@ def test_d5_is_not_run_and_cannot_become_a_pass(suite) -> None:
     )
     assert hybrid["complete"] is False
     assert hybrid["manual_component"]["review_state"] == "missing"
+
+
+def test_d5_fail_closed_when_execution_authorization_is_not_false(
+    suite, tmp_path: Path
+) -> None:
+    shutil.copytree(ROOT / "suites/generic-core-v1", tmp_path / "generic-core-v1")
+    limits_path = (
+        tmp_path / "generic-core-v1/fixtures/v0.1.0/coding/execution-limits.json"
+    )
+    limits = json.loads(limits_path.read_text())
+    assert limits["execution_authorized"] is False
+    limits["execution_authorized"] = True
+    limits_path.write_text(json.dumps(limits))
+    modified_suite = load_normalized_suite(tmp_path / "generic-core-v1")
+    result = apply_deterministic_check(
+        modified_suite,
+        "generic-core-code-interval-merge-01",
+        "def merge_intervals(intervals):\n    return sorted(intervals)",
+    )
+    assert result["outcome"] == "error"
+    assert result["error_classification"] == "fixture-identity-mismatch"
 
 
 def test_hybrid_components_remain_independent(suite) -> None:

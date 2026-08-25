@@ -12,9 +12,11 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 - Current package version: `0.72.0`
 - Current stable release line: `v0.72.0`
 - Current release state: `v0.72` is the completed profile-aware suite foundation
-  release. Unreleased work includes `generic-core-v1` `0.1.0` deterministic
-  D1-D7 evidence with D5 deliberately non-executing; containment and any future
-  authorized generated-code execution remain required for `v0.73`.
+  release. Unreleased work completes `generic-core-v1` `0.1.0` deterministic
+  D1-D7 evidence with D5 deliberately and reproducibly `not_run`. Executable
+  generated-code evaluation is deferred to a future Generic Core suite version
+  behind a separately accepted containment and resource-limit contract; it is
+  not a `v0.73` requirement.
 
 ## What LLMGauge is
 
@@ -317,9 +319,10 @@ and applied scores use per-prompt applicable dimensions under
 `default-manual-v0` `0.1.0`, require reviewed provenance, and recompose
 side-by-side hybrid evidence without rerunning checks.
 
-D5 generated-code execution still requires the separate accepted containment
-and resource-limit contract, and the `v0.73` release gate remains deferred on
-that decision.
+Executable generated-code evaluation remains deferred to a future Generic Core
+suite version behind a separate accepted containment and resource-limit
+contract; it is intentional `0.1.0` behavior, not outstanding `v0.73` work,
+and the `v0.73` release gate no longer depends on it.
 
 ## v0.72 completed release scope
 
@@ -338,10 +341,11 @@ The following profile-aware suite foundation is complete in `v0.72`:
 - Generic Core compatibility and security hardening; and
 - source-only-suite CI repair.
 
-This foundation does not make Generic Core scoring complete. Unreleased
-`generic-core-v1` `0.1.0` suite content is now discoverable; D1-D7 and D5
-containment remain later `v0.73` work. Details remain in
-[CHANGELOG.md](../CHANGELOG.md).
+This foundation did not by itself make Generic Core scoring complete. Since
+`v0.72`, unreleased `generic-core-v1` `0.1.0` content and D1-D7 evidence are
+implemented with D5 deliberately `not_run`; executable generated-code
+evaluation is deferred to a future suite version, not `v0.73` work. Details
+remain in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Full Model Testing Capability Architecture
 
@@ -656,18 +660,19 @@ provides a general native text suite and reusable profile/resource foundations;
 it does not replace the dedicated coding suite, multi-turn transcript, Agent
 Harness import, runtime-neutral metrics, or later modality/generation contracts.
 
-The existing separate Generic Core delivery path remains:
+The Generic Core delivery path is now:
 
 1. Generic Core fixture and package-data support (completed).
 2. Generic Core compatibility and security hardening (completed).
 3. `v0.72` release preparation (completed).
 4. Generic Core suite implementation with the final manifest, 13-prompt
-   inventory, fixture references, and exact Smoke/Core membership (admitted
-   downstream).
-5. Deterministic checks D1-D7.
-6. Separate D5 generated-code containment gate.
-7. Execution and result-provenance integration.
-8. `v0.73` release preparation.
+   inventory, fixture references, and exact Smoke/Core membership (completed).
+5. Deterministic checks D1-D7, with D5 deliberately and reproducibly
+   `not_run` (completed).
+6. Execution and result-provenance integration (completed).
+7. `v0.73` release preparation.
+8. A future executable-D5 Generic Core suite version behind a separately
+   accepted containment and resource-limit contract (separate future track).
 
 Each item remains a separate bounded milestone unless a later accepted handoff
 explicitly combines milestones. Release preparation does not begin until its
@@ -691,25 +696,38 @@ preceding implementation and validation gates are complete.
 
 `v0.72` does not claim that `generic-core-v1` is available. It includes the
 profile-aware foundation and versioned Generic Core package resources, but no
-suite manifest or final prompts. Unreleased work after `v0.72` adds the
-`0.1.0` suite content without completing scoring or the `v0.73` release gate.
+suite manifest or final prompts. Unreleased work after `v0.72` implements the
+`0.1.0` suite content, D1-D7 evidence, and result provenance without
+completing the `v0.73` release gate.
 
 ### `v0.73` — Generic Core v1
 
-The `v0.73` release gate requires:
+The `v0.73` release gate requires proof that:
 
-- an implemented `generic-core-v1` suite at version `0.1.0`;
-- its final 13-prompt inventory;
-- exact `core` and `smoke` profiles;
-- committed fixtures;
-- supported scoring references;
-- deterministic checks D1-D7;
-- D5 generated-code containment resolved under an accepted safe local contract
-  or explicitly redesigned through a separate accepted contract;
-- selected profile and exact ordered membership provenance in results;
-- clean installed-package and CI validation; and
-- release metadata and documentation updates in the separate `v0.73`
-  release-preparation milestone.
+- `generic-core-v1` `0.1.0` content and discovery are complete: the final
+  13-prompt inventory, exact `core` and `smoke` profiles, committed fixtures,
+  and supported scoring references;
+- D1-D7 deterministic evidence behavior is implemented according to
+  `0.1.0` semantics;
+- D5 is explicitly and reproducibly `not_run`: generated code is not
+  executed, the authorization resource remains false, and unexpected
+  authorization values fail closed;
+- result, profile, and scoring provenance are complete in results;
+- the manual and hybrid review workflow is complete, with hybrid components
+  composed side-by-side;
+- reporting exposes the D5 non-execution boundary;
+- package, wheel, sdist, and installed-resource behavior is validated,
+  including byte-identical source/package mirrors;
+- clean-clone validation is complete; and
+- version and release metadata are internally consistent, updated in the
+  separate `v0.73` release-preparation milestone.
+
+Generated-code execution is not part of `v0.73`. Executable D5 evaluation
+belongs to a future Generic Core suite version behind a separately accepted
+containment and resource-limit contract; enabling it would change the prompt
+promise, authorization, deterministic-check behavior, evidence meaning,
+security boundary, and comparability, so it must not silently change
+`0.1.0`.
 
 These gates assign no release dates.
 
