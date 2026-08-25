@@ -8,15 +8,16 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.72`
-- Current package version: `0.72.0`
-- Current stable release line: `v0.72.0`
-- Current release state: `v0.72` is the completed profile-aware suite foundation
-  release. Unreleased work completes `generic-core-v1` `0.1.0` deterministic
-  D1-D7 evidence with D5 deliberately and reproducibly `not_run`. Executable
-  generated-code evaluation is deferred to a future Generic Core suite version
-  behind a separately accepted containment and resource-limit contract; it is
-  not a `v0.73` requirement.
+- Current stable tag: `v0.73`
+- Current package version: `0.73.0`
+- Current stable release line: `v0.73.0`
+- Current release state: `v0.73` is the completed Generic Core v1 release:
+  packaged, discoverable `generic-core-v1` `0.1.0` with exact Smoke/Core
+  profiles, deterministic D1-D7 evidence with D5 reproducibly `not_run`,
+  complete result/profile/scoring provenance, manual and side-by-side hybrid
+  review, and no profile aggregate score. Executable generated-code evaluation
+  remains future suite-version work behind a separately accepted containment
+  and resource-limit contract; it is not part of `v0.73`.
 
 ## What LLMGauge is
 
@@ -670,7 +671,7 @@ The Generic Core delivery path is now:
 5. Deterministic checks D1-D7, with D5 deliberately and reproducibly
    `not_run` (completed).
 6. Execution and result-provenance integration (completed).
-7. `v0.73` release preparation.
+7. `v0.73` release preparation (completed).
 8. A future executable-D5 Generic Core suite version behind a separately
    accepted containment and resource-limit contract (separate future track).
 
@@ -702,32 +703,31 @@ completing the `v0.73` release gate.
 
 ### `v0.73` — Generic Core v1
 
-The `v0.73` release gate requires proof that:
+**Completed:** the `v0.73` release contains:
 
-- `generic-core-v1` `0.1.0` content and discovery are complete: the final
-  13-prompt inventory, exact `core` and `smoke` profiles, committed fixtures,
-  and supported scoring references;
-- D1-D7 deterministic evidence behavior is implemented according to
-  `0.1.0` semantics;
-- D5 is explicitly and reproducibly `not_run`: generated code is not
-  executed, the authorization resource remains false, and unexpected
-  authorization values fail closed;
-- result, profile, and scoring provenance are complete in results;
-- the manual and hybrid review workflow is complete, with hybrid components
+- packaged, discoverable `generic-core-v1` `0.1.0` content: the final
+  13-prompt inventory, exact ordered `core` and `smoke` profiles, committed
+  fixtures, and supported scoring references;
+- D1-D7 deterministic evidence behavior implemented according to `0.1.0`
+  semantics;
+- D5 explicitly and reproducibly `not_run`: generated code is not executed,
+  the authorization resource remains false, and unexpected authorization
+  values fail closed;
+- complete result, profile, and scoring provenance in results;
+- the completed manual and hybrid review workflow, with hybrid components
   composed side-by-side;
-- reporting exposes the D5 non-execution boundary;
-- package, wheel, sdist, and installed-resource behavior is validated,
-  including byte-identical source/package mirrors;
-- clean-clone validation is complete; and
-- version and release metadata are internally consistent, updated in the
-  separate `v0.73` release-preparation milestone.
+- reporting that exposes component state and the D5 non-execution boundary;
+- validated package, wheel, sdist, and installed-resource behavior with
+  byte-identical source/package mirrors;
+- completed clean-clone validation; and
+- internally consistent version and release metadata.
 
 Generated-code execution is not part of `v0.73`. Executable D5 evaluation
 belongs to a future Generic Core suite version behind a separately accepted
 containment and resource-limit contract; enabling it would change the prompt
 promise, authorization, deterministic-check behavior, evidence meaning,
 security boundary, and comparability, so it must not silently change
-`0.1.0`.
+`0.1.0`. No Generic Core profile aggregate score exists.
 
 These gates assign no release dates.
 
@@ -806,6 +806,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
+| v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |
 | v0.72 | Profile-aware suite schema, normalized selection, contained references, Generic Core package resources, and compatibility/security hardening; no executable `generic-core-v1` suite |
 | v0.71 | Optional external local vLLM adapter, additive fingerprint evidence, public-export identity redaction, first tracked practical evidence package |
 | v0.70 | Identity, provenance, evidence-equivalence fingerprints, and sanitized public export foundations; validated released install tag |
