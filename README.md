@@ -23,6 +23,7 @@ LLMGauge is an artifact-preserving local model evaluation bench.
 It can:
 
 - run built-in or custom prompt suites against local `llama.cpp` / GGUF models by default
+- run the built-in `generic-core-v1` general-purpose suite (`smoke` and `core` profiles) with deterministic evidence checks, manual review, and side-by-side hybrid scoring
 - optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming; no remote, auth, concurrency, or lifecycle management; runtime-native metrics are not equivalent to llama.cpp)
 - preview run plans before launching a model
 - preserve raw prompts, raw outputs, cleaned review outputs, and stderr logs
@@ -52,13 +53,13 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.72
+Current stable tag: v0.73
 
-Current package version: 0.72.0
+Current package version: 0.73.0
 
-Current release line: v0.72.0.
+Current release line: v0.73.0.
 
-The validated installed-user workflow uses the v0.72 tagged GitHub install
+The validated installed-user workflow uses the v0.73 tagged GitHub install
 documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
 
 See [Roadmap](docs/ROADMAP.md).
@@ -67,7 +68,7 @@ The current vLLM capability, evidence, and limitations are consolidated in the
 
 Install the latest formal release:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.72
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.73
 
 Then use `llmgauge ...` directly. That tagged GitHub install is the validated
 path for installed end users. Contributors and unreleased development should
@@ -154,6 +155,26 @@ review **Report Scope**, **Audit Checklist**, **Prompt Artifact Audit**, and
 
 See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
 
+## Generic Core suite
+
+`generic-core-v1` `0.1.0` is a built-in balanced general-purpose suite with two
+ordered profiles: `smoke` (4 prompts) and `core` (13 prompts). Seven
+deterministic checks run against preserved raw responses and contained
+fixtures; manual scores apply per-prompt review dimensions and recompose
+side-by-side hybrid evidence without rerunning deterministic checks.
+
+Inspect the suite without launching a model:
+
+    uv run llmgauge list-suites
+    uv run llmgauge validate-suite generic-core-v1
+    uv run llmgauge run --suite generic-core-v1 --profile core --dry-run
+
+The D5 coding check does not execute generated code in this suite version: it
+reproducibly reports `not_run`. Executable D5 evaluation is future suite-version
+work behind a separately accepted containment and resource-limit contract.
+There is no profile aggregate score; reviewed manual scores remain the quality
+authority.
+
 ## LocalMaxxing performance benchmark
 
 LocalMaxxing is a dedicated llama.cpp speed-benchmark integration, not a
@@ -202,7 +223,7 @@ score/report/export paths reject these results. The existing
 
 Audience split:
 
-- installed end users: validated tagged GitHub install (`v0.72`), then `llmgauge ...`
+- installed end users: validated tagged GitHub install (`v0.73`), then `llmgauge ...`
 - contributors and unreleased development: source checkout with `uv run llmgauge ...`
 - editable local install: development convenience only
 

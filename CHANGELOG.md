@@ -2,122 +2,92 @@
 
 ## Unreleased
 
+## v0.73.0 - 2026-08-25
+
 ### Added
 
-- Added first-class llama.cpp fit, reasoning-preservation, and speculative-type
-  controls with explicit omitted/on/off state, command/result/report/comparison/
-  export evidence, validation, and material runtime fingerprint coverage.
-
-- Implemented `generic-core-v1` deterministic checks D1-D7 against preserved
-  raw responses and versioned contained fixtures. D1/D3/D5 retain independent
-  side-by-side manual review; D5 is explicitly `not_run` because generated-code
-  execution remains unauthorized. No profile aggregate was added.
-- Completed Generic Core result provenance: `validate-result` now fail-closes
-  on `generic-core-v1` selection identity, exact ordered profile or custom
-  membership, invocation metadata, and per-prompt evidence coverage, and the
-  native report exposes selected profile/custom membership, scoring roles,
+- Implemented `generic-core-v1` `0.1.0` as a real packaged, discoverable suite:
+  the final manifest with exact ordered `smoke` (4-prompt) and `core`
+  (13-prompt) profiles, a balanced general-purpose Core prompt inventory,
+  versioned contained fixtures, byte-identical source/package mirrors, and
+  installed package-resource access.
+- Added `generic-core-v1` deterministic checks D1-D7 against preserved raw
+  responses and versioned contained fixtures. D1/D3/D5 retain independent
+  side-by-side manual review. D5 is explicitly and reproducibly `not_run`
+  because generated-code execution remains unauthorized in this suite version;
+  unexpected execution-authorization values fail closed. No profile aggregate
+  score was added.
+- Completed Generic Core result provenance: `validate-result` fail-closes on
+  `generic-core-v1` selection identity, exact ordered profile or custom
+  membership, invocation metadata, and per-prompt evidence coverage. The native
+  report exposes selected profile/custom membership, scoring roles,
   check/rubric identities and versions, deterministic/manual/hybrid component
-  states, and D5's explicit non-execution. No profile aggregate was added.
-- Added `generic-core-v1` manual-review workflow support: score templates and
-  applied scores now carry per-prompt applicable dimensions under
+  states, and D5's explicit non-execution.
+- Added the `generic-core-v1` manual-review workflow: score templates and
+  applied scores carry per-prompt applicable dimensions under
   `default-manual-v0` `0.1.0`, require explicit reviewed provenance, and
   recompose independent side-by-side hybrid evidence without rerunning
   deterministic checks. Deterministic-role prompts receive no manual
-  dimensions, and no numeric profile aggregate is produced.
-- Added read-only import of supported EleutherAI `lm-eval` harness
-  results as `llmgauge.external_benchmark_evidence.v0` under a dedicated
-  `llmgauge.result.v0`. The importer copies admitted source bytes,
-  preserves native metric names, fail-closes on malformed or mixed-class
-  evidence, and participates in `llmgauge.run_fingerprint.v2` without
-  changing historical v0/v1 verification. CLI: `llmgauge benchmark
-  import`, `llmgauge benchmark validate`, and `llmgauge benchmark
-  report`.
-- Pinned official Bundle 1 identities against EleutherAI
-  `lm-evaluation-harness` `v0.4.12` and added fail-closed qualification
-  plus an isolated `external-benchmark/report.md`. Qualification is not
-  persisted into evidence. Generic lm-eval import remains valid when not
-  Bundle 1-qualified. HumanEval and MBPP remain import-only. LocalMaxxing
-  quality export/submit remains later.
-- Official `lm-eval` `v0.4.12` group results import `sample_count` as
-  writer metadata rather than a metric, and Bundle 1 pin matching
-  accepts the official `git describe` form `v0.4.10-81-g6d642546` for
-  the pinned commit. Dummy or reduced-run scores remain non-comparable.
-
-- Added optional runtime-neutral request-wall-time evidence and bounded derived
-  failure taxonomy for measured native single-turn llama.cpp attempts. The
-  slice preserves native throughput semantics, legacy result validity, and v0
-  fingerprint verification; vLLM, TTFT, transcripts, comparisons, and exporter
-  changes remain out of scope.
-- Implemented the optional Coding Core suite schema and normalized loader fields
-  with exact fail-closed `coding-core-v1` `0.1.0` invariants, without adding
-  suite content, scoring execution, or result behavior.
-- Added the final `coding-core-v1` `0.1.0` manifest, eight static prompts, five
-  inert response-form definitions, exact source/package mirrors, installed
-  package resources, and focused content/discovery validation without adding
-  scoring or generated-content execution.
-- Integrated the `coding-core-v1` `0.1.0` versioned manual rubric, three
-  non-executing structural checks, and independent side-by-side hybrid scoring
-  through existing scoring interfaces without result or export schema changes.
-- Added bounded native Coding Core run/result/report integration with portable
-  selection and method provenance, raw-response static outcomes, manual/hybrid
-  review state, additive validation, and explicit non-execution claim limits.
+  dimensions.
 - Exposed named suite-profile selection through `llmgauge run --profile`,
   including manifest-default preservation, dry-run planning, portable selection
   metadata, and explicit rejection of ambiguous prompt selectors.
-- Completed bounded Coding Core live evidence with preserved manual and
-  non-executing structural outcomes; no generated response content was executed
-  or applied.
+- Added first-class llama.cpp fit, reasoning-preservation, and speculative-type
+  controls with explicit omitted/on/off state, command/result/report/comparison/
+  export evidence, validation, and material runtime fingerprint coverage.
+- Added optional runtime-neutral request-wall-time evidence and bounded derived
+  failure taxonomy for measured native single-turn llama.cpp attempts,
+  preserving native throughput semantics, legacy result validity, and v0
+  fingerprint verification. vLLM wall-time, TTFT, transcripts, comparisons, and
+  exporter changes remain out of scope.
+- Implemented the complete `coding-core-v1` `0.1.0` static coding suite:
+  manifest, eight prompts, inert response-form definitions, versioned manual
+  rubric, three non-executing structural checks, independent side-by-side
+  hybrid scoring, bounded native run/result/report integration with portable
+  selection and method provenance, and additive validation. Generated coding
+  content is never executed.
+- Added read-only import of supported EleutherAI `lm-eval` harness results as
+  `llmgauge.external_benchmark_evidence.v0` under a dedicated
+  `llmgauge.result.v0`. The importer copies admitted source bytes, preserves
+  native metric names, fail-closes on malformed or mixed-class evidence, and
+  participates in `llmgauge.run_fingerprint.v2`. CLI: `llmgauge benchmark
+  import`, `validate`, and `report`.
+- Pinned official Bundle 1 identities against EleutherAI
+  `lm-evaluation-harness` `v0.4.12` with fail-closed qualification and an
+  isolated `external-benchmark/report.md`. Qualification accepts the official
+  `git describe` pin form and treats group `sample_count` as writer metadata.
+  Dummy or reduced-run scores remain non-comparable.
 - Added native multi-turn transcript evaluation with versioned, contained
   transcript evidence, bounded sequential orchestration, immutable
-  fingerprinting, and transcript-aware reporting. Existing single-turn results
-  remain unchanged; transcript scoring, comparison, and public export remain
-  fail closed.
-- Added read-only OMP Agent Harness evidence import and the separate
-  `agent-session-review-v0` manual-review workflow and report. The importer
-  neither replays sessions nor executes tools, commands, tests, or model calls.
-- Added OMP 17.3.4 fallback-model metadata compatibility without changing
-  fallback selection or reinterpreting imported evidence.
+  fingerprinting, and transcript-aware reporting. Transcript scoring,
+  comparison, and public export remain fail closed; existing single-turn
+  results are unchanged.
+- Added read-only OMP Agent Harness evidence import plus the separate
+  `agent-session-review-v0` manual-review workflow and report, and OMP 17.3.4
+  fallback-model metadata compatibility. Neither replays sessions nor executes
+  tools, commands, tests, or model calls.
 - Added the operational LocalMaxxing llama.cpp performance-benchmark
   integration: versioned local artifacts, offline validation/export, enriched
   source-backed hardware, telemetry, combined-throughput, and localhost-TTFT
   companion metrics when available, plus explicit authenticated dry-run and
-  confirmed public-submit boundaries. It remains separate from native suites,
-  external benchmarks, and agent-environment evaluations.
+  confirmed public-submit boundaries.
 
-### Documentation
+### Documentation and evidence
 
 - Accepted the Generic Core `0.1.0` D5 release-policy boundary: the coding
-  deterministic check is intentionally non-executing, remains reproducibly
-  `not_run`, and any unexpected execution-authorization value fails closed.
-  The `v0.73` release gate no longer requires generated-code execution;
-  executable D5 evaluation is deferred to a future Generic Core suite version
-  behind a separately accepted containment and resource-limit contract.
-- Accepted the Full Model Testing capability architecture and roadmap fast
-  tracks for its eight-step capability program and the separate LocalMaxxing
-  performance-benchmark architecture/offline-export lane. At acceptance, it
-  added no implementation behavior; subsequent Unreleased entries record the
-  completed bounded work.
-- Accepted the `coding-core-v1` architecture and scoring contract with static
-  coding capability, evidence, scoring, comparison, and containment boundaries.
-- Proposed the bounded `coding-core-v1` prompt and task-family inventory,
-  capability ownership, response forms, profiles, and per-role scoring
-  authority.
-- Accepted the combined `coding-core-v1` scoring-method and schema/loader
-  foundation, fixing versioned manual/hybrid authority and additive contained
-  representation.
-- Realigned the agent workflow policy around one bounded milestone, one agent,
-  one review report, and the human Git gate.
-- Accepted the external benchmark and LocalMaxxing interoperability
-  contract. It locks official-harness authority, imported-evidence
-  identity, Bundle 1/2 compatibility as of 2026-08-16, and the
-  conceptual `llmgauge benchmark` CLI without adding importer, schema,
-  or submit behavior. The selected next order is now A–F after the
-  completed Area 4 native llama.cpp slice.
-- Documented the completed external-benchmark importer foundation, the
-  dedicated result/evidence layout, and v2 fingerprint participation.
-- Documented pinned Bundle 1 qualification, isolated
-  `llmgauge benchmark report`, and the HumanEval/MBPP non-execution
-  boundary.
+  deterministic check is intentionally non-executing and remains reproducibly
+  `not_run`; executable D5 evaluation is deferred to a future Generic Core
+  suite version behind a separately accepted containment and resource-limit
+  contract.
+- Accepted the Full Model Testing capability architecture with its eight-step
+  fast-track program and the separate LocalMaxxing performance-benchmark lane;
+  accepted the `coding-core-v1` architecture, scoring contract, and prompt/task
+  inventory; and realigned the agent workflow policy around one bounded
+  milestone, one agent, one review report, and the human Git gate.
+- Accepted the external benchmark and LocalMaxxing interoperability contract
+  locking official-harness authority and imported-evidence identity, and
+  documented the importer foundation, Bundle 1 qualification, and the
+  HumanEval/MBPP non-execution boundary.
 
 ### Removed
 
@@ -131,7 +101,23 @@
   document, and its suite-specific test pins. It was never a packaged built-in
   suite, and with all tracked real-model evaluation artifacts gone it served no
   current product purpose; sanitizer behavior remains covered by synthetic
-  tests. Released history below is preserved as written.
+  tests.
+
+### Compatibility and boundaries
+
+- `generic-core-v1` `0.1.0` does not execute generated code. D5 remains
+  `not_run` while `execution_authorized` is false, executable D5 evaluation is
+  future-suite-version work behind a separately accepted containment and
+  resource-limit contract, and no Generic Core profile aggregate score exists.
+- Imported lm-eval results are contained read-only evidence only: native
+  score/report/export paths reject them, import success and Bundle 1
+  qualification are structural checks rather than LLMGauge-native quality
+  scores, and HumanEval/MBPP remain import-only.
+- LocalMaxxing remains a dedicated speed benchmark, separate from native
+  suites, external benchmarks, and agent-environment evaluations; normal run,
+  report, export, and validation commands never contact it.
+- Legacy suites, result schemas, fingerprints, and validation remain backward
+  compatible across all additions above.
 
 ## v0.72.0 - 2026-07-28
 

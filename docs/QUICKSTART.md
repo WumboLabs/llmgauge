@@ -17,7 +17,7 @@ After installing the CLI into your environment, use:
     llmgauge ...
 
 Audience split: installed end users should use the validated tagged GitHub
-install (`v0.72`) documented in [Installation](INSTALL.md); contributors and
+install (`v0.73`) documented in [Installation](INSTALL.md); contributors and
 unreleased development should use a source checkout with `uv run llmgauge ...`;
 editable installation is a development convenience, not the formal released-user
 workflow.
