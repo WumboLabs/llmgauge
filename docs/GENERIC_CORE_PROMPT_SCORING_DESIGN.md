@@ -566,7 +566,6 @@ test, result, comparison, report, or evidence artifact belonging to:
 
 - `core-v1` `0.1.0` and its `core` alias;
 - `wumbolabs-practical-v1` `0.2.0`;
-- historical `wumbolabs-practical-use-v1` `0.1.0`;
 - `agent-backend-v1` `0.1.0`;
 - `context-v1` `0.1.0`.
 

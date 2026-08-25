@@ -47,7 +47,6 @@ unchanged:
 
 - `core-v1` `0.1.0`;
 - `wumbolabs-practical-v1` `0.2.0`;
-- the historical source-only `wumbolabs-practical-use-v1` `0.1.0`;
 - `agent-backend-v1` `0.1.0`;
 - `context-v1` `0.1.0`.
 

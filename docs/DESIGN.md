@@ -122,10 +122,6 @@ Current non-goals / deliberate project boundaries:
   path-resolution, normalization, compatibility, and fail-closed loading
   boundaries before schema implementation.
 
-- [Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md) —
-  private source and rendering remain authoritative; tracked public prompt
-  artifacts are deterministic sanitized derivatives, not replacement source.
-
 - [Initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md) —
   externally managed, loopback-only, text-only OpenAI-compatible server
   integration.

@@ -60,8 +60,7 @@ suite identities:
 | `agent-backend-v1` `coding/log-summary-helper` | Small Python log summary helper | Do not duplicate small utility generation. Dedicated code production is attached to supplied defects, bounded patches, tests, or closed API evidence. |
 | `agent-backend-v1` `shell-safety/failed-command-recovery` | Conservative advice after a missing Linux service command | Keep the dedicated shell role inside a synthetic coding-repository maintenance context and score recommendation safety, not generic service recovery. |
 | `wumbolabs-practical-v1` result-summary script role | Practical result summarization code | Preserve its practical comparison role; do not reuse its task or evidence. |
-| historical `wumbolabs-practical-use-v1` `coding/python-log-parser` | Source-only Python log parser | Preserve its immutable historical authority and do not reuse its prompt source. |
-| `wumbolabs-practical-use-v1` unknown-package role | Currentness and package-honesty screening | Use closed, versioned API/dependency evidence instead of a fake-package currentness question. |
+| retired historical fake-package currentness question | Former currentness and package-honesty screening in the removed source-only practical suite | Use closed, versioned API/dependency evidence instead of a fake-package currentness question. |
 | proposed Generic Core coding and code-review roles | Portable pure-function implementation and supplied-code defect review | Do not recreate either role. The dedicated debugging role adds stated state-transition evidence and correction design; the API role adds closed integration evidence and an explicit evidence gap. Generic Core resources remain Generic Core-owned. |
 
 Conceptual overlap is allowed only where the dedicated suite changes the owned

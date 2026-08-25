@@ -198,21 +198,18 @@ authorship, hardware, answer quality, or transformed public-export bytes.
 
 ### Historical Practical Suite v0.1.0 source
 
-**Completed:** the exact historical `wumbolabs-practical-use-v1` version
-`0.1.0` source is tracked at
-[`suites/wumbolabs-practical-use-v1/`](../suites/wumbolabs-practical-use-v1/).
-The source preserves the original `suite.yaml`, six prompt files, suite
-identity, and prompt order without modernization. `tests/test_suite_mirror.py`
-pins the suite's file SHA-256 values and enforces its intentionally
-source-only status; `tests/test_practical_suite_v1_sanitization.py` checks
-loadability and the public-export sanitizer contract with synthetic content
-only.
+**Completed (later retired):** the historical `wumbolabs-practical-use-v1`
+version `0.1.0` source was formerly tracked at `suites/` with its original
+`suite.yaml`, six prompt files, suite identity, and prompt order preserved
+without modernization, pinned by SHA-256 in a source-only mirror test. After all
+tracked real-model evaluation artifacts were removed from this repository, the
+source-only suite no longer served a current product purpose and was removed;
+the sanitizer product invariant it exercised remains covered by synthetic
+tests.
 
-The path-bearing private `docker/compose-review` rendering intentionally differs
-from its redacted public derivatives before sanitization. The existing
-`wumbolabs-practical-v1` version `0.2.0` suite remains a separate identity.
-These byte-equivalence checks do not establish answer quality, scoring
-correctness, privacy completeness, or publication readiness.
+The existing `wumbolabs-practical-v1` version `0.2.0` suite remains a separate
+identity. Historical byte-equivalence checks never established answer quality,
+scoring correctness, privacy completeness, or publication readiness.
 
 ### General evaluation taxonomy contract
 

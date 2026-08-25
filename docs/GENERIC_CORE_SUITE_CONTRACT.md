@@ -263,7 +263,6 @@ The new identity coexists with every current suite:
 | --- | --- |
 | `core-v1` `0.1.0` | Existing Tier 1 practical smoke suite; remains valid under its current identity and `core` alias and is not Generic Core. |
 | `wumbolabs-practical-v1` `0.2.0` | Current practical/operator profile with its existing manual scoring and evidence boundaries. |
-| `wumbolabs-practical-use-v1` `0.1.0` | Historical source-only Practical suite; its ID, version, source, rendering, prompt order, scoring interpretation, and evidence chain are immutable. |
 | `agent-backend-v1` `0.1.0` | Native-response agent-preparation suite; it does not establish executed agent-environment behavior. |
 | `context-v1` `0.1.0` | Context preset metadata; it is not prompt capability evidence or a Generic Core profile. |
 

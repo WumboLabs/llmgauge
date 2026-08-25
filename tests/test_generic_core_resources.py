@@ -92,13 +92,6 @@ def test_generic_core_resource_inventory_and_mirror_are_exact() -> None:
         assert json.loads(source.read_bytes())["version"] == "0.1.0"
 
 
-def test_historical_suite_remains_source_only() -> None:
-    historical = SOURCE_SUITE_ROOT / "wumbolabs-practical-use-v1"
-
-    assert (historical / "suite.yaml").is_file()
-    assert not (BUILTIN_SUITE_ROOT / historical.name).exists()
-
-
 def test_wheel_and_sdist_include_exact_generic_core_resources(
     built_distributions: tuple[Path, Path],
 ) -> None:
@@ -112,9 +105,6 @@ def test_wheel_and_sdist_include_exact_generic_core_resources(
             and not name.endswith("/")
         }
         assert wheel_resources == EXPECTED_GENERIC_CORE_RESOURCES
-        assert not any(
-            "wumbolabs-practical-use-v1" in name for name in archive.namelist()
-        )
 
     with tarfile.open(sdist, "r:gz") as archive:
         members = [member for member in archive.getmembers() if member.isfile()]
@@ -126,7 +116,6 @@ def test_wheel_and_sdist_include_exact_generic_core_resources(
             if f"{package_marker}generic-core-v1/" in name
         }
         assert packaged_resources == EXPECTED_GENERIC_CORE_RESOURCES
-        assert not any("wumbolabs-practical-use-v1" in name for name in names)
 
 
 def test_isolated_wheel_install_can_read_every_resource(

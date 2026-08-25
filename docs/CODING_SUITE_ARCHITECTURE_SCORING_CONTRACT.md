@@ -32,9 +32,7 @@ response suites:
 - `agent-backend-v1` `0.1.0` contains a log-summary helper, shell-failure
   recovery advice, configuration-edit planning, and tool-honesty screening;
 - `wumbolabs-practical-v1` `0.2.0` contains a result-summary script task under
-  its practical comparison contract;
-- historical `wumbolabs-practical-use-v1` `0.1.0` contains a source-only Python
-  log-parser task whose source and evidence authority remain immutable; and
+  its practical comparison contract; and
 - Generic Core has accepted coding and code-review roles plus versioned D5 case
   and limit resources, but no executable `generic-core-v1` suite or admitted D5
   generated-code containment.
@@ -59,9 +57,8 @@ The dedicated suite identity is:
 
 `coding-core-v1` names the durable dedicated coding-response contract. It is not
 an alias, rename, replacement, profile, or new version of `core-v1`,
-`agent-backend-v1`, `wumbolabs-practical-v1`, historical
-`wumbolabs-practical-use-v1`, or `generic-core-v1`. This contract creates no CLI
-alias.
+`agent-backend-v1`, `wumbolabs-practical-v1`, or `generic-core-v1`. This
+contract creates no CLI alias.
 
 The evaluated subject is a model-generated response to an LLMGauge-owned,
 versioned coding prompt under disclosed model identity, runtime, generation and
@@ -499,7 +496,6 @@ Existing suite identities coexist unchanged:
 | `core-v1` `0.1.0` | Existing Tier 1 practical smoke suite with one manual coding response. |
 | `agent-backend-v1` `0.1.0` | Native-response agent-backend screening, including coding usefulness and shell safety; not agent-environment evidence. |
 | `wumbolabs-practical-v1` `0.2.0` | Current practical comparison suite with its manual scoring contract. |
-| `wumbolabs-practical-use-v1` `0.1.0` | Immutable historical source-only suite and evidence chain. |
 | `generic-core-v1` `0.1.0` | Admitted general-purpose suite work with separate D5 ownership and containment gate; not yet executable. |
 | `coding-core-v1` `0.1.0` | Future dedicated coding native-response suite; not implemented by this contract. |
 

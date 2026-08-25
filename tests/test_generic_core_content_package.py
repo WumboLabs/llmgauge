@@ -202,7 +202,6 @@ PROMPT_CONTRACTS = (
 LEGACY_SUITES = (
     "core-v1",
     "wumbolabs-practical-v1",
-    "wumbolabs-practical-use-v1",
     "agent-backend-v1",
     "context-v1",
     "coding-core-v1",
@@ -538,16 +537,15 @@ def test_no_alias_and_legacy_suites_remain_unchanged() -> None:
         loaded = load_suite(suite_dir)
         assert loaded["suite_id"] == suite_name
         load_normalized_suite(suite_dir)
-    assert not (
-        REPOSITORY_ROOT / "src/llmgauge/builtin_suites/wumbolabs-practical-use-v1"
-    ).exists()
 
 
 def test_cli_lists_validates_and_plans_generic_core(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runner = CliRunner()
-    listed = runner.invoke(app, ["list-suites"])
+    # A wide console keeps long suite IDs untruncated regardless of how many
+    # suites share the table.
+    listed = runner.invoke(app, ["list-suites"], env={"COLUMNS": "200"})
     validated = runner.invoke(app, ["validate-suite", SUITE_ID])
 
     assert listed.exit_code == 0
@@ -632,9 +630,6 @@ def test_wheel_and_sdist_include_exact_generic_core_files(
             if name.startswith(wheel_prefix) and not name.endswith("/")
         }
         assert wheel_files == EXPECTED_FILES
-        assert not any(
-            "wumbolabs-practical-use-v1" in name for name in archive.namelist()
-        )
 
     with tarfile.open(sdist, "r:gz") as archive:
         package_marker = f"/src/llmgauge/builtin_suites/{SUITE_ID}/"

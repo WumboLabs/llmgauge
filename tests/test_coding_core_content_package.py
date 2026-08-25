@@ -388,12 +388,7 @@ def test_prompt_content_is_bounded_portable_and_non_executing() -> None:
         assert sum(marker in content for content in contents) == 1, index
 
 
-def test_existing_suites_and_historical_source_only_boundary_remain_intact() -> None:
-    historical = REPOSITORY_ROOT / "suites/wumbolabs-practical-use-v1"
-    assert (historical / "suite.yaml").is_file()
-    assert not (
-        REPOSITORY_ROOT / "src/llmgauge/builtin_suites/wumbolabs-practical-use-v1"
-    ).exists()
+def test_existing_suites_remain_intact() -> None:
     assert validate_suite(REPOSITORY_ROOT / "suites/core-v1") == []
     assert validate_suite(REPOSITORY_ROOT / "suites/wumbolabs-practical-v1") == []
     assert _files_below(REPOSITORY_ROOT / "suites/generic-core-v1") == _files_below(
@@ -424,9 +419,6 @@ def test_wheel_and_sdist_include_exact_coding_core_files(
             if name.startswith(wheel_prefix) and not name.endswith("/")
         }
         assert wheel_files == EXPECTED_FILES
-        assert not any(
-            "wumbolabs-practical-use-v1" in name for name in archive.namelist()
-        )
 
     with tarfile.open(sdist, "r:gz") as archive:
         package_marker = f"/src/llmgauge/builtin_suites/{SUITE_ID}/"
@@ -436,10 +428,6 @@ def test_wheel_and_sdist_include_exact_coding_core_files(
             if member.isfile() and package_marker in member.name
         }
         assert sdist_files == EXPECTED_FILES
-        assert not any(
-            "wumbolabs-practical-use-v1" in member.name
-            for member in archive.getmembers()
-        )
 
 
 def test_isolated_wheel_install_discovers_and_loads_coding_core(

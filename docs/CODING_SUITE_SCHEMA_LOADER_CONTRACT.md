@@ -356,11 +356,11 @@ field requirements and do not acquire `task_family`, `interaction_mode`,
 because those optional generic fields exist.
 
 Current suite identities, aliases, versions, prompt orders, resources, and
-results are unchanged. In particular, historical
-`wumbolabs-practical-use-v1` `0.1.0` remains intentionally source-only; this
-contract does not create a package mirror, reinterpret its prompt, or make it
-subject to Coding Core metadata. Existing Generic Core source/package behavior
-and accepted method identities remain Generic Core-owned.
+results are unchanged. The formerly tracked source-only historical suite
+`wumbolabs-practical-use-v1` `0.1.0` has since been removed from the repository;
+this contract never created a package mirror for it or made it subject to Coding
+Core metadata. Existing Generic Core source/package behavior and accepted method
+identities remain Generic Core-owned.
 
 Unknown top-level and direct prompt metadata continues to be preserved opaquely.
 The new coding fields gain semantics only when recognized by the implemented

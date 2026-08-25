@@ -108,6 +108,12 @@
   repository. Durable product behavior remains represented synthetically in
   tests, sanitized product docs, and accepted contracts; released historical
   entries below are preserved as written history.
+- Removed the intentionally source-only historical suite
+  `wumbolabs-practical-use-v1` `0.1.0`, its evidence-equivalence contract
+  document, and its suite-specific test pins. It was never a packaged built-in
+  suite, and with all tracked real-model evaluation artifacts gone it served no
+  current product purpose; sanitizer behavior remains covered by synthetic
+  tests. Released history below is preserved as written.
 
 ## v0.72.0 - 2026-07-28
 

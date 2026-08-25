@@ -412,7 +412,6 @@ def test_profile_and_fixture_identity_is_portable_across_physical_roots(
         "context-v1",
         "agent-backend-v1",
         "wumbolabs-practical-v1",
-        "wumbolabs-practical-use-v1",
     ],
 )
 def test_current_suites_retain_legacy_all_normalization(suite_name: str) -> None:

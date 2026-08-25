@@ -60,7 +60,6 @@ def _assert_invalid(tmp_path: Path, manifest: dict[str, Any], expected: str) -> 
     [
         "suites/core-v1",
         "suites/wumbolabs-practical-v1",
-        "suites/wumbolabs-practical-use-v1",
         "suites/agent-backend-v1",
         "suites/context-v1",
         "src/llmgauge/builtin_suites/core-v1",

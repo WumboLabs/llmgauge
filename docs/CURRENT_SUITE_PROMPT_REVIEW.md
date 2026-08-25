@@ -9,14 +9,10 @@ bounded direction for a future generic Core suite. It does not change any suite,
 prompt, rubric, loader, schema, test, or evidence artifact, and it does not
 provide new prompt text.
 
-All five tracked suite identities remain valid for their recorded purposes.
-Existing suite IDs and versions are evidence provenance, not names to normalize
-retroactively. In particular, the historical
-`wumbolabs-practical-use-v1` version `0.1.0` source and its evidence-bound
-renderings remain immutable under the
-[Historical Practical Suite v0.1.0 contract](PRACTICAL_SUITE_V1_CONTRACT.md).
-This review neither authorizes suite removal nor makes old and new results
-interchangeable.
+All remaining tracked suite identities remain valid for their recorded
+purposes. Existing suite IDs and versions are evidence provenance, not names to
+normalize retroactively. This review neither authorizes suite removal nor makes
+old and new results interchangeable.
 
 The selected next milestone is a **Generic Core suite contract**. That contract
 must define identity, profile composition, capability tags, scoring roles,
@@ -51,7 +47,9 @@ This review keeps the following evaluation classes separate:
 
 `context-v1` is included because it is a tracked native suite identity, although
 its manifest currently contains presets and no prompts. The inventory covers the
-five tracked `suites/*/suite.yaml` identities and their four packaged mirrors.
+four tracked legacy `suites/*/suite.yaml` identities and their packaged
+mirrors; later Generic Core and Coding Core identities are owned by their own
+contracts.
 
 ## Suite inventory
 
@@ -174,51 +172,11 @@ prompt-specific native-response evidence, not an agent benchmark.
 count, and validation; `tests/test_suite_paths.py` fixes packaged presence;
 `tests/test_cli_suite_aliases.py` fixes aliases; `tests/test_suite_mirror.py`
 guards mirrored bytes; and focused scoring tests in `tests/test_scoring.py` and
-`tests/test_cli_scoring.py` exercise its rubric metadata. No reviewed
-practical evidence package uses this exact version; the historical runs used
-the separate source-only identity below (those run records were operator
-evaluation artifacts and are no longer tracked in this repository).
-
-### `wumbolabs-practical-use-v1` version `0.1.0`
-
-- **Location and ownership:** canonical historical source at
-  `suites/wumbolabs-practical-use-v1/`. It is intentionally source-only, has no
-  packaged built-in mirror or alias, and is owned by the accepted historical
-  suite contract and evidence chain rather than current prompt development.
-- **Current role:** exact source for the six-prompt historical practical
-  evaluation runs; the run records themselves were operator evaluation
-  artifacts and are not tracked in this repository.
-- **Status:** historical, immutable, and evidence-bound. Do not rename, reorder,
-  modernize, reclassify, fold into `wumbolabs-practical-v1`, or infer that its
-  evidence applies to another suite version.
-- **Scoring:** the suite manifest declares no scoring profile or deterministic
-  baseline. The historical runs applied manual reviewed scores with recorded
-  provenance; those result artifacts were never part of this repository's
-  durable product content.
-
-| Prompt ID | Category | Present scoring approach |
-| --- | --- | --- |
-| `linux/arch-nvidia-update-advice` | `linux` | Manual reviewed evidence |
-| `coding/python-log-parser` | `coding` | Manual reviewed evidence |
-| `docker/compose-review` | `docker` | Manual reviewed evidence |
-| `honesty/unknown-package` | `honesty` | Manual reviewed evidence |
-| `summarization/technical-run-summary` | `summarization` | Manual reviewed evidence |
-| `local-llm/consumer-gpu-advice` | `local-llm` | Manual reviewed evidence |
-
-**Dependencies:** `tests/test_practical_suite_v1_sanitization.py` fixes suite
-ID, version, prompt IDs and order with synthetic content only; suite-level
-integrity and the source-only mirror policy are owned by
-`tests/test_suite_mirror.py`. Formerly tracked practical evidence packages
-under `docs/evidence/practical/` depended on the exact six-prompt overlap;
-those operator evaluation artifacts were removed from this repository, while
-the historical source suite itself remains tracked and unchanged.
-
-`tests/test_suite_mirror.py` currently discovers all top-level source suite
-files while asserting equality with packaged built-ins. Its broad discovery
-boundary also sees this intentionally source-only historical suite. That is a
-low-severity maintenance mismatch in the test's scope, not authority to package,
-modify, or exclude the historical source; this documentation milestone does not
-change tests.
+`tests/test_cli_scoring.py` exercise its rubric metadata. The historical
+practical runs used the separate retired source-only identity
+(`wumbolabs-practical-use-v1` version `0.1.0`, since removed from this
+repository); those run records were operator evaluation artifacts and are no
+longer tracked here.
 
 ## Overlap, ancestry, and ownership findings
 
@@ -227,24 +185,24 @@ identities or evidence interchangeable.
 
 | Prompt family | Current overlap | Direction for future Core |
 | --- | --- | --- |
-| Unknown fake tool/package honesty | `core-v1`, `agent-backend-v1`, Practical v0.2, historical Practical v0.1 | Keep one generic uncertainty task family; leave agent pressure and practical/currentness variants specialized |
-| Small log/result parser | `core-v1`, `agent-backend-v1`, Practical v0.2, historical Practical v0.1 | Keep at most one generic coding task; do not carry four near-duplicates |
+| Unknown fake tool/package honesty | `core-v1`, `agent-backend-v1`, Practical v0.2 | Keep one generic uncertainty task family; leave agent pressure and practical/currentness variants specialized |
+| Small log/result parser | `core-v1`, `agent-backend-v1`, Practical v0.2 | Keep at most one generic coding task; do not carry near-duplicates |
 | Docker Compose/config review | All prompt-bearing suites | Keep a generic review capability only if it adds code/config review coverage; retain operational variants in practical or agent profiles |
-| Linux/NVIDIA update safety | `core-v1`, Practical v0.2, historical Practical v0.1 | Exclude platform/hardware-specific wording from generic Core; preserve as practical-domain evidence |
+| Linux/NVIDIA update safety | `core-v1`, Practical v0.2 | Exclude platform/hardware-specific wording from generic Core; preserve as practical-domain evidence |
 | Constraint or contamination retention | `core-v1`, `agent-backend-v1`, Practical v0.2 | Define distinct short instruction-following and genuine long-context objectives; do not relabel short prompts as long-context evidence |
 | Practical planning and judgment | Primarily Practical v0.2 | Retain project/release/public-proof tasks in the practical profile, not generic Core |
 
-`wumbolabs-practical-v1` version `0.2.0` and historical
-`wumbolabs-practical-use-v1` version `0.1.0` share practical lineage and several
-task families, but the historical contract explicitly makes them separate
+The retired historical `wumbolabs-practical-use-v1` version `0.1.0` identity
+shared practical lineage and several task families with
+`wumbolabs-practical-v1` version `0.2.0`; its former contract kept them separate
 identities. Version `0.2.0` is not a modernization, replacement, or scoring
-reinterpretation of the historical evidence.
+reinterpretation of that historical evidence, whose run records were operator
+evaluation artifacts outside this repository.
 
 Current ownership is therefore best expressed as coexistence:
 
 - preserve each recorded suite ID and version for reproduction and comparison;
 - treat source/package mirrors as one bundled suite identity, not two suites;
-- keep the historical source and evidence chain immutable;
 - use practical and agent suites for their bounded domains;
 - create a new explicitly versioned generic Core identity rather than rewriting
   `core-v1` in place.
