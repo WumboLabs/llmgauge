@@ -332,7 +332,6 @@ LLMGauge is local-first and conservative by design.
 
 Start here:
 
-- [Public evidence index](docs/evidence/README.md) — reviewed bounded practical evidence packages
 - [Quickstart](docs/QUICKSTART.md)
 - [Clean clone testing](docs/CLEAN_CLONE_TESTING.md)
 - [Usage command map](docs/USAGE.md)
@@ -342,7 +341,6 @@ Start here:
 - [Scoring rubrics](docs/SCORING_RUBRICS.md)
 - [Scored comparisons](docs/SCORED_COMPARISONS.md)
 - [Fit Ladder](docs/FIT_LADDER.md)
-- [Fit Ladder real-workflow evidence](docs/FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
 - [VRAM capture](docs/VRAM_CAPTURE.md)
 - [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
 - [Public reporting guidance](docs/PUBLIC_REPORTING.md)

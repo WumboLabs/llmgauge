@@ -101,6 +101,13 @@
   `llmgauge benchmark report`, and the HumanEval/MBPP non-execution
   boundary.
 
+### Removed
+
+- Removed tracked operator/model-evaluation artifacts (the `docs/evidence/`
+  tree and point-in-time run-record documents) from the public development
+  repository. Durable product behavior remains represented synthetically in
+  tests, sanitized product docs, and accepted contracts; released historical
+  entries below are preserved as written history.
 
 ## v0.72.0 - 2026-07-28
 
@@ -183,37 +190,36 @@
 
 ### Documentation and evidence
 
-- Published the first reviewed public practical evidence package under
-  `docs/evidence/practical/grug-12b-q4-k-m/` (Grug-12B Q4_K_M, six-prompt
-  practical suite, `review_ready_with_caveats`), with an evidence index and a
-  short README link. Bounded claims only; mixed verdicts and provenance limits
-  retained. Structural validation is not quality validation.
+- Published the first reviewed public practical evidence package (Grug-12B
+  Q4_K_M, six-prompt practical suite, `review_ready_with_caveats`), with an
+  evidence index and a short README link. Bounded claims only; mixed verdicts
+  and provenance limits retained. Structural validation is not quality
+  validation. (The tracked package was later removed from this repository.)
 - Consolidated `AGENTS.md` into a shorter canonical agent-assisted development
   policy with compact handoffs, centralized fail-closed rules, bounded subagent
   use, and a seven-section review-report format.
-- Recorded real operator validation of both Fit Ladder terminal paths
-  (`docs/FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md`): preserved OOM attempts,
+- Recorded real operator validation of both Fit Ladder terminal paths:
+  preserved OOM attempts,
   success-child selection with stop-on-first-success, parent/child validation,
   export-index representation, and parent-versus-child score-target behavior.
   This is orchestration and artifact evidence, not a model-quality claim.
 - Consolidated the vLLM roadmap into implemented capability, validated evidence,
   closed investigation, active limitations, and remaining project milestones.
-- Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit
-  (`docs/GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md`): mixed FP8/NVFP4 runtime
+- Recorded one controlled Gemma 4 12B NVFP4 CPU-offload admission audit:
+  mixed FP8/NVFP4 runtime
   recognition, requested-versus-observed offload distinction, construction-time
   BF16 LM-head CUDA OOM, `not_viable` for the disclosed configuration, cleanup
   verification, and narrow non-generalized claim boundaries. This is not a
   generalized Gemma viability or hardware-support claim.
 - Recorded completed second-prompt llama.cpp-versus-vLLM cross-runtime
-  replication evidence
-  (`docs/VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md`): same methodology and
+  replication evidence: same methodology and
   Qwen2.5-3B-Instruct family settings as the first comparison; suite prompt
   `shell-safety/failed-command-recovery`; sequential GPU ownership; reviewed
   manual scores 32/50 mixed (vLLM) vs 19/50 fail (llama.cpp); directional
   quality-gap replication only (not a ranking, daily-driver, or averaged
   multi-prompt score); runtime-native metrics kept non-equivalent.
-- Recorded post-merge live external-vLLM fingerprint smoke evidence
-  (`docs/VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md`): server `/version`
+- Recorded post-merge live external-vLLM fingerprint smoke evidence:
+  server `/version`
   `0.25.1`, API-ready `server_state`, opaque fingerprint
   `vllm-0.25.1-eb488855` agreed across request/prompt/run-level artifacts,
   `validate-result` and report rendering, intentionally unscored; claim
@@ -223,7 +229,7 @@
   claim boundaries in `docs/VLLM_RUNTIME_CONTRACT.md` and
   `docs/ARTIFACT_SCHEMAS.md`.
 - Recorded completed first bounded llama.cpp-versus-vLLM cross-runtime
-  comparison evidence (`docs/VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md`):
+  comparison evidence:
   Qwen2.5-3B-Instruct family, one `agent-backend-v1` prompt, matched requested
   generation settings, GPU-contention failure preserved, clean-GPU llama.cpp
   and vLLM completions validated, reviewed manual scores, runtime-native
@@ -235,8 +241,8 @@
   failure rules, claim boundaries, and a recommended first Qwen2.5-3B-Instruct
   experiment.
 - Recorded completed external vLLM live integration smoke evidence for one
-  fitting model and one prompt on an operator-managed local server
-  (`docs/VLLM_LIVE_SMOKE_EVIDENCE.md`).
+  fitting model and one prompt on an operator-managed local server. (Tracked
+  run-record documents were later removed from this repository.)
 - Preserved claim boundaries: runtime compatibility and adapter execution are
   distinct from answer quality and publication readiness; generated private
   results, scores, comparison outputs, and public-export derivatives remain
