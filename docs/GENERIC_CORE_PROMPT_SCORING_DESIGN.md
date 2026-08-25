@@ -276,8 +276,13 @@ milestone.
 - **Material failure modes:** wrong boundary semantics, input mutation, missing
   validation, unstable order, package dependency, non-terminating behavior, or
   prose that prevents bounded evaluation.
-- **Deterministic feasibility:** D5 runs only the extracted candidate against
-  versioned fixture cases inside a future admitted containment mechanism.
+- **Deterministic feasibility:** in `0.1.0`, D5 is intentionally
+  non-executing: while the versioned authorization resource keeps
+  `execution_authorized` false, D5 returns the disclosed `not_run` state and
+  never extracts or runs candidate code. Executing the extracted candidate
+  against versioned fixture cases belongs to a future Generic Core suite
+  version behind a separately accepted containment and resource-limit
+  contract.
 - **Manual rubric ownership:** `default-manual-v0` `0.1.0`, emphasizing
   `technical_correctness`, `instruction_following`, `practical_usefulness`, and
   `overall_trust`; review covers specification gaps and maintainability not
@@ -477,10 +482,18 @@ facts suffice.
 | D6 | Exactly one declared tool name, exact argument schema/types/values, and no execution claim field or extra prose | Raw response and inline closed tool catalog; strict JSON parser and structural equality; no tool invocation | Correct request shape does not demonstrate tool execution or recovery behavior | Equivalent but disallowed request wrappers may fail unless final response grammar is explicit | Executed agent behavior, tool effect, or environmental correctness |
 | D7 | Closed answer values, explicit unknowns, controlling excerpt IDs, and rejection of untrusted embedded instruction | Raw response, declared bounded excerpts, precedence rules, and versioned expected reconciliation map; strict parser and equality | Exact closed result does not establish general long-context retention | A correct explanatory answer could fail if final output grammar is ambiguous | General long-context ability, reasoning outside the bound, or source truth beyond the fixture |
 
-D5 has the largest implementation risk: executing generated code requires an
-accepted containment and resource-limit contract. If that cannot be provided
-locally and safely, implementation admission must fail rather than replacing D5
-with a text heuristic. No deterministic component may use substring or phrase
+D5 has the largest future implementation risk, and its non-execution is a
+deliberate released boundary, not an unfinished `0.1.0` obligation. Version
+`0.1.0` completes its D5 scope as an intentional non-executing check: when
+the versioned resource leaves `execution_authorized` false, D5 returns
+`not_run`, and any unexpected authorization value fails closed. `not_run`
+proves neither code correctness nor incorrectness. Enabling generated-code
+execution changes the prompt promise, fixture and resource authorization,
+deterministic-check behavior, evidence meaning, security boundary, and
+comparability, so it is deferred to a future Generic Core suite version
+behind a separately accepted containment and resource-limit contract; it
+must never silently change version `0.1.0`, and no text heuristic may
+substitute for it. No deterministic component may use substring or phrase
 checklists as a general semantic scorer.
 
 ## Acceptance analysis
@@ -583,11 +596,12 @@ lexical semantic substitution. D5 returns `not_run` while
 `execution_authorized` remains false and does not extract, execute, or test
 candidate code.
 
-Remaining separately admitted work is a safe containment and resource-limit
-design before D5 may execute generated code. Material risks remain ambiguous
-response grammars creating false negatives, finite coding cases creating false
-confidence, unsafe containment, and pressure to collapse hybrid evidence.
-
+The remaining separately admitted work is a new Generic Core suite version
+with a safe containment and resource-limit design before D5 may execute
+generated code. That work is outside version `0.1.0` and is not outstanding
+`v0.73` work. Material risks remain ambiguous response grammars creating
+false negatives, finite coding cases creating false confidence, unsafe
+containment, and pressure to collapse hybrid evidence.
 
 This document therefore distinguishes four boundaries explicitly:
 

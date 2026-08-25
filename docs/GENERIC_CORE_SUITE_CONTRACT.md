@@ -224,6 +224,21 @@ Its combination rule must be declared before execution and must not infer,
 replace, fabricate, or silently zero one component when the other is absent or
 fails. Reports and comparisons must expose the component states and the applied
 rule rather than presenting an unexplained blended number.
+A deterministic component whose execution is intentionally unavailable is
+represented by the disclosed `not_run` state. `not_run` is a first-class
+check outcome, distinct from `pass`, `fail`, and `error`; it is not a pass,
+not a failure, and not evidence that the checked property holds or fails.
+Generic Core version `0.1.0` deliberately does not execute generated
+candidate code: its coding deterministic component remains `not_run`, and no
+overall or profile view may infer an executed-code result from that absent
+execution.
+
+Enabling generated-code execution would change the prompt promise, fixture
+and resource authorization, deterministic-check behavior, evidence meaning,
+security boundary, and comparability. It therefore requires a new suite
+version under a separately accepted containment and resource-limit contract;
+it must never silently change an existing released suite version such as
+`0.1.0`.
 
 Lexical checks may enforce an explicitly required literal token or serve as
 clearly labeled triage. They must not stand in for general semantic correctness,

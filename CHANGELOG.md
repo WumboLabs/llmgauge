@@ -86,6 +86,12 @@
 
 ### Documentation
 
+- Accepted the Generic Core `0.1.0` D5 release-policy boundary: the coding
+  deterministic check is intentionally non-executing, remains reproducibly
+  `not_run`, and any unexpected execution-authorization value fails closed.
+  The `v0.73` release gate no longer requires generated-code execution;
+  executable D5 evaluation is deferred to a future Generic Core suite version
+  behind a separately accepted containment and resource-limit contract.
 - Accepted the Full Model Testing capability architecture and roadmap fast
   tracks for its eight-step capability program and the separate LocalMaxxing
   performance-benchmark architecture/offline-export lane. At acceptance, it
