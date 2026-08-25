@@ -402,6 +402,14 @@ not by itself prove model admission failed. A process disappearing during a
 request is a request-execution failure unless separate startup evidence proves a
 new admission failure.
 
+Requested CPU offload is configuration input, not observed behavior: a launch
+flag alone never proves that offload occurred or that memory pressure was
+relieved. Startup/admission viability is specific to the checkpoint,
+quantization implementation, runtime build, configuration, and device under
+test. A `model_admission_load_failure` with a resource-fit classification is an
+observation about that one tested combination only and must never be generalized
+to other models, checkpoints, hosts, quantizations, or runtime versions.
+
 The observed Gemma NVFP4 event is
 `model_admission_load_failure` with a resource/VRAM-fit classification on the
 tested 12 GB configuration. Since architecture recognition and native kernel

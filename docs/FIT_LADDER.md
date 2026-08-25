@@ -140,9 +140,18 @@ Primary parent artifacts:
 - A Fit Ladder parent is not a single-run scoring target. Score the selected
   completed child directory instead. A total-failure parent has no completed
   child to score.
-- See [Fit Ladder real-workflow evidence](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
-  for bounded operator validation of total-failure and success-after-fallback
-  terminal paths.
+- Validated terminal orchestration behaviors (confirmed by operator testing;
+  identities and measurements are not product claims):
+  - When every planned context in the ladder fails, all attempts are preserved
+    with their failure classifications, no child is selected, and the parent
+    terminates with an explicit total-failure status.
+  - When a higher context fails but a lower context succeeds, the failed
+    attempt is preserved, the successful lower-context child is selected as the
+    working configuration, and remaining fallback work stops according to the
+    retry policy.
+  - The parent orchestration is never a scoring target; scoring and validation
+    apply to the selected completed child result directory. A total-failure
+    parent has no child to score.
 
 ## Claim boundary
 
