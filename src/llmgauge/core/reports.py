@@ -18,6 +18,10 @@ from llmgauge.core.multi_turn import (
     load_transcript,
 )
 from llmgauge.core.static_scoring import CODING_CORE_SUITE_ID, CODING_CORE_VERSION
+from llmgauge.core.generic_core_scoring import (
+    GENERIC_CORE_SUITE_ID,
+    GENERIC_CORE_VERSION,
+)
 
 _MISSING = object()
 
@@ -469,6 +473,92 @@ def _build_coding_core_evidence(result: dict[str, Any]) -> list[str]:
             f"{prompt_result.get('status', 'unknown')} | "
             f"{method_text} | "
             f"{deterministic.get('outcome', 'not applicable')} | "
+            f"{manual_review.get('review_state', 'missing')} | "
+            f"{manual_review.get('verdict') or 'None'} | "
+            f"{hybrid_text} |"
+        )
+    lines.append("")
+    return lines
+
+
+def _build_generic_core_evidence(result: dict[str, Any]) -> list[str]:
+    suite = result.get("suite")
+    if (
+        not isinstance(suite, dict)
+        or suite.get("suite_id") != GENERIC_CORE_SUITE_ID
+        or suite.get("suite_version") != GENERIC_CORE_VERSION
+    ):
+        return []
+
+    lines = [
+        "## Generic Core Evidence",
+        "",
+        "- A deterministic `pass` is objective structural evidence only; it is not a semantic or manual quality verdict.",
+        "- D5 (`generic-core-code-interval-merge-01`) did not execute generated code: execution is not authorized by the versioned suite resource and its deterministic outcome is `not_run`.",
+        "- Manual review remains the semantic authority for Generic Core responses.",
+        "- Incomplete hybrid evidence is not a failed prompt.",
+        "- No profile-level or overall numeric Generic Core score exists.",
+        "",
+    ]
+    selection = suite.get("selection")
+    if isinstance(selection, dict):
+        selected_profile = selection.get("selected_profile")
+        lines.extend(
+            [
+                f"- Selection kind: {selection.get('kind')}",
+                f"- Selected profile: {selected_profile or 'None (explicit custom selection)'}",
+                f"- Default profile: {selection.get('default_profile') or 'None'}",
+                "- Selected prompt order: "
+                + ", ".join(selection.get("selected_prompt_ids") or []),
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "| Prompt | Role | Generation state | Deterministic method | Deterministic outcome | Manual rubric | Manual review | Manual verdict | Hybrid evidence |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+    )
+    for prompt_result in result.get("results", []):
+        generic = prompt_result.get("generic_core")
+        if not isinstance(generic, dict):
+            continue
+        scoring_method = generic.get("scoring_method")
+        manual_review = generic.get("manual_review")
+        deterministic = generic.get("deterministic_result")
+        hybrid = generic.get("hybrid_composition")
+        if not isinstance(scoring_method, dict):
+            scoring_method = {}
+        if not isinstance(manual_review, dict):
+            manual_review = {}
+        if not isinstance(deterministic, dict):
+            deterministic = {}
+        if not isinstance(hybrid, dict):
+            hybrid = {}
+        role_text = str(scoring_method.get("role", "unknown"))
+        check = scoring_method.get("deterministic_check")
+        if isinstance(check, dict):
+            method_text = f"{check.get('id')} ({check.get('version')})"
+        else:
+            method_text = "not applicable"
+        rubric = scoring_method.get("manual_rubric")
+        if isinstance(rubric, dict):
+            rubric_text = f"{rubric.get('id')} ({rubric.get('version')})"
+        else:
+            rubric_text = "not applicable"
+        if "complete" in hybrid:
+            hybrid_text = "complete" if hybrid.get("complete") is True else "incomplete"
+        else:
+            hybrid_text = "not applicable"
+        lines.append(
+            "| "
+            f"{prompt_result.get('prompt_id')} | "
+            f"{role_text} | "
+            f"{prompt_result.get('status', 'unknown')} | "
+            f"{method_text} | "
+            f"{deterministic.get('outcome', 'not applicable')} | "
+            f"{rubric_text} | "
             f"{manual_review.get('review_state', 'missing')} | "
             f"{manual_review.get('verdict') or 'None'} | "
             f"{hybrid_text} |"
@@ -959,10 +1049,10 @@ def build_markdown_report(
         "This report summarizes local evaluation evidence for review. It is not a universal ranking, model recommendation, or production-readiness proof.",
         "",
     ]
-
     lines.extend(_build_report_scope_section())
     lines.extend(_build_evidence_summary(result))
     lines.extend(_build_coding_core_evidence(result))
+    lines.extend(_build_generic_core_evidence(result))
     lines.extend(_build_single_run_publish_readiness_notes(result))
     lines.extend(_build_transcript_evidence(result, result_dir))
 

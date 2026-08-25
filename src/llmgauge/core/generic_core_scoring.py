@@ -24,7 +24,7 @@ _CHECKS = {
     "generic-core-tool-request-v0": "generic-core-tool-record-lookup-01",
     "generic-core-context-reconciliation-v0": "generic-core-context-policy-reconcile-01",
 }
-_MANUAL_DIMENSIONS = {
+GENERIC_CORE_APPLICABILITY: dict[str, tuple[str, ...]] = {
     "generic-core-instruction-rewrite-01": (
         "instruction_following",
         "factual_accuracy",
@@ -404,7 +404,7 @@ def apply_deterministic_check(
 
 
 def manual_review_state(prompt_id: str, score_entry: Mapping[str, Any] | None) -> str:
-    dimensions = _MANUAL_DIMENSIONS.get(prompt_id)
+    dimensions = GENERIC_CORE_APPLICABILITY.get(prompt_id)
     if dimensions is None:
         raise ValueError(
             "unsupported-prompt: Generic Core manual rubric prompt is unsupported"
