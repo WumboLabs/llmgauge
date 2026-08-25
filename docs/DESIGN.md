@@ -154,7 +154,12 @@ Current non-goals / deliberate project boundaries:
   not a combined runtime ranking.
 - [Gemma 4 12B NVFP4 CPU-offload evidence](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md) —
   completed one-checkpoint, one-host admission audit; `not_viable` only for the
-  disclosed configuration after a construction-time BF16 LM-head CUDA OOM.
+  disclosed configuration after a construction-time BF16 LM-head CUDA OOM. The
+  durable product rule (requested offload is not observed offload; admission
+  viability is configuration-specific and must not be generalized) is stated
+  model-neutrally in [VLLM_RUNTIME_CONTRACT.md](VLLM_RUNTIME_CONTRACT.md).
 - [Fit Ladder real-workflow evidence](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md) —
   completed operator validation of total-failure and success-after-fallback
   terminal paths; orchestration and artifact evidence only, not model quality.
+  The sanitized statement of those validated terminal behaviors lives in
+  [FIT_LADDER.md](FIT_LADDER.md).

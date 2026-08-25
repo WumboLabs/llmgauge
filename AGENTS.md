@@ -320,6 +320,27 @@ or account or workspace identifiers. A generic HTTP 400 or other unclassified
 provider error cannot justify a behavior, fallback, compatibility, or contract
 change; reproduce and classify the cause first.
 
+## Repository content boundary
+
+The public LLMGauge repository contains the software, software tests,
+synthetic or minimized fixtures, suite and prompt definitions, rubrics, schemas
+and contracts, user/developer documentation, and sanitized product findings.
+
+The repository does NOT contain model weights, benchmark datasets, raw or
+cleaned real model outputs, scored real-model runs, benchmark result artifacts,
+model-versus-model comparison packages, hardware-specific evaluation records,
+operator logs, real public-export result trees, or provenance manifests whose
+sole purpose is authenticating a real run. Real testing belongs in ignored
+`results/`, ignored `tmp/`, or other explicitly operator-local storage.
+
+Durable lessons learned from real testing return to this repository only as
+synthetic regression tests, synthetic fixtures, sanitized product documentation,
+schema or contract clarifications, or changelog entries. Adding a real testing
+artifact as a tracked product fixture requires explicit human admission for one
+named artifact; an agent must never admit one on its own initiative. This rule
+does not govern ignored operator storage; it governs what may become tracked
+repository content.
+
 ## CLI and configuration compatibility
 
 Preserve public command names, aliases, option names, defaults, exit codes,
