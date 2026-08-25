@@ -174,9 +174,10 @@ prompt-specific native-response evidence, not an agent benchmark.
 count, and validation; `tests/test_suite_paths.py` fixes packaged presence;
 `tests/test_cli_suite_aliases.py` fixes aliases; `tests/test_suite_mirror.py`
 guards mirrored bytes; and focused scoring tests in `tests/test_scoring.py` and
-`tests/test_cli_scoring.py` exercise its rubric metadata. No tracked reviewed
-practical evidence package uses this exact version; the three tracked packages
-use the separate historical identity below.
+`tests/test_cli_scoring.py` exercise its rubric metadata. No reviewed
+practical evidence package uses this exact version; the historical runs used
+the separate source-only identity below (those run records were operator
+evaluation artifacts and are no longer tracked in this repository).
 
 ### `wumbolabs-practical-use-v1` version `0.1.0`
 
@@ -184,14 +185,16 @@ use the separate historical identity below.
   `suites/wumbolabs-practical-use-v1/`. It is intentionally source-only, has no
   packaged built-in mirror or alias, and is owned by the accepted historical
   suite contract and evidence chain rather than current prompt development.
-- **Current role:** exact source for the six-prompt historical practical run used
-  by tracked reviewed evidence and comparisons.
+- **Current role:** exact source for the six-prompt historical practical
+  evaluation runs; the run records themselves were operator evaluation
+  artifacts and are not tracked in this repository.
 - **Status:** historical, immutable, and evidence-bound. Do not rename, reorder,
   modernize, reclassify, fold into `wumbolabs-practical-v1`, or infer that its
   evidence applies to another suite version.
 - **Scoring:** the suite manifest declares no scoring profile or deterministic
-  baseline. Its tracked evidence packages preserve applied manual reviewed
-  scores and scoring provenance.
+  baseline. The historical runs applied manual reviewed scores with recorded
+  provenance; those result artifacts were never part of this repository's
+  durable product content.
 
 | Prompt ID | Category | Present scoring approach |
 | --- | --- | --- |
@@ -202,12 +205,13 @@ use the separate historical identity below.
 | `summarization/technical-run-summary` | `summarization` | Manual reviewed evidence |
 | `local-llm/consumer-gpu-advice` | `local-llm` | Manual reviewed evidence |
 
-**Dependencies:** `tests/test_practical_suite_v1_equivalence.py` fixes suite ID,
-version, prompt IDs and order, source rendering, and sanitized public derivative
-equivalence. Three tracked packages depend on it: legacy Grug, Qwen3.6, and the
-provenance-refresh Grug package under `docs/evidence/practical/`. The tracked
-Grug-versus-Qwen comparison and provenance-refresh addendum also depend on the
-exact six-prompt overlap. These artifacts are protected and remain valid.
+**Dependencies:** `tests/test_practical_suite_v1_sanitization.py` fixes suite
+ID, version, prompt IDs and order with synthetic content only; suite-level
+integrity and the source-only mirror policy are owned by
+`tests/test_suite_mirror.py`. Formerly tracked practical evidence packages
+under `docs/evidence/practical/` depended on the exact six-prompt overlap;
+those operator evaluation artifacts were removed from this repository, while
+the historical source suite itself remains tracked and unchanged.
 
 `tests/test_suite_mirror.py` currently discovers all top-level source suite
 files while asserting equality with packaged built-ins. Its broad discovery

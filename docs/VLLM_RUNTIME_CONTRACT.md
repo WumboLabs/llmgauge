@@ -449,15 +449,15 @@ is a decision, not a presumed outcome.
    single-request, non-streaming boundary plus additive schema, validator,
    report, and public-export support using the accepted standard-library
    transport approach. Server lifecycle remains operator-owned.
-3. **Fitting-model integration smoke.** Completed and recorded in
-   [VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md) for one fitting
-   Hugging Face model and one prompt on an operator-managed local server. Unit
-   tests alone do not establish integration; this smoke is the first recorded
-   real-runtime proof for the adapter slice.
+3. **Fitting-model integration smoke.** Completed for one fitting Hugging Face
+   model and one prompt on an operator-managed local server; the run record was
+   an operator-local evaluation artifact and is not tracked in this repository.
+   Unit tests alone do not establish integration.
 4. **Cross-runtime comparison methodology.** Completed:
    [VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md).
-5. **Cross-runtime comparison evidence.** Completed:
-   [VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md).
+5. **Cross-runtime comparison evidence.** Completed as bounded operator-local
+   comparisons under the accepted methodology above; the run records were
+   evaluation artifacts and are not tracked in this repository.
 6. **Server/version fingerprint capture.** Implemented in the external adapter:
    bounded `GET /version` capture, API-ready `server_state`, per-request
    `system_fingerprint`, and optional ordered-unique run-level fingerprint

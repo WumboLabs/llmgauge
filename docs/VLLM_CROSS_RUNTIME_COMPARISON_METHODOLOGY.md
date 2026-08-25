@@ -5,7 +5,6 @@
 - Scope: First bounded llama.cpp-versus-vLLM comparison under existing LLMGauge capabilities
 - Related:
   - [VLLM_RUNTIME_CONTRACT.md](VLLM_RUNTIME_CONTRACT.md)
-  - [VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md)
   - [PUBLIC_REPORTING.md](PUBLIC_REPORTING.md)
   - [RESULT_SCHEMA_V0.md](RESULT_SCHEMA_V0.md)
 
@@ -228,12 +227,11 @@ comparison output is evidence, not a leaderboard.
 
 ## Recommended first comparison experiment
 
-Selected after inspecting:
-
-- completed vLLM live smoke evidence ([VLLM_LIVE_SMOKE_EVIDENCE.md](VLLM_LIVE_SMOKE_EVIDENCE.md));
-- local untracked result artifacts for that smoke;
-- operator-local model assets and model-profile inventory (private; not
-  committed).
+Selected after inspecting the completed fitting-model external-vLLM
+integration smoke on the operator host (its run record was an operator-local
+evaluation artifact and is not tracked in this repository), together with the
+operator's local model assets and model-profile inventory (private; not
+committed).
 
 ### Selection rationale
 

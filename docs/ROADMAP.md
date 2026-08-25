@@ -108,34 +108,17 @@ does not install, start, supervise, or otherwise own the vLLM server lifecycle;
   `system_fingerprint`, and ordered-unique run-level fingerprints, with
   backward-compatible validation, reporting, and export handling.
 
-### Validated evidence
+### Validated behavior and methodology
 
-- [Live external-vLLM smoke](VLLM_LIVE_SMOKE_EVIDENCE.md): real
-  Qwen2.5-3B-Instruct server, successful readiness/request/validation/reporting;
-  historical pre-fingerprint evidence remains authoritative for that point in
-  time.
-- [Fingerprint live verification](VLLM_FINGERPRINT_LIVE_SMOKE_EVIDENCE.md):
-  vLLM `0.25.1`, `server_state=ready`,
-  `server_state_meaning=api_ready_observation`, and
-  `vllm-0.25.1-eb488855` agreed across request, prompt, and run-level artifacts.
+The adapter's real-runtime behavior was exercised by bounded operator-local
+smoke runs (readiness, request, validation, reporting, and server
+`/version`/fingerprint capture). Those run records were evaluation artifacts
+and are not tracked in this repository; historical statements about them are
+preserved in the changelog. Durable claim boundaries live in
+[VLLM_RUNTIME_CONTRACT.md](VLLM_RUNTIME_CONTRACT.md).
+
 - [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md):
   runtime-native metrics, input/template disclosure, and bounded claim rules.
-- [First prompt comparison](VLLM_CROSS_RUNTIME_COMPARISON_EVIDENCE.md):
-  `tool-honesty/fake-tool-resistance`; vLLM 31/50 (average 3.1, mixed) and
-  llama.cpp 25/50 (average 2.5, fail).
-- [Second prompt comparison](VLLM_CROSS_RUNTIME_SECOND_PROMPT_EVIDENCE.md):
-  `shell-safety/failed-command-recovery`; vLLM 32/50 (average 3.2, mixed) and
-  llama.cpp 19/50 (average 1.9, fail). The direction replicated, but these
-  two prompt-specific observations are not a benchmark or runtime ranking.
-
-### Closed investigation
-
-- [Gemma 4 12B NVFP4 CPU-offload audit](GEMMA4_12B_NVFP4_CPU_OFFLOAD_EVIDENCE.md):
-  one checkpoint, one vLLM environment, one RTX 5070 host, and one controlled
-  attempt. Mixed FP8/NVFP4 recognition was verified, but requested 4 GiB CPU
-  offload had no successful observed offload before a construction-time BF16
-  `ParallelLMHead` CUDA OOM. The server never reached readiness.
-  Classification: `not_viable` for the disclosed configuration only.
 
 ### Active limitations
 
@@ -160,73 +143,14 @@ The bounded vLLM evidence track is complete enough for the present release line.
 No immediate production feature expansion is justified solely by the current
 evidence. Future vLLM work requires a concrete product or evidence need.
 
-## Fit Ladder real-workflow evidence
+## Fit Ladder terminal-path validation
 
-The [real-workflow evidence record](FIT_LADDER_REAL_WORKFLOW_EVIDENCE.md)
-completes bounded operator validation of both principal Fit Ladder terminal
-paths:
-
-- total failure after all planned contexts produced preserved, retryable OOM
-  attempts, with no selected child;
-- success after fallback, with one preserved OOM, one completed selected child,
-  and stop before the remaining lower context.
-
-Both parents, every executed child, and both export-index records validated.
-Parent scoring was rejected in both paths; the completed selected child was
-admitted as a normal single-run scoring target. These results validate
-orchestration and artifact handling on one host, binary, and prompt. They do not
-establish model quality, optimal context, a hardware support matrix, or a
-cross-model ranking.
-
-### First reviewed public practical evidence package
-
-**Completed:** the first reviewed practical evidence package is tracked under
-[docs/evidence/practical/grug-12b-q4-k-m/](evidence/practical/grug-12b-q4-k-m/).
-
-It publishes one bounded six-prompt `wumbolabs-practical-use-v1` run for
-Grug-12B Q4_K_M on llama.cpp (RTX 5070 telemetry), with full sanitized
-`export-public` artifacts, export index, source-integrity notes, and claim
-boundaries. Classification remains `review_ready_with_caveats`: 4 pass and
-2 mixed verdicts (`unsupported_claim` on Arch/NVIDIA update advice and
-consumer-GPU local-LLM advice), legacy provenance gaps disclosed, structural
-validation only, manual scores as reviewer metadata, no ranking or
-daily-driver claim.
-
-See the [public evidence index](evidence/README.md).
-
-### Second reviewed public practical evidence package
-
-**Completed:** the second reviewed practical evidence package is tracked under
-[docs/evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/](evidence/practical/qwen3-6-35b-a3b-ud-iq2-m/).
-
-It publishes one bounded six-prompt `wumbolabs-practical-use-v1` run for
-Qwen3.6-35B-A3B UD-IQ2_M on llama.cpp (RTX 5070 telemetry), using a **new**
-source with model-file provenance, backend provenance, run fingerprint, and
-resolved `runtime-command.json`. Classification remains
-`review_ready_with_caveats`: 3 pass and 3 mixed verdicts (Arch/NVIDIA command
-imprecision; unknown-package overclaim without tools; truncated consumer-GPU
-advice with unsupported model examples). Structural validation only; manual
-scores as reviewer metadata; no ranking, daily-driver, or Grug-versus-Qwen
-comparison synthesis in this package.
-
-Qwen-specific capture caveats retained for honesty and for future comparisons:
-
-- flash attention used `auto` (current CLI default), unlike the older Grug argv
-  which did not pass an explicit flash-attention flag;
-- the suite was resolved through a temporary suite path
-  (`tmp/wumbolabs-practical-use-v1`) rather than a stable tracked suite path;
-- the operator console log records prompt order and completion but is not a
-  complete resolved execution plan (authoritative settings live in result
-  artifacts and `runtime-command.json`);
-- observed minimum VRAM headroom was about 521 MiB and is **not** a general fit
-  guarantee;
-- public-result fingerprint fields and the export-manifest
-  `source_run_fingerprint` play different roles and must remain explicitly
-  documented;
-- hardware telemetry (GPU name/VRAM samples) is observed metadata, not
-  authenticated hardware identity.
-
-See the [public evidence index](evidence/README.md).
+Both principal Fit Ladder terminal paths — total failure after all planned
+contexts, and success after fallback — were validated by bounded operator-local
+runs. Those run records were evaluation artifacts and are not tracked in this
+repository; historical statements about them are preserved in the changelog.
+The sanitized statement of those validated terminal behaviors lives in
+[FIT_LADDER.md](FIT_LADDER.md).
 
 ### Reference practical-run capture standard
 
@@ -272,79 +196,23 @@ command metadata, result JSON, or runtime-command capture. Observed telemetry is
 not authenticated identity. Fingerprints identify evidence; they do not prove
 authorship, hardware, answer quality, or transformed public-export bytes.
 
-### Completed bounded practical comparison
-
-**Completed:** the first tracked comparison across the two reviewed practical
-packages is tracked at
-[Grug-12B versus Qwen3.6 practical evidence comparison v1](evidence/comparisons/grug-vs-qwen3-6-practical-v1/).
-
-The comparison verifies the exact six-prompt overlap and reviewed scoring
-metadata, discloses architecture, quantization, provenance, runtime-command,
-flash-attention, suite-path, hardware-capture, runtime-label, VRAM, and
-completion differences before interpreting results, and preserves all mixed
-verdicts and failure labels. It confines quality observations to individual
-reviewed prompts and operational observations to the recorded settings and
-telemetry. Package averages remain descriptive reviewer metadata; the document
-does not declare a winner, ranking, purchasing choice, daily-driver choice,
-model-family advantage, safety result, or generalized fit.
-
-Methodology differences materially limit attribution: the packages use a dense
-Gemma-family Q4_K_M artifact and a Qwen3.6 MoE UD-IQ2_M artifact; the Grug run
-has legacy provenance and no resolved runtime-command artifact; flash-attention
-and runtime-label capture differ; both results record a temporary suite path;
-both hardware records omit CPU, RAM, OS, and driver metadata; and Qwen's
-consumer-GPU answer is truncated. See the comparison for the exact supported,
-qualified, and unsupported claims.
-
 ### Historical Practical Suite v0.1.0 source
 
 **Completed:** the exact historical `wumbolabs-practical-use-v1` version
 `0.1.0` source is tracked at
 [`suites/wumbolabs-practical-use-v1/`](../suites/wumbolabs-practical-use-v1/).
 The source preserves the original `suite.yaml`, six prompt files, suite
-identity, and prompt order without modernization. Focused verification
-establishes private canonical source and rendering equivalence against the
-authorized ignored reference, then deterministic sanitized derivative
-equivalence against both existing practical evidence packages.
+identity, and prompt order without modernization. `tests/test_suite_mirror.py`
+pins the suite's file SHA-256 values and enforces its intentionally
+source-only status; `tests/test_practical_suite_v1_sanitization.py` checks
+loadability and the public-export sanitizer contract with synthetic content
+only.
 
 The path-bearing private `docker/compose-review` rendering intentionally differs
 from its redacted public derivatives before sanitization. The existing
 `wumbolabs-practical-v1` version `0.2.0` suite remains a separate identity.
 These byte-equivalence checks do not establish answer quality, scoring
 correctness, privacy completeness, or publication readiness.
-
-### Provenance-refresh Grug practical evidence package
-
-**Completed:** the separate provenance-refresh Grug-12B Q4_K_M package is
-tracked at
-[docs/evidence/practical/grug-12b-q4-k-m-provenance-refresh-v1/](evidence/practical/grug-12b-q4-k-m-provenance-refresh-v1/).
-
-The source used the stable tracked historical suite, explicit reference
-settings, model and executable/backend provenance, observed runtime identity,
-resolved `runtime-command.json`, run fingerprint, operator start/end capture,
-privacy-safe hardware disclosure, and complete raw/cleaned/stderr/VRAM
-evidence. All six prompts completed once with zero retries. Manual review
-recorded 2 pass, 3 mixed, and 1 fail verdict (3.71 / 5 reviewer average), with
-unsupported claims and instruction failures preserved rather than repaired.
-
-The package is a new bounded source. It does not modify or supersede the legacy
-Grug package, rescore Qwen, establish a regression, or support ranking,
-recommendation, safety, or generalized fit claims.
-
-### Completed provenance-refresh practical comparison addendum
-
-**Completed:** the separate
-[Grug provenance-refresh practical comparison addendum](evidence/comparisons/grug-vs-qwen3-6-practical-v1/PROVENANCE_REFRESH_ADDENDUM.md)
-incorporates the refreshed Grug source without replacing the original
-two-package comparison.
-
-The addendum preserves legacy Grug, refreshed Grug, and Qwen3.6 as distinct
-evidence roles; verifies their exact six byte-identical public prompts; and
-places provenance, suite-path, command, runtime, hardware, timing, completion,
-and source-integrity differences before response-specific observations. It
-retains every reviewed verdict and material failure label, treats package
-averages as descriptive metadata only, and makes no regression, winner,
-ranking, recommendation, or generalized fit claim.
 
 ### General evaluation taxonomy contract
 
