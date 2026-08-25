@@ -12,6 +12,17 @@ from llmgauge.core.coding_core_evidence import (
     build_manual_review,
     build_method_provenance,
 )
+from llmgauge.core.generic_core_evidence import (
+    build_manual_review as build_generic_manual_review,
+    build_method_provenance as build_generic_method_provenance,
+)
+from llmgauge.core.generic_core_scoring import (
+    GENERIC_CORE_APPLICABILITY,
+    GENERIC_CORE_MANUAL_RUBRIC_ID,
+    GENERIC_CORE_SUITE_ID,
+    GENERIC_CORE_VERSION,
+    manual_review_state as generic_core_manual_review_state,
+)
 from llmgauge.core.static_scoring import (
     CODING_CORE_APPLICABILITY,
     CODING_CORE_DIMENSIONS,
@@ -355,10 +366,71 @@ def _coding_core_score_profile(result: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _generic_core_score_profile(result: dict[str, Any]) -> dict[str, Any] | None:
+    suite = result.get("suite")
+    if not isinstance(suite, dict) or suite.get("suite_id") != GENERIC_CORE_SUITE_ID:
+        return None
+    if suite.get("suite_version") != GENERIC_CORE_VERSION:
+        raise ValueError(
+            "unsupported-suite: Generic Core suite ID/version is unsupported"
+        )
+    suite_path = suite.get("suite_path")
+    if not isinstance(suite_path, str) or not suite_path:
+        raise ValueError(
+            "suite-root-unavailable: selected Generic Core suite root is unavailable"
+        )
+    prompt_ids = tuple(
+        item.get("prompt_id")
+        for item in result.get("results", [])
+        if isinstance(item, dict)
+    )
+    if not prompt_ids or not all(
+        isinstance(prompt_id, str) for prompt_id in prompt_ids
+    ):
+        raise ValueError(
+            "prompt-selection-invalid: Generic Core result prompt selection is invalid"
+        )
+    try:
+        normalized = load_normalized_suite(Path(suite_path), prompt_ids=prompt_ids)
+    except FileNotFoundError:
+        raise ValueError(
+            "suite-root-unavailable: selected Generic Core suite root is unavailable"
+        ) from None
+    except SuiteDefinitionError as exc:
+        raise ValueError(str(exc)) from None
+
+    for prompt in normalized.selected_prompts:
+        scoring = prompt.scoring
+        rubric = scoring.manual_rubric if scoring is not None else None
+        if rubric is not None and (
+            rubric.id,
+            rubric.version,
+        ) != (GENERIC_CORE_MANUAL_RUBRIC_ID, GENERIC_CORE_VERSION):
+            raise ValueError(
+                "prompt-method-mismatch: Generic Core manual rubric does not match prompt"
+            )
+    return {
+        "scale": SCORE_SCALE,
+        "rubric_id": GENERIC_CORE_MANUAL_RUBRIC_ID,
+        "rubric_version": GENERIC_CORE_VERSION,
+        "dimensions": list(SCORE_DIMENSIONS),
+        "failure_labels": [],
+        "good_labels": [],
+        "prompt_dimensions": {
+            prompt.id: tuple(GENERIC_CORE_APPLICABILITY[prompt.id])
+            for prompt in normalized.selected_prompts
+            if prompt.id in GENERIC_CORE_APPLICABILITY
+        },
+        "generic_core": True,
+        "normalized_suite": normalized,
+    }
+
+
 def _score_profile_for_result(result: dict[str, Any]) -> dict[str, Any]:
     require_native_result(result, consumer="Native scoring")
     return (
         _coding_core_score_profile(result)
+        or _generic_core_score_profile(result)
         or _load_suite_scoring(result)
         or _default_score_profile()
     )
@@ -378,12 +450,16 @@ def build_score_template(result: dict[str, Any]) -> dict[str, Any]:
     dimensions = profile["dimensions"]
     prompt_dimensions = profile.get("prompt_dimensions", {})
     coding_core = profile.get("coding_core") is True
+    generic_core = profile.get("generic_core") is True
 
     scores: dict[str, Any] = {}
 
     for prompt_result in result.get("results", []):
         prompt_id = prompt_result["prompt_id"]
-        applicable = prompt_dimensions.get(prompt_id, dimensions)
+        if coding_core or generic_core:
+            applicable = prompt_dimensions.get(prompt_id, ())
+        else:
+            applicable = prompt_dimensions.get(prompt_id, dimensions)
         entry = {dimension: None for dimension in applicable}
         entry.update(
             {
@@ -394,7 +470,7 @@ def build_score_template(result: dict[str, Any]) -> dict[str, Any]:
                 "verdict": "",
             }
         )
-        if coding_core:
+        if coding_core or generic_core:
             entry.update(
                 {
                     "scoring_mode": "manual",
@@ -433,6 +509,189 @@ def _add_allowed_label(
             labels.append(candidate)
             return candidate
     return None
+
+
+def validate_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    profile = _score_profile_for_result(result)
+    coding_core = profile.get("coding_core") is True
+    generic_core = profile.get("generic_core") is True
+    review_required = coding_core or generic_core
+    prompt_dimensions = profile.get("prompt_dimensions", {})
+
+    if review_required:
+        expected_metadata = {
+            "scale": SCORE_SCALE,
+            "rubric_id": profile["rubric_id"],
+            "rubric_version": profile["rubric_version"],
+            "dimensions": list(profile["dimensions"]),
+            "failure_labels": [],
+            "good_labels": [],
+        }
+        for field, expected in expected_metadata.items():
+            if scores_data.get(field) != expected:
+                errors.append(
+                    f"scores.yaml field {field!r} does not match "
+                    f"{profile['rubric_id']} {profile['rubric_version']}"
+                )
+
+    if scores_data.get("schema_version") != SCORE_SCHEMA_VERSION:
+        errors.append(f"scores.yaml schema_version must be {SCORE_SCHEMA_VERSION}")
+
+    expected_run_id = result["run"]["run_id"]
+    found_run_id = scores_data.get("run_id")
+    if found_run_id != expected_run_id:
+        errors.append(
+            f"scores.yaml run_id {found_run_id!r} does not match {expected_run_id!r}"
+        )
+
+    dimensions = _score_dimensions(scores_data)
+
+    failure_label_vocab = scores_data.get("failure_labels", DEFAULT_FAILURE_LABELS)
+    good_label_vocab = scores_data.get("good_labels", DEFAULT_GOOD_LABELS)
+
+    if not isinstance(failure_label_vocab, list) or not all(
+        isinstance(item, str) for item in failure_label_vocab
+    ):
+        errors.append("scores.yaml field 'failure_labels' must be a list of strings")
+        failure_label_vocab = []
+
+    if not isinstance(good_label_vocab, list) or not all(
+        isinstance(item, str) for item in good_label_vocab
+    ):
+        errors.append("scores.yaml field 'good_labels' must be a list of strings")
+        good_label_vocab = []
+
+    allowed_failure_labels = set(failure_label_vocab)
+    allowed_good_labels = set(good_label_vocab)
+
+    scores = scores_data.get("scores")
+    if not isinstance(scores, dict):
+        errors.append("scores.yaml field 'scores' must be a mapping")
+        return errors
+
+    prompt_ids = {item["prompt_id"] for item in result.get("results", [])}
+
+    for prompt_id in scores:
+        if prompt_id not in prompt_ids:
+            errors.append(f"scores.yaml contains unknown prompt_id: {prompt_id}")
+
+    for prompt_id in prompt_ids:
+        if prompt_id not in scores:
+            errors.append(f"scores.yaml missing prompt_id: {prompt_id}")
+            continue
+
+        score_entry = scores[prompt_id]
+        if not isinstance(score_entry, dict):
+            errors.append(f"scores.yaml entry for {prompt_id} must be a mapping")
+            continue
+
+        for field in dimensions:
+            error = _validate_score_value(prompt_id, field, score_entry.get(field))
+            if error:
+                errors.append(error)
+
+        errors.extend(
+            _validate_labels(
+                prompt_id,
+                "failure_labels",
+                score_entry.get("failure_labels", []),
+                allowed_failure_labels,
+            )
+        )
+        errors.extend(
+            _validate_labels(
+                prompt_id,
+                "good_labels",
+                score_entry.get("good_labels", []),
+                allowed_good_labels,
+            )
+        )
+
+        reviewer_notes = score_entry.get("reviewer_notes", "")
+        if not isinstance(reviewer_notes, str):
+            errors.append(f"{prompt_id}.reviewer_notes must be a string")
+
+        for string_field in [
+            "scoring_mode",
+            "scorer_id",
+            "scorer_version",
+            "confidence",
+            "override_status",
+        ]:
+            value = score_entry.get(string_field, "")
+            if value is not None and not isinstance(value, str):
+                errors.append(f"{prompt_id}.{string_field} must be a string")
+
+        for list_field in ["evidence", "warnings"]:
+            value = score_entry.get(list_field, [])
+            if not isinstance(value, list) or not all(
+                isinstance(item, str) for item in value
+            ):
+                errors.append(f"{prompt_id}.{list_field} must be a list of strings")
+
+        reviewed = score_entry.get("reviewed", not review_required)
+        if not isinstance(reviewed, bool):
+            errors.append(f"{prompt_id}.reviewed must be a boolean")
+
+        score_rationale = score_entry.get("score_rationale", "")
+        if not isinstance(score_rationale, str):
+            errors.append(f"{prompt_id}.score_rationale must be a string")
+
+        verdict = score_entry.get("verdict", "")
+        if not isinstance(verdict, str):
+            errors.append(f"{prompt_id}.verdict must be a string")
+        elif verdict not in ALLOWED_VERDICTS:
+            allowed = ", ".join(repr(item) for item in ALLOWED_VERDICTS)
+            errors.append(f"{prompt_id}.verdict must be one of: {allowed}")
+        if review_required:
+            applicable = prompt_dimensions.get(prompt_id, ())
+            for field in profile["dimensions"]:
+                if field not in applicable and score_entry.get(field) is not None:
+                    errors.append(
+                        f"{prompt_id}.{field} is not applicable and must be null or absent"
+                    )
+
+            numeric_values = [
+                score_entry.get(field)
+                for field in applicable
+                if not isinstance(score_entry.get(field), bool)
+                and isinstance(score_entry.get(field), int | float)
+            ]
+            if reviewed is True:
+                scorer_id = score_entry.get("scorer_id")
+                if not isinstance(scorer_id, str) or not scorer_id.strip():
+                    errors.append(
+                        f"{prompt_id}.scorer_id is required for a reviewed "
+                        "manual-review-mode score"
+                    )
+                rationale_present = isinstance(score_rationale, str) and bool(
+                    score_rationale.strip()
+                )
+                if numeric_values and not rationale_present:
+                    errors.append(
+                        f"{prompt_id}.score_rationale is required for reviewed "
+                        "non-null dimensions"
+                    )
+                if len(numeric_values) == len(applicable):
+                    if verdict not in {"pass", "mixed", "fail"}:
+                        errors.append(
+                            f"{prompt_id}.verdict must be pass, mixed, or fail "
+                            "for a fully reviewed score"
+                        )
+                elif numeric_values:
+                    if verdict != "needs_review":
+                        errors.append(
+                            f"{prompt_id}.verdict must be needs_review "
+                            "for a partial review"
+                        )
+                elif verdict != "needs_review" or not rationale_present:
+                    errors.append(
+                        f"{prompt_id} unscoreable review requires needs_review "
+                        "and a rationale"
+                    )
+
+    return errors
 
 
 def _read_prompt_output(
@@ -793,195 +1052,17 @@ def _validate_labels(
     return errors
 
 
-def validate_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-    profile = _score_profile_for_result(result)
-    coding_core = profile.get("coding_core") is True
-    prompt_dimensions = profile.get("prompt_dimensions", {})
-
-    if coding_core:
-        expected_metadata = {
-            "scale": SCORE_SCALE,
-            "rubric_id": CODING_CORE_MANUAL_RUBRIC_ID,
-            "rubric_version": CODING_CORE_VERSION,
-            "dimensions": list(CODING_CORE_DIMENSIONS),
-            "failure_labels": [],
-            "good_labels": [],
-        }
-        for field, expected in expected_metadata.items():
-            if scores_data.get(field) != expected:
-                errors.append(
-                    f"scores.yaml field {field!r} does not match "
-                    f"{CODING_CORE_MANUAL_RUBRIC_ID} {CODING_CORE_VERSION}"
-                )
-
-    if scores_data.get("schema_version") != SCORE_SCHEMA_VERSION:
-        errors.append(f"scores.yaml schema_version must be {SCORE_SCHEMA_VERSION}")
-
-    expected_run_id = result["run"]["run_id"]
-    found_run_id = scores_data.get("run_id")
-    if found_run_id != expected_run_id:
-        errors.append(
-            f"scores.yaml run_id {found_run_id!r} does not match {expected_run_id!r}"
-        )
-
-    dimensions = _score_dimensions(scores_data)
-
-    failure_label_vocab = scores_data.get("failure_labels", DEFAULT_FAILURE_LABELS)
-    good_label_vocab = scores_data.get("good_labels", DEFAULT_GOOD_LABELS)
-
-    if not isinstance(failure_label_vocab, list) or not all(
-        isinstance(item, str) for item in failure_label_vocab
-    ):
-        errors.append("scores.yaml field 'failure_labels' must be a list of strings")
-        failure_label_vocab = []
-
-    if not isinstance(good_label_vocab, list) or not all(
-        isinstance(item, str) for item in good_label_vocab
-    ):
-        errors.append("scores.yaml field 'good_labels' must be a list of strings")
-        good_label_vocab = []
-
-    allowed_failure_labels = set(failure_label_vocab)
-    allowed_good_labels = set(good_label_vocab)
-
-    scores = scores_data.get("scores")
-    if not isinstance(scores, dict):
-        errors.append("scores.yaml field 'scores' must be a mapping")
-        return errors
-
-    prompt_ids = {item["prompt_id"] for item in result.get("results", [])}
-
-    for prompt_id in scores:
-        if prompt_id not in prompt_ids:
-            errors.append(f"scores.yaml contains unknown prompt_id: {prompt_id}")
-
-    for prompt_id in prompt_ids:
-        if prompt_id not in scores:
-            errors.append(f"scores.yaml missing prompt_id: {prompt_id}")
-            continue
-
-        score_entry = scores[prompt_id]
-        if not isinstance(score_entry, dict):
-            errors.append(f"scores.yaml entry for {prompt_id} must be a mapping")
-            continue
-
-        for field in dimensions:
-            error = _validate_score_value(prompt_id, field, score_entry.get(field))
-            if error:
-                errors.append(error)
-
-        errors.extend(
-            _validate_labels(
-                prompt_id,
-                "failure_labels",
-                score_entry.get("failure_labels", []),
-                allowed_failure_labels,
-            )
-        )
-        errors.extend(
-            _validate_labels(
-                prompt_id,
-                "good_labels",
-                score_entry.get("good_labels", []),
-                allowed_good_labels,
-            )
-        )
-
-        reviewer_notes = score_entry.get("reviewer_notes", "")
-        if not isinstance(reviewer_notes, str):
-            errors.append(f"{prompt_id}.reviewer_notes must be a string")
-
-        for string_field in [
-            "scoring_mode",
-            "scorer_id",
-            "scorer_version",
-            "confidence",
-            "override_status",
-        ]:
-            value = score_entry.get(string_field, "")
-            if value is not None and not isinstance(value, str):
-                errors.append(f"{prompt_id}.{string_field} must be a string")
-
-        for list_field in ["evidence", "warnings"]:
-            value = score_entry.get(list_field, [])
-            if not isinstance(value, list) or not all(
-                isinstance(item, str) for item in value
-            ):
-                errors.append(f"{prompt_id}.{list_field} must be a list of strings")
-
-        reviewed = score_entry.get("reviewed", not coding_core)
-        if not isinstance(reviewed, bool):
-            errors.append(f"{prompt_id}.reviewed must be a boolean")
-
-        score_rationale = score_entry.get("score_rationale", "")
-        if not isinstance(score_rationale, str):
-            errors.append(f"{prompt_id}.score_rationale must be a string")
-
-        verdict = score_entry.get("verdict", "")
-        if not isinstance(verdict, str):
-            errors.append(f"{prompt_id}.verdict must be a string")
-        elif verdict not in ALLOWED_VERDICTS:
-            allowed = ", ".join(repr(item) for item in ALLOWED_VERDICTS)
-            errors.append(f"{prompt_id}.verdict must be one of: {allowed}")
-        if coding_core:
-            applicable = prompt_dimensions[prompt_id]
-            for field in CODING_CORE_DIMENSIONS:
-                if field not in applicable and score_entry.get(field) is not None:
-                    errors.append(
-                        f"{prompt_id}.{field} is not applicable and must be null or absent"
-                    )
-
-            numeric_values = [
-                score_entry.get(field)
-                for field in applicable
-                if not isinstance(score_entry.get(field), bool)
-                and isinstance(score_entry.get(field), int | float)
-            ]
-            if reviewed is True:
-                scorer_id = score_entry.get("scorer_id")
-                if not isinstance(scorer_id, str) or not scorer_id.strip():
-                    errors.append(
-                        f"{prompt_id}.scorer_id is required for a reviewed Coding Core score"
-                    )
-                rationale_present = isinstance(score_rationale, str) and bool(
-                    score_rationale.strip()
-                )
-                if numeric_values and not rationale_present:
-                    errors.append(
-                        f"{prompt_id}.score_rationale is required for reviewed "
-                        "non-null dimensions"
-                    )
-                if len(numeric_values) == len(applicable):
-                    if verdict not in {"pass", "mixed", "fail"}:
-                        errors.append(
-                            f"{prompt_id}.verdict must be pass, mixed, or fail "
-                            "for a fully reviewed score"
-                        )
-                elif numeric_values:
-                    if verdict != "needs_review":
-                        errors.append(
-                            f"{prompt_id}.verdict must be needs_review "
-                            "for a partial review"
-                        )
-                elif verdict != "needs_review" or not rationale_present:
-                    errors.append(
-                        f"{prompt_id} unscoreable review requires needs_review "
-                        "and a rationale"
-                    )
-
-    return errors
-
-
 def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[str, Any]:
     scores = scores_data["scores"]
     dimensions = _score_dimensions(scores_data)
     profile = _score_profile_for_result(result)
     coding_core = profile.get("coding_core") is True
+    generic_core = profile.get("generic_core") is True
+    review_required = coding_core or generic_core
     prompt_dimensions = profile.get("prompt_dimensions", {})
-    coding_prompts = (
+    suite_prompts = (
         {prompt.id: prompt for prompt in profile["normalized_suite"].selected_prompts}
-        if coding_core
+        if review_required
         else {}
     )
 
@@ -995,7 +1076,11 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
         prompt_id = prompt_result["prompt_id"]
         score_entry = scores[prompt_id]
 
-        applicable_dimensions = prompt_dimensions.get(prompt_id, dimensions)
+        applicable_dimensions = (
+            prompt_dimensions.get(prompt_id, ())
+            if review_required
+            else prompt_dimensions.get(prompt_id, dimensions)
+        )
         dimension_scores = {
             field: score_entry.get(field) for field in applicable_dimensions
         }
@@ -1012,10 +1097,13 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             round(prompt_total / len(numeric_scores), 2) if numeric_scores else None
         )
 
-        if numeric_scores and not coding_core:
+        if numeric_scores and not review_required:
             manual_score_total += float(sum(numeric_scores))
             manual_score_max += float(len(numeric_scores) * 5)
             scored_prompt_count += 1
+        elif generic_core and prompt_id in GENERIC_CORE_APPLICABILITY:
+            if generic_core_manual_review_state(prompt_id, score_entry) == "reviewed":
+                scored_prompt_count += 1
         elif coding_core and manual_review_state(prompt_id, score_entry) == "reviewed":
             scored_prompt_count += 1
 
@@ -1045,14 +1133,14 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
             "scoring_mode": score_entry.get("scoring_mode") or "manual",
             "scorer_id": (
                 score_entry.get("scorer_id", "")
-                if coding_core
+                if review_required
                 else score_entry.get("scorer_id") or "human-reviewer"
             ),
             "scorer_version": score_entry.get("scorer_version", ""),
             "confidence": score_entry.get("confidence", ""),
             "evidence": score_entry.get("evidence", []),
             "warnings": score_entry.get("warnings", []),
-            "reviewed": score_entry.get("reviewed", not coding_core),
+            "reviewed": score_entry.get("reviewed", not review_required),
             "override_status": score_entry.get("override_status") or "none",
         }
 
@@ -1063,7 +1151,7 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
                     raise ValueError(
                         "coding-core-evidence-invalid: prompt evidence must be an object"
                     )
-                prompt = coding_prompts[prompt_id]
+                prompt = suite_prompts[prompt_id]
                 expected_method = build_method_provenance(prompt)
                 if (
                     coding_evidence.get("response_form")
@@ -1103,20 +1191,61 @@ def apply_scores(result: dict[str, Any], scores_data: dict[str, Any]) -> dict[st
                         "contains deterministic or hybrid evidence"
                     )
 
+        elif generic_core and prompt_id in GENERIC_CORE_APPLICABILITY:
+            generic_evidence = prompt_result.get("generic_core")
+            if generic_evidence is not None:
+                if not isinstance(generic_evidence, dict):
+                    raise ValueError(
+                        "generic-core-evidence-invalid: prompt evidence must be an object"
+                    )
+                prompt = suite_prompts[prompt_id]
+                expected_method = build_generic_method_provenance(prompt)
+                if (
+                    generic_evidence.get("scoring_method")
+                    != expected_method["scoring_method"]
+                    or generic_evidence.get("fixture_references")
+                    != expected_method["fixture_references"]
+                ):
+                    raise ValueError(
+                        "prompt-method-mismatch: persisted Generic Core method "
+                        "provenance does not match the selected prompt"
+                    )
+                generic_evidence["manual_review"] = build_generic_manual_review(
+                    prompt, prompt_result["score"]
+                )
+                if (
+                    prompt.scoring is not None
+                    and prompt.scoring.role is ScoringRole.HYBRID
+                ):
+                    deterministic = generic_evidence.get("deterministic_result")
+                    if not isinstance(deterministic, dict):
+                        raise ValueError(
+                            "invalid-deterministic-component: persisted Generic Core "
+                            "deterministic evidence is absent or malformed"
+                        )
+                    generic_evidence["hybrid_composition"] = compose_hybrid_score(
+                        profile["normalized_suite"],
+                        prompt_id,
+                        deterministic,
+                        prompt_result["score"],
+                    )
+
         prompt_result["failure_labels"] = failure_labels
         prompt_result["notes"] = score_entry.get("reviewer_notes", "")
 
     result["summary"]["manual_score_total"] = (
         round(manual_score_total, 2)
-        if scored_prompt_count and not coding_core
+        if scored_prompt_count and not review_required
         else None
     )
     result["summary"]["manual_score_max"] = (
-        round(manual_score_max, 2) if scored_prompt_count and not coding_core else None
+        round(manual_score_max, 2)
+        if scored_prompt_count and not review_required
+        else None
     )
     result["summary"]["manual_score_average"] = (
         round(manual_score_total / (manual_score_max / 5), 2)
-        if manual_score_max and not coding_core
+        if manual_score_max and not review_required
         else None
     )
     result["summary"]["scored_prompt_count"] = scored_prompt_count

@@ -464,7 +464,7 @@ def _check_score_shape(errors: list[str], prompt_id: str, score: Any) -> None:
         errors.append(f"{prompt_id}.score.reviewed must be a boolean")
 
 
-_CODING_SELECTION_FIELDS = {
+_SELECTION_FIELDS = {
     "kind",
     "selected_profile",
     "selected_prompt_ids",
@@ -590,7 +590,7 @@ def _validate_optional_coding_core(
         errors.append(
             "suite.selection is required when Coding Core prompt evidence is present"
         )
-    elif not isinstance(selection, dict) or set(selection) != _CODING_SELECTION_FIELDS:
+    elif not isinstance(selection, dict) or set(selection) != _SELECTION_FIELDS:
         errors.append("suite.selection must be a closed Coding Core selection object")
     else:
         selected_ids = selection.get("selected_prompt_ids")
@@ -813,12 +813,13 @@ def _validate_optional_generic_core(
     generic_results = [
         item for item in results if isinstance(item, dict) and "generic_core" in item
     ]
-    if not generic_results:
+    is_generic_suite = (
+        suite_data.get("suite_id") == GENERIC_CORE_SUITE_ID
+        and suite_data.get("suite_version") == GENERIC_CORE_VERSION
+    )
+    if not generic_results and not is_generic_suite:
         return errors
-    if (
-        suite_data.get("suite_id") != GENERIC_CORE_SUITE_ID
-        or suite_data.get("suite_version") != GENERIC_CORE_VERSION
-    ):
+    if not is_generic_suite:
         return ["Generic Core evidence requires the supported suite ID/version"]
     try:
         contract = load_normalized_suite(
@@ -828,6 +829,124 @@ def _validate_optional_generic_core(
         return [
             "Generic Core result evidence cannot be validated because the logical suite contract is unavailable"
         ]
+
+    selection = suite_data.get("selection")
+    result_prompt_ids = [
+        item.get("prompt_id") for item in results if isinstance(item, dict)
+    ]
+    if selection is None:
+        errors.append("suite.selection is required for a Generic Core result")
+    elif not isinstance(selection, dict) or set(selection) != _SELECTION_FIELDS:
+        errors.append("suite.selection must be a closed Generic Core selection object")
+    else:
+        selected_ids = selection.get("selected_prompt_ids")
+        canonical_ids = selection.get("canonical_prompt_ids")
+        kind = selection.get("kind")
+        selected_profile = selection.get("selected_profile")
+        if selected_ids != result_prompt_ids:
+            errors.append(
+                "suite.selection.selected_prompt_ids must exactly match result prompt ordering"
+            )
+        prompt_count = suite_data.get("prompt_count")
+        if (
+            isinstance(prompt_count, bool)
+            or not isinstance(prompt_count, int)
+            or prompt_count != len(results)
+            or not isinstance(selected_ids, list)
+            or prompt_count != len(selected_ids)
+        ):
+            errors.append(
+                "suite.prompt_count must match exact selected membership and result count"
+            )
+        if canonical_ids != list(contract.canonical_prompt_ids):
+            errors.append(
+                "suite.selection.canonical_prompt_ids must match the logical Generic Core contract"
+            )
+        if selection.get("default_profile") != contract.default_profile:
+            errors.append(
+                "suite.selection.default_profile must match the logical Generic Core contract"
+            )
+        if kind == "profile":
+            profile_ids = (
+                contract.profiles.get(selected_profile)
+                if isinstance(selected_profile, str)
+                else None
+            )
+            if profile_ids is None or selected_ids != list(profile_ids):
+                errors.append(
+                    "suite.selection profile identity and membership are inconsistent"
+                )
+        elif kind == "custom":
+            canonical_positions = {
+                prompt_id: index
+                for index, prompt_id in enumerate(contract.canonical_prompt_ids)
+            }
+            valid_ids = (
+                isinstance(selected_ids, list)
+                and bool(selected_ids)
+                and all(
+                    isinstance(prompt_id, str) and prompt_id in canonical_positions
+                    for prompt_id in selected_ids
+                )
+            )
+            positions = (
+                [canonical_positions[prompt_id] for prompt_id in selected_ids]
+                if valid_ids
+                else []
+            )
+            if (
+                selected_profile is not None
+                or not valid_ids
+                or len(selected_ids) != len(set(selected_ids))
+                or positions != sorted(positions)
+            ):
+                errors.append(
+                    "suite.selection custom membership must be unique and in canonical order"
+                )
+        else:
+            errors.append(
+                "suite.selection.kind must be profile or custom for Generic Core"
+            )
+
+        include = suite_data.get("include")
+        only = suite_data.get("only")
+        if not isinstance(include, str) or not include:
+            errors.append(
+                "suite.include must be non-empty invocation metadata when selection is represented"
+            )
+        if only is not None:
+            if (
+                not isinstance(only, str)
+                or not only
+                or not isinstance(selected_ids, list)
+                or selected_ids != [only]
+            ):
+                errors.append(
+                    "suite.only must equal the sole selected prompt when non-null"
+                )
+        elif kind == "profile":
+            if include != "all":
+                errors.append(
+                    "profile selection requires compatible include=all invocation metadata"
+                )
+        elif kind == "custom":
+            categories = [
+                item.get("category") for item in results if isinstance(item, dict)
+            ]
+            if (
+                include == "all"
+                or not isinstance(include, str)
+                or not include
+                or len(categories) != len(results)
+                or any(category != include for category in categories)
+            ):
+                errors.append(
+                    "custom selection without suite.only requires matching category invocation metadata"
+                )
+
+    if len(generic_results) != len(results):
+        errors.append("Generic Core evidence must be present for every selected prompt")
+
     prompts = {prompt.id: prompt for prompt in contract.prompts}
     for prompt_result in generic_results:
         prompt_id = prompt_result.get("prompt_id")

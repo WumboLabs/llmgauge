@@ -303,6 +303,24 @@ deterministic evidence, and source/package discovery through the existing
 profile-aware loader. D5 generated-code execution and the `v0.73`
 release-preparation milestone remain deferred.
 
+### Generic Core result-provenance integration
+
+**Completed:** Generic Core results now carry fail-closed selection provenance
+and full manual-review workflow support. Result validation rejects
+inconsistent `generic-core-v1` suite identity, exact ordered profile or custom
+membership, invocation metadata, or missing per-prompt evidence, while
+replaying deterministic checks against authoritative raw responses. Native
+reports expose selected profile/custom membership, scoring roles, check/rubric
+identities and versions, deterministic/manual/hybrid component states, and D5's
+explicit non-execution without inventing a numeric aggregate. Score templates
+and applied scores use per-prompt applicable dimensions under
+`default-manual-v0` `0.1.0`, require reviewed provenance, and recompose
+side-by-side hybrid evidence without rerunning checks.
+
+D5 generated-code execution still requires the separate accepted containment
+and resource-limit contract, and the `v0.73` release gate remains deferred on
+that decision.
+
 ## v0.72 completed release scope
 
 The following profile-aware suite foundation is complete in `v0.72`:

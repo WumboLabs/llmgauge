@@ -12,6 +12,18 @@
   raw responses and versioned contained fixtures. D1/D3/D5 retain independent
   side-by-side manual review; D5 is explicitly `not_run` because generated-code
   execution remains unauthorized. No profile aggregate was added.
+- Completed Generic Core result provenance: `validate-result` now fail-closes
+  on `generic-core-v1` selection identity, exact ordered profile or custom
+  membership, invocation metadata, and per-prompt evidence coverage, and the
+  native report exposes selected profile/custom membership, scoring roles,
+  check/rubric identities and versions, deterministic/manual/hybrid component
+  states, and D5's explicit non-execution. No profile aggregate was added.
+- Added `generic-core-v1` manual-review workflow support: score templates and
+  applied scores now carry per-prompt applicable dimensions under
+  `default-manual-v0` `0.1.0`, require explicit reviewed provenance, and
+  recompose independent side-by-side hybrid evidence without rerunning
+  deterministic checks. Deterministic-role prompts receive no manual
+  dimensions, and no numeric profile aggregate is produced.
 - Added read-only import of supported EleutherAI `lm-eval` harness
   results as `llmgauge.external_benchmark_evidence.v0` under a dedicated
   `llmgauge.result.v0`. The importer copies admitted source bytes,
