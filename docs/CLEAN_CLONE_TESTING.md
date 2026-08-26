@@ -96,16 +96,26 @@ llmgauge --version
 
 Use the same `XDG_CONFIG_HOME` isolation when testing the installed command.
 
-## GitHub installed CLI path
+## Installed CLI from PyPI
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.73
+uv tool install llmgauge
 llmgauge --version
 ```
 
-This validates the latest formal release tag (`v0.73`, package/CLI version
-`0.73.0`). Reinstall with `--force` only when intentionally retesting that
-tag.
+This validates the current production release (package/CLI version `0.74.0`
+for v0.74). Use `uv tool upgrade llmgauge` after a new release, or
+`uv tool install --force` only when intentionally retesting.
+
+## Installed CLI from a Git tag (pinned source / fallback)
+
+```bash
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.74
+llmgauge --version
+```
+
+This validates an exact released tag from source. Reinstall with `--force`
+only when intentionally retesting that tag.
 
 ## Pre-init doctor and smoke expectations
 

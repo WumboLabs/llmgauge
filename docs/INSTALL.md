@@ -2,12 +2,14 @@
 
 LLMGauge install paths depend on audience:
 
-1. installed end users: validated tagged GitHub install (`v0.73`), then run
+1. installed end users: PyPI install (`uv tool install llmgauge`), then run
    `llmgauge ...` directly
-2. contributors and unreleased development: source checkout with
-   `uv run llmgauge ...`
-3. editable local install: development convenience only, not the formal
-   released-user workflow
+2. alternative isolated CLI install: `pipx install llmgauge`
+3. environment-level Python installation: `pip install llmgauge`
+4. pinned Git source / development / fallback: tagged GitHub install
+   (`uv tool install git+...@v0.74`)
+5. contributors and unreleased development: source checkout with
+   `uv run llmgauge ...`; editable local install is a development convenience
 
 LLMGauge does not download models, install GPU drivers, modify CUDA, change
 system packages, tune hardware settings, or submit results to a service. You
@@ -115,13 +117,69 @@ Remove the installed command when you no longer need it:
 uv tool uninstall llmgauge
 ```
 
-## Installed CLI from GitHub
+## Installed CLI from PyPI
 
-Use the released Git tag when you want the installed user CLI without working
-inside a checkout:
+The ordinary-user distribution path is PyPI. Install the CLI into an isolated
+tool environment with `uv`:
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.73
+uv tool install llmgauge
+```
+
+Verify:
+
+```bash
+llmgauge --version
+llmgauge setup
+llmgauge doctor
+llmgauge model list
+llmgauge smoke
+```
+
+Upgrade or uninstall:
+
+```bash
+uv tool upgrade llmgauge
+uv tool uninstall llmgauge
+```
+
+A pinned production package can be installed explicitly:
+
+```bash
+uv tool install "llmgauge==0.74.0"
+```
+
+### Alternative: pipx
+
+[pipx](https://pypa.github.io/pipx/) provides the same isolated-CLI style:
+
+```bash
+pipx install llmgauge
+```
+
+Upgrade or uninstall with `pipx upgrade llmgauge` / `pipx uninstall llmgauge`.
+
+### Alternative: pip
+
+To install into an existing Python environment (3.11 or newer):
+
+```bash
+python3 -m pip install llmgauge
+```
+
+This places `llmgauge` alongside that environment's other packages instead of
+an isolated tool environment.
+
+The current release reports package/CLI version `0.74.0`.
+
+## Installed CLI from GitHub (pinned source / development / fallback)
+
+Use the released Git tag when you want an installed user CLI directly from
+source — useful before a PyPI release exists, when pinning exact source, or
+when testing a tag without publishing:
+
+```bash
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.74
 ```
 
 Then run:
@@ -134,14 +192,10 @@ llmgauge model list
 llmgauge smoke
 ```
 
-The validated released tag is `v0.73` and reports package/CLI version
-`0.73.0`. PyPI availability is not claimed; use the tagged GitHub install
-workflow documented below.
-
-Reinstall a tagged version with the validated `uv tool` command:
+Reinstall a tagged version:
 
 ```bash
-uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.73
+uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.74
 ```
 
 Remove the installed command when you no longer need it:
@@ -185,8 +239,8 @@ Manual fallback: `llmgauge init` and `llmgauge model add` still work.
 `doctor` and `smoke` are inspection-only. They do not launch `llama.cpp` and do
 not create result artifacts.
 
-PyPI installation is not the validated public path. Do not use
-`uv tool install llmgauge` as the documented installation command.
+Installing LLMGauge installs only the Python CLI and its Python dependencies;
+see [What installation does not do](#what-installation-does-not-do) below.
 
 ## Configuration and cache locations
 
