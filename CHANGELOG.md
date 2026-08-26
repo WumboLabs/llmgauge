@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Added repository release automation and Trusted Publishing readiness:
+  a `release.yml` workflow with a build-once/publish-exact-artifacts
+  architecture (manual dispatch publishes to TestPyPI only; production PyPI
+  publication happens only from a pushed `v*` release tag through OIDC
+  Trusted Publishing, no tokens or secrets), a fail-closed release
+  tag/version guard (`scripts/check_release_tag.py`) enforcing the
+  `vX.Y` ↔ `X.Y.0` mapping plus annotated-tag/exact-commit checks, a
+  distribution-content guard (`scripts/check_release_dist.py`), workflow
+  contract tests, and the human TestPyPI/PyPI configuration gates
+  documented in `docs/PYPI_RELEASE_PROCESS.md`. No publication occurred;
+  package version remains 0.73.0 and neither index is configured yet.
+
 ### Changed
 
 - Hardened Python package metadata for future PyPI publication: updated the
