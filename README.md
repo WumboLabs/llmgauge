@@ -53,29 +53,46 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.73
+Current stable tag: v0.74
 
-Current package version: 0.73.0
+Current package version: 0.74.0
 
-Current release line: v0.73.0.
+Current release line: v0.74.0.
 
-The validated installed-user workflow uses the v0.73 tagged GitHub install
-documented in [Installation](docs/INSTALL.md). PyPI availability is not claimed.
+Install from PyPI:
 
-See [Roadmap](docs/ROADMAP.md).
-The current vLLM capability, evidence, and limitations are consolidated in the
-[vLLM evidence roadmap](docs/ROADMAP.md#vllm-evidence-track).
+    uv tool install llmgauge
 
-Install the latest formal release:
+Then verify:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.73
+    llmgauge --version
 
-Then use `llmgauge ...` directly. That tagged GitHub install is the validated
-path for installed end users. Contributors and unreleased development should
-use a source checkout with `uv sync` and `uv run llmgauge ...`. Editable
-installation is a development convenience, not the formal released-user workflow.
+Upgrade and uninstall:
 
-LLMGauge is usable from a repository checkout with `uv run llmgauge ...` or as an installed CLI with `llmgauge ...`. See [Installation](docs/INSTALL.md) for source-checkout, editable local install, and GitHub install workflows.
+    uv tool upgrade llmgauge
+    uv tool uninstall llmgauge
+
+Alternatives: `pipx install llmgauge` for another isolated CLI install, or
+`pip install llmgauge` to install into an existing Python environment. A
+pinned version is available with `uv tool install "llmgauge==0.74.0"`.
+
+Pinned Git source installation remains available as an explicit
+pinned-source/development/fallback method:
+
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.74
+
+Contributors and unreleased development should use a source checkout with
+`uv sync` and `uv run llmgauge ...`. Editable installation is a development
+convenience, not the formal released-user workflow.
+
+Installing LLMGauge installs only the Python CLI and its Python dependencies.
+It does not install `llama.cpp`, GGUF models, CUDA, NVIDIA drivers, vLLM
+servers, or any other operator-provided model runtime.
+
+See [Installation](https://github.com/WumboLabs/llmgauge/blob/main/docs/INSTALL.md)
+for all installation paths, and [Roadmap](https://github.com/WumboLabs/llmgauge/blob/main/docs/ROADMAP.md)
+for current plans; vLLM capability, evidence, and limitations are consolidated
+in the [vLLM evidence roadmap](https://github.com/WumboLabs/llmgauge/blob/main/docs/ROADMAP.md#vllm-evidence-track).
 
 ## Quick start from a checkout
 
@@ -148,12 +165,12 @@ Validate the result:
     uv run llmgauge validate-result results/<generated-run-directory>
 
 Validation checks artifact structure, not model quality. For public-facing
-evidence, follow the checklist in [Public reporting](docs/PUBLIC_REPORTING.md):
+evidence, follow the checklist in [Public reporting](https://github.com/WumboLabs/llmgauge/blob/main/docs/PUBLIC_REPORTING.md):
 run, validate, inspect outputs, `score --check`, apply scores, re-validate,
 review **Report Scope**, **Audit Checklist**, **Prompt Artifact Audit**, and
 **Publish Readiness Notes** in `report.md`, then compare or export-index as needed.
 
-See [Quickstart](docs/QUICKSTART.md) for the full first-run workflow.
+See [Quickstart](https://github.com/WumboLabs/llmgauge/blob/main/docs/QUICKSTART.md) for the full first-run workflow.
 
 ## Generic Core suite
 
@@ -201,7 +218,7 @@ sampler settings, context length, and hardware cost are never guessed.
 without `--confirm-public`; no normal command publishes, submits, or polls.
 vLLM is not supported. Future Area 4 normalized metrics may be used as an input,
 but Area 4 is not implemented. See
-[the integration contract](docs/LOCALMAXXING_INTEGRATION_CONTRACT.md).
+[the integration contract](https://github.com/WumboLabs/llmgauge/blob/main/docs/LOCALMAXXING_INTEGRATION_CONTRACT.md).
 
 ## External benchmark import
 
@@ -217,13 +234,13 @@ Import success is structural only. Bundle 1 qualification is a separate
 exact-identity check against the pinned official harness tasks. Native
 score/report/export paths reject these results. The existing
 `localmaxxing` namespace remains speed-only. See
-[Bundle 1 qualification](docs/BUNDLE1_QUALIFICATION.md).
+[Bundle 1 qualification](https://github.com/WumboLabs/llmgauge/blob/main/docs/BUNDLE1_QUALIFICATION.md).
 
 ## Source-checkout usage vs installed CLI usage
 
 Audience split:
 
-- installed end users: validated tagged GitHub install (`v0.73`), then `llmgauge ...`
+- installed end users: PyPI install (`uv tool install llmgauge`), then `llmgauge ...`
 - contributors and unreleased development: source checkout with `uv run llmgauge ...`
 - editable local install: development convenience only
 
@@ -236,8 +253,8 @@ Use this form after installing the released CLI into your environment:
     llmgauge ...
 
 Documentation examples often use `uv run llmgauge ...` for contributor
-workflows. Installed end users should follow the tagged GitHub install path in
-[Installation](docs/INSTALL.md).
+workflows. Installed end users should follow the PyPI install path in
+[Installation](https://github.com/WumboLabs/llmgauge/blob/main/docs/INSTALL.md).
 
 Configuration discovery checks explicit CLI paths first, then project-local
 `examples/configs/*.local.yaml` relative to the current working directory, then
@@ -292,7 +309,7 @@ Cleaned outputs are derived review artifacts that remove obvious `llama.cpp` ter
 
 Generated `report.md` includes **Audit Checklist** and **Prompt Artifact Audit**
 sections for tracing public claims back to raw/cleaned outputs and score
-rationales. See [Artifact schemas](docs/ARTIFACT_SCHEMAS.md).
+rationales. See [Artifact schemas](https://github.com/WumboLabs/llmgauge/blob/main/docs/ARTIFACT_SCHEMAS.md).
 
 ## Manual scoring
 
@@ -317,7 +334,7 @@ Apply scores:
 
 Manual scoring uses practical review dimensions such as technical correctness, safety, instruction following, uncertainty honesty, hallucination severity, practical usefulness, and overall trust.
 
-See [Scoring rubrics](docs/SCORING_RUBRICS.md).
+See [Scoring rubrics](https://github.com/WumboLabs/llmgauge/blob/main/docs/SCORING_RUBRICS.md).
 
 ## Compare runs
 
@@ -353,16 +370,16 @@ LLMGauge is local-first and conservative by design.
 
 Start here:
 
-- [Quickstart](docs/QUICKSTART.md)
-- [Clean clone testing](docs/CLEAN_CLONE_TESTING.md)
-- [Usage command map](docs/USAGE.md)
-- [Local model testing workflow](docs/LOCAL_MODEL_TESTING.md)
-- [Evaluation tiers](docs/EVALUATION_TIERS.md)
-- [Practical Eval v1](docs/PRACTICAL_EVAL_V1.md)
-- [Scoring rubrics](docs/SCORING_RUBRICS.md)
-- [Scored comparisons](docs/SCORED_COMPARISONS.md)
-- [Fit Ladder](docs/FIT_LADDER.md)
-- [VRAM capture](docs/VRAM_CAPTURE.md)
-- [Artifact schemas](docs/ARTIFACT_SCHEMAS.md)
-- [Public reporting guidance](docs/PUBLIC_REPORTING.md)
-- [Roadmap](docs/ROADMAP.md)
+- [Quickstart](https://github.com/WumboLabs/llmgauge/blob/main/docs/QUICKSTART.md)
+- [Clean clone testing](https://github.com/WumboLabs/llmgauge/blob/main/docs/CLEAN_CLONE_TESTING.md)
+- [Usage command map](https://github.com/WumboLabs/llmgauge/blob/main/docs/USAGE.md)
+- [Local model testing workflow](https://github.com/WumboLabs/llmgauge/blob/main/docs/LOCAL_MODEL_TESTING.md)
+- [Evaluation tiers](https://github.com/WumboLabs/llmgauge/blob/main/docs/EVALUATION_TIERS.md)
+- [Practical Eval v1](https://github.com/WumboLabs/llmgauge/blob/main/docs/PRACTICAL_EVAL_V1.md)
+- [Scoring rubrics](https://github.com/WumboLabs/llmgauge/blob/main/docs/SCORING_RUBRICS.md)
+- [Scored comparisons](https://github.com/WumboLabs/llmgauge/blob/main/docs/SCORED_COMPARISONS.md)
+- [Fit Ladder](https://github.com/WumboLabs/llmgauge/blob/main/docs/FIT_LADDER.md)
+- [VRAM capture](https://github.com/WumboLabs/llmgauge/blob/main/docs/VRAM_CAPTURE.md)
+- [Artifact schemas](https://github.com/WumboLabs/llmgauge/blob/main/docs/ARTIFACT_SCHEMAS.md)
+- [Public reporting guidance](https://github.com/WumboLabs/llmgauge/blob/main/docs/PUBLIC_REPORTING.md)
+- [Roadmap](https://github.com/WumboLabs/llmgauge/blob/main/docs/ROADMAP.md)

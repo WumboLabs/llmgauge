@@ -2,30 +2,64 @@
 
 ## Unreleased
 
+## v0.74.0 - 2026-08-26
+
+LLMGauge v0.74 is a distribution and installation release: it makes the
+Python Package Index the ordinary-user distribution path while leaving the
+evaluation engine, suites, schemas, and artifact contracts unchanged from
+v0.73.
+
 ### Added
 
-- Added repository release automation and Trusted Publishing readiness:
-  a `release.yml` workflow with a build-once/publish-exact-artifacts
-  architecture (manual dispatch publishes to TestPyPI only; production PyPI
-  publication happens only from a pushed `v*` release tag through OIDC
-  Trusted Publishing, no tokens or secrets), a fail-closed release
-  tag/version guard (`scripts/check_release_tag.py`) enforcing the
-  `vX.Y` ↔ `X.Y.0` mapping plus annotated-tag/exact-commit checks, a
-  distribution-content guard (`scripts/check_release_dist.py`), workflow
-  contract tests, and the human TestPyPI/PyPI configuration gates
-  documented in `docs/PYPI_RELEASE_PROCESS.md`. No publication occurred;
-  package version remains 0.73.0 and neither index is configured yet.
+- Added the Trusted Publishing release workflow (`.github/workflows/release.yml`)
+  with a build-once/publish-exact-artifacts architecture: a manual dispatch
+  publishes to TestPyPI only; production PyPI publication happens only from a
+  pushed `v*` annotated release tag through OIDC Trusted Publishing with no
+  tokens or secrets. The workflow pins all actions to immutable commit SHAs,
+  enforces a fail-closed tag/version guard (`scripts/check_release_tag.py`,
+  including annotated-tag/exact-commit checks on production tag builds),
+  validates exact distribution contents (`scripts/check_release_dist.py`),
+  and keeps TestPyPI and production environments strictly separated with no
+  skip-existing behavior and no production dispatch selector.
+- Added PyPI-grade package metadata for the first production listing:
+  explicit project version, `uv_build` compatibility line
+  (`uv_build>=0.12.6,<0.13`), LICENSE text carried in both wheel and sdist,
+  and declared Homepage/Repository/Issues/Changelog URLs.
+- Added a canonical PyPI installation path for v0.74: `uv tool install
+  llmgauge`, verified with `llmgauge --version`, plus `pipx install llmgauge`
+  as an alternative isolated CLI install and `pip install llmgauge` for
+  environment-level installation. Tagged Git source installation remains an
+  explicit pinned-source/development/fallback method, and contributors keep
+  the clone + `uv sync` workflow. Installing LLMGauge still installs only the
+  Python CLI and its Python dependencies; it never bundles `llama.cpp`, GGUF
+  models, CUDA, NVIDIA drivers, vLLM servers, or any operator-provided model
+  runtime.
+- Added a regression test proving `pyproject.toml` and runtime `__version__`
+  agree, plus a distribution-metadata suite covering artifact names,
+  metadata, license inclusion, packaged resources, and local/private content
+  leakage.
 
 ### Changed
 
-- Hardened Python package metadata for future PyPI publication: updated the
-  build backend requirement to `uv_build>=0.12.6,<0.13`, added `license-files`
-  so built wheels and sdists carry the LICENSE text, and declared project
-  URLs (Homepage, Repository, Issues, Changelog). Added a regression test
-  guarding `pyproject.toml` version against the runtime `__version__` and a
-  distribution-metadata test suite covering artifact names, metadata,
-  license inclusion, packaged resources, and local/private content leakage.
-  No publication occurred; package version remains 0.73.0.
+- Proved the TestPyPI publication path end to end: the human-configured
+  TestPyPI Trusted Publisher published llmgauge 0.73.0 successfully, an
+  independent fresh-environment installation from TestPyPI succeeded, and the
+  installed CLI validated its packaged resources, including Generic Core.
+  The production PyPI pending publisher and protected GitHub `pypi`
+  environment are configured by the human; production publication has not
+  happened yet and remains behind the later human tag/approval gate.
+- Updated README and installation documentation for PyPI-first installation
+  and converted repository-relative README links to stable absolute GitHub
+  URLs so the PyPI project description renders correctly.
+
+### Compatibility and boundaries
+
+- The accepted tag/version mapping is unchanged: `vX.Y` ↔ `X.Y.0` preferred,
+  so production tag `v0.74` publishes package `0.74.0`. The version bump in
+  this release changes packaging metadata only; no evaluation behavior,
+  schema, artifact contract, or CLI behavior changed from v0.73.
+- Publication proves availability only. Structural validation does not prove
+  answer quality, and PyPI publication implies no model-ranking claims.
 
 ## v0.73.0 - 2026-08-25
 

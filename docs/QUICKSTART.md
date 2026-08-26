@@ -16,11 +16,11 @@ After installing the CLI into your environment, use:
 
     llmgauge ...
 
-Audience split: installed end users should use the validated tagged GitHub
-install (`v0.73`) documented in [Installation](INSTALL.md); contributors and
-unreleased development should use a source checkout with `uv run llmgauge ...`;
-editable installation is a development convenience, not the formal released-user
-workflow.
+Audience split: installed end users should install from PyPI
+(`uv tool install llmgauge`) as documented in [Installation](INSTALL.md);
+contributors and unreleased development should use a source checkout with
+`uv run llmgauge ...`; editable installation is a development convenience, not
+the formal released-user workflow.
 
 ## 1. Install from a checkout
 

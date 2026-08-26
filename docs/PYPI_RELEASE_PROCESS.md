@@ -6,17 +6,21 @@ PyPI.
 
 Current state:
 
-- Production PyPI is NOT active. `llmgauge` has never been published to PyPI.
-- TestPyPI is NOT configured yet.
-- `.github/workflows/release.yml` is repository readiness only. Its first
-  publication-capable execution is a deliberate human TestPyPI gate.
-- The currently validated installation path remains Git-tag installation,
-  documented in [INSTALL.md](INSTALL.md).
+- Production PyPI is NOT active. `llmgauge` has not been published to
+  production PyPI yet.
+- TestPyPI publication is PROVEN: the Trusted Publisher published
+  llmgauge 0.73.0, an independent fresh-environment installation from TestPyPI
+  succeeded, and installed package resources (including Generic Core) were
+  validated. The TestPyPI project exists.
+- A production pending Trusted Publisher is configured on PyPI
+  (owner: `WumboLabs`, repository: `llmgauge`, workflow: `release.yml`,
+  environment: `pypi`). A pending publisher does NOT reserve the project name.
+- The GitHub `pypi` environment is configured with a required reviewer,
+  deployment restricted to tags matching `v*`, self-review prevention
+  disabled, administrator bypass disabled, and no secrets or variables.
 
 The workflow never publishes on branch pushes, pull requests, schedules, or
-manual dispatches to production. There is no API token anywhere in the
-release path: both publish jobs authenticate exclusively through
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC).
+manual dispatches to production.
 
 ## Workflow architecture
 
@@ -50,55 +54,58 @@ Accepted mapping, enforced fail-closed by `scripts/check_release_tag.py`:
     vX.Y.Z     <-> X.Y.Z
     vX.Y[.Z]S  <-> X.Y[.Z]S   (prerelease suffix S: aN, bN, rcN)
 
-Examples against package version `0.73.0`: `v0.73` passes, `v0.73.0`
-passes, `v0.73.1` fails, `v0.74` fails, `0.73` and other arbitrary strings
+Examples against package version `0.74.0`: `v0.74` passes, `v0.74.0`
+passes, `v0.74.1` fails, `v0.75` fails, `0.74` and other arbitrary strings
 fail. Production tag-push builds additionally require the tag to be
 annotated and to resolve to the exact checked-out commit.
 
 Manual TestPyPI dispatches do not need a release tag; they are
 pre-release mechanics tests of whatever ref is dispatched.
 
-## HUMAN gate: first TestPyPI publication
+## TestPyPI gate: COMPLETED AND PROVEN
 
-Perform these steps deliberately, in order:
+The first TestPyPI publication gate was completed deliberately, in order:
 
-1. Create/sign into a TestPyPI account and enable mandatory account
-   security such as two-factor authentication.
-2. Register the pending Trusted Publisher on TestPyPI:
-   - owner: `WumboLabs`
-   - repository: `llmgauge`
-   - workflow: `release.yml`
-   - environment: `testpypi`
-3. Create the matching GitHub `testpypi` environment on the repository if
-   desired (optional; lighter-weight than production). Do not store any
-   secret in it — none is needed.
-4. Run the release workflow manually from the reviewed ref
+1. The pending Trusted Publisher was registered on TestPyPI:
+   owner `WumboLabs`, repository `llmgauge`, workflow `release.yml`,
+   environment `testpypi`.
+2. The release workflow ran manually from a reviewed ref
    (Actions → Release → Run workflow).
-5. Approve the environment if a protection rule requires it.
-6. Independently inspect the run, then verify by installing from TestPyPI:
-   `uv pip install --index-url https://test.pypi.org/simple/ llmgauge`
-   (or the pip equivalent) in a scratch environment.
+3. Publication of llmgauge 0.73.0 to TestPyPI succeeded.
+4. An independent fresh-environment installation from TestPyPI succeeded
+   (`uv pip install --index-url https://test.pypi.org/simple/ llmgauge`),
+   and installed package resources (including Generic Core) were validated.
 
-Notes:
+No API token was created or stored anywhere for this flow. A manual dispatch
+can never select the production index.
 
-- No API token should be created or stored anywhere for this flow.
-- A *pending* publisher does not reserve the `llmgauge` name on TestPyPI;
-  the namespace is claimed by the first successful upload.
-- A manual dispatch can never select the production index.
+## HUMAN gate: first production PyPI publication (next)
 
-## HUMAN gate: production PyPI (later)
+The human configuration is complete: the production pending Trusted
+Publisher exists on PyPI, and the GitHub `pypi` environment is protected with
+a required reviewer and `v*`-only deployment restriction; administrator
+bypass is disabled and the environment holds no secrets or variables. The
+remaining flow is deliberate and human-gated:
 
-1. Establish the PyPI account/security posture (2FA).
-2. Register the pending Trusted Publisher on PyPI with the same owner,
-   repository, and workflow values, but environment `pypi`.
-3. Create the GitHub `pypi` environment as protected: require reviewer
-   approval; restrict deployment branches/tags to release tags where
-   supported. If a second authorized reviewer exists, self-review can be
-   prevented; do not assume one exists.
-4. Cut the accepted release commit/version/tag per the release policy
-   (`vX.Y` preferred) and push the annotated tag only after review.
-5. Approve the production environment when the workflow runs.
-6. Verify independently by installing from PyPI in a clean environment.
+1. Review and accept the prepared release branch on its release-prep branch;
+   the human stages and commits the release-prep changes.
+2. Merge to `main` and run full post-merge validation.
+3. Push `main` to the remote.
+4. Create the annotated release tag:
+   `git tag -a v0.74 -m "LLMGauge v0.74.0"`.
+5. Push the tag: `git push origin v0.74`. This triggers the Release workflow.
+6. The workflow validates tag/version/exact-commit identity, runs tests,
+   builds once with `uv build --no-create-gitignore`, validates the exact
+   distribution contents, uploads exactly those artifacts, and waits on the
+   protected `pypi` environment approval.
+7. The required reviewer approves the production deployment.
+8. Trusted Publishing uploads the exact built artifacts via OIDC — no token.
+9. Verify independently by installing from PyPI in a clean environment
+   (`uv tool install llmgauge`, then `llmgauge --version`) and inspecting the
+   PyPI project page rendering.
+
+A *pending* publisher does not reserve the `llmgauge` name on production
+PyPI either; the namespace is claimed by the first successful upload.
 
 ## Claim boundaries
 

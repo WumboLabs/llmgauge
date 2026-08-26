@@ -8,16 +8,19 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.73`
-- Current package version: `0.73.0`
-- Current stable release line: `v0.73.0`
-- Current release state: `v0.73` is the completed Generic Core v1 release:
-  packaged, discoverable `generic-core-v1` `0.1.0` with exact Smoke/Core
-  profiles, deterministic D1-D7 evidence with D5 reproducibly `not_run`,
-  complete result/profile/scoring provenance, manual and side-by-side hybrid
-  review, and no profile aggregate score. Executable generated-code evaluation
-  remains future suite-version work behind a separately accepted containment
-  and resource-limit contract; it is not part of `v0.73`.
+- Current stable tag: `v0.74` (release candidate, pending the human
+  merge/tag/publication gate)
+- Current package version: `0.74.0`
+- Current stable release line: `v0.74.0`
+- Current release state: `v0.74` is the completed distribution and
+  installation release: PyPI-grade package metadata, the Trusted Publishing
+  release workflow with build-once/publish-exact-artifacts architecture, a
+  proven TestPyPI publication/installation path, configured production
+  publisher and protected GitHub `pypi` environment, a canonical
+  `uv tool install llmgauge` installation UX, and consistent version/release
+  metadata. Production publication itself happens only through the later
+  human annotated-tag/approval gate. The Generic Core evaluation behavior of
+  v0.73 is unchanged.
 
 ## What LLMGauge is
 
@@ -729,6 +732,31 @@ promise, authorization, deterministic-check behavior, evidence meaning,
 security boundary, and comparability, so it must not silently change
 `0.1.0`. No Generic Core profile aggregate score exists.
 
+### `v0.74` — Distribution and installation (release candidate)
+
+**Completed in the prepared release candidate, subject to the final human
+merge/tag/publication gate:**
+
+- PyPI-grade package metadata: explicit version, `uv_build>=0.12.6,<0.13`,
+  LICENSE carried in wheel/sdist, declared project URLs;
+- Trusted Publishing release workflow with build-once/publish-exact-artifacts
+  architecture, immutable Action SHA pinning, and fail-closed tag/version,
+  annotated-tag, and exact-commit guards;
+- exact distribution-content validation;
+- proven TestPyPI publication of 0.73.0 with independent fresh-installation
+  validation;
+- configured production pending publisher and protected GitHub `pypi`
+  environment (required reviewer, `v*`-only deployment restriction);
+- canonical `uv tool install llmgauge` installation UX with pipx/pip/pinned
+  alternatives, tagged Git source as pinned-source/fallback, and clone +
+  `uv sync` for contributors; and
+- consistent version, changelog, README, installation, release-process, and
+  roadmap metadata for the first production PyPI listing.
+
+Production PyPI publication is not part of the repository delta; it happens
+only when the human pushes annotated tag `v0.74` and approves the `pypi`
+environment deployment.
+
 These gates assign no release dates.
 
 ## Parallel product tracks
@@ -739,23 +767,34 @@ Generic Core delivery, and one another.
 
 ### Packaging and productization
 
-- Distribution metadata hardening for PyPI-grade artifacts (completed,
-  `v0.74` Milestone A).
-- Repository release-workflow readiness (implemented, `v0.74` Milestone B):
-  tag-gated Trusted Publishing workflow, manual TestPyPI gate, and the
-  release tag/version guard in [PYPI_RELEASE_PROCESS.md](PYPI_RELEASE_PROCESS.md).
-  Live TestPyPI and PyPI publication remain pending explicit human
-  configuration gates.
-- Validated `uv tool install llmgauge` and `pipx install llmgauge` workflows
-  after publication.
-- Wheel, sdist, and isolated-install tests.
-- Upgrade and uninstall workflow.
-- User configuration, data, and cache path review.
-- `doctor` and guided setup polish.
-- Standalone executable and container feasibility later.
+**Completed for v0.74 (release candidate):**
 
-The currently validated installed-user path remains the Git-tag installation
-documented in [Installation](INSTALL.md). PyPI availability is not yet claimed.
+- Distribution metadata hardening for PyPI-grade artifacts (`v0.74`
+  Milestone A): explicit version, `uv_build>=0.12.6,<0.13` compatibility,
+  LICENSE in wheel/sdist, project URLs, and version-consistency regression.
+- Repository release-workflow readiness (`v0.74` Milestone B): tag-gated
+  Trusted Publishing workflow, manual TestPyPI gate, release tag/version
+  guard, and exact distribution-content validation per
+  [PYPI_RELEASE_PROCESS.md](PYPI_RELEASE_PROCESS.md).
+- Live TestPyPI proof: first manual publication of llmgauge 0.73.0 succeeded,
+  an independent fresh-environment TestPyPI installation succeeded, and
+  installed resources validated.
+- Production configuration: pending Trusted Publisher registered on PyPI and
+  the protected GitHub `pypi` environment configured (required reviewer,
+  `v*`-only deployment restriction). Publication remains behind the human
+  annotated-tag/approval gate.
+- Canonical installed-user UX: documented `uv tool install llmgauge`,
+  `pipx`, `pip`, pinned-version, pinned-Git-source, and contributor paths;
+  upgrade/uninstall workflow; explicit runtime-boundary language.
+
+**Optional future work (demand-driven, separate from any current release):**
+
+- COPR/Fedora packaging after PyPI, only on demonstrated demand.
+- Standalone executable/container feasibility later.
+- Additional distribution channels (Homebrew/AUR/Nix/Debian) only when value
+  justifies maintenance cost.
+- GitHub Release attachments, SBOM/signing beyond PyPI attestations: not
+  currently required.
 
 ### Runtime interoperability
 
@@ -811,6 +850,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
+| v0.74 | Distribution/installation release candidate: PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
 | v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |
 | v0.72 | Profile-aware suite schema, normalized selection, contained references, Generic Core package resources, and compatibility/security hardening; no executable `generic-core-v1` suite |
 | v0.71 | Optional external local vLLM adapter, additive fingerprint evidence, public-export identity redaction, first tracked practical evidence package |
