@@ -739,11 +739,16 @@ Generic Core delivery, and one another.
 
 ### Packaging and productization
 
-- PyPI readiness and publication, without claiming current PyPI availability.
+- Distribution metadata hardening for PyPI-grade artifacts (completed,
+  `v0.74` Milestone A).
+- Repository release-workflow readiness (implemented, `v0.74` Milestone B):
+  tag-gated Trusted Publishing workflow, manual TestPyPI gate, and the
+  release tag/version guard in [PYPI_RELEASE_PROCESS.md](PYPI_RELEASE_PROCESS.md).
+  Live TestPyPI and PyPI publication remain pending explicit human
+  configuration gates.
 - Validated `uv tool install llmgauge` and `pipx install llmgauge` workflows
   after publication.
 - Wheel, sdist, and isolated-install tests.
-- Release automation.
 - Upgrade and uninstall workflow.
 - User configuration, data, and cache path review.
 - `doctor` and guided setup polish.
