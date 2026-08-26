@@ -147,6 +147,18 @@ def test_publish_jobs_never_rebuild(workflow: dict) -> None:
             assert "python -m build" not in script
 
 
+def test_build_invocation_suppresses_gitignore_creation(workflow: dict) -> None:
+    build_steps = [
+        str(step.get("run", ""))
+        for step in _jobs(workflow)["build"]["steps"]
+        if step.get("name") == "Build distribution"
+    ]
+    assert len(build_steps) == 1
+    script = build_steps[0]
+    assert "rm -rf dist" in script
+    assert "uv build --no-create-gitignore --out-dir dist" in script
+
+
 def _all_step_uses(workflow: dict) -> list[str]:
     uses = []
     for job in _jobs(workflow).values():

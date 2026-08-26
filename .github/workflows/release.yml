@@ -54,7 +54,7 @@ jobs:
       - name: Build distribution
         run: |
           rm -rf dist
-          uv build --out-dir dist
+          uv build --no-create-gitignore --out-dir dist
 
       - name: Validate distribution contents
         run: |
