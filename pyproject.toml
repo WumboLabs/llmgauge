@@ -34,3 +34,20 @@ dev = [
     "pytest>=9.1.0",
     "ruff>=0.15.17",
 ]
+
+[tool.pytest.ini_options]
+# Keep pytest out of ignored scratch trees under tmp/ (nested clones and
+# scratch test trees must never join the canonical collection).
+# Preserves pytest's default exclusions, which setting this overrides.
+norecursedirs = [
+    "*.egg",
+    ".*",
+    "_darcs",
+    "build",
+    "CVS",
+    "dist",
+    "node_modules",
+    "venv",
+    "{arch}",
+    "tmp",
+]
