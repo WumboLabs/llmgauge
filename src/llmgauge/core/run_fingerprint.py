@@ -215,6 +215,8 @@ def _runtime_settings(
                 "parallel_sequences",
                 "top_k",
                 "top_k_state",
+                "min_p",
+                "min_p_state",
                 "seed",
                 "seed_state",
                 "kv_offload",
@@ -323,6 +325,7 @@ def _extended_runtime_evidence_is_represented(result: Mapping[str, Any]) -> bool
         field in runtime
         for field in (
             "top_k",
+            "min_p",
             "seed",
             "cache_type_k",
             "cache_type_v",

@@ -383,6 +383,8 @@ Expected fields:
     top_p
     top_k
     top_k_state
+    min_p
+    min_p_state
     seed
     seed_state
     batch_size
@@ -416,8 +418,9 @@ Notes:
 
 - `backend` is `llama.cpp` (default) or `vllm` for the external-server slice.
 - `reasoning_mode` is one of `off`, `on`, `auto`, `default`, or `unknown`.
-- `top_k`, `seed`, cache types, reasoning effort, reasoning budget, fit,
-  reasoning preservation, and speculative type are nullable requested values.
+- `top_k`, `min_p`, `seed`, cache types, reasoning effort, reasoning
+  budget, fit, reasoning preservation, and speculative type are nullable
+  requested values.
   Their paired `*_state` is `explicit` or `runtime_default`; omitted/default
   does not claim an observed runtime value.
 - `fit` canonically serializes as `on` or `off`; `reasoning_preserve` is a

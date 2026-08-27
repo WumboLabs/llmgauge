@@ -317,6 +317,8 @@ def test_validate_result_data_rejects_contradictory_extended_runtime_state(
         {
             "top_k": 20,
             "top_k_state": "runtime_default",
+            "min_p": -0.5,
+            "min_p_state": "runtime_default",
             "seed": None,
             "seed_state": "explicit",
             "cache_type_k": "invalid",
@@ -333,6 +335,10 @@ def test_validate_result_data_rejects_contradictory_extended_runtime_state(
 
     errors = validate_result_data(tmp_path, data)
 
+    assert (
+        "runtime.min_p must be a finite number at least 0 when present" in errors
+    )
+    assert "runtime.min_p_state=runtime_default requires runtime.min_p=null" in errors
     assert "runtime.top_k_state=runtime_default requires runtime.top_k=null" in errors
     assert "runtime.seed_state=explicit requires runtime.seed" in errors
     assert any(

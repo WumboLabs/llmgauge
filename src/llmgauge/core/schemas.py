@@ -111,6 +111,7 @@ class DefaultsConfig(BaseModel):
     temperature: float | None = None
     top_p: float | None = None
     top_k: int | None = None
+    min_p: float | None = None
     seed: int | None = None
     batch_size: int | None = None
     ubatch_size: int | None = None

@@ -205,6 +205,14 @@ def _validate_optional_llama_runtime_metadata(runtime: dict[str, Any]) -> list[s
     seed = runtime.get("seed")
     if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
         errors.append("runtime.seed must be an integer when present")
+    min_p = runtime.get("min_p")
+    if min_p is not None and (
+        isinstance(min_p, bool)
+        or not isinstance(min_p, int | float)
+        or not math.isfinite(min_p)
+        or min_p < 0
+    ):
+        errors.append("runtime.min_p must be a finite number at least 0 when present")
 
     for field, allowed_values in (
         ("cache_type_k", _LLAMA_CACHE_TYPES),
@@ -252,6 +260,7 @@ def _validate_optional_llama_runtime_metadata(runtime: dict[str, Any]) -> list[s
 
     for field in (
         "top_k",
+        "min_p",
         "seed",
         "cache_type_k",
         "cache_type_v",
@@ -292,6 +301,8 @@ def _validate_runtime_command_consistency(
     for field in (
         "top_k",
         "top_k_state",
+        "min_p",
+        "min_p_state",
         "seed",
         "seed_state",
         "kv_offload",

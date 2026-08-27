@@ -266,6 +266,7 @@ def _runtime_setting_groups(results: list[dict[str, Any]]) -> list[list[Any]]:
         _unique_nonempty_values(results, plain("runtime_label")),
         _unique_nonempty_values(results, plain("reasoning_mode")),
         _unique_nonempty_values(results, _paired_runtime_group("top_k")),
+        _unique_nonempty_values(results, _paired_runtime_group("min_p")),
         _unique_nonempty_values(results, _paired_runtime_group("seed")),
         _unique_nonempty_values(results, _paired_runtime_group("cache_type_k")),
         _unique_nonempty_values(results, _paired_runtime_group("cache_type_v")),
@@ -292,6 +293,13 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         lambda result: (
             f"{result.get('runtime', {}).get('top_k')!r} "
             f"({result.get('runtime', {}).get('top_k_state', 'unknown')})"
+        ),
+    )
+    min_ps = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('min_p')!r} "
+            f"({result.get('runtime', {}).get('min_p_state', 'unknown')})"
         ),
     )
     seeds = _unique_nonempty_values(
@@ -387,6 +395,10 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         (
             "- Top-k (value, request state): "
             f"{', '.join(map(str, top_ks)) if top_ks else 'unknown'}"
+        ),
+        (
+            "- Min-p (value, request state): "
+            f"{', '.join(map(str, min_ps)) if min_ps else 'unknown'}"
         ),
         (
             "- Seed (value, request state): "

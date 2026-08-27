@@ -154,6 +154,7 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
         "temp": 0.2,
         "top_p": 0.95,
         "top_k": 20,
+        "min_p": 0.05,
         "seed": 424242,
         "batch": 256,
         "ubatch": 64,
@@ -199,6 +200,8 @@ def test_execute_run_writes_runtime_command_json(tmp_path: Path, monkeypatch) ->
     assert str(tmp_path) not in str(result["runtime"]["backend_provenance"])
     assert result["runtime"]["reasoning_mode"] == "off"
     assert result["runtime"]["top_k"] == 20
+    assert result["runtime"]["min_p"] == 0.05
+    assert result["runtime"]["min_p_state"] == "explicit"
     assert result["runtime"]["seed"] == 424242
     assert result["runtime"]["cache_type_k"] == "q8_0"
     assert result["runtime"]["reasoning_effort"] == "medium"
@@ -222,6 +225,7 @@ def test_runtime_command_records_extended_requested_configuration() -> None:
         ubatch_size=64,
         gpu_layers=999,
         top_k=20,
+        min_p=0.05,
         seed=424242,
         cache_type_k="q8_0",
         cache_type_v="q4_0",
@@ -241,6 +245,8 @@ def test_runtime_command_records_extended_requested_configuration() -> None:
 
     assert document["top_k"] == 20
     assert document["top_k_state"] == "explicit"
+    assert document["min_p"] == 0.05
+    assert document["min_p_state"] == "explicit"
     assert document["seed"] == 424242
     assert document["seed_state"] == "explicit"
     assert document["cache_type_k"] == "q8_0"

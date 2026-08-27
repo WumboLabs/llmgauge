@@ -119,6 +119,11 @@ def run(
         "--top-k",
         help="Top-k sampling; 0 disables top-k",
     ),
+    min_p: float | None = typer.Option(
+        None,
+        "--min-p",
+        help="Min-p sampling probability",
+    ),
     seed: int | None = typer.Option(
         None,
         "--seed",
@@ -248,6 +253,7 @@ def run(
         temp=temp,
         top_p=top_p,
         top_k=top_k,
+        min_p=min_p,
         seed=seed,
         batch=batch,
         ubatch=ubatch,
