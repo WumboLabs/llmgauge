@@ -20,6 +20,91 @@ _WEIGHT_LOAD_RE = re.compile(
     r"\b(?:llama_model_load|llama_load_model_from_file)\b", re.I
 )
 _KV_CACHE_RE = re.compile(r"\b(?:llama_kv_cache|kv[ _-]?cache)", re.I)
+_PEAK_VRAM_METRIC_ID = "llmgauge.metric.v1.peak_vram"
+PEAK_VRAM_CALCULATION = "llmgauge.area4.peak_used_mib_by_device.v1"
+_PEAK_VRAM_BOUNDARY = "process_launch_to_completion_sampling_window"
+
+
+def _valid_vram_samples(samples: object) -> list[dict[str, Any]]:
+    if not isinstance(samples, list):
+        return []
+    valid: list[dict[str, Any]] = []
+    for sample in samples:
+        if not isinstance(sample, Mapping):
+            continue
+        gpu_index = sample.get("gpu_index")
+        gpu_name = sample.get("gpu_name")
+        used_mib = sample.get("used_mib")
+        if (
+            isinstance(gpu_index, int)
+            and not isinstance(gpu_index, bool)
+            and isinstance(gpu_name, str)
+            and isinstance(used_mib, int)
+            and not isinstance(used_mib, bool)
+            and used_mib >= 0
+        ):
+            valid.append(
+                {"gpu_index": gpu_index, "gpu_name": gpu_name, "used_mib": used_mib}
+            )
+    return valid
+
+
+def _peak_vram_metric_records(
+    samples: list[Any], evidence_path: str | None
+) -> list[dict[str, Any]]:
+    """Deterministic peak-VRAM metric records over preserved samples.
+
+    One record per observed device (gpu_index + gpu_name); the value is the
+    maximum absolute used memory in the sampling window, never a baseline
+    delta or cross-device aggregate. An attempted but invalid capture yields
+    one unavailable record; absence of capture yields no record at all.
+    """
+    evidence_refs = (
+        [f"{evidence_path}#/samples"] if isinstance(evidence_path, str) else []
+    )
+    groups: dict[tuple[int, str], list[int]] = {}
+    for sample in _valid_vram_samples(samples):
+        groups.setdefault((sample["gpu_index"], sample["gpu_name"]), []).append(
+            sample["used_mib"]
+        )
+    records: list[dict[str, Any]] = []
+    for (gpu_index, gpu_name), used in groups.items():
+        records.append(
+            {
+                "metric_id": _PEAK_VRAM_METRIC_ID,
+                "native_metric_id": None,
+                "value": max(used),
+                "unit": "MiB",
+                "availability": "available",
+                "provenance": "calculated",
+                "boundary": _PEAK_VRAM_BOUNDARY,
+                "equivalence": "unproven",
+                "evidence_refs": evidence_refs,
+                "calculation_semantics": PEAK_VRAM_CALCULATION,
+                "device_scope": {"gpu_index": gpu_index, "gpu_name": gpu_name},
+                "sample_count": len(used),
+                "sampling_interval": "unknown",
+            }
+        )
+    if not records:
+        records.append(
+            {
+                "metric_id": _PEAK_VRAM_METRIC_ID,
+                "native_metric_id": None,
+                "value": None,
+                "unit": "MiB",
+                "availability": "unavailable",
+                "provenance": "unavailable",
+                "boundary": _PEAK_VRAM_BOUNDARY,
+                "equivalence": "unavailable",
+                "evidence_refs": evidence_refs,
+                "calculation_semantics": PEAK_VRAM_CALCULATION,
+                "device_scope": None,
+                "sample_count": 0,
+                "sampling_interval": "unknown",
+            }
+        )
+    return records
 
 
 def native_execution_ref(index: int) -> str:
@@ -166,6 +251,13 @@ def build_area4_evidence(
                 ],
             }
         )
+        vram_samples = prompt_result.get("_area4_vram_samples")
+        if isinstance(vram_samples, list):
+            measurements[-1]["metrics"].extend(
+                _peak_vram_metric_records(
+                    vram_samples, prompt_result.get("vram_samples_path")
+                )
+            )
         failure = execution["failure"]
         if failure is None:
             primary_by_execution.append(
@@ -267,6 +359,44 @@ def _load_native_evidence(
     return loaded
 
 
+def _load_vram_samples(
+    result_dir: Path, prompt_results: list[object], errors: list[str]
+) -> dict[str, list[Any] | None]:
+    from llmgauge.core.run_fingerprint import (
+        FingerprintUnavailable,
+        resolve_contained_result_artifact,
+    )
+
+    loaded: dict[str, list[Any] | None] = {}
+    for index, prompt_result in enumerate(prompt_results):
+        if not isinstance(prompt_result, Mapping):
+            continue
+        execution_ref = native_execution_ref(index)
+        path = prompt_result.get("vram_samples_path")
+        if not isinstance(path, str) or not path:
+            loaded[execution_ref] = None
+            continue
+        try:
+            artifact = resolve_contained_result_artifact(
+                result_dir,
+                path,
+                label=f"{execution_ref}.vram_samples_path",
+                require_file=True,
+            )
+            payload = json.loads(artifact.read_text(encoding="utf-8"))
+        except (FingerprintUnavailable, json.JSONDecodeError) as exc:
+            errors.append(f"{execution_ref}.vram_samples_path is invalid: {exc}")
+            loaded[execution_ref] = None
+            continue
+        samples = payload.get("samples") if isinstance(payload, Mapping) else None
+        if not isinstance(samples, list):
+            errors.append(f"{execution_ref} vram samples artifact is invalid")
+            loaded[execution_ref] = None
+            continue
+        loaded[execution_ref] = samples
+    return loaded
+
+
 def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> list[str]:
     """Validate represented Area 4 evidence without changing legacy requirements."""
     metrics, taxonomy = (
@@ -299,6 +429,7 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
         native_execution_ref(index) for index in range(len(prompt_results))
     }
     native = _load_native_evidence(result_dir, prompt_results, errors)
+    vram_samples_by_execution = _load_vram_samples(result_dir, prompt_results, errors)
 
     measurements = metrics.get("measurements")
     if metrics.get(
@@ -352,10 +483,10 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
         records = measurement.get("metrics")
         if (
             not isinstance(records, list)
-            or len(records) != 1
+            or len(records) < 1
             or not isinstance(records[0], Mapping)
         ):
-            errors.append(f"{label}.metrics must contain one record")
+            errors.append(f"{label}.metrics must contain at least one record")
             continue
         metric = records[0]
         evidence = native.get(str(execution_ref))
@@ -395,6 +526,30 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
             "request_wall_time_seconds"
         ):
             errors.append(f"{label}.metrics[0].value differs from native evidence")
+        vram_samples = vram_samples_by_execution.get(str(execution_ref))
+        expected_peak_records: list[dict[str, Any]] = []
+        if vram_samples is not None:
+            prompt_result = prompt_results[
+                int(str(execution_ref).removeprefix("results/"))
+            ]
+            vram_path = (
+                prompt_result.get("vram_samples_path")
+                if isinstance(prompt_result, Mapping)
+                else None
+            )
+            expected_peak_records = _peak_vram_metric_records(
+                vram_samples,
+                vram_path if isinstance(vram_path, str) else None,
+            )
+        if records[1:]:
+            # Wall-time-only measurements remain valid (historical results).
+            # Once peak VRAM records are represented they must match the
+            # preserved samples evidence exactly.
+            if records[1:] != expected_peak_records:
+                errors.append(
+                    f"{label}.metrics peak VRAM records differ from the "
+                    "preserved vram samples evidence"
+                )
 
     observations, primary = (
         taxonomy.get("observations"),

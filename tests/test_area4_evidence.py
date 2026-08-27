@@ -19,16 +19,30 @@ from llmgauge.core.run_fingerprint import (
 )
 
 
-def _base_result(tmp_path: Path, *, evidence: dict) -> dict:
+def _base_result(
+    tmp_path: Path, *, evidence: dict, vram_samples: list[dict] | None = None
+) -> dict:
     (tmp_path / "raw").mkdir()
     (tmp_path / "logs").mkdir()
     (tmp_path / "native").mkdir()
+    (tmp_path / "vram").mkdir()
     (tmp_path / "raw/prompt.prompt.md").write_text("prompt", encoding="utf-8")
     (tmp_path / "raw/prompt.output.txt").write_text("output", encoding="utf-8")
     (tmp_path / "logs/prompt.stderr.log").write_text("stderr", encoding="utf-8")
     (tmp_path / "native/prompt.execution.json").write_text(
         json.dumps(evidence), encoding="utf-8"
     )
+    if vram_samples is not None:
+        (tmp_path / "vram/prompt.samples.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "llmgauge.vram.samples.v0",
+                    "prompt_id": "prompt",
+                    "samples": vram_samples,
+                }
+            ),
+            encoding="utf-8",
+        )
     prompt = {
         "prompt_id": "prompt",
         "title": "Prompt",
@@ -42,7 +56,14 @@ def _base_result(tmp_path: Path, *, evidence: dict) -> dict:
         "_area4_native_execution_evidence": evidence,
         "metrics": {},
         "vram": None,
-        "vram_samples_path": None,
+        **(
+            {
+                "vram_samples_path": "vram/prompt.samples.json",
+                "_area4_vram_samples": vram_samples,
+            }
+            if vram_samples is not None
+            else {"vram_samples_path": None}
+        ),
         "vram_guardrails": None,
         "score": None,
         "failure_labels": [],
@@ -102,6 +123,7 @@ def _base_result(tmp_path: Path, *, evidence: dict) -> dict:
         runtime=result["runtime"],
     )
     prompt.pop("_area4_native_execution_evidence")
+    prompt.pop("_area4_vram_samples", None)
     result["runtime_neutral_metrics"] = metrics
     result["failure_taxonomy"] = taxonomy
     return result
@@ -208,3 +230,115 @@ def test_legacy_fingerprint_remains_v0(tmp_path: Path) -> None:
     assert result["run_fingerprint"]["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION
     assert verify_run_fingerprint(tmp_path, result) == []
     assert evidence["schema_version"] == NATIVE_EXECUTION_EVIDENCE_SCHEMA
+
+
+def test_area4_peak_vram_records_validate_and_fingerprint(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.25,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    vram_samples = [
+        {
+            "timestamp_utc": "2026-08-26T00:00:00+00:00",
+            "gpu_index": 0,
+            "gpu_name": "Test GPU",
+            "used_mib": 4000,
+            "total_mib": 24564,
+        },
+        {
+            "timestamp_utc": "2026-08-26T00:00:01+00:00",
+            "gpu_index": 0,
+            "gpu_name": "Test GPU",
+            "used_mib": 8123,
+            "total_mib": 24564,
+        },
+    ]
+    result = _base_result(tmp_path, evidence=evidence, vram_samples=vram_samples)
+    records = result["runtime_neutral_metrics"]["measurements"][0]["metrics"]
+    assert len(records) == 2
+    peak = records[1]
+    assert peak["metric_id"] == "llmgauge.metric.v1.peak_vram"
+    assert peak["value"] == 8123
+    assert peak["unit"] == "MiB"
+    assert peak["provenance"] == "calculated"
+    assert peak["device_scope"] == {"gpu_index": 0, "gpu_name": "Test GPU"}
+    assert peak["sample_count"] == 2
+    assert attach_run_fingerprint(tmp_path, result) is not None
+    assert (
+        result["run_fingerprint"]["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V1
+    )
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    assert validate_result_dir(tmp_path) == []
+    assert verify_run_fingerprint(tmp_path, result) == []
+
+
+def test_area4_peak_vram_rejects_tampered_value(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.25,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    vram_samples = [
+        {
+            "timestamp_utc": "2026-08-26T00:00:00+00:00",
+            "gpu_index": 0,
+            "gpu_name": "Test GPU",
+            "used_mib": 8123,
+            "total_mib": 24564,
+        },
+    ]
+    result = _base_result(tmp_path, evidence=evidence, vram_samples=vram_samples)
+    result["runtime_neutral_metrics"]["measurements"][0]["metrics"][1]["value"] = 9999
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    errors = validate_result_dir(tmp_path)
+    assert any("peak VRAM records differ" in error for error in errors)
+
+
+def test_area4_peak_vram_unavailable_when_capture_invalid(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.25,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    result = _base_result(
+        tmp_path,
+        evidence=evidence,
+        vram_samples=[{"gpu_index": 0, "gpu_name": "Test GPU", "used_mib": -5}],
+    )
+    records = result["runtime_neutral_metrics"]["measurements"][0]["metrics"]
+    assert len(records) == 2
+    peak = records[1]
+    assert peak["availability"] == "unavailable"
+    assert peak["value"] is None
+    assert peak["provenance"] == "unavailable"
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    assert validate_result_dir(tmp_path) == []
+
+
+def test_area4_without_vram_capture_keeps_single_record(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.25,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    result = _base_result(tmp_path, evidence=evidence)
+    records = result["runtime_neutral_metrics"]["measurements"][0]["metrics"]
+    assert len(records) == 1
+    assert records[0]["metric_id"] == "llmgauge.metric.v1.request_wall_time"
