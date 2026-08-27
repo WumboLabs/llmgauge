@@ -2,53 +2,71 @@
 
 ## Unreleased
 
-### Added
+## v0.75.0 - 2026-08-27
 
-- Added `llmgauge profiles list` and `llmgauge profiles show PROFILE_ID` for
-  installed, offline discovery and inspection of built-in reasoning/sampling
-  profiles, including exact runtime-default-aware controls, full content
-  identity, provenance, and bounded vendor-alignment disclosure.
+LLMGauge v0.75 is the reasoning/sampling profile release: it makes named,
+versioned generation controls a first-class, discoverable, reproducible part
+of every run, and it expands runtime-neutral evidence and external-benchmark
+interoperability merged since v0.74. Evaluation suites, schemas, and artifact
+contracts evolve additively; previously valid v0.74 results remain valid.
 
-- Added the first primary-source-qualified vendor-aligned reasoning and
-  sampling profiles (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
-  `gemma-4-instruct-v1`, `deepseek-r1-v1`): versioned offline builtins,
-  documented source/scope provenance, and comparison disclosure that
-  alignment is operator-declared rather than vendor-endorsed.
+### Reasoning and sampling profiles
 
-- Added derived device-scoped peak VRAM evidence
-  (`llmgauge.metric.v1.peak_vram`) for native llama.cpp results: one record
-  per observed GPU computed from preserved per-prompt VRAM samples with
-  calculated provenance and a versioned calculation semantics, an
-  unavailable-not-zero fallback, and validator recomputation against the
-  preserved evidence. Historical and capture-off results remain unchanged;
-  no cross-runtime VRAM equivalence is implied.
-- Added read-only Bundle 2 import qualification (`llmgauge.bundle2.v0`) for
-  MMLU-Pro, GPQA (n-shot), and IFEval at the shared
-  `lm-evaluation-harness` `v0.4.12` pin, including the mandatory
-  `custom-extract` filter for MMLU-Pro, gated-dataset disclosure for GPQA,
-  and the four-metric strict/loose contract for IFEval. It never executes
-  generated code and remains import-only.
-- Added requested `--min-p` sampler capture for llama.cpp with a paired
-  request state, persisted across CLI, runner argv, runtime-command and
-  result metadata, validation, the extended runtime-settings fingerprint
-  boundary, run reports, and comparison scope.
 - Added local named/versioned reasoning and sampling profile provenance:
   `--sampling-profile` resolves one built-in controlled profile or a closed
   local-config definition, preserves individual requested controls, validates
   content identity and recorded overrides, carries additive V5 fingerprints,
-  and discloses profile provenance in reports and comparisons. Selection records
-  requested controls only; it does not prove semantic reasoning behavior.
+  and discloses profile provenance in reports and comparisons. Selection
+  records requested controls only; it does not prove semantic reasoning
+  behavior.
+- Added the first primary-source-qualified vendor-aligned profiles
+  (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`, `gemma-4-instruct-v1`,
+  `deepseek-r1-v1`): versioned offline builtins with documented
+  source/scope provenance; alignment is operator-declared, not
+  vendor-endorsed.
+- Added `llmgauge profiles list` and `llmgauge profiles show PROFILE_ID`
+  for installed, offline discovery and inspection of built-in profiles,
+  including exact runtime-default-aware controls, full content identity,
+  provenance, and bounded vendor-alignment disclosure.
+- Added requested `--min-p` sampler capture for llama.cpp with a paired
+  request state, persisted across CLI, runner argv, runtime-command and
+  result metadata, validation, the extended runtime-settings fingerprint
+  boundary, run reports, and comparison scope.
 
-### Changed
+### Comparison and evidence
 
 - Comparison reports now treat every captured reasoning/sampling/control
   setting as runtime-mixing evidence, disclose reasoning mode in Comparison
   Scope, and add a limited-claims notice when effective reasoning mode is
   unknown, unspecified, or differs across runs. Requests remain distinct
   from observed model/template behavior.
+
+### Runtime-neutral evidence
+
+- Added derived device-scoped peak VRAM evidence
+  (`llmgauge.metric.v1.peak_vram`) for native llama.cpp results: one record
+  per observed GPU computed from preserved per-prompt VRAM samples with
+  calculated provenance and versioned calculation semantics, an
+  unavailable-not-zero fallback, and validator recomputation against the
+  preserved evidence. Historical and capture-off results remain unchanged;
+  no cross-runtime VRAM equivalence is implied.
+
+### External benchmarks
+
+- Added read-only Bundle 2 import qualification (`llmgauge.bundle2.v0`) for
+  MMLU-Pro, GPQA (n-shot), and IFEval at the shared
+  `lm-evaluation-harness` `v0.4.12` pin, including the mandatory
+  `custom-extract` filter for MMLU-Pro, gated-dataset disclosure for GPQA,
+  and the four-metric strict/loose contract for IFEval. It never executes
+  generated code and remains import-only; imported external benchmark
+  evidence is not an LLMGauge-native quality score.
+
+### Documentation and operations
+
+- Added PyPI release failure and recovery procedures, including yank
+  guidance for immutable published versions.
 - Bare `pytest` collection no longer descends into ignored scratch `tmp/`
-  trees: `norecursedirs` now restates pytest's defaults plus `tmp` instead
-  of relying on the default recursive behavior.
+  trees: `norecursedirs` now restates pytest's defaults plus `tmp`.
 
 ## v0.74.0 - 2026-08-26
 
