@@ -21,6 +21,12 @@
   request state, persisted across CLI, runner argv, runtime-command and
   result metadata, validation, the extended runtime-settings fingerprint
   boundary, run reports, and comparison scope.
+- Added local named/versioned reasoning and sampling profile provenance:
+  `--sampling-profile` resolves one built-in controlled profile or a closed
+  local-config definition, preserves individual requested controls, validates
+  content identity and recorded overrides, carries additive V5 fingerprints,
+  and discloses profile provenance in reports and comparisons. Selection records
+  requested controls only; it does not prove semantic reasoning behavior.
 
 ### Changed
 

@@ -96,6 +96,11 @@ def run(
     model_profile: str | None = typer.Option(
         None, "--model-profile", help="Model profile name"
     ),
+    sampling_profile: str | None = typer.Option(
+        None,
+        "--sampling-profile",
+        help="Named reasoning and sampling profile",
+    ),
     config_path: Path | None = typer.Option(
         None, "--config", help="LLMGauge config YAML"
     ),
@@ -246,6 +251,7 @@ def run(
         model_profile=model_profile,
         config_path=config_path,
         model_profiles_path=model_profiles_path,
+        sampling_profile=sampling_profile,
         model_path=model_path,
         llama_cli=llama_cli,
         ctx=ctx,
