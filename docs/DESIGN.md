@@ -140,6 +140,12 @@ Current non-goals / deliberate project boundaries:
 - [Cross-runtime comparison methodology](VLLM_CROSS_RUNTIME_COMPARISON_METHODOLOGY.md) —
   minimum rules for a bounded llama.cpp-versus-vLLM comparison, including
   template/input disclosure and non-equivalent runtime-native metrics.
+- [Reasoning and sampling profile identity contract](REASONING_SAMPLING_PROFILE_CONTRACT.md)
+  — accepted named/versioned profile substrate.
+- [Vendor-aligned sampling profiles](VENDOR_ALIGNED_SAMPLING_PROFILES.md)
+  — first qualified `vendor_aligned` builtins, source matrix, and
+  requalification policy. Alignment is documented-request provenance only.
+
 - Fit Ladder terminal-path behavior (total failure after all planned contexts;
   success after fallback) is stated sanitized in [FIT_LADDER.md](FIT_LADDER.md);
   the operator run records behind it were evaluation artifacts and are not

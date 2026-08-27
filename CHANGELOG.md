@@ -4,6 +4,12 @@
 
 ### Added
 
+- Added the first primary-source-qualified vendor-aligned reasoning and
+  sampling profiles (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
+  `gemma-4-instruct-v1`, `deepseek-r1-v1`): versioned offline builtins,
+  documented source/scope provenance, and comparison disclosure that
+  alignment is operator-declared rather than vendor-endorsed.
+
 - Added derived device-scoped peak VRAM evidence
   (`llmgauge.metric.v1.peak_vram`) for native llama.cpp results: one record
   per observed GPU computed from preserved per-prompt VRAM samples with

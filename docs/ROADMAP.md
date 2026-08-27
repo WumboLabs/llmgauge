@@ -685,10 +685,15 @@ now adds the first reusable local substrate: `--sampling-profile`, one neutral
 controlled built-in profile, closed custom config definitions, deterministic
 content identity, additive result evidence and V5 fingerprints, validation, and
 comparison provenance disclosure. Selected profiles record requested controls
-only; they do not prove semantic reasoning behavior or vendor alignment.
+only; they do not prove semantic reasoning behavior or vendor endorsement.
 
-Vendor-aligned profile content, a broader profile catalog, and profile
-filesystem discovery remain separate reviewable milestones.
+The first vendor-aligned content qualification slice is complete: four
+offline builtins (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
+`gemma-4-instruct-v1`, `deepseek-r1-v1`) plus
+[VENDOR_ALIGNED_SAMPLING_PROFILES.md](VENDOR_ALIGNED_SAMPLING_PROFILES.md).
+Broader family coverage, custom profile UX, and filesystem discovery remain
+separate reviewable milestones.
+
 
 
 Generic Core suite implementation is no longer the selected next milestone, but
