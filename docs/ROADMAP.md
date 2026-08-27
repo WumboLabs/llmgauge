@@ -8,19 +8,21 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.74` (release candidate, pending the human
+- Current stable tag: `v0.75` (release candidate, pending the human
   merge/tag/publication gate)
-- Current package version: `0.74.0`
-- Current stable release line: `v0.74.0`
-- Current release state: `v0.74` is the completed distribution and
-  installation release: PyPI-grade package metadata, the Trusted Publishing
-  release workflow with build-once/publish-exact-artifacts architecture, a
-  proven TestPyPI publication/installation path, configured production
-  publisher and protected GitHub `pypi` environment, a canonical
-  `uv tool install llmgauge` installation UX, and consistent version/release
-  metadata. Production publication itself happens only through the later
-  human annotated-tag/approval gate. The Generic Core evaluation behavior of
-  v0.73 is unchanged.
+- Current package version: `0.75.0`
+- Current stable release line: `v0.75.0`
+- Current release state: `v0.75` is the reasoning/sampling profile release:
+  named/versioned profile provenance with `--sampling-profile`, the
+  `controlled-deterministic-v1` built-in, the first four
+  primary-source-qualified vendor-aligned profiles, offline profile discovery
+  (`llmgauge profiles list` / `profiles show`), requested `--min-p` capture,
+  reasoning/sampling-aware comparison disclosure, derived device-scoped peak
+  VRAM evidence, read-only Bundle 2 import qualification, and PyPI
+  release-recovery documentation. v0.74 remains the completed distribution and
+  installation release (production PyPI, Trusted Publishing, canonical
+  `uv tool install llmgauge` UX). Production publication of v0.75 happens only
+  through the human annotated-tag/approval gate.
 
 ## What LLMGauge is
 
@@ -69,6 +71,16 @@ LLMGauge currently provides:
 - read-only `lm_eval_harness_results` import into
   `llmgauge.external_benchmark_evidence.v0`
 - pinned Bundle 1 qualification and read-only `llmgauge benchmark report`
+- pinned Bundle 2 read-only import qualification (`llmgauge.bundle2.v0`)
+- named/versioned reasoning and sampling profiles via `--sampling-profile`
+  with deterministic content identity, result/fingerprint persistence, and
+  comparison provenance disclosure
+- four primary-source-qualified vendor-aligned built-in profiles plus the
+  neutral `controlled-deterministic-v1` profile
+- offline profile discovery and introspection (`llmgauge profiles list`,
+  `llmgauge profiles show PROFILE_ID`)
+- requested `--min-p` sampler capture across run metadata and comparison scope
+- derived device-scoped peak VRAM evidence for native llama.cpp results
 
 ## Evaluation identities and boundaries
 
@@ -87,13 +99,12 @@ is pinned against EleutherAI `lm-evaluation-harness` `v0.4.12` in
 [external benchmark and LocalMaxxing interoperability contract](EXTERNAL_BENCHMARK_LOCALMAXXING_INTEROP_CONTRACT.md)
 locks official-harness authority, imported-evidence identity, and the
 `llmgauge benchmark` surface. Milestone B implements the bounded read-only
-`lm_eval_harness_results` importer and evidence foundation. Milestone C
-qualifies MMLU, ARC Challenge, HellaSwag, WinoGrande, TruthfulQA MC2, GSM8K,
 HumanEval, and MBPP and adds `llmgauge benchmark report`. Bundle 2
-(MMLU-Pro, GPQA, IFEval) remains later integration/testing and must be
-imported under those official contracts, not recreated as native LLMGauge
-prompts. LocalMaxxing official shard evals are a different protocol and are
-not interchangeable with official lm-eval metrics.
+(MMLU-Pro, GPQA, IFEval) qualification is now complete as read-only
+`llmgauge.bundle2.v0` import qualification (see Bundle 2 qualification below);
+both bundles must be imported under those official contracts, not recreated
+as native LLMGauge prompts. LocalMaxxing official shard evals are a different
+protocol and are not interchangeable with official lm-eval metrics.
 
 ## vLLM evidence track
 
@@ -774,10 +785,9 @@ promise, authorization, deterministic-check behavior, evidence meaning,
 security boundary, and comparability, so it must not silently change
 `0.1.0`. No Generic Core profile aggregate score exists.
 
-### `v0.74` — Distribution and installation (release candidate)
+### `v0.74` — Distribution and installation (published)
 
-**Completed in the prepared release candidate, subject to the final human
-merge/tag/publication gate:**
+**Completed and published to production PyPI as `llmgauge` 0.74.0:**
 
 - PyPI-grade package metadata: explicit version, `uv_build>=0.12.6,<0.13`,
   LICENSE carried in wheel/sdist, declared project URLs;
@@ -795,8 +805,33 @@ merge/tag/publication gate:**
 - consistent version, changelog, README, installation, release-process, and
   roadmap metadata for the first production PyPI listing.
 
+Production PyPI publication occurred when the human pushed annotated tag
+`v0.74` and approved the `pypi` environment deployment.
+
+### `v0.75` — Reasoning/sampling profiles and evidence (release candidate)
+
+**Completed in the prepared release candidate, subject to the final human
+merge/tag/publication gate:**
+
+- named/versioned reasoning and sampling profiles (`--sampling-profile`)
+  with deterministic content identity, result/fingerprint persistence, and
+  comparison provenance disclosure;
+- the neutral `controlled-deterministic-v1` profile plus four
+  primary-source-qualified vendor-aligned builtins, documented in
+  [VENDOR_ALIGNED_SAMPLING_PROFILES.md](VENDOR_ALIGNED_SAMPLING_PROFILES.md);
+- offline installed-CLI profile discovery and introspection
+  (`llmgauge profiles list`, `llmgauge profiles show PROFILE_ID`);
+- requested `--min-p` capture across run metadata and comparison scope;
+- derived device-scoped `llmgauge.metric.v1.peak_vram` evidence for native
+  llama.cpp results with validator recomputation;
+- pinned Bundle 2 read-only import qualification (`llmgauge.bundle2.v0`)
+  for MMLU-Pro, GPQA, and IFEval at `lm-evaluation-harness` `v0.4.12`;
+- reasoning/sampling and `min_p` disclosure in comparison scope; and
+- consistent version, changelog, README, installation, release-process, and
+  roadmap metadata.
+
 Production PyPI publication is not part of the repository delta; it happens
-only when the human pushes annotated tag `v0.74` and approves the `pypi`
+only when the human pushes annotated tag `v0.75` and approves the `pypi`
 environment deployment.
 
 These gates assign no release dates.
@@ -809,7 +844,7 @@ Generic Core delivery, and one another.
 
 ### Packaging and productization
 
-**Completed for v0.74 (release candidate):**
+**Completed for v0.74 (published):**
 
 - Distribution metadata hardening for PyPI-grade artifacts (`v0.74`
   Milestone A): explicit version, `uv_build>=0.12.6,<0.13` compatibility,
@@ -865,20 +900,22 @@ benchmarking, and agent-environment evaluations:
    (completed);
 2. B. external benchmark importer/foundation (completed);
 3. C. first mainstream external benchmark bundle (completed);
-4. D. LocalMaxxing quality export / dry-run / explicit submit, only after
+4. Bundle 2 qualification (completed as read-only `llmgauge.bundle2.v0`
+   import qualification);
+5. LocalMaxxing quality export / dry-run / explicit submit, only after
    an approved matching suite path exists;
-5. additional external text benchmark read-only imports, including the
-   separate Bundle 2 investigation;
-6. Agent drift evaluation contract;
-7. Terminal-Bench/Harbor contract and read-only import;
-8. SWE-bench; and
-9. Browser, computer-use, and OSWorld later.
+6. additional external text benchmark read-only imports;
+7. Agent drift evaluation contract;
+8. Terminal-Bench/Harbor contract and read-only import;
+9. SWE-bench; and
+10. Browser, computer-use, and OSWorld later.
 
 MMLU, ARC Challenge, HellaSwag, WinoGrande, TruthfulQA MC2, GSM8K,
 HumanEval, and MBPP are qualified as Bundle 1 against the pinned
-`v0.4.12` identities. MMLU-Pro, GPQA, and IFEval remain later Bundle 2
-work. Generic lm-eval import is not by itself a Bundle 1 completion
-claim. Any later integration preserves the external dataset, harness,
+`v0.4.12` identities; MMLU-Pro, GPQA, and IFEval are qualified as Bundle 2
+(`llmgauge.bundle2.v0`) at the same pin. Generic lm-eval import is not by
+itself a Bundle 1 or Bundle 2 completion claim.
+Any later integration preserves the external dataset, harness,
 and official metric as authoritative; LLMGauge does not recreate them as
 native prompts. LocalMaxxing official shard evals and plus-variants are
 not those official metrics.
@@ -892,7 +929,8 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
-| v0.74 | Distribution/installation release candidate: PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
+| v0.75 | Release candidate: named/versioned reasoning and sampling profiles (`--sampling-profile`), `controlled-deterministic-v1` plus four vendor-aligned builtins, offline `profiles list`/`profiles show`, `--min-p` capture, derived peak-VRAM metric evidence, Bundle 2 (`llmgauge.bundle2.v0`) import qualification, comparison reasoning/sampling disclosure |
+| v0.74 | Distribution/installation release (published to production PyPI as 0.74.0): PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
 | v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |
 | v0.72 | Profile-aware suite schema, normalized selection, contained references, Generic Core package resources, and compatibility/security hardening; no executable `generic-core-v1` suite |
 | v0.71 | Optional external local vLLM adapter, additive fingerprint evidence, public-export identity redaction, first tracked practical evidence package |
