@@ -1965,6 +1965,9 @@ def execute_run(
                 native_execution_path.relative_to(out)
             ),
             "_area4_native_execution_evidence": native_execution_evidence,
+            "_area4_vram_samples": (
+                vram_samples if vram_samples and vram_summary is not None else None
+            ),
             "prompt_transport": prompt_transport,
             "vram_guardrails": vram_guardrails,
             "score": None,
@@ -2136,6 +2139,7 @@ def execute_run(
     )
     for prompt_entry in prompt_results:
         prompt_entry.pop("_area4_native_execution_evidence")
+        prompt_entry.pop("_area4_vram_samples", None)
     result["runtime_neutral_metrics"] = runtime_neutral_metrics
     result["failure_taxonomy"] = failure_taxonomy
 

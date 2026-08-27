@@ -60,6 +60,30 @@ cache state, and references to requested runtime settings. Requested and
 observed execution placement are both `unknown` because `--n-gpu-layers` alone
 is not placement observation.
 
+## Peak VRAM evidence
+
+When a prompt captured VRAM samples, the runner additionally persists
+`vram/<prompt-id-with-slashes-replaced>.samples.json`
+(`llmgauge.vram.samples.v0`) and the measurement carries one extra metric
+record per observed device (`gpu_index` plus `gpu_name`):
+`llmgauge.metric.v1.peak_vram`. The value is the maximum absolute used memory
+in `MiB` among that device's valid samples inside the sampling window that
+spans process launch to post-completion capture; it is never a baseline delta,
+a cross-device aggregate, or a per-device total. `provenance` is `calculated`
+with `calculation_semantics: llmgauge.area4.peak_used_mib_by_device.v1`,
+`sampling_interval` is `unknown`, `equivalence` is `unproven`, and
+`evidence_refs` cite the contained samples artifact. Samples are polled at
+an operator-chosen interval; timestamps stay in the cited artifact and the
+neutral record stores only the count and device scope. A persisted samples
+artifact containing no valid samples yields one record with
+`availability: unavailable`, `provenance: unavailable`, `value: null`,
+`device_scope: null`, and `sample_count: 0`; zero is never substituted.
+When capture was not attempted, or no sample artifact was persisted, no
+peak VRAM record exists. Validators recompute the expected records from
+the persisted samples artifact and reject any divergence. This record does
+not establish cross-runtime VRAM equivalence, placement observation, or
+steady-state behavior.
+
 ## Native classification evidence
 
 The native artifact has a structured `failure` object only for a non-completed
