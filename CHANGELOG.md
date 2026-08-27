@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Added
+
+- Added derived device-scoped peak VRAM evidence
+  (`llmgauge.metric.v1.peak_vram`) for native llama.cpp results: one record
+  per observed GPU computed from preserved per-prompt VRAM samples with
+  calculated provenance and a versioned calculation semantics, an
+  unavailable-not-zero fallback, and validator recomputation against the
+  preserved evidence. Historical and capture-off results remain unchanged;
+  no cross-runtime VRAM equivalence is implied.
+- Added read-only Bundle 2 import qualification (`llmgauge.bundle2.v0`) for
+  MMLU-Pro, GPQA (n-shot), and IFEval at the shared
+  `lm-evaluation-harness` `v0.4.12` pin, including the mandatory
+  `custom-extract` filter for MMLU-Pro, gated-dataset disclosure for GPQA,
+  and the four-metric strict/loose contract for IFEval. It never executes
+  generated code and remains import-only.
+- Added requested `--min-p` sampler capture for llama.cpp with a paired
+  request state, persisted across CLI, runner argv, runtime-command and
+  result metadata, validation, the extended runtime-settings fingerprint
+  boundary, run reports, and comparison scope.
+
+### Changed
+
+- Comparison reports now treat every captured reasoning/sampling/control
+  setting as runtime-mixing evidence, disclose reasoning mode in Comparison
+  Scope, and add a limited-claims notice when effective reasoning mode is
+  unknown, unspecified, or differs across runs. Requests remain distinct
+  from observed model/template behavior.
+- Bare `pytest` collection no longer descends into ignored scratch `tmp/`
+  trees: `norecursedirs` now restates pytest's defaults plus `tmp` instead
+  of relying on the default recursive behavior.
+
 ## v0.74.0 - 2026-08-26
 
 LLMGauge v0.74 is a distribution and installation release: it makes the

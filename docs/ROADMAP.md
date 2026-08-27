@@ -603,6 +603,15 @@ prompt/generation throughput remains non-neutral; TTFT, vLLM, transcripts,
 comparisons, reporting/export expansion, and all other Area 4 categories remain
 deferred. Historical results remain valid unchanged.
 
+A second bounded Area 4 slice adds optional device-scoped
+`llmgauge.metric.v1.peak_vram` evidence for native llama.cpp results:
+one record per observed GPU, computed (calculated provenance) from the
+preserved per-prompt `nvidia-smi` samples with a versioned calculation
+semantics, unavailable-not-zero fallback, and validator recomputation
+against the preserved evidence. The remaining Area 4 categories (TTFT,
+load time, prefill/decode throughput, placement observation) stay deferred;
+no cross-runtime VRAM equivalence is claimed.
+
 ### External benchmark importer foundation
 
 **Completed:** Milestone B implements read-only import of supported
@@ -633,7 +642,18 @@ The accepted
 remains the authority/identity contract.
 
 
-### LocalMaxxing performance-benchmark integration
+### Bundle 2 qualification (completed)
+
+Milestone D extends the external-benchmark qualification to Bundle 2
+(`llmgauge.bundle2.v0`): read-only qualification for MMLU-Pro (group of 14
+subjects with mandatory `custom-extract` filter), GPQA n-shot
+(`gpqa_{main,diamond,extended}_n_shot` with gated-dataset disclosure), and
+IFEval (all four strict/loose metrics), all at the shared
+`lm-evaluation-harness` `v0.4.12` pin. It mirrors the Bundle 1 engine,
+remains import-only, and never executes generated code. Report rendering of
+Bundle 2 alongside Bundle 1 in `llmgauge benchmark report` is a separate
+presentation decision.
+
 
 **Operational on `main`:** the LocalMaxxing integration provides a versioned
 local artifact, llama.cpp-first benchmark method, offline validation and export,
@@ -655,7 +675,20 @@ its public benchmark semantics. Full Area 4 remains later work beyond the
 first native llama.cpp slice, and LocalMaxxing does not alter the `v0.73`
 Generic Core release gate.
 
-## Admitted downstream Generic Core delivery
+### Reasoning and sampling comparison readiness (completed)
+
+Comparison reports are now profile-aware for every captured
+reasoning/sampling/control setting (reasoning mode and effort/budget,
+temperature, top-p, top-k, min-p, seed, cache types, fit,
+reasoning-preservation, speculative type). Comparison Scope and Publish
+Readiness Notes treat these as runtime-mixing evidence for like-for-like
+classification, disclose reasoning mode, and add a limited-claims notice
+when effective reasoning mode is unknown, unspecified, or differs across
+runs. Requested `--min-p` capture follows the existing paired request-state
+convention. Named profile identity/version, vendor-aligned versus controlled
+profile kinds, and their V5 fingerprint boundary remain future work defined
+in the draft contract candidate.
+
 
 Generic Core suite implementation is no longer the selected next milestone, but
 it remains admitted downstream work under its existing accepted contracts and
