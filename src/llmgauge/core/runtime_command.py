@@ -113,6 +113,8 @@ def build_runtime_command_document(
         "top_p": config.top_p,
         "top_k": config.top_k,
         "top_k_state": "explicit" if config.top_k is not None else "runtime_default",
+        "min_p": config.min_p,
+        "min_p_state": "explicit" if config.min_p is not None else "runtime_default",
         "seed": config.seed,
         "seed_state": "explicit" if config.seed is not None else "runtime_default",
         "batch": config.batch_size,

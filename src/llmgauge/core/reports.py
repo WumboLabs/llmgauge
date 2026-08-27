@@ -123,6 +123,10 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
                 f"- Top-k: {runtime.get('top_k')} "
                 f"({runtime.get('top_k_state', 'unknown')})"
             ),
+            (
+                f"- Min-p: {runtime.get('min_p')} "
+                f"({runtime.get('min_p_state', 'unknown')})"
+            ),
             (f"- Seed: {runtime.get('seed')} ({runtime.get('seed_state', 'unknown')})"),
             f"- Batch: {runtime.get('batch_size')}",
             f"- Parallel sequences: {runtime.get('parallel_sequences', 'unknown')}",

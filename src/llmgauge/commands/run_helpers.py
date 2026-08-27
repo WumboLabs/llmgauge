@@ -296,6 +296,25 @@ def optional_int(
     return resolved
 
 
+def optional_float(
+    value: Any,
+    *,
+    field_name: str,
+    minimum: float | None = None,
+) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise typer.BadParameter(f"{field_name} must be a number")
+    try:
+        resolved = float(value)
+    except (TypeError, ValueError) as exc:
+        raise typer.BadParameter(f"{field_name} must be a number") from exc
+    if minimum is not None and resolved < minimum:
+        raise typer.BadParameter(f"{field_name} must be at least {minimum}")
+    return resolved
+
+
 def optional_llama_cache_type(value: Any, *, field_name: str) -> str | None:
     if value is None:
         return None
@@ -450,6 +469,7 @@ def resolve_run_options(
     temp: float | None,
     top_p: float | None,
     top_k: int | None = None,
+    min_p: float | None = None,
     seed: int | None = None,
     batch: int | None = None,
     ubatch: int | None = None,
@@ -537,6 +557,15 @@ def resolve_run_options(
         ),
         field_name="top_k",
         minimum=0,
+    )
+    resolved_min_p = optional_float(
+        coalesce(
+            min_p,
+            profile.get("min_p"),
+            get_config_value(config_data, "defaults.min_p"),
+        ),
+        field_name="min_p",
+        minimum=0.0,
     )
     resolved_seed = optional_int(
         coalesce(
@@ -683,6 +712,7 @@ def resolve_run_options(
         value is not None
         for value in (
             resolved_top_k,
+            resolved_min_p,
             resolved_seed,
             resolved_cache_type_k,
             resolved_cache_type_v,
@@ -691,8 +721,9 @@ def resolve_run_options(
         )
     ):
         raise typer.BadParameter(
-            "top_k, seed, cache_type_k, cache_type_v, reasoning_effort, and "
-            "reasoning_budget are currently supported only by backend=llama.cpp"
+            "top_k, min_p, seed, cache_type_k, cache_type_v, reasoning_effort, "
+            "and reasoning_budget are currently supported only by "
+            "backend=llama.cpp"
         )
 
     if resolved_backend == "vllm":
@@ -861,6 +892,7 @@ def resolve_run_options(
         "temp": resolved_temp,
         "top_p": resolved_top_p,
         "top_k": resolved_top_k,
+        "min_p": resolved_min_p,
         "seed": resolved_seed,
         "batch": resolved_batch,
         "ubatch": resolved_ubatch,
@@ -981,6 +1013,7 @@ def print_run_preflight(
     table.add_row("Top-p", str(resolved["top_p"]))
     if backend != "vllm":
         table.add_row("Top-k", str(resolved.get("top_k")))
+        table.add_row("Min-p", str(resolved.get("min_p")))
         table.add_row("Seed", str(resolved.get("seed")))
         table.add_row("Batch", str(resolved["batch"]))
         table.add_row("UBatch", str(resolved["ubatch"]))
@@ -1022,6 +1055,7 @@ def print_run_preflight(
             temperature=resolved["temp"],
             top_p=resolved["top_p"],
             top_k=resolved.get("top_k"),
+            min_p=resolved.get("min_p"),
             seed=resolved.get("seed"),
             batch_size=resolved["batch"],
             ubatch_size=resolved["ubatch"],
@@ -1412,6 +1446,7 @@ def execute_multi_turn_run(
             temperature=resolved["temp"],
             top_p=resolved["top_p"],
             top_k=resolved.get("top_k"),
+            min_p=resolved.get("min_p"),
             seed=resolved.get("seed"),
             batch_size=resolved["batch"],
             ubatch_size=resolved["ubatch"],
@@ -1587,6 +1622,10 @@ def execute_multi_turn_run(
             "top_k": resolved.get("top_k"),
             "top_k_state": (
                 "explicit" if resolved.get("top_k") is not None else "runtime_default"
+            ),
+            "min_p": resolved.get("min_p"),
+            "min_p_state": (
+                "explicit" if resolved.get("min_p") is not None else "runtime_default"
             ),
             "seed": resolved.get("seed"),
             "seed_state": (
@@ -1824,6 +1863,7 @@ def execute_run(
         temperature=resolved["temp"],
         top_p=resolved["top_p"],
         top_k=resolved.get("top_k"),
+        min_p=resolved.get("min_p"),
         seed=resolved.get("seed"),
         batch_size=resolved["batch"],
         ubatch_size=resolved["ubatch"],
@@ -2047,6 +2087,10 @@ def execute_run(
             "top_k": resolved.get("top_k"),
             "top_k_state": (
                 "explicit" if resolved.get("top_k") is not None else "runtime_default"
+            ),
+            "min_p": resolved.get("min_p"),
+            "min_p_state": (
+                "explicit" if resolved.get("min_p") is not None else "runtime_default"
             ),
             "seed": resolved.get("seed"),
             "seed_state": (

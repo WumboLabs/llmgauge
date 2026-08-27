@@ -34,6 +34,7 @@ class LlamaCppRunConfig:
     flash_attn: str = "auto"
     reasoning_mode: str = "off"
     top_k: int | None = None
+    min_p: float | None = None
     seed: int | None = None
     cache_type_k: str | None = None
     cache_type_v: str | None = None
@@ -118,6 +119,8 @@ def build_llama_command(
     )
     if config.top_k is not None:
         command.extend(["--top-k", str(config.top_k)])
+    if config.min_p is not None:
+        command.extend(["--min-p", str(config.min_p)])
     if config.seed is not None:
         command.extend(["--seed", str(config.seed)])
     command.extend(["--n-predict", str(config.max_tokens)])

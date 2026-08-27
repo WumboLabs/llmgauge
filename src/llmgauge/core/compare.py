@@ -268,6 +268,13 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
             f"({result.get('runtime', {}).get('top_k_state', 'unknown')})"
         ),
     )
+    min_ps = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('min_p')!r} "
+            f"({result.get('runtime', {}).get('min_p_state', 'unknown')})"
+        ),
+    )
     seeds = _unique_nonempty_values(
         results,
         lambda result: (
@@ -341,6 +348,7 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
             temperatures,
             runtime_labels,
             top_ks,
+            min_ps,
             seeds,
             cache_types_k,
             cache_types_v,
@@ -371,6 +379,10 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         (
             "- Top-k (value, request state): "
             f"{', '.join(map(str, top_ks)) if top_ks else 'unknown'}"
+        ),
+        (
+            "- Min-p (value, request state): "
+            f"{', '.join(map(str, min_ps)) if min_ps else 'unknown'}"
         ),
         (
             "- Seed (value, request state): "

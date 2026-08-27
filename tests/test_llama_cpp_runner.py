@@ -226,6 +226,7 @@ def test_build_llama_command_includes_extended_runtime_controls() -> None:
         ubatch_size=256,
         gpu_layers=999,
         top_k=20,
+        min_p=0.05,
         seed=424242,
         cache_type_k="q8_0",
         cache_type_v="q4_0",
@@ -241,6 +242,7 @@ def test_build_llama_command_includes_extended_runtime_controls() -> None:
     assert command[command.index("--parallel") + 1] == "1"
     assert "--kv-offload" in command
     assert command[command.index("--top-k") + 1] == "20"
+    assert command[command.index("--min-p") + 1] == "0.05"
     assert command[command.index("--seed") + 1] == "424242"
     assert command[command.index("--cache-type-k") + 1] == "q8_0"
     assert command[command.index("--cache-type-v") + 1] == "q4_0"
