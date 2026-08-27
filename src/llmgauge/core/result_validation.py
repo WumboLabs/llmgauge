@@ -35,6 +35,7 @@ from llmgauge.core.run_fingerprint import (
     resolve_contained_result_artifact,
     verify_run_fingerprint,
 )
+from llmgauge.core.sampling_profiles import validate_runtime_profile
 from llmgauge.core.suite import ScoringRole, SuiteDefinitionError, load_normalized_suite
 from llmgauge.core.suite_paths import resolve_suite_path
 
@@ -1136,6 +1137,8 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
             errors.append("model.model_path must be redacted")
 
     runtime = data.get("runtime", {})
+    if isinstance(runtime, dict):
+        errors.extend(validate_runtime_profile(runtime.get("profile"), runtime))
     if isinstance(runtime, dict) and runtime.get("backend") == "llama.cpp":
         errors.extend(_validate_optional_llama_runtime_metadata(runtime))
     if isinstance(runtime, dict) and runtime.get("runtime_command_captured"):

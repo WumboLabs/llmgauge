@@ -17,6 +17,8 @@ RUN_FINGERPRINT_SCHEMA_VERSION_V3 = "llmgauge.run_fingerprint.v3"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V3 = "llmgauge.run_fingerprint_payload.v3"
 RUN_FINGERPRINT_SCHEMA_VERSION_V4 = "llmgauge.run_fingerprint.v4"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V4 = "llmgauge.run_fingerprint_payload.v4"
+RUN_FINGERPRINT_SCHEMA_VERSION_V5 = "llmgauge.run_fingerprint.v5"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V5 = "llmgauge.run_fingerprint_payload.v5"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -345,7 +347,14 @@ def _control_runtime_evidence_is_represented(result: Mapping[str, Any]) -> bool:
     )
 
 
+def _profile_evidence_is_represented(result: Mapping[str, Any]) -> bool:
+    runtime = result.get("runtime")
+    return isinstance(runtime, Mapping) and runtime.get("profile") is not None
+
+
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _profile_evidence_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V5, RUN_FINGERPRINT_PAYLOAD_VERSION_V5
     if _control_runtime_evidence_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V4, RUN_FINGERPRINT_PAYLOAD_VERSION_V4
     if _extended_runtime_evidence_is_represented(result):
@@ -373,6 +382,7 @@ def build_run_fingerprint_payload(
         in {
             RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
         }
         and _area4_is_represented(result)
     )
@@ -394,9 +404,10 @@ def build_run_fingerprint_payload(
             RUN_FINGERPRINT_PAYLOAD_VERSION_V2,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
         }:
             raise FingerprintUnavailable(
-                "external_benchmark_evidence requires a v2, v3, or v4 "
+                "external_benchmark_evidence requires a v2, v3, v4, or v5 "
                 "fingerprint payload"
             )
         if not isinstance(external_reference, Mapping):
@@ -499,14 +510,13 @@ def build_run_fingerprint_payload(
             in {
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
             },
-            include_control_settings=(
-                payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V4
-                or (
-                    payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V3
-                    and _control_runtime_evidence_is_represented(result)
-                )
-            ),
+            include_control_settings=payload_version
+            in {
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
+            },
         ),
         "suite": suite_identity,
         "prompts": prompt_evidence,
@@ -519,6 +529,11 @@ def build_run_fingerprint_payload(
             "cleaned_outputs": "excluded",
         },
     }
+    if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V5:
+        profile = runtime.get("profile")
+        if not isinstance(profile, Mapping):
+            raise FingerprintUnavailable("runtime.profile is unavailable")
+        payload["runtime_profile"] = dict(profile)
     if include_area4:
         runtime_neutral_metrics = result.get("runtime_neutral_metrics")
         failure_taxonomy = result.get("failure_taxonomy")
@@ -607,14 +622,16 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V2,
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V1}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}, "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, or "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -625,21 +642,28 @@ def verify_run_fingerprint(
 
     if errors:
         return errors
+    if (
+        _profile_evidence_is_represented(result)
+        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V5
+    ):
+        return ["runtime.profile requires a v5 run_fingerprint when represented"]
     if _control_runtime_evidence_is_represented(result) and schema_version not in {
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     }:
         errors.append(
-            "llama.cpp control evidence requires a v3 or v4 run_fingerprint "
+            "llama.cpp control evidence requires a v3, v4, or v5 run_fingerprint "
             "when represented"
         )
         return errors
     if _extended_runtime_evidence_is_represented(result) and schema_version not in {
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     }:
         errors.append(
-            "extended runtime evidence requires a v3 or v4 run_fingerprint "
+            "extended runtime evidence requires a v3, v4, or v5 run_fingerprint "
             "when represented"
         )
         return errors
@@ -647,9 +671,10 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V2,
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     }:
         errors.append(
-            "external benchmark evidence requires a v2, v3, or v4 "
+            "external benchmark evidence requires a v2, v3, v4, or v5 "
             "run_fingerprint when represented"
         )
         return errors
@@ -657,13 +682,15 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V1,
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     }:
         errors.append(
-            "Area 4 evidence requires a v1, v3, or v4 run_fingerprint when represented"
+            "Area 4 evidence requires a v1, v3, v4, or v5 run_fingerprint when represented"
         )
-        return errors
 
-    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V4:
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V5:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V5
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V4:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V4
     elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V3:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V3

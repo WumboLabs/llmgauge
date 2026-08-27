@@ -29,6 +29,12 @@ from llmgauge.core.config import (
     load_model_profiles,
     resolve_model_profile,
 )
+from llmgauge.core.sampling_profiles import (
+    SamplingProfileError,
+    profile_runtime_settings,
+    resolve_sampling_profile,
+    runtime_profile_evidence,
+)
 from llmgauge.core.coding_core_evidence import (
     build_portable_selection as build_coding_portable_selection,
     build_prompt_evidence as build_coding_prompt_evidence,
@@ -460,6 +466,7 @@ def resolve_run_options(
     *,
     model_id: str | None,
     model_profile: str | None,
+    sampling_profile: str | None = None,
     config_path: Path | None,
     model_profiles_path: Path | None,
     model_path: Path | None,
@@ -503,7 +510,39 @@ def resolve_run_options(
     config_data = load_llmgauge_config(resolved_config_path)
     profiles = load_model_profiles(resolved_model_profiles_path)
     profile = resolve_model_profile(profiles, model_profile)
+    try:
+        resolved_sampling_profile = resolve_sampling_profile(
+            config_data, sampling_profile
+        )
+    except SamplingProfileError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    sampling_settings = profile_runtime_settings(resolved_sampling_profile)
 
+    def with_sampling_profile(cli_value: Any, setting: str, *fallbacks: Any) -> Any:
+        if cli_value is not None:
+            return cli_value
+        if resolved_sampling_profile is not None:
+            return sampling_settings[setting]
+        return coalesce(*fallbacks)
+
+    sampling_profile_overrides = (
+        sorted(
+            key
+            for key, value in {
+                "temperature": temp,
+                "top_p": top_p,
+                "top_k": top_k,
+                "min_p": min_p,
+                "seed": seed,
+                "reasoning_mode": reasoning_mode,
+                "reasoning_effort": reasoning_effort,
+                "reasoning_budget": reasoning_budget,
+            }.items()
+            if value is not None
+        )
+        if resolved_sampling_profile is not None
+        else []
+    )
     resolved_backend = _normalize_backend(
         coalesce(
             backend,
@@ -534,24 +573,27 @@ def resolve_run_options(
         )
     )
     resolved_temp = float(
-        coalesce(
+        with_sampling_profile(
             temp,
+            "temperature",
             profile.get("temperature"),
             get_config_value(config_data, "defaults.temperature"),
             0.2,
         )
     )
     resolved_top_p = float(
-        coalesce(
+        with_sampling_profile(
             top_p,
+            "top_p",
             profile.get("top_p"),
             get_config_value(config_data, "defaults.top_p"),
             0.95,
         )
     )
     resolved_top_k = optional_int(
-        coalesce(
+        with_sampling_profile(
             top_k,
+            "top_k",
             profile.get("top_k"),
             get_config_value(config_data, "defaults.top_k"),
         ),
@@ -559,8 +601,9 @@ def resolve_run_options(
         minimum=0,
     )
     resolved_min_p = optional_float(
-        coalesce(
+        with_sampling_profile(
             min_p,
+            "min_p",
             profile.get("min_p"),
             get_config_value(config_data, "defaults.min_p"),
         ),
@@ -568,8 +611,9 @@ def resolve_run_options(
         minimum=0.0,
     )
     resolved_seed = optional_int(
-        coalesce(
+        with_sampling_profile(
             seed,
+            "seed",
             profile.get("seed"),
             get_config_value(config_data, "defaults.seed"),
         ),
@@ -649,15 +693,17 @@ def resolve_run_options(
         )
 
     resolved_reasoning_effort = optional_reasoning_effort(
-        coalesce(
+        with_sampling_profile(
             reasoning_effort,
+            "reasoning_effort",
             profile.get("reasoning_effort"),
             get_config_value(config_data, "defaults.reasoning_effort"),
         )
     )
     resolved_reasoning_budget = optional_int(
-        coalesce(
+        with_sampling_profile(
             reasoning_budget,
+            "reasoning_budget",
             profile.get("reasoning_budget"),
             get_config_value(config_data, "defaults.reasoning_budget"),
         ),
@@ -686,11 +732,14 @@ def resolve_run_options(
             get_config_value(config_data, "defaults.spec_type"),
         )
     )
-
-    resolved_reasoning_mode = resolve_reasoning_mode(
-        cli_value=reasoning_mode,
-        profile=profile,
-        config_data=config_data,
+    resolved_reasoning_mode = (
+        str(sampling_settings["reasoning_mode"])
+        if reasoning_mode is None and resolved_sampling_profile is not None
+        else resolve_reasoning_mode(
+            cli_value=reasoning_mode,
+            profile=profile,
+            config_data=config_data,
+        )
     )
     resolved_model_source = resolve_model_source(model_profile=model_profile)
 
@@ -823,6 +872,8 @@ def resolve_run_options(
             "model_path": None,
             "llama_cli": None,
             "vllm_endpoint": resolved_endpoint,
+            "sampling_profile": resolved_sampling_profile,
+            "sampling_profile_overrides": sampling_profile_overrides,
             "served_model": resolved_served_model,
             "connect_timeout": resolved_connect_timeout,
             "request_timeout": resolved_request_timeout,
@@ -891,6 +942,8 @@ def resolve_run_options(
         "max_tokens": resolved_max_tokens,
         "temp": resolved_temp,
         "top_p": resolved_top_p,
+        "sampling_profile": resolved_sampling_profile,
+        "sampling_profile_overrides": sampling_profile_overrides,
         "top_k": resolved_top_k,
         "min_p": resolved_min_p,
         "seed": resolved_seed,
@@ -1011,6 +1064,16 @@ def print_run_preflight(
     table.add_row("Max tokens", str(resolved["max_tokens"]))
     table.add_row("Temperature", str(resolved["temp"]))
     table.add_row("Top-p", str(resolved["top_p"]))
+    selected_sampling_profile = resolved.get("sampling_profile")
+    if isinstance(selected_sampling_profile, dict):
+        table.add_row(
+            "Sampling profile",
+            (
+                f"{selected_sampling_profile['profile_id']} "
+                f"v{selected_sampling_profile['profile_version']} "
+                f"({selected_sampling_profile['profile_kind']})"
+            ),
+        )
     if backend != "vllm":
         table.add_row("Top-k", str(resolved.get("top_k")))
         table.add_row("Min-p", str(resolved.get("min_p")))
@@ -2119,6 +2182,10 @@ def execute_run(
             "flash_attn": resolved["flash_attn"],
             "runtime_label": resolved["runtime_label"],
             "reasoning_mode": resolved["reasoning_mode"],
+            "profile": runtime_profile_evidence(
+                resolved.get("sampling_profile"),
+                resolved.get("sampling_profile_overrides", []),
+            ),
             "reasoning_effort": resolved.get("reasoning_effort"),
             "reasoning_effort_state": (
                 "explicit"

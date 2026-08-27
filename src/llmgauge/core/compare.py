@@ -362,6 +362,16 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     reasoning_modes = _unique_nonempty_values(
         results, lambda result: result.get("runtime", {}).get("reasoning_mode")
     )
+    profile_identities = _unique_nonempty_values(
+        results,
+        lambda result: (
+            f"{result.get('runtime', {}).get('profile', {}).get('profile_id', 'none')} "
+            f"v{result.get('runtime', {}).get('profile', {}).get('profile_version', 'none')} "
+            f"({result.get('runtime', {}).get('profile', {}).get('canonical_settings_sha256', 'none')})"
+            if isinstance(result.get("runtime", {}).get("profile"), dict)
+            else "none"
+        ),
+    )
     prompt_sets = [_prompt_id_set(result) for result in results]
     shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
     all_prompt_ids = set.union(*prompt_sets) if prompt_sets else set()
@@ -391,6 +401,10 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         (
             "- Reasoning mode: "
             f"{', '.join(map(str, reasoning_modes)) if reasoning_modes else 'unknown'}"
+        ),
+        (
+            "- Sampling profile provenance: "
+            f"{', '.join(map(str, profile_identities)) if profile_identities else 'none'}"
         ),
         (
             "- Top-k (value, request state): "

@@ -55,6 +55,24 @@ def _fmt_endpoint_identity(identity: Any) -> str:
 def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
     backend = runtime.get("backend") or "unknown"
     lines = [f"- Backend: {backend}"]
+    profile = runtime.get("profile")
+    if isinstance(profile, dict):
+        lines.extend(
+            [
+                f"- Sampling profile: {profile.get('profile_id', 'unknown')}",
+                f"- Sampling profile version: {profile.get('profile_version', 'unknown')}",
+                f"- Sampling profile kind: {profile.get('profile_kind', 'unknown')}",
+                (
+                    "- Sampling profile content identity: "
+                    f"{profile.get('canonical_settings_sha256', 'unknown')}"
+                ),
+                f"- Sampling profile source: {profile.get('source', 'unknown')}",
+                (
+                    "- Claim boundary: selected profile records requested controls; "
+                    "it does not prove semantic model reasoning or runtime behavior."
+                ),
+            ]
+        )
 
     if backend == "vllm":
         fingerprints = runtime.get("observed_system_fingerprints")

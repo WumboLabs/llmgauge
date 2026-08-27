@@ -675,19 +675,20 @@ its public benchmark semantics. Full Area 4 remains later work beyond the
 first native llama.cpp slice, and LocalMaxxing does not alter the `v0.73`
 Generic Core release gate.
 
-### Reasoning and sampling comparison readiness (completed)
+### Reasoning and sampling profile identity (completed first slice)
 
-Comparison reports are now profile-aware for every captured
-reasoning/sampling/control setting (reasoning mode and effort/budget,
-temperature, top-p, top-k, min-p, seed, cache types, fit,
-reasoning-preservation, speculative type). Comparison Scope and Publish
-Readiness Notes treat these as runtime-mixing evidence for like-for-like
-classification, disclose reasoning mode, and add a limited-claims notice
-when effective reasoning mode is unknown, unspecified, or differs across
-runs. Requested `--min-p` capture follows the existing paired request-state
-convention. Named profile identity/version, vendor-aligned versus controlled
-profile kinds, and their V5 fingerprint boundary remain future work defined
-in the draft contract candidate.
+Comparison reports account for captured reasoning/sampling/control settings
+(reasoning mode and effort/budget, temperature, top-p, top-k, min-p, seed,
+cache types, fit, reasoning-preservation, speculative type). The accepted
+[reasoning and sampling profile identity contract](REASONING_SAMPLING_PROFILE_CONTRACT.md)
+now adds the first reusable local substrate: `--sampling-profile`, one neutral
+controlled built-in profile, closed custom config definitions, deterministic
+content identity, additive result evidence and V5 fingerprints, validation, and
+comparison provenance disclosure. Selected profiles record requested controls
+only; they do not prove semantic reasoning behavior or vendor alignment.
+
+Vendor-aligned profile content, a broader profile catalog, and profile
+filesystem discovery remain separate reviewable milestones.
 
 
 Generic Core suite implementation is no longer the selected next milestone, but

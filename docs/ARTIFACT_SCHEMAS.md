@@ -414,6 +414,15 @@ Expected fields:
     command
     config_path
     model_profiles_path
+
+Optional reasoning/sampling profile evidence is `runtime.profile`. It contains
+`profile_id`, `profile_version`, `profile_kind` (`controlled` or
+`vendor_aligned`), `canonical_settings_sha256`, canonical closed `settings`,
+`source` (`builtin` or `config`), and sorted `overrides`. The hash is SHA-256
+of compact sorted-key UTF-8 JSON for `settings`. The evidence records selected
+controls; individual runtime fields remain authoritative. A represented profile
+is validated against those fields except for explicit listed overrides. Legacy
+results omit this object and remain valid.
 Notes:
 
 - `backend` is `llama.cpp` (default) or `vllm` for the external-server slice.

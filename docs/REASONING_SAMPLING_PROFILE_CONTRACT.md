@@ -115,16 +115,18 @@ A selected profile adds this object under the existing `runtime` object:
   "profile_kind": "controlled",
   "canonical_settings_sha256": "<64 lowercase hex>",
   "settings": { "...canonical full settings..." },
-  "source": "builtin"
+  "source": "builtin",
+  "overrides": []
 }
 ```
 
-`source` is `builtin` or `config`. The embedded canonical settings make the
-artifact independently verifiable; they do not replace individual runtime
-fields. Validators recompute the hash, validate the closed shape and every
-setting, and reject a profile whose non-overridden resolved setting disagrees
-with the corresponding persisted runtime request. Legacy results with no
-`runtime.profile` remain valid and are not reinterpreted.
+`source` is `builtin` or `config`; `overrides` is the sorted set of eligible
+settings explicitly supplied by CLI after profile selection. The embedded
+canonical settings make the artifact independently verifiable; they do not
+replace individual runtime fields. Validators recompute the hash, validate the
+closed shape and every setting, and reject a profile whose non-overridden
+resolved setting disagrees with the corresponding persisted runtime request.
+Legacy results with no `runtime.profile` remain valid and are not reinterpreted.
 
 ## Fingerprint and comparison
 
