@@ -37,8 +37,68 @@ _BUILTIN_PROFILES: dict[str, dict[str, Any]] = {
             "top_k": 0,
             "top_p": 1.0,
         },
-    }
+    },
+    "deepseek-r1-v1": {
+        "profile_version": "1",
+        "profile_kind": "vendor_aligned",
+        "settings": {
+            "min_p": None,
+            "reasoning_budget": None,
+            "reasoning_effort": None,
+            "reasoning_mode": "default",
+            "seed": None,
+            "temperature": 0.6,
+            "top_k": None,
+            "top_p": 0.95,
+        },
+    },
+    "gemma-4-instruct-v1": {
+        "profile_version": "1",
+        "profile_kind": "vendor_aligned",
+        "settings": {
+            "min_p": None,
+            "reasoning_budget": None,
+            "reasoning_effort": None,
+            "reasoning_mode": "default",
+            "seed": None,
+            "temperature": 1.0,
+            "top_k": 64,
+            "top_p": 0.95,
+        },
+    },
+    "qwen3-nonthinking-v1": {
+        "profile_version": "1",
+        "profile_kind": "vendor_aligned",
+        "settings": {
+            "min_p": 0.0,
+            "reasoning_budget": None,
+            "reasoning_effort": None,
+            "reasoning_mode": "off",
+            "seed": None,
+            "temperature": 0.7,
+            "top_k": 20,
+            "top_p": 0.8,
+        },
+    },
+    "qwen3-thinking-v1": {
+        "profile_version": "1",
+        "profile_kind": "vendor_aligned",
+        "settings": {
+            "min_p": 0.0,
+            "reasoning_budget": None,
+            "reasoning_effort": None,
+            "reasoning_mode": "on",
+            "seed": None,
+            "temperature": 0.6,
+            "top_k": 20,
+            "top_p": 0.95,
+        },
+    },
 }
+
+
+def builtin_sampling_profile_ids() -> tuple[str, ...]:
+    return tuple(_BUILTIN_PROFILES)
 
 
 class SamplingProfileError(ValueError):

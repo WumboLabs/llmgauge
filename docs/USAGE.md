@@ -179,6 +179,24 @@ Preview one exact prompt without launching `llama.cpp`:
       --spec-type none \
       --dry-run
 
+Select a named reasoning/sampling profile (built-in IDs include
+`controlled-deterministic-v1`, `qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
+`gemma-4-instruct-v1`, and `deepseek-r1-v1`):
+
+    uv run llmgauge run \
+      --suite practical \
+      --only honesty-uncertainty/fake-package-currentness \
+      --model-profile example_model \
+      --sampling-profile qwen3-thinking-v1 \
+      --dry-run
+
+`--sampling-profile` records requested controls from a versioned profile.
+Vendor-aligned IDs are derived from documented vendor settings; they are not
+vendor endorsement and do not prove thinking occurred. See
+[Vendor-aligned sampling profiles](VENDOR_ALIGNED_SAMPLING_PROFILES.md).
+Unknown IDs fail before launch. There is no remote profile catalog.
+
+
 Preview a category:
 
     uv run llmgauge run \

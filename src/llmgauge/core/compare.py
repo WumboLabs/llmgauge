@@ -26,6 +26,15 @@ def _fmt(value: Any) -> str:
     return "None" if value is None else str(value)
 
 
+def _vendor_aligned_profile_present(results: list[dict[str, Any]]) -> bool:
+    return any(
+        isinstance(result.get("runtime", {}).get("profile"), dict)
+        and result.get("runtime", {}).get("profile", {}).get("profile_kind")
+        == "vendor_aligned"
+        for result in results
+    )
+
+
 def _score_dict(prompt_result: dict[str, Any]) -> dict[str, Any]:
     score = prompt_result.get("score")
     return score if isinstance(score, dict) else {}
@@ -372,6 +381,8 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
             else "none"
         ),
     )
+    vendor_aligned_present = _vendor_aligned_profile_present(results)
+
     prompt_sets = [_prompt_id_set(result) for result in results]
     shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
     all_prompt_ids = set.union(*prompt_sets) if prompt_sets else set()
@@ -458,6 +469,21 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         "- Publishing unreviewed automatic-rule drafts as final human judgment.",
         "",
     ]
+    if vendor_aligned_present:
+        lines.insert(
+            next(
+                index
+                for index, line in enumerate(lines)
+                if line.startswith("- Sampling profile provenance:")
+            )
+            + 1,
+            (
+                "- Vendor-aligned profile disclosure: alignment is "
+                "operator-declared from documented vendor settings; it is not "
+                "vendor endorsement or verified semantic reasoning or runtime "
+                "behavior."
+            ),
+        )
 
     if not like_for_like:
         caveats: list[str] = []
@@ -626,6 +652,15 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
             "runs; this report cannot support claims that depend on reasoning "
             "behavior."
         )
+    vendor_aligned_present = _vendor_aligned_profile_present(results)
+
+    if vendor_aligned_present:
+        limited_claims.append(
+            "At least one run selected a vendor_aligned profile; alignment is "
+            "operator-declared rather than verified, and does not prove vendor "
+            "endorsement or semantic reasoning behavior."
+        )
+
     if prompt_sets_differ:
         limited_claims.append(
             "Prompt sets differ across runs; missing prompt cells are expected and limit direct score comparison."
