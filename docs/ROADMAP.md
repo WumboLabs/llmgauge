@@ -691,8 +691,11 @@ The first vendor-aligned content qualification slice is complete: four
 offline builtins (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
 `gemma-4-instruct-v1`, `deepseek-r1-v1`) plus
 [VENDOR_ALIGNED_SAMPLING_PROFILES.md](VENDOR_ALIGNED_SAMPLING_PROFILES.md).
-Broader family coverage, custom profile UX, and filesystem discovery remain
-separate reviewable milestones.
+Installed CLI discovery and introspection are now complete through
+`llmgauge profiles list` and `llmgauge profiles show PROFILE_ID`; both use the
+shipped registry and resolver without remote lookup. Broader family
+qualification, custom profile UX and definitions, filesystem discovery, and
+deeper vendor reasoning-mode mappings remain separate reviewable milestones.
 
 
 

@@ -114,6 +114,11 @@ Inspect the environment:
 
     uv run llmgauge doctor
 
+Inspect built-in reasoning/sampling profiles:
+
+    uv run llmgauge profiles list
+    uv run llmgauge profiles show qwen3-thinking-v1
+
 Manual fallback: `llmgauge init` still creates user config files from templates.
 `init` includes example template profiles such as `example_model` in
 `model-profiles.yaml`. Add a new profile name with `model add`, edit the

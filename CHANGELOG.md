@@ -4,6 +4,11 @@
 
 ### Added
 
+- Added `llmgauge profiles list` and `llmgauge profiles show PROFILE_ID` for
+  installed, offline discovery and inspection of built-in reasoning/sampling
+  profiles, including exact runtime-default-aware controls, full content
+  identity, provenance, and bounded vendor-alignment disclosure.
+
 - Added the first primary-source-qualified vendor-aligned reasoning and
   sampling profiles (`qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
   `gemma-4-instruct-v1`, `deepseek-r1-v1`): versioned offline builtins,

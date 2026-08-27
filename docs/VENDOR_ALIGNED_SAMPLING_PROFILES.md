@@ -165,9 +165,10 @@ contract; CI must not scrape vendor websites.
 ## User selection
 
 ```text
+uv run llmgauge profiles list
+uv run llmgauge profiles show qwen3-thinking-v1
 uv run llmgauge run --sampling-profile qwen3-thinking-v1 --dry-run ...
 ```
 
-Built-in IDs: `controlled-deterministic-v1`, `deepseek-r1-v1`,
-`gemma-4-instruct-v1`, `qwen3-nonthinking-v1`, `qwen3-thinking-v1`.
+The discovery commands read the shipped built-in profile registry directly.
 Unknown IDs fail closed. There is no remote catalog.

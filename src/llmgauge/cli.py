@@ -11,6 +11,7 @@ from llmgauge.commands import (
     localmaxxing,
     ladders,
     models,
+    profiles,
     run_cmd,
     run_helpers,
     scoring,
@@ -49,6 +50,7 @@ app.command("setup")(setup.guided_setup)
 app.command()(setup.smoke)
 app.command("list-model-profiles")(models.list_model_profiles)
 app.add_typer(models.model_app)
+app.add_typer(profiles.profiles_app)
 app.command()(run_cmd.contextgen)
 app.command()(run_cmd.run)
 app.command("fit-ladder")(ladders.fit_ladder)

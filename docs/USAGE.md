@@ -179,9 +179,13 @@ Preview one exact prompt without launching `llama.cpp`:
       --spec-type none \
       --dry-run
 
-Select a named reasoning/sampling profile (built-in IDs include
-`controlled-deterministic-v1`, `qwen3-thinking-v1`, `qwen3-nonthinking-v1`,
-`gemma-4-instruct-v1`, and `deepseek-r1-v1`):
+Discover the built-in reasoning/sampling profiles and inspect one profile's
+exact requested controls:
+
+    uv run llmgauge profiles list
+    uv run llmgauge profiles show qwen3-thinking-v1
+
+Select that named profile for a dry run:
 
     uv run llmgauge run \
       --suite practical \
