@@ -239,6 +239,44 @@ def _completed_prompt_artifact_gaps(result: dict[str, Any]) -> int:
     return gaps
 
 
+def _paired_runtime_group(field: str) -> Any:
+    def extract(result: dict[str, Any]) -> str:
+        runtime = result.get("runtime", {})
+        return f"{runtime.get(field)!r} ({runtime.get(field + '_state', 'unknown')})"
+
+    return extract
+
+
+def _runtime_setting_groups(results: list[dict[str, Any]]) -> list[list[Any]]:
+    """Unique requested-setting value groups across compared runs.
+
+    Covers base generation settings plus the extended and control settings
+    with their paired request-state labels. A group holding more than one
+    distinct value means the compared runs differ on that setting and are not
+    like-for-like at runtime level.
+    """
+
+    def plain(field: str) -> Any:
+        return lambda result: result.get("runtime", {}).get(field)
+
+    return [
+        _unique_nonempty_values(results, plain("ctx_size")),
+        _unique_nonempty_values(results, plain("max_tokens")),
+        _unique_nonempty_values(results, plain("temperature")),
+        _unique_nonempty_values(results, plain("runtime_label")),
+        _unique_nonempty_values(results, plain("reasoning_mode")),
+        _unique_nonempty_values(results, _paired_runtime_group("top_k")),
+        _unique_nonempty_values(results, _paired_runtime_group("seed")),
+        _unique_nonempty_values(results, _paired_runtime_group("cache_type_k")),
+        _unique_nonempty_values(results, _paired_runtime_group("cache_type_v")),
+        _unique_nonempty_values(results, _paired_runtime_group("reasoning_effort")),
+        _unique_nonempty_values(results, _paired_runtime_group("reasoning_budget")),
+        _unique_nonempty_values(results, _paired_runtime_group("fit")),
+        _unique_nonempty_values(results, _paired_runtime_group("reasoning_preserve")),
+        _unique_nonempty_values(results, _paired_runtime_group("spec_type")),
+    ]
+
+
 def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     suite_ids = _unique_nonempty_values(
         results, lambda result: result.get("suite", {}).get("suite_id")
@@ -248,18 +286,6 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     )
     model_ids = _unique_nonempty_values(
         results, lambda result: result.get("model", {}).get("model_id")
-    )
-    ctx_sizes = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("ctx_size")
-    )
-    max_tokens = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("max_tokens")
-    )
-    temperatures = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("temperature")
-    )
-    runtime_labels = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("runtime_label")
     )
     top_ks = _unique_nonempty_values(
         results,
@@ -325,6 +351,9 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         ),
     )
 
+    reasoning_modes = _unique_nonempty_values(
+        results, lambda result: result.get("runtime", {}).get("reasoning_mode")
+    )
     prompt_sets = [_prompt_id_set(result) for result in results]
     shared_prompt_ids = set.intersection(*prompt_sets) if prompt_sets else set()
     all_prompt_ids = set.union(*prompt_sets) if prompt_sets else set()
@@ -333,24 +362,7 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite = len(suite_ids) > 1
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
-    mixed_runtime = any(
-        len(values) > 1
-        for values in (
-            ctx_sizes,
-            max_tokens,
-            temperatures,
-            runtime_labels,
-            top_ks,
-            seeds,
-            cache_types_k,
-            cache_types_v,
-            reasoning_efforts,
-            reasoning_budgets,
-            fit_modes,
-            reasoning_preserve_states,
-            spec_types,
-        )
-    )
+    mixed_runtime = any(len(values) > 1 for values in _runtime_setting_groups(results))
 
     like_for_like = (
         not mixed_suite
@@ -368,6 +380,10 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         f"- Suite versions: {', '.join(str(value) for value in suite_versions) if suite_versions else 'None'}",
         f"- Shared prompt IDs: {len(shared_prompt_ids)} of {len(all_prompt_ids)}",
         f"- Like-for-like quality comparison: {'yes' if like_for_like else 'no — see Publish Readiness Notes'}",
+        (
+            "- Reasoning mode: "
+            f"{', '.join(map(str, reasoning_modes)) if reasoning_modes else 'unknown'}"
+        ),
         (
             "- Top-k (value, request state): "
             f"{', '.join(map(str, top_ks)) if top_ks else 'unknown'}"
@@ -484,17 +500,12 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     model_ids = _unique_nonempty_values(
         results, lambda result: result.get("model", {}).get("model_id")
     )
-    ctx_sizes = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("ctx_size")
-    )
-    max_tokens = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("max_tokens")
-    )
-    temperatures = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("temperature")
-    )
-    runtime_labels = _unique_nonempty_values(
-        results, lambda result: result.get("runtime", {}).get("runtime_label")
+    reasoning_mode_values = [
+        result.get("runtime", {}).get("reasoning_mode") for result in results
+    ]
+    reasoning_mode_unknown_or_mixed = len(set(reasoning_mode_values)) > 1 or any(
+        value is None or value in {"unknown", "default"}
+        for value in reasoning_mode_values
     )
 
     prompt_sets = [_prompt_id_set(result) for result in results]
@@ -505,10 +516,7 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite = len(suite_ids) > 1
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
-    mixed_runtime = any(
-        len(values) > 1
-        for values in (ctx_sizes, max_tokens, temperatures, runtime_labels)
-    )
+    mixed_runtime = any(len(values) > 1 for values in _runtime_setting_groups(results))
 
     lines = [
         "## Publish Readiness Notes",
@@ -585,6 +593,12 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     if mixed_runtime:
         limited_claims.append(
             "Runtime settings differ across runs, so speed and VRAM comparisons are not like-for-like."
+        )
+    if reasoning_mode_unknown_or_mixed:
+        limited_claims.append(
+            "Effective reasoning mode is unknown, unspecified, or differs across "
+            "runs; this report cannot support claims that depend on reasoning "
+            "behavior."
         )
     if prompt_sets_differ:
         limited_claims.append(

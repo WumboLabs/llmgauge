@@ -270,3 +270,47 @@ def test_comparison_marks_extended_runtime_settings_as_mixed() -> None:
         "Speculative type (value, request state): 'draft-mtp' (explicit), "
         "'none' (explicit)" in report
     )
+
+
+def test_comparison_marks_reasoning_mode_as_mixed() -> None:
+    first = _result("run-a", "model-a", 4.0, 50.0)
+    second = _result("run-b", "model-b", 4.0, 50.0)
+    first["runtime"]["reasoning_mode"] = "off"
+    second["runtime"]["reasoning_mode"] = "on"
+
+    report = build_compare_report([first, second])
+
+    assert "- Reasoning mode: off, on" in report
+    assert "- Like-for-like quality comparison: no" in report
+    assert "- Mixed runtime settings: yes" in report
+    assert (
+        "Effective reasoning mode is unknown, unspecified, or differs across "
+        "runs" in report
+    )
+
+
+def test_comparison_flags_unknown_effective_reasoning_mode() -> None:
+    first = _result("run-a", "model-a", 4.0, 50.0)
+    second = _result("run-b", "model-b", 4.0, 50.0)
+    first["runtime"]["reasoning_mode"] = "default"
+    second["runtime"]["reasoning_mode"] = "default"
+
+    report = build_compare_report([first, second])
+
+    assert "- Like-for-like quality comparison: yes" in report
+    assert (
+        "Effective reasoning mode is unknown, unspecified, or differs across "
+        "runs; this report cannot support claims that depend on reasoning "
+        "behavior." in report
+    )
+
+
+def test_comparison_readiness_covers_extended_settings() -> None:
+    first = _result("run-a", "model-a", 4.0, 50.0)
+    second = _result("run-b", "model-b", 4.0, 50.0)
+    first["runtime"].update({"top_k": 20, "top_k_state": "explicit"})
+    second["runtime"].update({**first["runtime"], "top_k": 40})
+
+    report = build_compare_report([first, second])
+
+    assert "- Mixed runtime settings: yes" in report
