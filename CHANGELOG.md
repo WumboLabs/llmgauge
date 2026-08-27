@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Documentation
+
+- Reconciled `docs/ROADMAP.md` release-gate wording after production
+  publication of v0.75: the `v0.75` section and current-release-line header
+  now state that the release is published to production PyPI as `llmgauge`
+  0.75.0 instead of describing a pending release candidate.
+
 ## v0.75.0 - 2026-08-27
 
 LLMGauge v0.75 is the reasoning/sampling profile release: it makes named,

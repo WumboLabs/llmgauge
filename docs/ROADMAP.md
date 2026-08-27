@@ -8,8 +8,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.75` (release candidate, pending the human
-  merge/tag/publication gate)
+- Current stable tag: `v0.75` (published to production PyPI as `llmgauge`
+  0.75.0)
 - Current package version: `0.75.0`
 - Current stable release line: `v0.75.0`
 - Current release state: `v0.75` is the reasoning/sampling profile release:
@@ -21,8 +21,9 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
   VRAM evidence, read-only Bundle 2 import qualification, and PyPI
   release-recovery documentation. v0.74 remains the completed distribution and
   installation release (production PyPI, Trusted Publishing, canonical
-  `uv tool install llmgauge` UX). Production publication of v0.75 happens only
-  through the human annotated-tag/approval gate.
+  `uv tool install llmgauge` UX). Production publication of v0.75 occurred
+  when the human pushed annotated tag `v0.75` and approved the `pypi`
+  environment deployment.
 
 ## What LLMGauge is
 
@@ -808,10 +809,9 @@ security boundary, and comparability, so it must not silently change
 Production PyPI publication occurred when the human pushed annotated tag
 `v0.74` and approved the `pypi` environment deployment.
 
-### `v0.75` — Reasoning/sampling profiles and evidence (release candidate)
+### `v0.75` — Reasoning/sampling profiles and evidence (published)
 
-**Completed in the prepared release candidate, subject to the final human
-merge/tag/publication gate:**
+**Completed and published to production PyPI as `llmgauge` 0.75.0:**
 
 - named/versioned reasoning and sampling profiles (`--sampling-profile`)
   with deterministic content identity, result/fingerprint persistence, and
@@ -830,9 +830,8 @@ merge/tag/publication gate:**
 - consistent version, changelog, README, installation, release-process, and
   roadmap metadata.
 
-Production PyPI publication is not part of the repository delta; it happens
-only when the human pushes annotated tag `v0.75` and approves the `pypi`
-environment deployment.
+Production PyPI publication occurred when the human pushed annotated tag
+`v0.75` and approved the `pypi` environment deployment.
 
 These gates assign no release dates.
 
@@ -929,7 +928,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
-| v0.75 | Release candidate: named/versioned reasoning and sampling profiles (`--sampling-profile`), `controlled-deterministic-v1` plus four vendor-aligned builtins, offline `profiles list`/`profiles show`, `--min-p` capture, derived peak-VRAM metric evidence, Bundle 2 (`llmgauge.bundle2.v0`) import qualification, comparison reasoning/sampling disclosure |
+| v0.75 | Reasoning/sampling profile release (published to production PyPI as 0.75.0): named/versioned profiles (`--sampling-profile`), `controlled-deterministic-v1` plus four vendor-aligned builtins, offline `profiles list`/`profiles show`, `--min-p` capture, derived peak-VRAM metric evidence, Bundle 2 (`llmgauge.bundle2.v0`) import qualification, comparison reasoning/sampling disclosure |
 | v0.74 | Distribution/installation release (published to production PyPI as 0.74.0): PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
 | v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |
 | v0.72 | Profile-aware suite schema, normalized selection, contained references, Generic Core package resources, and compatibility/security hardening; no executable `generic-core-v1` suite |
