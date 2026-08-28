@@ -71,7 +71,15 @@ Current non-goals / deliberate project boundaries:
   — accepted bounded structural transcript comparison: exact identity
   eligibility, three-way structural classification, role and ordering
   preservation, recorded review-hook presentation, no aggregate, no ranking,
-  and a fail-closed public-export boundary.
+  and a fail-closed single-run public-export boundary.
+
+- [Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
+  — accepted content-default-deny comparison-only public derivative
+  (`llmgauge.public_transcript_comparison.v0`): closed allowlist projection of
+  structural facts, sequence-number-only linkage, sanitized model labels,
+  closed-world validation, fail-closed admission, no content, no private
+  identifiers or full hashes, no aggregate or winner, and mandatory human
+  review before publication.
 
 - [Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md) — accepted
   `llmgauge.agent_harness_evidence.v0` external agent-environment identity and

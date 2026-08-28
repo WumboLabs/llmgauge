@@ -526,7 +526,27 @@ asymmetry), side-by-side represented structural facts, role- and
 order-preserving event listings, and recorded review hooks presented exactly
 as stored. Mixed transcript/single-turn comparison fails closed. No session
 aggregate, ranking, or winner claim exists; transcript-bearing public export
-remains fail-closed pending a separately admitted export slice.
+is a separately admitted export slice (next section).
+
+## Transcript comparison public export
+
+**Completed:** the accepted
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
+admits one content-default-deny public derivative of a bounded transcript
+comparison: `llmgauge export-public-comparison RUN_A RUN_B --out DIR` writes
+exactly `transcript-comparison.json` (schema
+`llmgauge.public_transcript_comparison.v0`) and `report.md`. The projection is
+a closed allowlist of structural facts — eligibility booleans and identity
+field names, three-way classification, sanitized model labels, integers,
+closed vocabularies, and sequence-number-only event/state/attempt skeletons.
+No content, private identifiers, or full hashes are projected; a closed-world
+validator rejects any unexpected key or disallowed string. Admission is
+fail-closed for non-pairs, non-transcript, mixed, imported-evidence,
+malformed, or hash-mismatched sources and unsafe destinations; sources are
+never modified and the write is staged. No aggregate, winner, or quality
+verdict exists, and every artifact states that human review is required
+before publication. The single-run `export-public` path keeps rejecting
+transcript-bearing runs.
 
 ## Agent Harness import contract and read-only importer
 

@@ -236,6 +236,29 @@ When the source run has a canonical run fingerprint, the manifest records it as
 source evidence only; it does not verify or authenticate transformed
 public-export bytes.
 
+## Public transcript comparison export
+
+`llmgauge export-public-comparison RUN_A RUN_B --out OUTPUT_DIR` creates a
+separate sanitized derivative of exactly two transcript-bearing runs under the
+accepted
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
+The output directory contains exactly two files:
+
+    transcript-comparison.json    schema llmgauge.public_transcript_comparison.v0
+    report.md                     human-readable rendering of the same facts
+
+The derivative is a content-default-deny allowlist projection: eligibility
+booleans and identity field names, the three-way structural classification,
+sanitized model labels, integers, closed vocabularies, and sequence-number-only
+event/state/attempt skeletons. No prompts, rendered inputs, model outputs,
+stderr, feedback content, conversation/run/event/attempt/turn/state/feedback/
+branch IDs, suite or task identity values, paths, or full SHA-256 values are
+projected, and a closed-world validator rejects any unexpected key or string.
+Sources are never modified; the write is staged and atomic. The derivative
+declares no aggregate, winner, or quality verdict, and both artifacts state
+that human review is required before publication. Single-run `export-public`
+keeps rejecting transcript-bearing runs.
+
 ## Schema: llmgauge.result.v0
 
 Primary file:

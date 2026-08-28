@@ -3,13 +3,15 @@
 Status: **accepted** — human-accepted on current main for the first
 implementation slice (`feat/transcript-comparison-v1`). Accepted V1 decisions:
 no automatic transcript/session aggregate score; the first comparison surface
-is human-readable CLI/report output via `llmgauge compare`; transcript-bearing
-public export remains fail-closed. It supplements the
+is human-readable CLI/report output via `llmgauge compare`; single-run
+transcript-bearing public export remains fail-closed. It supplements the
 [Multi-turn Transcript Schema and Native Evaluation Contract](MULTI_TURN_TRANSCRIPT_SCHEMA_CONTRACT.md)
 and the [Multi-turn Transcript Architecture](MULTI_TURN_TRANSCRIPT_ARCHITECTURE.md).
 Single-turn scoring, comparison of mixed transcript/single-turn sets, and
-public export continue to fail closed when a transcript reference is present;
-only the bounded structural comparison defined here is admitted.
+single-run public export continue to fail closed when a transcript reference
+is present; only the bounded structural comparison defined here is admitted,
+alongside the separately accepted comparison-only derivative in
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
 
 ## Problem
 
@@ -96,7 +98,9 @@ distinct in any output.
 Transcript content (rendered inputs, raw outputs, visible states) is private
 evidence. Any sanitized derivative requires the standard public-export
 redaction pipeline, a redaction summary, and human review before publication.
-Until a transcript-specific export slice is admitted, transcript-bearing
+The separately accepted
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
+admits one comparison-only allowlist derivative; single-run transcript-bearing
 results continue to fail closed at public export rather than exporting a
 flattened derivative.
 

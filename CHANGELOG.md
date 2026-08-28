@@ -20,9 +20,31 @@
   asymmetry), side-by-side represented facts, role- and order-preserving event
   listings, and recorded review hooks shown exactly as stored. No session
   aggregate, ranking, or winner claim exists; mixed transcript/single-turn
-  comparison fails closed; transcript-bearing scoring and public export
-  remain fail-closed. Single-turn comparison behavior, schemas, and
+  comparison fails closed; transcript-bearing scoring and single-run public
+  export remain fail-closed. Single-turn comparison behavior, schemas, and
   fingerprints are unchanged.
+
+### Transcript comparison public export
+
+- Accepted the
+  [Transcript Comparison Public Export Contract](docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
+  and implemented `llmgauge export-public-comparison RUN_A RUN_B --out DIR`:
+  a content-default-deny allowlist projection of exactly two transcript-bearing
+  runs into a separate public derivative containing exactly
+  `transcript-comparison.json` (`llmgauge.public_transcript_comparison.v0`)
+  and `report.md`. Only eligibility booleans and identity field names, the
+  three-way structural classification, sanitized model labels, integers,
+  closed vocabularies, and sequence-number-only event/state/attempt skeletons
+  are projected; a closed-world validator rejects any unexpected key or string,
+  and adversarial canary fixtures (home paths, credential URLs, full SHA-256
+  values, secret-like tokens, embedded prompts/outputs) must leak nothing.
+  Admission is fail-closed: exactly two structurally valid, native,
+  transcript-bearing results, destination outside both sources, non-empty
+  destinations refused, staged atomic writes with no residue on failure. No
+  aggregate, winner, or quality verdict is computed; both artifacts state that
+  human review is required before publication. Sources are never modified;
+  `llmgauge.result.v0`, `llmgauge.transcript.v0`, and single-run
+  `export-public` behavior are unchanged.
 
 ## v0.75.0 - 2026-08-27
 

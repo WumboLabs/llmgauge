@@ -576,7 +576,24 @@ three-way structural classification, side-by-side represented facts,
 role-preserving event order, and recorded review hooks. It declares no
 aggregate, no winner, and no quality verdict. Mixing transcript-bearing and
 single-turn runs fails closed. Transcript-bearing runs remain rejected by
-`score` and `export-public`.
+`score` and single-run `export-public`.
+
+Publish a sanitized derivative of a transcript comparison:
+
+    uv run llmgauge export-public-comparison \
+      results/run-a \
+      results/run-b \
+      --out public/transcript-comparison
+
+`export-public-comparison` admits exactly two transcript-bearing runs and
+writes exactly `transcript-comparison.json`
+(`llmgauge.public_transcript_comparison.v0`) and `report.md`. The derivative
+is a content-default-deny allowlist projection of structural facts only: no
+prompts, outputs, feedback content, private identifiers, paths, or full
+hashes; no aggregate, winner, or quality verdict. Sources are never modified
+and the write is staged. Human review is required before publication;
+sanitization is not proof that private data is absent. See
+`docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md`.
 
 Create an export index:
 

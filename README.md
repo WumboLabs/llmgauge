@@ -358,7 +358,25 @@ When every compared run carries a native multi-turn transcript, `compare`
 writes a bounded structural comparison instead: eligibility identity match,
 structural classification, side-by-side represented facts, and recorded review
 hooks — with no aggregate score, no winner, and no quality verdict. Mixed
-transcript/single-turn comparison and transcript public export fail closed.
+transcript/single-turn comparison fails closed.
+
+## Publish a transcript comparison
+
+To create a sanitized public derivative of exactly two transcript-bearing runs:
+
+    uv run llmgauge export-public-comparison \
+      results/run-a \
+      results/run-b \
+      --out public/transcript-comparison
+
+The output directory contains exactly `transcript-comparison.json` and
+`report.md`. The derivative is a content-default-deny allowlist projection of
+structural facts only: no prompts, model outputs, feedback content, private
+identifiers, paths, or full hashes are included, and no aggregate, winner, or
+quality verdict is computed. Human review is required before publication;
+sanitization is not proof that private data is absent. Single-run
+`export-public` keeps rejecting transcript-bearing runs. See
+[Transcript Comparison Public Export Contract](https://github.com/WumboLabs/llmgauge/blob/main/docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
 
 ## Privacy and safety posture
 
