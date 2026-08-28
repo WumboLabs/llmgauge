@@ -8,22 +8,22 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.75` (published to production PyPI as `llmgauge`
-  0.75.0)
-- Current package version: `0.75.0`
-- Current stable release line: `v0.75.0`
-- Current release state: `v0.75` is the reasoning/sampling profile release:
-  named/versioned profile provenance with `--sampling-profile`, the
-  `controlled-deterministic-v1` built-in, the first four
-  primary-source-qualified vendor-aligned profiles, offline profile discovery
-  (`llmgauge profiles list` / `profiles show`), requested `--min-p` capture,
-  reasoning/sampling-aware comparison disclosure, derived device-scoped peak
-  VRAM evidence, read-only Bundle 2 import qualification, and PyPI
-  release-recovery documentation. v0.74 remains the completed distribution and
-  installation release (production PyPI, Trusted Publishing, canonical
-  `uv tool install llmgauge` UX). Production publication of v0.75 occurred
-  when the human pushed annotated tag `v0.75` and approved the `pypi`
-  environment deployment.
+- Current stable tag: `v0.76` (release candidate, pending the human
+  merge/tag/publication gate)
+- Current package version: `0.76.0`
+- Current stable release line: `v0.76.0`
+- Current release state: `v0.76` is the multi-turn transcript comparison and
+  safe public derivative release: bounded structural comparison of
+  all-transcript result sets via `llmgauge compare`, the content-default-deny
+  public comparison derivative `llmgauge export-public-comparison`
+  (`llmgauge.public_transcript_comparison.v0`), and the content-default-deny
+  single-transcript public derivative `llmgauge export-public-transcript`
+  (`llmgauge.public_transcript.v0`). v0.75 remains the reasoning/sampling
+  profile release (published to production PyPI as `llmgauge` 0.75.0), and
+  v0.74 remains the completed distribution and installation release
+  (production PyPI, Trusted Publishing, canonical `uv tool install llmgauge`
+  UX). Production publication of v0.76 happens only through the human
+  annotated-tag/approval gate.
 
 ## What LLMGauge is
 
@@ -82,6 +82,16 @@ LLMGauge currently provides:
   `llmgauge profiles show PROFILE_ID`)
 - requested `--min-p` sampler capture across run metadata and comparison scope
 - derived device-scoped peak VRAM evidence for native llama.cpp results
+- bounded structural comparison of all-transcript result sets via
+  `llmgauge compare` with explicit eligibility, three-way structural
+  classification, role/order-preserving listings, and recorded review-hook
+  disclosure
+- content-default-deny public transcript comparison derivative
+  (`llmgauge export-public-comparison`, schema
+  `llmgauge.public_transcript_comparison.v0`)
+- content-default-deny public single-transcript derivative
+  (`llmgauge export-public-transcript`, schema
+  `llmgauge.public_transcript.v0`)
 
 ## Evaluation identities and boundaries
 
@@ -513,7 +523,7 @@ for transcripts; no universal multi-turn score is implemented. Comparison has
 a separate accepted bounded structural contract (next section). The
 deferred Coding Core `repair/prior-response-test-feedback` role remains absent.
 
-## Bounded transcript comparison and review presentation
+## Bounded transcript comparison and review presentation (completed in v0.76)
 
 **Completed:** the accepted
 [Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
@@ -528,7 +538,7 @@ as stored. Mixed transcript/single-turn comparison fails closed. No session
 aggregate, ranking, or winner claim exists; transcript-bearing public export
 is a separately admitted export slice (next section).
 
-## Transcript comparison public export
+## Transcript comparison public export (completed in v0.76)
 
 **Completed:** the accepted
 [Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
@@ -548,7 +558,7 @@ verdict exists, and every artifact states that human review is required
 before publication. The single-run `export-public` path keeps rejecting
 transcript-bearing runs.
 
-## Native single-transcript public derivative
+## Native single-transcript public derivative (completed in v0.76)
 
 **Completed:** the accepted
 [Native Single-Transcript Public Derivative Contract](NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md)
@@ -567,6 +577,20 @@ destinations; sources are never modified and the write is staged. No score,
 aggregate, or quality verdict exists, and every artifact states that human
 review is required before publication. The single-run `export-public` path
 keeps rejecting transcript-bearing runs.
+
+## Deferred transcript work (not part of v0.76)
+
+The v0.76 transcript layer is structural evidence only. The following remain
+open and require separately accepted contracts before any implementation:
+
+- publication of reviewed and deliberately redacted transcript text (raw
+  prompt/response content remains excluded from every derivative);
+- aggregate or session-level transcript scoring and any rubric-defined
+  transcript score;
+- statistical model comparison;
+- richer transcript visualization;
+- publication attestations or signatures for derivatives;
+- semantic or LLM-based transcript judging.
 
 ## Agent Harness import contract and read-only importer
 
@@ -889,6 +913,33 @@ Production PyPI publication occurred when the human pushed annotated tag
 Production PyPI publication occurred when the human pushed annotated tag
 `v0.75` and approved the `pypi` environment deployment.
 
+### `v0.76` — Multi-turn transcript comparison and safe public derivatives (release candidate)
+
+**Completed in the prepared release candidate, subject to the final human
+merge/tag/publication gate:**
+
+- bounded structural comparison of all-transcript result sets via
+  `llmgauge compare`: exact-identity eligibility, three-way structural
+  classification, role/order-preserving listings, recorded review-hook
+  disclosure, fail-closed mixed-set rejection;
+- `llmgauge export-public-comparison`: content-default-deny public
+  comparison derivative (`llmgauge.public_transcript_comparison.v0`) with
+  closed-world validation, adversarial canary coverage, staged atomic
+  writes, and human-review-required artifacts;
+- `llmgauge export-public-transcript`: content-default-deny public
+  single-transcript derivative (`llmgauge.public_transcript.v0`) reusing
+  the same sanitization primitives plus closed protocol identity and
+  producer release version;
+- unchanged canonical `llmgauge.result.v0` / `llmgauge.transcript.v0`
+  schemas, fingerprints, and single-turn behavior;
+- consistent version, changelog, README, installation, release-process, and
+  roadmap metadata.
+
+No session aggregate score, ranking, winner, statistical, or semantic
+judgment claim exists; transcript text publication remains excluded.
+Production PyPI publication occurs only when the human pushes annotated tag
+`v0.76` and approves the `pypi` environment deployment.
+
 These gates assign no release dates.
 
 ## Parallel product tracks
@@ -984,6 +1035,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
+| v0.76 | Release candidate: all-transcript `compare` structural comparison, `export-public-comparison` (`llmgauge.public_transcript_comparison.v0`), `export-public-transcript` (`llmgauge.public_transcript.v0`), content-default-deny public derivatives with human review required; no aggregate/ranking/semantic claims |
 | v0.75 | Reasoning/sampling profile release (published to production PyPI as 0.75.0): named/versioned profiles (`--sampling-profile`), `controlled-deterministic-v1` plus four vendor-aligned builtins, offline `profiles list`/`profiles show`, `--min-p` capture, derived peak-VRAM metric evidence, Bundle 2 (`llmgauge.bundle2.v0`) import qualification, comparison reasoning/sampling disclosure |
 | v0.74 | Distribution/installation release (published to production PyPI as 0.74.0): PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
 | v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |
