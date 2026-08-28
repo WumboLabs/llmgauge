@@ -9,6 +9,21 @@
   now state that the release is published to production PyPI as `llmgauge`
   0.75.0 instead of describing a pending release candidate.
 
+### Multi-turn transcript comparison
+
+- Accepted the
+  [Transcript Comparison and Review Contract](docs/TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
+  and implemented its first bounded slice: `llmgauge compare` now routes
+  all-transcript result sets to a human-readable structural comparison with
+  exact identity eligibility, three-way classification (identical structure /
+  structurally comparable / structurally incomparable with stated completion
+  asymmetry), side-by-side represented facts, role- and order-preserving event
+  listings, and recorded review hooks shown exactly as stored. No session
+  aggregate, ranking, or winner claim exists; mixed transcript/single-turn
+  comparison fails closed; transcript-bearing scoring and public export
+  remain fail-closed. Single-turn comparison behavior, schemas, and
+  fingerprints are unchanged.
+
 ## v0.75.0 - 2026-08-27
 
 LLMGauge v0.75 is the reasoning/sampling profile release: it makes named,

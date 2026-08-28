@@ -9,7 +9,7 @@ from rich.table import Table
 from llmgauge.cli_common import console, fail_cli_validation
 from llmgauge.core.artifacts import write_json, write_text
 from llmgauge.core.baseline import check_result_against_baselines
-from llmgauge.core.compare import build_compare_report, load_compare_result
+from llmgauge.core.compare import compare_results, load_compare_result
 from llmgauge.core.export_index import build_export_index, write_export_index
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.scoring import (
@@ -309,12 +309,28 @@ def compare(
     if len(result_dirs) < 2:
         raise typer.BadParameter("Compare requires at least two result directories")
 
-    results = []
-    for result_dir in result_dirs:
-        results.append(load_compare_result(result_dir))
-
-    report = build_compare_report(results)
+    try:
+        results = [load_compare_result(result_dir) for result_dir in result_dirs]
+        report = compare_results(results)
+    except (OSError, ValueError) as exc:
+        console.print(f"[bold red]Comparison failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
     write_text(out, report)
+
+    transcript_set = all(result.get("transcript") is not None for result in results)
+    if transcript_set:
+        console.print(
+            f"[bold green]Wrote transcript comparison report[/bold green]: {out}"
+        )
+        console.print(
+            "Transcript comparison is bounded structural disclosure; it "
+            "declares no winner, no aggregate, and no quality verdict."
+        )
+        console.print(
+            "Ineligible or asymmetric transcripts remain visible as "
+            "independent evidence; partial runs are never presented as completed."
+        )
+        return
 
     console.print(f"[bold green]Wrote comparison report[/bold green]: {out}")
     console.print(

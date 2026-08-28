@@ -67,6 +67,12 @@ Current non-goals / deliberate project boundaries:
   model, bounded supplied-feedback protocol, validation, additive result and
   fingerprint integration, reporting, and compatibility boundary.
 
+- [Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
+  — accepted bounded structural transcript comparison: exact identity
+  eligibility, three-way structural classification, role and ordering
+  preservation, recorded review-hook presentation, no aggregate, no ranking,
+  and a fail-closed public-export boundary.
+
 - [Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md) — accepted
   `llmgauge.agent_harness_evidence.v0` external agent-environment identity and
   implemented bounded OMP-v3 importer: self-contained read-only source

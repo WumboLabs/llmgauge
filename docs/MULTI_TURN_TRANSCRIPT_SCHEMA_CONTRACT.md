@@ -300,9 +300,12 @@ model/runtime result relationships.
 Cleaned derivatives, review state, manual scores, reports, comparisons, export
 indexes, sanitized exports, and reviewer annotations are excluded.
 
-Current single-turn scoring, comparison, and public-export methods do not have a
-native multi-turn interpretation contract. They fail closed when a transcript
+Current single-turn scoring and public-export methods do not have a native
+multi-turn interpretation contract. They fail closed when a transcript
 reference is present rather than silently flattening transcript evidence.
+Comparison has an accepted bounded structural contract in
+[Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md);
+mixed transcript/single-turn comparison still fails closed.
 `export-index` may expose the non-authoritative transcript discovery index and
 validation result. Ordinary single-turn behavior is unchanged.
 

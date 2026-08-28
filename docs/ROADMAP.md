@@ -508,9 +508,25 @@ Synthetic successful, retry/recovery, timeout/failure, partial, turn-limit,
 llama.cpp, and external-vLLM paths pass focused and full repository validation
 without launching a real model or executing generated content. Ordinary
 single-turn result shape and fingerprints remain unchanged when transcript
-evidence is absent. Current single-turn scoring, comparison, and public export
-fail closed for transcripts; no universal multi-turn score is implemented. The
+evidence is absent. Current single-turn scoring and public export fail closed
+for transcripts; no universal multi-turn score is implemented. Comparison has
+a separate accepted bounded structural contract (next section). The
 deferred Coding Core `repair/prior-response-test-feedback` role remains absent.
+
+## Bounded transcript comparison and review presentation
+
+**Completed:** the accepted
+[Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
+admits one bounded structural comparison surface: `llmgauge compare` routes an
+all-transcript result set to eligibility classification over exact identity
+fields (protocol, task, initial state and its SHA-256, suite, effective
+limits), a three-way structural classification (identical structure,
+structurally comparable, structurally incomparable with stated completion
+asymmetry), side-by-side represented structural facts, role- and
+order-preserving event listings, and recorded review hooks presented exactly
+as stored. Mixed transcript/single-turn comparison fails closed. No session
+aggregate, ranking, or winner claim exists; transcript-bearing public export
+remains fail-closed pending a separately admitted export slice.
 
 ## Agent Harness import contract and read-only importer
 
