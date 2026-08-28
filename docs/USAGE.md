@@ -595,6 +595,22 @@ and the write is staged. Human review is required before publication;
 sanitization is not proof that private data is absent. See
 `docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md`.
 
+Publish a sanitized derivative of one transcript-bearing run:
+
+    uv run llmgauge export-public-transcript \
+      results/run-a \
+      --out public/transcript-summary
+
+`export-public-transcript` admits exactly one transcript-bearing run and
+writes exactly `transcript-summary.json` (`llmgauge.public_transcript.v0`)
+and `report.md`. The per-run structural projection is identical to one side
+of the comparison derivative (slot label `run`, fallback label `Model`): a
+content-default-deny allowlist projection with no prompts, outputs, feedback
+content, private identifiers, paths, or full hashes; no score, aggregate, or
+quality verdict. Sources are never modified and the write is staged. Human
+review is required before publication; sanitization is not proof that private
+data is absent. See `docs/NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md`.
+
 Create an export index:
 
     uv run llmgauge export-index \

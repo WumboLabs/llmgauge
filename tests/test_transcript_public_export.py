@@ -20,12 +20,20 @@ from llmgauge.core.transcript_public_export import (
     PUBLIC_TRANSCRIPT_COMPARISON_FILENAME,
     PUBLIC_TRANSCRIPT_COMPARISON_REPORT_FILENAME,
     PUBLIC_TRANSCRIPT_COMPARISON_SCHEMA_VERSION,
+    PUBLIC_TRANSCRIPT_FILENAME,
+    PUBLIC_TRANSCRIPT_REPORT_FILENAME,
+    PUBLIC_TRANSCRIPT_SCHEMA_VERSION,
     TranscriptPublicExportError,
+    build_public_transcript,
     build_public_transcript_comparison,
+    export_public_transcript,
     export_public_transcript_comparison,
     load_public_transcript_pair,
+    load_public_transcript_result,
     render_public_transcript_comparison_markdown,
+    render_public_transcript_markdown,
     validate_public_projection,
+    validate_public_transcript_projection,
 )
 from llmgauge.core.multi_turn import load_transcript
 from llmgauge.core.transcript_compare import transcript_identity
@@ -1127,3 +1135,447 @@ def test_report_renders_only_projected_facts(tmp_path, monkeypatch) -> None:
     assert "- Omitted field classes:" in report
     assert "scores" in report
     assert "the final answer text" not in report  # no response content in the report
+
+
+# ---------------------------------------------------------------------------
+# Single-run native transcript public derivative
+# ---------------------------------------------------------------------------
+
+_SINGLE_TOP_KEYS = {
+    "schema_version",
+    "generated_by",
+    "created_at_utc",
+    "source_class",
+    "transcript_schema",
+    "protocol",
+    "producer",
+    "limits",
+    "run",
+    "redaction",
+    "claim_boundary",
+    "human_review_required_before_publication",
+}
+_SINGLE_NESTED = {
+    key: value
+    for key, value in _NESTED.items()
+    if key not in {"eligibility", "classification", "runs", "redaction"}
+} | {
+    "protocol": {"protocol_id", "protocol_version"},
+    "producer": {"producer_id", "producer_version"},
+    "limits": {
+        "effective_max_model_turns",
+        "max_attempts_per_turn",
+        "max_feedback_items",
+    },
+    "run": _NESTED["runs"],
+    "redaction": _NESTED["redaction"]
+    | {"raw_transcript_content_included", "private_identifiers_included"},
+}
+
+
+def _walk_single_keys(node: Any, key: str | None, path: str) -> None:
+    if isinstance(node, dict):
+        allowed = (
+            _SINGLE_TOP_KEYS if path == "$" else _SINGLE_NESTED.get(key or "", set())
+        )
+        assert set(node) <= allowed, f"unexpected keys at {path}: {sorted(node)}"
+        for child_key, child in node.items():
+            _walk_single_keys(child, child_key, f"{path}.{child_key}")
+        return
+    if isinstance(node, list):
+        for index, item in enumerate(node):
+            _walk_single_keys(item, key, f"{path}[{index}]")
+
+
+def _single(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **kwargs: Any) -> Path:
+    kwargs.setdefault("task_kwargs", _COMPLETED_TASK)
+    kwargs.setdefault("responses", _OK)
+    kwargs.setdefault("conversation_id", "conversation-single")
+    return _run_result(tmp_path, monkeypatch, "single", **kwargs)
+
+
+def _single_projection_for(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    directory: Path,
+) -> dict[str, Any]:
+    result, transcript = load_public_transcript_result(directory)
+    return build_public_transcript(result, transcript)
+
+
+def test_single_projection_is_closed_world(tmp_path, monkeypatch) -> None:
+    directory = _single(
+        tmp_path,
+        monkeypatch,
+        task_kwargs={"feedback": True, "max_turns": 2},
+        responses=[("first", "", 0), ("corrected", "", 0)],
+    )
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    _walk_single_keys(projection, None, "$")
+    validate_public_transcript_projection(projection)
+    assert projection["schema_version"] == PUBLIC_TRANSCRIPT_SCHEMA_VERSION
+    assert projection["generated_by"] == "llmgauge"
+    assert projection["source_class"] == "native_multi_turn_response"
+    assert projection["transcript_schema"] == "llmgauge.transcript.v0"
+    assert projection["protocol"] == {
+        "protocol_id": "llmgauge.sequential_supplied_feedback",
+        "protocol_version": "0.1.0",
+    }
+    assert projection["producer"]["producer_id"] == "llmgauge"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", projection["producer"]["producer_version"])
+    assert projection["limits"] == {
+        "effective_max_model_turns": 2,
+        "max_attempts_per_turn": 1,
+        "max_feedback_items": 1,
+    }
+    assert projection["run"]["slot"] == "run"
+    assert projection["run"]["model_label"] == "test-model"
+    assert projection["redaction"]["raw_transcript_content_included"] is False
+    assert projection["redaction"]["private_identifiers_included"] is False
+    assert (
+        projection["redaction"]["omitted_field_classes"].count(
+            "result_provenance_and_run_fingerprint"
+        )
+        == 1
+    )
+    assert (
+        "producer_version_and_result_provenance"
+        not in (projection["redaction"]["omitted_field_classes"])
+    )
+    assert projection["human_review_required_before_publication"] is True
+
+
+def test_single_run_partial_completion_projection(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch, responses=_FAILED)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    run = projection["run"]
+    assert run["completion"]["completion_state"] == "partial"
+    assert run["attempt_states"][0]["attempt_state"] == "failed"
+    assert run["attempt_states"][0]["exit_status"] == 1
+    validate_public_transcript_projection(projection)
+
+
+def test_single_run_carries_no_identity_values(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    encoded = json.dumps(projection)
+    strings = set(re.findall(r'"([^"]*)"', encoded))
+    transcript = load_transcript(directory)
+    for value in (
+        transcript.conversation_id,
+        transcript.task_id,
+        transcript.initial_state_id,
+        transcript.suite_id,
+    ):
+        assert value not in strings
+    assert "conversation-single" not in encoded
+    assert directory.name not in encoded
+    assert TASK_ID not in encoded
+    assert not _FULL_HASH_RE.search(encoded)
+    for event in projection["run"]["event_order"]:
+        assert isinstance(event["sequence"], int)
+
+
+def test_single_and_comparison_share_projection(tmp_path, monkeypatch) -> None:
+    dirs = _pair(
+        tmp_path,
+        monkeypatch,
+        left_task={"feedback": True, "max_turns": 2},
+        left_responses=[("first", "", 0), ("corrected", "", 0)],
+        right_task={"feedback": True, "max_turns": 2},
+        right_responses=[("first", "", 0), ("corrected", "", 0)],
+    )
+    comparison = _projection_for(tmp_path, monkeypatch, dirs)
+    single = _single_projection_for(tmp_path, monkeypatch, dirs[0])
+    left = dict(comparison["runs"][0])
+    run = dict(single["run"])
+    left.pop("slot")
+    run.pop("slot")
+    # same private fact, same public interpretation
+    assert run == left
+
+
+def test_single_model_label_sanitization(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch, model_id=CANARY_URL)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    assert projection["run"]["model_label"] == "REDACTED_SECRET"
+    assert "credential_bearing_url" in projection["redaction"]["categories"]
+    assert {
+        "slot": "run",
+        "reason": "sanitized_model_label",
+    } in projection["redaction"]["model_label_substitutions"]
+    assert CANARY_URL not in json.dumps(projection)
+    validate_public_transcript_projection(projection)
+
+
+def test_single_model_label_falls_back_to_model(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch, model_id=CANARY_SLASH)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    assert projection["run"]["model_label"] == "Model"
+    assert {
+        "slot": "run",
+        "reason": "fallback_positional_label",
+    } in projection["redaction"]["model_label_substitutions"]
+    validate_public_transcript_projection(projection)
+
+
+def test_single_validator_rejects_unknown_keys(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    projection["conversation_id"] = "leak"
+    with pytest.raises(
+        TranscriptPublicExportError,
+        match=r"closed-world violation at \$: unexpected keys",
+    ):
+        validate_public_transcript_projection(projection)
+
+
+def test_single_validator_rejects_raw_content_strings(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    projection["run"]["review_hooks"]["correction"] = "the model said: fix it"
+    with pytest.raises(
+        TranscriptPublicExportError, match="is not an allowed public value"
+    ):
+        validate_public_transcript_projection(projection)
+
+
+def test_single_validator_rejects_non_numeric_producer_version(
+    tmp_path, monkeypatch
+) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    projection["producer"]["producer_version"] = "0.75.0-custom+build9"
+    with pytest.raises(TranscriptPublicExportError, match="producer_version"):
+        validate_public_transcript_projection(projection)
+
+
+def test_single_validator_rejects_raw_hash_labels(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    projection["run"]["model_label"] = "b" * 64
+    with pytest.raises(TranscriptPublicExportError, match="model_label"):
+        validate_public_transcript_projection(projection)
+
+
+def test_single_canary_export_leaks_nothing(tmp_path, monkeypatch) -> None:
+    directory = _single(
+        tmp_path,
+        monkeypatch,
+        task_kwargs={"feedback": True, "max_turns": 2},
+        responses=[(CANARY_STDOUT, CANARY_STDERR, 0), (CANARY_STDOUT, "", 0)],
+        conversation_id=CANARY_CONV,
+        model_id=CANARY_URL,
+        feedback_content=CANARY_FEEDBACK,
+    )
+    out = tmp_path / "public"
+    projection = export_public_transcript(directory, out)
+
+    canaries = (
+        CANARY_URL,
+        CANARY_HOME,
+        CANARY_HASH,
+        CANARY_CONV,
+        CANARY_FEEDBACK,
+        CANARY_STDOUT,
+        CANARY_STDERR,
+        "hunter2",
+        "sk-canary-feedback-9e7d",
+        "sk-canary-out-9e7d",
+        "privateuser",
+        "secret.txt",
+        "host.example.invalid",
+        TASK_ID,
+        directory.name,
+    )
+    files = sorted(path for path in out.rglob("*") if path.is_file())
+    assert sorted(path.name for path in files) == sorted(
+        [PUBLIC_TRANSCRIPT_FILENAME, PUBLIC_TRANSCRIPT_REPORT_FILENAME]
+    )
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for canary in canaries:
+            assert canary not in text, f"canary {canary!r} found in {path.name}"
+        assert not _FULL_HASH_RE.search(text), f"full hash found in {path.name}"
+        assert "://" not in text
+        assert not re.search(r"(?<![A-Za-z0-9_:/#])/(?!/)[A-Za-z0-9._-]", text)
+    assert projection["redaction"]["categories"] == ["credential_bearing_url"]
+    assert projection["run"]["model_label"] == "REDACTED_SECRET"
+    # the source result is untouched
+    assert (directory / "llmgauge-result.json").is_file()
+
+
+def test_single_export_writes_exactly_two_files_and_valid_json(
+    tmp_path, monkeypatch
+) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+    projection = export_public_transcript(directory, out)
+    files = sorted(path.name for path in out.iterdir())
+    assert files == sorted(
+        [PUBLIC_TRANSCRIPT_FILENAME, PUBLIC_TRANSCRIPT_REPORT_FILENAME]
+    )
+    written = json.loads((out / PUBLIC_TRANSCRIPT_FILENAME).read_text(encoding="utf-8"))
+    assert written == json.loads(json.dumps(projection))
+    validate_public_transcript_projection(written)
+    report = (out / PUBLIC_TRANSCRIPT_REPORT_FILENAME).read_text(encoding="utf-8")
+    assert "Human review required before publication" in report
+    assert (
+        "No session aggregate, score, winner, or quality verdict is computed." in report
+    )
+    assert "## Run — test-model" in report
+    assert "| Sequence | Kind | Role | Execution status | Relationship |" in report
+    assert "implies no universal rank" in report
+    assert "the final answer text" not in report
+
+
+def test_single_export_accepts_precreated_empty_destination(
+    tmp_path, monkeypatch
+) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+    out.mkdir()
+    export_public_transcript(directory, out)
+    assert (out / PUBLIC_TRANSCRIPT_FILENAME).is_file()
+
+
+def test_single_export_failure_removes_staging(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+
+    def explode(projection: dict[str, Any]) -> str:
+        raise RuntimeError("renderer failed")
+
+    monkeypatch.setattr(tpe, "render_public_transcript_markdown", explode)
+    with pytest.raises(RuntimeError, match="renderer failed"):
+        export_public_transcript(directory, out)
+    assert not out.exists()
+    assert not list(tmp_path.glob(".llmgauge-public-export-*"))
+
+
+def test_single_missing_directory_fails_closed(tmp_path) -> None:
+    out = tmp_path / "public"
+    with pytest.raises(TranscriptPublicExportError, match="Missing result directory"):
+        export_public_transcript(tmp_path / "nope", out)
+    assert not out.exists()
+
+
+def test_single_non_transcript_result_fails_closed(tmp_path) -> None:
+    flat = _write_run(tmp_path)
+    with pytest.raises(
+        TranscriptPublicExportError, match="requires a transcript-bearing result"
+    ):
+        export_public_transcript(flat, tmp_path / "public")
+
+
+def test_single_mutated_transcript_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    tampered = _copy_result(tmp_path, directory, "tampered")
+    transcript_path = tampered / "transcript" / "transcript.json"
+    data = json.loads(transcript_path.read_text(encoding="utf-8"))
+    data["completion_state"] = "abandoned"
+    transcript_path.write_text(json.dumps(data), encoding="utf-8")
+    out = tmp_path / "public"
+    with pytest.raises(TranscriptPublicExportError, match="validation failed"):
+        export_public_transcript(tampered, out)
+    assert not out.exists()
+
+
+def test_single_imported_evidence_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    imported = _copy_result(tmp_path, directory, "imported")
+    _rewrite_result_json(
+        imported,
+        lambda data: data.__setitem__(
+            "agent_harness_evidence",
+            {
+                "schema_version": "llmgauge.agent_harness_evidence.v0",
+                "contract_version": "0.1.0",
+                "evidence_class": "external_agent_environment",
+                "evidence_id": "sha256:" + "a" * 64,
+                "path": "agent-harness/evidence.json",
+                "sha256": "b" * 64,
+            },
+        ),
+    )
+    out = tmp_path / "public"
+    with pytest.raises(TranscriptPublicExportError):
+        export_public_transcript(imported, out)
+    assert not out.exists()
+
+
+def test_single_destination_equals_source_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    with pytest.raises(TranscriptPublicExportError, match="must differ"):
+        export_public_transcript(directory, directory)
+
+
+def test_single_destination_inside_source_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    with pytest.raises(TranscriptPublicExportError, match="inside"):
+        export_public_transcript(directory, directory / "public")
+
+
+def test_single_nonempty_destination_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+    out.mkdir()
+    (out / "existing.txt").write_text("keep", encoding="utf-8")
+    with pytest.raises(TranscriptPublicExportError, match="Refusing to overwrite"):
+        export_public_transcript(directory, out)
+    assert (out / "existing.txt").read_text(encoding="utf-8") == "keep"
+
+
+def test_single_file_destination_fails_closed(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+    out.write_text("not a directory", encoding="utf-8")
+    with pytest.raises(TranscriptPublicExportError, match="not a directory"):
+        export_public_transcript(directory, out)
+
+
+def test_single_cli_success(tmp_path, monkeypatch) -> None:
+    directory = _single(tmp_path, monkeypatch)
+    out = tmp_path / "public"
+    exit_code = runner.invoke(
+        cli.app,
+        ["export-public-transcript", str(directory), "--out", str(out)],
+    )
+    assert exit_code.exit_code == 0, exit_code.output
+    assert "Wrote public transcript derivative" in exit_code.output
+    assert "Review the public export before publication" in exit_code.output
+    assert (out / PUBLIC_TRANSCRIPT_FILENAME).is_file()
+    assert (out / PUBLIC_TRANSCRIPT_REPORT_FILENAME).is_file()
+
+
+def test_single_cli_failure_writes_nothing(tmp_path) -> None:
+    out = tmp_path / "public"
+    exit_code = runner.invoke(
+        cli.app,
+        ["export-public-transcript", str(tmp_path / "nope"), "--out", str(out)],
+    )
+    assert exit_code.exit_code == 1
+    assert "Public transcript export failed" in exit_code.output
+    assert not out.exists()
+
+
+def test_single_report_renders_only_projected_facts(tmp_path, monkeypatch) -> None:
+    directory = _single(
+        tmp_path,
+        monkeypatch,
+        task_kwargs={"feedback": False, "max_turns": 1, "attempts": 2},
+        responses=[
+            ("partial response body", "runtime exploded", 1),
+            ("corrected", "", 0),
+        ],
+    )
+    projection = _single_projection_for(tmp_path, monkeypatch, directory)
+    report = render_public_transcript_markdown(projection)
+    assert "## Run — test-model" in report
+    assert "- Completion: `completed`" in report
+    assert "### Review hooks (as recorded; not answer-quality validation)" in report
+    assert "- Omitted field classes:" in report
+    assert "result_provenance_and_run_fingerprint" in report
+    assert "partial response body" not in report
+    assert "runtime exploded" not in report
+    assert "conversation-single" not in report

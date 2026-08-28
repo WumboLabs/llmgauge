@@ -548,6 +548,26 @@ verdict exists, and every artifact states that human review is required
 before publication. The single-run `export-public` path keeps rejecting
 transcript-bearing runs.
 
+## Native single-transcript public derivative
+
+**Completed:** the accepted
+[Native Single-Transcript Public Derivative Contract](NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md)
+admits one content-default-deny public derivative of a single
+transcript-bearing run: `llmgauge export-public-transcript RUN --out DIR`
+writes exactly `transcript-summary.json` (schema
+`llmgauge.public_transcript.v0`) and `report.md`. The per-run structural
+projection reuses the comparison derivative's primitives, so the same private
+fact maps to the same public interpretation (slot label `run`, fallback model
+label `Model`), plus closed protocol identity, the producer's numeric release
+version, and declared/effective limits. No content, private identifiers, or
+full hashes are projected; a closed-world validator rejects any unexpected key
+or disallowed string. Admission is fail-closed for missing, non-transcript,
+imported-evidence, malformed, or hash-mismatched sources and unsafe
+destinations; sources are never modified and the write is staged. No score,
+aggregate, or quality verdict exists, and every artifact states that human
+review is required before publication. The single-run `export-public` path
+keeps rejecting transcript-bearing runs.
+
 ## Agent Harness import contract and read-only importer
 
 **Completed:** Full Model Testing orders 3a and 3b. The accepted

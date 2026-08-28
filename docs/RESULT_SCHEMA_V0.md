@@ -343,7 +343,10 @@ the bounded structural comparison in
 [Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
 and fails closed on mixed sets; `export-public-comparison` admits one
 content-default-deny comparison derivative under
-[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
+and `export-public-transcript` admits one content-default-deny single-run
+derivative under
+[Native Single-Transcript Public Derivative Contract](NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md).
 `export-index` may
 include the non-authoritative transcript discovery object. Agent Harness
 evidence must not use this native representation.
