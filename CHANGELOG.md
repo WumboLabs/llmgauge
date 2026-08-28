@@ -46,6 +46,31 @@
   `llmgauge.result.v0`, `llmgauge.transcript.v0`, and single-run
   `export-public` behavior are unchanged.
 
+### Native single-transcript public derivative
+
+- Accepted the
+  [Native Single-Transcript Public Derivative Contract](docs/NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md)
+  and implemented `llmgauge export-public-transcript RUN --out DIR`: a
+  content-default-deny allowlist projection of exactly one transcript-bearing
+  native run into a separate public derivative containing exactly
+  `transcript-summary.json` (`llmgauge.public_transcript.v0`) and `report.md`.
+  The per-run structural projection reuses the comparison derivative's
+  primitives — same sanitizer pipeline, same closed vocabularies, same
+  closed-world validator, same staged atomic write — so the same private fact
+  maps to the same public interpretation (slot label `run`, fallback model
+  label `Model`), and the derivative additionally discloses the closed
+  protocol identity and the producer's strict numeric release version. No
+  prompts, outputs, feedback content, conversation/run/event/attempt/turn/
+  state/feedback/branch IDs, suite or task identity values, result
+  provenance, run fingerprints, paths, or full SHA-256 values are projected;
+  adversarial canary fixtures must leak nothing. Admission is fail-closed for
+  missing, non-transcript, imported-evidence, malformed, or hash-mismatched
+  sources and unsafe destinations. No score, aggregate, or quality verdict is
+  computed; both artifacts state that human review is required before
+  publication. Sources are never modified; `llmgauge.result.v0`,
+  `llmgauge.transcript.v0`, `export-public`, and `export-public-comparison`
+  behavior are unchanged.
+
 ## v0.75.0 - 2026-08-27
 
 LLMGauge v0.75 is the reasoning/sampling profile release: it makes named,

@@ -68,6 +68,7 @@ app.command()(scoring.score)
 app.command("export-index")(scoring.export_index_command)
 app.command("export-public")(export_public.export_public_command)
 app.command("export-public-comparison")(export_public.export_public_comparison_command)
+app.command("export-public-transcript")(export_public.export_public_transcript_command)
 app.command("baseline-check")(scoring.baseline_check_command)
 app.command()(scoring.compare)
 

@@ -259,6 +259,31 @@ declares no aggregate, winner, or quality verdict, and both artifacts state
 that human review is required before publication. Single-run `export-public`
 keeps rejecting transcript-bearing runs.
 
+## Public single-transcript derivative
+
+`llmgauge export-public-transcript RUN --out OUTPUT_DIR` creates a separate
+sanitized derivative of exactly one transcript-bearing run under the accepted
+[Native Single-Transcript Public Derivative Contract](NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md).
+The output directory contains exactly two files:
+
+    transcript-summary.json       schema llmgauge.public_transcript.v0
+    report.md                     human-readable rendering of the same facts
+
+The derivative is a content-default-deny allowlist projection sharing the
+comparison derivative's per-run structural projection (slot label `run`,
+fallback model label `Model`), sanitizer pipeline, closed vocabularies,
+closed-world validator, and staged atomic write. It additionally discloses
+the transcript's closed protocol identity, the producer's numeric release
+version (strict `X.Y.Z` shape validation), and the declared/effective limits.
+No prompts, rendered inputs, model outputs, stderr, feedback content,
+conversation/run/event/attempt/turn/state/feedback/branch IDs, suite or task
+identity values, result provenance, run fingerprints, paths, or full SHA-256
+values are projected. `redaction` asserts
+`raw_transcript_content_included: false` and
+`private_identifiers_included: false`. Sources are never modified. The
+derivative declares no score, aggregate, or quality verdict, and both
+artifacts state that human review is required before publication.
+
 ## Schema: llmgauge.result.v0
 
 Primary file:

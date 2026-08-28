@@ -7,6 +7,7 @@ import typer
 from llmgauge.cli_common import console
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.transcript_public_export import (
+    export_public_transcript,
     export_public_transcript_comparison,
 )
 
@@ -46,6 +47,27 @@ def export_public_comparison_command(
 
     console.print(f"[bold green]Wrote public transcript comparison[/bold green]: {out}")
     console.print(f"Classification: {projection['classification']['classification']}")
+    console.print(
+        "Review the public export before publication; sanitization is not answer-quality validation."
+    )
+
+
+def export_public_transcript_command(
+    run_dir: Path = typer.Argument(
+        ..., help="Transcript-bearing run directory to project"
+    ),
+    out: Path = typer.Option(..., "--out", help="New public export directory"),
+) -> None:
+    """Create a content-default-deny public derivative of one native transcript run."""
+
+    try:
+        projection = export_public_transcript(run_dir, out)
+    except (OSError, ValueError) as exc:
+        console.print(f"[bold red]Public transcript export failed[/bold red]: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[bold green]Wrote public transcript derivative[/bold green]: {out}")
+    console.print(f"Projected run: {projection['run']['model_label']}")
     console.print(
         "Review the public export before publication; sanitization is not answer-quality validation."
     )

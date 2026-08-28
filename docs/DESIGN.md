@@ -81,6 +81,15 @@ Current non-goals / deliberate project boundaries:
   identifiers or full hashes, no aggregate or winner, and mandatory human
   review before publication.
 
+- [Native Single-Transcript Public Derivative Contract](NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md)
+  — accepted content-default-deny single-run public derivative
+  (`llmgauge.public_transcript.v0`): one transcript-bearing native result
+  projected through the comparison derivative's shared per-run allowlist,
+  sanitizer, closed-world validator, and staged write, plus closed protocol
+  identity and numeric producer version; no content, private identifiers, or
+  full hashes; no score or aggregate; mandatory human review before
+  publication; single-run `export-public` stays fail-closed.
+
 - [Agent Harness Import Contract](AGENT_HARNESS_IMPORT_CONTRACT.md) — accepted
   `llmgauge.agent_harness_evidence.v0` external agent-environment identity and
   implemented bounded OMP-v3 importer: self-contained read-only source

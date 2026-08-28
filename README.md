@@ -378,6 +378,23 @@ sanitization is not proof that private data is absent. Single-run
 `export-public` keeps rejecting transcript-bearing runs. See
 [Transcript Comparison Public Export Contract](https://github.com/WumboLabs/llmgauge/blob/main/docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
 
+## Publish one transcript run
+
+To create a sanitized public derivative of a single transcript-bearing run:
+
+    uv run llmgauge export-public-transcript \
+      results/run-a \
+      --out public/transcript-summary
+
+The output directory contains exactly `transcript-summary.json` and
+`report.md`. The derivative (`llmgauge.public_transcript.v0`) is a
+content-default-deny allowlist projection of structural facts only — the same
+per-run projection the comparison derivative uses — with no prompts, model
+outputs, feedback content, private identifiers, paths, or full hashes, and no
+score, aggregate, or quality verdict. Human review is required before
+publication; sanitization is not proof that private data is absent. See
+[Native Single-Transcript Public Derivative Contract](https://github.com/WumboLabs/llmgauge/blob/main/docs/NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md).
+
 ## Privacy and safety posture
 
 LLMGauge is local-first and conservative by design.
