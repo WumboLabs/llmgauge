@@ -6,15 +6,16 @@ PyPI.
 
 Current state:
 
-- Production PyPI is NOT active. `llmgauge` has not been published to
-  production PyPI yet.
+- Production PyPI is ACTIVE: `llmgauge` 0.74.0 and 0.75.0 are published, and
+  the package name is claimed. Publication of the next version happens only
+  through the human annotated-tag/approval gate described below.
 - TestPyPI publication is PROVEN: the Trusted Publisher published
   llmgauge 0.73.0, an independent fresh-environment installation from TestPyPI
   succeeded, and installed package resources (including Generic Core) were
   validated. The TestPyPI project exists.
-- A production pending Trusted Publisher is configured on PyPI
-  (owner: `WumboLabs`, repository: `llmgauge`, workflow: `release.yml`,
-  environment: `pypi`). A pending publisher does NOT reserve the project name.
+- The production Trusted Publisher (owner: `WumboLabs`, repository:
+  `llmgauge`, workflow: `release.yml`, environment: `pypi`) has published
+  production releases successfully.
 - The GitHub `pypi` environment is configured with a required reviewer,
   deployment restricted to tags matching `v*`, self-review prevention
   disabled, administrator bypass disabled, and no secrets or variables.
@@ -54,8 +55,8 @@ Accepted mapping, enforced fail-closed by `scripts/check_release_tag.py`:
     vX.Y.Z     <-> X.Y.Z
     vX.Y[.Z]S  <-> X.Y[.Z]S   (prerelease suffix S: aN, bN, rcN)
 
-Examples against package version `0.75.0`: `v0.75` passes, `v0.75.0`
-passes, `v0.75.1` fails, `v0.74` fails, `0.75` and other arbitrary strings
+Examples against package version `0.76.0`: `v0.76` passes, `v0.76.0`
+passes, `v0.76.1` fails, `v0.75` fails, `0.76` and other arbitrary strings
 fail. Production tag-push builds additionally require the tag to be
 annotated and to resolve to the exact checked-out commit.
 
@@ -98,8 +99,8 @@ remaining flow is deliberate and human-gated:
    the human stages and commits the release-prep changes.
 2. Merge to `main` and run full post-merge validation.
 3. Push `main` to the remote.
-4. Create the annotated release tag, e.g. `git tag -a v0.75 -m "LLMGauge v0.75.0"`.
-5. Push the tag: `git push origin v0.75`. This triggers the Release workflow.
+4. Create the annotated release tag, e.g. `git tag -a v0.76 -m "LLMGauge v0.76.0"`.
+5. Push the tag: `git push origin v0.76`. This triggers the Release workflow.
    (Historical first execution used `v0.74`/`LLMGauge v0.74.0`.)
 6. The workflow validates tag/version/exact-commit identity, runs tests,
    builds once with `uv build --no-create-gitignore`, validates the exact

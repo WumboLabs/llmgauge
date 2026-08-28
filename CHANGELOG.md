@@ -2,74 +2,73 @@
 
 ## Unreleased
 
-### Documentation
+## v0.76.0 - 2026-08-28
 
-- Reconciled `docs/ROADMAP.md` release-gate wording after production
-  publication of v0.75: the `v0.75` section and current-release-line header
-  now state that the release is published to production PyPI as `llmgauge`
-  0.75.0 instead of describing a pending release candidate.
+LLMGauge v0.76 is the multi-turn transcript comparison and safe public
+derivative release: transcript-bearing results can now be structurally
+compared, and structurally safe, content-default-deny public derivatives can
+be generated for one transcript comparison or one transcript run. Canonical
+result and transcript schemas, fingerprints, and ordinary single-turn
+behavior are unchanged; previously valid v0.75 results remain valid.
 
 ### Multi-turn transcript comparison
 
-- Accepted the
-  [Transcript Comparison and Review Contract](docs/TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
-  and implemented its first bounded slice: `llmgauge compare` now routes
-  all-transcript result sets to a human-readable structural comparison with
-  exact identity eligibility, three-way classification (identical structure /
-  structurally comparable / structurally incomparable with stated completion
-  asymmetry), side-by-side represented facts, role- and order-preserving event
-  listings, and recorded review hooks shown exactly as stored. No session
-  aggregate, ranking, or winner claim exists; mixed transcript/single-turn
-  comparison fails closed; transcript-bearing scoring and single-run public
-  export remain fail-closed. Single-turn comparison behavior, schemas, and
-  fingerprints are unchanged.
+- `llmgauge compare` now accepts all-transcript result sets: when every
+  compared run carries a native multi-turn transcript, it writes a bounded
+  structural comparison instead of the single-turn report. Eligibility is
+  explicit and classified over exact identity fields (protocol, task, initial
+  state and its SHA-256, suite, effective limits); the comparison is
+  three-way classified (identical structure / structurally comparable /
+  structurally incomparable with stated completion asymmetry); role- and
+  order-preserving event listings keep transcript structure intact; and
+  recorded review hooks are disclosed exactly as stored. Mixed
+  transcript/single-turn comparison fails closed. Ordinary single-turn
+  comparison behavior, schemas, and fingerprints are unchanged. No session
+  aggregate score, ranking, winner, statistical claim, or semantic judgment
+  exists.
 
-### Transcript comparison public export
+### Public transcript derivatives
 
-- Accepted the
-  [Transcript Comparison Public Export Contract](docs/TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md)
-  and implemented `llmgauge export-public-comparison RUN_A RUN_B --out DIR`:
-  a content-default-deny allowlist projection of exactly two transcript-bearing
-  runs into a separate public derivative containing exactly
-  `transcript-comparison.json` (`llmgauge.public_transcript_comparison.v0`)
-  and `report.md`. Only eligibility booleans and identity field names, the
-  three-way structural classification, sanitized model labels, integers,
-  closed vocabularies, and sequence-number-only event/state/attempt skeletons
-  are projected; a closed-world validator rejects any unexpected key or string,
-  and adversarial canary fixtures (home paths, credential URLs, full SHA-256
-  values, secret-like tokens, embedded prompts/outputs) must leak nothing.
-  Admission is fail-closed: exactly two structurally valid, native,
-  transcript-bearing results, destination outside both sources, non-empty
-  destinations refused, staged atomic writes with no residue on failure. No
-  aggregate, winner, or quality verdict is computed; both artifacts state that
-  human review is required before publication. Sources are never modified;
-  `llmgauge.result.v0`, `llmgauge.transcript.v0`, and single-run
-  `export-public` behavior are unchanged.
+- Added `llmgauge export-public-comparison RUN_A RUN_B --out DIR`: a
+  content-default-deny allowlist public derivative of exactly two
+  transcript-bearing runs, containing exactly `transcript-comparison.json`
+  (schema `llmgauge.public_transcript_comparison.v0`) and `report.md`. Only
+  public-safe structural and review evidence is projected — eligibility
+  booleans and identity field names, the three-way structural
+  classification, sanitized model labels, integers, closed vocabularies, and
+  sequence-number-only event/state/attempt skeletons — under a closed-world
+  validator that rejects any unexpected key or disallowed string. Raw
+  transcript content, private identifiers, paths, and full hashes remain
+  excluded; adversarial canary fixtures leak nothing. Admission is
+  fail-closed, sources are never modified, writes are staged and atomic, and
+  both artifacts state that human review is required before publication.
+- Added `llmgauge export-public-transcript RUN --out DIR`: a
+  content-default-deny allowlist public derivative of exactly one
+  transcript-bearing native run, containing exactly `transcript-summary.json`
+  (schema `llmgauge.public_transcript.v0`) and `report.md`. The per-run
+  structural projection reuses the comparison derivative's primitives — same
+  sanitizer pipeline, closed vocabularies, closed-world validator, and staged
+  atomic write — so the same private fact maps to the same public
+  interpretation, and the derivative additionally discloses the closed
+  protocol identity and the producer's numeric release version. No prompts,
+  outputs, feedback content, private identifiers, suite or task identity
+  values, provenance, run fingerprints, paths, or full SHA-256 values are
+  projected. No score, aggregate, or quality verdict is computed; human
+  review is required before publication.
 
-### Native single-transcript public derivative
+### Privacy and compatibility
 
-- Accepted the
-  [Native Single-Transcript Public Derivative Contract](docs/NATIVE_TRANSCRIPT_PUBLIC_DERIVATIVE_CONTRACT.md)
-  and implemented `llmgauge export-public-transcript RUN --out DIR`: a
-  content-default-deny allowlist projection of exactly one transcript-bearing
-  native run into a separate public derivative containing exactly
-  `transcript-summary.json` (`llmgauge.public_transcript.v0`) and `report.md`.
-  The per-run structural projection reuses the comparison derivative's
-  primitives — same sanitizer pipeline, same closed vocabularies, same
-  closed-world validator, same staged atomic write — so the same private fact
-  maps to the same public interpretation (slot label `run`, fallback model
-  label `Model`), and the derivative additionally discloses the closed
-  protocol identity and the producer's strict numeric release version. No
-  prompts, outputs, feedback content, conversation/run/event/attempt/turn/
-  state/feedback/branch IDs, suite or task identity values, result
-  provenance, run fingerprints, paths, or full SHA-256 values are projected;
-  adversarial canary fixtures must leak nothing. Admission is fail-closed for
-  missing, non-transcript, imported-evidence, malformed, or hash-mismatched
-  sources and unsafe destinations. No score, aggregate, or quality verdict is
-  computed; both artifacts state that human review is required before
-  publication. Sources are never modified; `llmgauge.result.v0`,
-  `llmgauge.transcript.v0`, `export-public`, and `export-public-comparison`
-  behavior are unchanged.
+- Canonical `llmgauge.result.v0` and `llmgauge.transcript.v0` schemas are
+  unchanged, and run fingerprints are unchanged.
+- Ordinary single-run `export-public` semantics are unchanged for
+  single-turn results; transcript-bearing runs still fail closed there. The
+  dedicated derivative commands above are the only public transcript path.
+- Transcript comparison and both derivatives compute no aggregate, ranking,
+  or winner claim; a sanitized derivative is structural evidence, not proof
+  of answer quality or privacy completeness, and every artifact requires
+  human review before publication.
+- Documentation: reconciled `docs/ROADMAP.md` release-gate wording after
+  production publication of v0.75.
 
 ## v0.75.0 - 2026-08-27
 
