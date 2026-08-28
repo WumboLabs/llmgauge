@@ -337,11 +337,14 @@ Cleaned derivatives, review hooks, scores, reports, comparisons, export indexes,
 and sanitized exports remain excluded. The payload is unchanged when transcript
 evidence is absent, so historical fingerprints remain stable.
 
-Current single-turn scoring and public export fail closed for transcript
-evidence. `compare` accepts all-transcript result sets only under the bounded
-structural comparison in
+Current single-turn scoring and single-run public export fail closed for
+transcript evidence. `compare` accepts all-transcript result sets only under
+the bounded structural comparison in
 [Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
-and fails closed on mixed sets. `export-index` may
+and fails closed on mixed sets; `export-public-comparison` admits one
+content-default-deny comparison derivative under
+[Transcript Comparison Public Export Contract](TRANSCRIPT_COMPARISON_PUBLIC_EXPORT_CONTRACT.md).
+`export-index` may
 include the non-authoritative transcript discovery object. Agent Harness
 evidence must not use this native representation.
 
