@@ -13,13 +13,31 @@ def load_compare_result(result_dir: Path) -> dict[str, Any]:
         raise FileNotFoundError(f"Missing result file: {result_path}")
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
-    if result.get("transcript") is not None:
-        raise ValueError(
-            "Native multi-turn transcripts require a protocol-specific comparison "
-            "contract; current single-turn comparison fails closed"
-        )
     result["_result_dir"] = str(result_dir)
     return result
+
+
+def compare_results(results: list[dict[str, Any]]) -> str:
+    """Route a loaded result set to the accepted comparison surface.
+
+    All-transcript sets use the bounded structural transcript comparison;
+    mixed transcript/single-turn sets fail closed; single-turn sets keep the
+    existing report unchanged.
+    """
+    transcript_flags = [result.get("transcript") is not None for result in results]
+    if any(transcript_flags):
+        if not all(transcript_flags):
+            raise ValueError(
+                "Comparing transcript-bearing results with single-turn "
+                "results fails closed; transcripts and flattened single-turn "
+                "evidence are different evaluation classes"
+            )
+        from llmgauge.core.transcript_compare import (
+            build_transcript_compare_report,
+        )
+
+        return build_transcript_compare_report(results)
+    return build_compare_report(results)
 
 
 def _fmt(value: Any) -> str:

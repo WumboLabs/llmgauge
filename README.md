@@ -354,6 +354,12 @@ Comparison reports summarize runtime settings, score totals, prompt verdicts, tr
 
 They do not declare a universal winner.
 
+When every compared run carries a native multi-turn transcript, `compare`
+writes a bounded structural comparison instead: eligibility identity match,
+structural classification, side-by-side represented facts, and recorded review
+hooks — with no aggregate score, no winner, and no quality verdict. Mixed
+transcript/single-turn comparison and transcript public export fail closed.
+
 ## Privacy and safety posture
 
 LLMGauge is local-first and conservative by design.

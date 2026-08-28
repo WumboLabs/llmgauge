@@ -569,6 +569,15 @@ Compare two or more runs:
       results/run-b \
       --out results/compare.md
 
+When every compared run carries a native multi-turn transcript, `compare`
+instead writes the bounded structural transcript comparison defined by
+`docs/TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md`: eligibility identity match,
+three-way structural classification, side-by-side represented facts,
+role-preserving event order, and recorded review hooks. It declares no
+aggregate, no winner, and no quality verdict. Mixing transcript-bearing and
+single-turn runs fails closed. Transcript-bearing runs remain rejected by
+`score` and `export-public`.
+
 Create an export index:
 
     uv run llmgauge export-index \

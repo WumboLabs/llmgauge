@@ -739,8 +739,12 @@ facts, and invalid capture roles fail closed.
 
 Structural validity does not prove semantic quality, feedback execution, safety,
 human approval, publication readiness, or Agent Harness success. Current
-single-turn scoring, comparison, and public-export methods fail closed for a
-represented transcript; `export-index` may expose only its discovery index.
+single-turn scoring and public-export methods fail closed for a represented
+transcript; `compare` routes all-transcript result sets to the bounded
+structural comparison defined by the
+[Transcript Comparison and Review Contract](TRANSCRIPT_COMPARISON_REVIEW_CONTRACT.md)
+and fails closed on mixed transcript/single-turn sets; `export-index` may
+expose only its discovery index.
 
 ### summary
 
