@@ -11,6 +11,20 @@
   emitted; N/N layer offload is not claimed as full accelerator residency;
   requested `-ngl` is not treated as observation.
 
+- External vLLM request results now carry an Area 4 runtime-neutral
+  `llmgauge.metric.v1.request_wall_time` mapping when the request was
+  transmitted: monotonic wall time is measured from immediately before
+  request serialization through receipt and structural validation of the
+  complete non-streaming response, matching the accepted request-wall-time
+  boundary. The backend-native `request_wall_time_seconds` field keeps its
+  meaning and is preserved unchanged. TTFT, prefill/decode throughput,
+  model-load time, steady-state VRAM, request-window VRAM, and execution
+  placement remain unavailable or deferred for vLLM: the non-streaming
+  transport exposes no first-token boundary, the operator owns server
+  lifecycle and model admission, the API exposes no placement, and no VRAM
+  sampler is added. Readiness remains an API-observation only; it never
+  sets cache state to warm or cold.
+
 ### Documentation
 
 - Reconciled `docs/ROADMAP.md` release-gate wording after production
