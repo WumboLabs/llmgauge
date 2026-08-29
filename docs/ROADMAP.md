@@ -710,6 +710,17 @@ not `full_accelerator`. Neutral mappings for model-load time, prefill
 throughput, decode throughput, and TTFT remain deferred. Steady-state VRAM,
 vLLM Area 4, and cross-runtime equivalence remain deferred.
 
+A fourth bounded Area 4 architecture milestone
+([LLAMACPP_TTFT_OBSERVATION_ARCHITECTURE.md](LLAMACPP_TTFT_OBSERVATION_ARCHITECTURE.md))
+qualified the TTFT observation question: neutral TTFT remains deferred under
+the native llama.cpp CLI because the native `llama-cli` interface exposes only
+decoded-text UI rendering on stdout with no machine-readable generated-token
+boundary, an unconditional prompt echo, and no reliable generated-output
+ownership. A proven token boundary is available only through the embedded
+`llama-server` HTTP streaming interface, which would require a separate
+server-backed runtime architecture; it is recorded as deferred and not
+implemented. No TTFT implementation is admitted.
+
 
 ### External benchmark importer foundation
 
