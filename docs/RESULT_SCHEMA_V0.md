@@ -41,6 +41,7 @@ Runtime metrics include:
 - backend
 - model quantization
 - llama.cpp metadata where available
+- optional llama.cpp diagnostic timing and observed placement where parsed
 
 
 ## Compatibility policy

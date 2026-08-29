@@ -47,7 +47,7 @@ received its terminal output. It records `request_wall_time_seconds` only when
 that finite non-negative interval was captured. This is the admitted native
 single-turn request boundary: process launch through terminal output receipt
 and exit-status observation. It does not establish TTFT, prefill, decode, load,
-VRAM, placement, or cross-runtime equivalence.
+VRAM, or cross-runtime equivalence.
 
 Each measurement records that boundary as
 `request_transmit_to_validated_response`, `unit: s`,
@@ -56,9 +56,34 @@ When capture is unavailable, `value` is `null`, `availability` is
 `unavailable`, `provenance` is `unavailable`, and `equivalence` is
 `unavailable`. No zero replacement is allowed. The workload is the exact
 single-turn prompt identity plus suite, generation limit, batching, unknown
-cache state, and references to requested runtime settings. Requested and
-observed execution placement are both `unknown` because `--n-gpu-layers` alone
-is not placement observation.
+cache state, and references to requested runtime settings. Requested execution
+placement remains `unknown` because `--n-gpu-layers` is not observation.
+
+## Backend-native llama.cpp timing and observed placement
+
+The same native artifact may also preserve backend-owned diagnostic facts
+parsed only from llama.cpp-prefixed lines
+(`llama_perf_context_print:` / `llama_print_timings:` for timing;
+`llm_load_tensors:` offload counts for placement). Unprefixed model text is
+ignored. Conflicting duplicate values leave the field absent. Missing values
+are null, never zero.
+
+Preserved timing fields, when present: `load_time_seconds`,
+`prompt_eval_time_seconds`, `prompt_eval_token_count`, `prompt_eval_tps`,
+`eval_time_seconds`, `eval_token_count`, `generation_tps`,
+`total_time_seconds`. These remain backend-native. They are not mapped to
+`llmgauge.metric.v1.model_load_time`, `prefill_throughput`,
+`decode_generation_throughput`, or `time_to_first_token`. TTFT stays
+unavailable on the non-streaming native CLI transport.
+
+Observed placement uses only the `offloaded N/M layers to GPU` diagnostic:
+`cpu_only` when N is 0 and M is positive; `hybrid_accelerator_cpu` when
+0 < N < M; `unavailable` when no supported line exists; `unknown` when N = M
+or the counts are otherwise insufficient. N/N does not prove
+`full_accelerator` because embeddings, output, or other execution may remain
+CPU-resident. Native layer counts may be copied onto `execution_placement`
+without changing that conservative observed state.
+
 
 ## Peak VRAM evidence
 

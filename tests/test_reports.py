@@ -662,3 +662,30 @@ def test_report_discloses_extended_llama_runtime_configuration() -> None:
     assert "Preserve reasoning: True (explicit)" in report
     assert "does not prove template/model compliance" in report
     assert "Speculative type: draft-mtp (explicit)" in report
+
+
+def test_report_renders_backend_native_timing_not_neutral() -> None:
+    result = _result_with_metrics({})
+    result["runtime_neutral_metrics"] = {
+        "schema_version": "llmgauge.runtime_neutral_metrics.v1",
+        "measurements": [
+            {
+                "measurement_id": "native-single-turn-0",
+                "execution_placement": {
+                    "requested": "unknown",
+                    "observed": "unknown",
+                    "native_offloaded_layers": 41,
+                    "native_total_layers": 41,
+                },
+            }
+        ],
+    }
+    report = build_markdown_report(result)
+    assert (
+        "Backend-native llama.cpp timing is not a runtime-neutral Area 4 metric."
+        in report
+    )
+    assert "Observed placement: unknown" in report
+    assert "TTFT: unavailable" in report
+    assert "Load time (llama.cpp reported): unavailable" in report
+    assert "equivalence unproven" in report

@@ -342,3 +342,118 @@ def test_area4_without_vram_capture_keeps_single_record(tmp_path: Path) -> None:
     records = result["runtime_neutral_metrics"]["measurements"][0]["metrics"]
     assert len(records) == 1
     assert records[0]["metric_id"] == "llmgauge.metric.v1.request_wall_time"
+
+
+_DIAGNOSTIC = """
+llm_load_tensors: offloaded 20/41 layers to GPU
+llama_perf_context_print:        load time =     1420.00 ms
+llama_perf_context_print: prompt eval time =     380.00 ms /   520 tokens (1368.42 tokens per second)
+llama_perf_context_print:        eval time =    2160.00 ms /   170 runs   (78.70 tokens per second)
+llama_perf_context_print:       total time =    3960.00 ms /   690 tokens
+"""
+
+
+def test_area4_native_timing_and_hybrid_placement(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=4.0,
+        stdout="answer",
+        stderr=_DIAGNOSTIC,
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    result = _base_result(tmp_path, evidence=evidence)
+    placement = result["runtime_neutral_metrics"]["measurements"][0][
+        "execution_placement"
+    ]
+    assert placement["requested"] == "unknown"
+    assert placement["observed"] == "hybrid_accelerator_cpu"
+    assert placement["native_offloaded_layers"] == 20
+    assert placement["native_total_layers"] == 41
+    assert evidence["llama_cpp_timing"]["load_time_seconds"] == 1.42
+    assert "llmgauge.metric.v1.model_load_time" not in {
+        record["metric_id"]
+        for record in result["runtime_neutral_metrics"]["measurements"][0]["metrics"]
+    }
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    assert validate_result_dir(tmp_path) == []
+
+
+def test_area4_does_not_infer_full_accelerator_from_equal_layers(
+    tmp_path: Path,
+) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.0,
+        stdout="answer",
+        stderr="llm_load_tensors: offloaded 41/41 layers to GPU\n",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    result = _base_result(tmp_path, evidence=evidence)
+    placement = result["runtime_neutral_metrics"]["measurements"][0][
+        "execution_placement"
+    ]
+    assert placement["observed"] == "unknown"
+    assert placement["native_offloaded_layers"] == 41
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    assert validate_result_dir(tmp_path) == []
+
+
+def test_area4_rejects_requested_ngl_as_observed_placement(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.0,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    result = _base_result(tmp_path, evidence=evidence)
+    result["runtime"]["gpu_layers"] = 999
+    result["runtime_neutral_metrics"]["measurements"][0]["execution_placement"] = {
+        "requested": "full_accelerator",
+        "observed": "full_accelerator",
+    }
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    errors = validate_result_dir(tmp_path)
+    assert any("requested must remain unknown" in error for error in errors)
+
+
+def test_area4_historical_unknown_placement_without_native_timing_valid(
+    tmp_path: Path,
+) -> None:
+    evidence = {
+        "schema_version": NATIVE_EXECUTION_EVIDENCE_SCHEMA,
+        "prompt_id": "prompt",
+        "request_wall_time_seconds": 1.25,
+        "request_wall_time_boundary": "process_launch_to_terminal_output_receipt",
+        "failure": None,
+    }
+    result = _base_result(tmp_path, evidence=evidence)
+    placement = result["runtime_neutral_metrics"]["measurements"][0][
+        "execution_placement"
+    ]
+    assert placement == {"requested": "unknown", "observed": "unknown"}
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    assert validate_result_dir(tmp_path) == []
+
+
+def test_area4_rejects_zero_substituted_load_time(tmp_path: Path) -> None:
+    evidence = build_native_execution_evidence(
+        prompt_id="prompt",
+        elapsed_seconds=1.0,
+        stdout="answer",
+        stderr="",
+        exit_status=0,
+        timed_out=False,
+        launch_error=None,
+    )
+    evidence["llama_cpp_timing"]["load_time_seconds"] = -1.0
+    result = _base_result(tmp_path, evidence=evidence)
+    (tmp_path / "llmgauge-result.json").write_text(json.dumps(result), encoding="utf-8")
+    errors = validate_result_dir(tmp_path)
+    assert any("load_time_seconds" in error for error in errors)
