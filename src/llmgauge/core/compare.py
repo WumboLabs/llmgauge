@@ -794,36 +794,52 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
     ):
         lines.extend(
             [
-                "## Runtime-native llama.cpp timing and placement",
+                "## Runtime-neutral Area 4 evidence",
                 "",
-                "Values below are backend-native. Equivalence across runs or runtimes is unproven.",
-                "They are not Area 4 neutral prefill, decode, load, or TTFT metrics.",
+                "Runtime-neutral request wall time shares a metric identity across",
+                "runtimes only when the accepted boundary and workload equivalence",
+                "requirements are met. Do not read equivalent values as proof of",
+                "runtime equivalence; sampling boundaries may differ.",
                 "",
-                "| Run | Observed placement | Native offloaded layers | Native total layers |",
-                "|---|---|---:|---:|",
+                "| Run | Backend | Request wall time s | Boundary | Placement observed |",
+                "|---|---|---:|---|---|",
             ]
         )
         for result in results:
             run = result.get("run", {})
+            runtime = result.get("runtime", {})
+            backend = runtime.get("backend") if isinstance(runtime, dict) else ""
             metrics = result.get("runtime_neutral_metrics")
             measurements = (
                 metrics.get("measurements") if isinstance(metrics, dict) else None
             )
-            placement = {}
+            wall = None
+            boundary = "unavailable"
+            placement = "unavailable"
             if isinstance(measurements, list) and measurements:
                 first = measurements[0]
-                if isinstance(first, dict) and isinstance(
-                    first.get("execution_placement"), dict
-                ):
-                    placement = first["execution_placement"]
-            offloaded = placement.get("native_offloaded_layers")
-            total = placement.get("native_total_layers")
+                if isinstance(first, dict):
+                    records = first.get("metrics")
+                    if isinstance(records, list) and records:
+                        wall_record = records[0]
+                        if isinstance(wall_record, dict):
+                            if (
+                                wall_record.get("availability") == "available"
+                                and wall_record.get("value") is not None
+                            ):
+                                wall = wall_record.get("value")
+                            boundary = wall_record.get("boundary", boundary)
+                    if isinstance(first.get("execution_placement"), dict):
+                        placement = first["execution_placement"].get(
+                            "observed", "unavailable"
+                        )
             lines.append(
                 "| "
                 f"{run.get('run_id')} | "
-                f"{placement.get('observed', 'unavailable')} | "
-                f"{'unavailable' if offloaded is None else offloaded} | "
-                f"{'unavailable' if total is None else total} |"
+                f"{backend or 'unknown'} | "
+                f"{'unavailable' if wall is None else wall} | "
+                f"{boundary} | "
+                f"{placement} |"
             )
         lines.append("")
 

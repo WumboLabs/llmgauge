@@ -900,6 +900,38 @@ that adds canonical Area 4 records and hashes their referenced native execution
 artifacts. Existing `llmgauge.run_fingerprint.v0` payloads remain unchanged and
 continue to verify unchanged.
 
+### Area 4 vLLM request evidence
+
+External vLLM results may also carry the same optional
+`runtime_neutral_metrics` (`llmgauge.runtime_neutral_metrics.v1`) and
+`failure_taxonomy` (`llmgauge.failure_taxonomy.v1`) top-level objects. The
+current vLLM slice maps only `llmgauge.metric.v1.request_wall_time` for
+transmitted requests. The timer boundary is
+`request_transmit_to_validated_response`: monotonic time from immediately
+before request serialization through receipt and structural validation of the
+complete non-streaming response. The preserved native
+`request_wall_time_seconds` field in `request/*.json` artifacts keeps its own
+meaning and is unchanged. No TTFT, prefill, decode, load, VRAM, or placement
+neutral records are emitted for vLLM in this slice: the non-streaming
+transport exposes no first-token boundary, the operator owns server lifecycle
+and model admission, the vLLM API exposes no execution placement, and no VRAM
+sampler is added. `workload.cache_state` remains `unknown`; API readiness does
+not imply warm or cold.
+
+The derived failure taxonomy maps vLLM failure classes (`endpoint_unavailable`,
+`request_timeout`, `malformed_response`, `served_model_mismatch`, and others)
+to the existing closed categories, citing `request/*.json#/failure_class`.
+Historical vLLM results without Area 4 evidence remain valid; llama.cpp Area 4
+evidence is unchanged.
+
+Results with vLLM Area 4 evidence use `llmgauge.run_fingerprint.v1` (or the
+appropriate higher version when extended evidence is present) and hash the
+contained `request/*.json` artifacts as the authoritative per-prompt evidence.
+vLLM results without Area 4 carry no fingerprint because model SHA-256
+provenance is unavailable for the served-model path; that behavior is
+unchanged. Public export sanitizes the request evidence files and preserves
+the Area 4 objects unchanged.
+
 Results with imported external-benchmark evidence use
 `llmgauge.run_fingerprint.v2` and a v2 payload that includes the evidence
 schema and contract versions, evaluation class, source type, source-package

@@ -8,6 +8,20 @@ from typing import Any, Mapping
 
 from llmgauge.core.metrics import parse_llama_cpp_diagnostics, placement_states
 
+VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
+_VLLM_REQUEST_FORM = "chat_messages"
+_VLLM_MEASUREMENT_ID_RE = re.compile(r"^vllm-request-[0-9]+$")
+
+_VLLM_FAILURE_CATEGORY_MAP: dict[str, str] = {
+    "endpoint_unavailable": "endpoint_failure",
+    "connect_failed": "endpoint_failure",
+    "request_timeout": "endpoint_failure",
+    "server_request_error": "endpoint_failure",
+    "readiness_failure": "endpoint_failure",
+    "malformed_response": "malformed_response",
+    "served_model_mismatch": "runtime_environment_failure",
+}
+
 RUNTIME_NEUTRAL_METRICS_SCHEMA = "llmgauge.runtime_neutral_metrics.v1"
 FAILURE_TAXONOMY_SCHEMA = "llmgauge.failure_taxonomy.v1"
 NATIVE_EXECUTION_EVIDENCE_SCHEMA = "llmgauge.native_llama_cpp_execution_evidence.v1"
@@ -117,6 +131,10 @@ def native_measurement_id(index: int) -> str:
     return f"native-single-turn-{index}"
 
 
+def vllm_measurement_id(index: int) -> str:
+    return f"vllm-request-{index}"
+
+
 def _failure_category(failure: Mapping[str, Any]) -> str:
     if failure.get("phase") == "model_weight_load" and failure.get("oom") is True:
         return "model_weight_load_oom"
@@ -124,6 +142,12 @@ def _failure_category(failure: Mapping[str, Any]) -> str:
         return "kv_cache_oom"
     if failure.get("launch_error") == "process_launch_failed":
         return "runtime_environment_failure"
+    return "unclassified_unknown"
+
+
+def _vllm_failure_category(failure_class: str | None) -> str:
+    if isinstance(failure_class, str) and failure_class in _VLLM_FAILURE_CATEGORY_MAP:
+        return _VLLM_FAILURE_CATEGORY_MAP[failure_class]
     return "unclassified_unknown"
 
 
@@ -390,6 +414,137 @@ def build_area4_evidence(
     )
 
 
+def build_vllm_area4_evidence(
+    *,
+    prompt_results: list[Mapping[str, Any]],
+    suite: Mapping[str, Any],
+    runtime: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build Area 4 representations for vLLM per-request evidence.
+
+    Only the vLLM request_wall_time metric is represented. Request transmission
+    and complete response validation both fall inside its boundary. Execution
+    placement and cache state stay unknown because the vLLM API does not expose
+    them. No peak-VRAM record is emitted for vLLM in this slice.
+    """
+    measurements: list[dict[str, Any]] = []
+    observations: list[dict[str, Any]] = []
+    primary_by_execution: list[dict[str, Any]] = []
+    for index, prompt_result in enumerate(prompt_results):
+        execution_ref = native_execution_ref(index)
+        evidence = prompt_result.get("_area4_vllm_request_evidence")
+        if not isinstance(evidence, Mapping):
+            evidence = {}
+        request_evidence_path = prompt_result.get("request_evidence_path")
+        if not isinstance(request_evidence_path, str) or not request_evidence_path:
+            request_evidence_path = None
+        wall = evidence.get("request_wall_time_seconds")
+        transmitted = evidence.get("request_transmitted", False) is True
+        available = (
+            transmitted
+            and isinstance(wall, int | float)
+            and not isinstance(wall, bool)
+            and math.isfinite(wall)
+            and wall >= 0
+        )
+        status = prompt_result.get("status")
+        failure_class = evidence.get("failure_class") or prompt_result.get(
+            "failure_class"
+        )
+        if status == "completed":
+            completion_state = "completed"
+        elif failure_class == "request_timeout":
+            completion_state = "timeout"
+        else:
+            completion_state = "failed"
+        measurement: dict[str, Any] = {
+            "measurement_id": vllm_measurement_id(index),
+            "execution_ref": execution_ref,
+            "attempt_id": _ATTEMPT_ID,
+            "attempt_sequence": 0,
+            "kind": "measured",
+            "retry_of_attempt_id": None,
+            "completion_state": completion_state,
+            "workload": {
+                "prompt_id": prompt_result.get("prompt_id"),
+                "suite_id": suite.get("suite_id"),
+                "suite_version": suite.get("suite_version"),
+                "request_form": _VLLM_REQUEST_FORM,
+                "generation_limits": {"max_tokens": runtime.get("max_tokens")},
+                "batching": {"batch_size": 1},
+                "cache_state": "unknown",
+                "requested_runtime_settings_ref": "runtime",
+                "observed_runtime_settings_ref": None,
+            },
+            "execution_placement": {"requested": "unknown", "observed": "unknown"},
+            "metrics": [
+                {
+                    "metric_id": "llmgauge.metric.v1.request_wall_time",
+                    "native_metric_id": "request_wall_time_seconds",
+                    "value": float(wall) if available else None,
+                    "unit": "s",
+                    "availability": "available" if available else "unavailable",
+                    "provenance": "llmgauge_observed" if available else "unavailable",
+                    "boundary": "request_transmit_to_validated_response",
+                    "equivalence": "unproven" if available else "unavailable",
+                    "evidence_refs": (
+                        [f"{request_evidence_path}#/request_wall_time_seconds"]
+                        if request_evidence_path is not None
+                        else []
+                    ),
+                }
+            ],
+        }
+        measurements.append(measurement)
+        if status == "completed":
+            primary_by_execution.append(
+                {
+                    "execution_ref": execution_ref,
+                    "primary_observation_id": None,
+                    "state": "none",
+                }
+            )
+            continue
+        observation_id = f"vllm-failure-{index}"
+        observations.append(
+            {
+                "failure_observation_id": observation_id,
+                "execution_ref": execution_ref,
+                "attempt_id": _ATTEMPT_ID,
+                "retry_of_attempt_id": None,
+                "category": _vllm_failure_category(failure_class),
+                "source_fact_refs": (
+                    [f"{request_evidence_path}#/failure_class"]
+                    if request_evidence_path is not None
+                    else []
+                ),
+                "evidence_basis": {
+                    "kind": "llmgauge_derived_vllm_request_evidence",
+                    "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
+                },
+                "execution_state": "terminal",
+            }
+        )
+        primary_by_execution.append(
+            {
+                "execution_ref": execution_ref,
+                "primary_observation_id": observation_id,
+                "state": "classified",
+            }
+        )
+    return (
+        {
+            "schema_version": RUNTIME_NEUTRAL_METRICS_SCHEMA,
+            "measurements": measurements,
+        },
+        {
+            "schema_version": FAILURE_TAXONOMY_SCHEMA,
+            "observations": observations,
+            "primary_by_execution": primary_by_execution,
+        },
+    )
+
+
 def _load_native_evidence(
     result_dir: Path, prompt_results: list[object], errors: list[str]
 ) -> dict[str, tuple[str, Mapping[str, Any]]]:
@@ -483,6 +638,49 @@ def _load_vram_samples(
     return loaded
 
 
+def _load_vllm_request_evidence(
+    result_dir: Path, prompt_results: list[object], errors: list[str]
+) -> dict[str, tuple[str, Mapping[str, Any]]]:
+    from llmgauge.core.run_fingerprint import (
+        FingerprintUnavailable,
+        resolve_contained_result_artifact,
+    )
+
+    loaded: dict[str, tuple[str, Mapping[str, Any]]] = {}
+    for index, prompt_result in enumerate(prompt_results):
+        if not isinstance(prompt_result, Mapping):
+            continue
+        execution_ref = native_execution_ref(index)
+        path = prompt_result.get("request_evidence_path")
+        if not isinstance(path, str) or not path:
+            errors.append(f"{execution_ref}.request_evidence_path must be set")
+            continue
+        try:
+            artifact = resolve_contained_result_artifact(
+                result_dir,
+                path,
+                label=f"{execution_ref}.request_evidence_path",
+                require_file=True,
+            )
+            evidence = json.loads(artifact.read_text(encoding="utf-8"))
+        except (FingerprintUnavailable, json.JSONDecodeError) as exc:
+            errors.append(
+                f"{execution_ref}.request_evidence_path is invalid: {exc}"
+            )
+            continue
+        if not isinstance(evidence, Mapping):
+            errors.append(
+                f"{execution_ref} vLLM request evidence must be an object"
+            )
+            continue
+        if evidence.get("schema_version") != VLLM_REQUEST_EVIDENCE_SCHEMA:
+            errors.append(
+                f"{execution_ref} vLLM request evidence schema_version is invalid"
+            )
+        loaded[execution_ref] = (path, evidence)
+    return loaded
+
+
 def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> list[str]:
     """Validate represented Area 4 evidence without changing legacy requirements."""
     metrics, taxonomy = (
@@ -495,19 +693,26 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
         return [
             "Area 4 evidence requires both runtime_neutral_metrics and failure_taxonomy objects"
         ]
-    errors: list[str] = []
     runtime = data.get("runtime")
-    if not isinstance(runtime, Mapping) or runtime.get("backend") != "llama.cpp":
-        errors.append("Area 4 evidence is supported only for native llama.cpp results")
+    if not isinstance(runtime, Mapping):
+        return ["Area 4 evidence requires runtime metadata"]
+    backend = runtime.get("backend")
+    if backend not in {"llama.cpp", "vllm"}:
+        return [
+            "Area 4 evidence is supported only for native llama.cpp or vLLM results"
+        ]
     if (
         data.get("transcript") is not None
         or data.get("agent_harness_evidence") is not None
         or data.get("external_benchmark_evidence") is not None
     ):
-        errors.append(
+        return [
             "Area 4 evidence is unsupported for transcript, Agent Harness, "
             "or external benchmark results"
-        )
+        ]
+    if backend == "vllm":
+        return _validate_vllm_area4_evidence(result_dir, data, metrics, taxonomy)
+    errors: list[str] = []
     prompt_results = data.get("results")
     if not isinstance(prompt_results, list):
         return errors + ["Area 4 evidence requires prompt results"]
@@ -766,6 +971,216 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
                 )
         elif state != "none" or observation_id is not None:
             errors.append(f"{label} completed execution must have no classification")
+    if primary_executions != known_executions:
+        errors.append("failure_taxonomy must classify every prompt execution")
+    return errors
+def _validate_vllm_area4_evidence(
+    result_dir: Path,
+    data: Mapping[str, object],
+    metrics: Mapping[str, object],
+    taxonomy: Mapping[str, object],
+) -> list[str]:
+    """Validate vLLM Area 4 evidence against preserved request evidence."""
+    errors: list[str] = []
+    prompt_results = data.get("results")
+    if not isinstance(prompt_results, list):
+        return errors + ["Area 4 evidence requires prompt results"]
+    known_executions = {
+        native_execution_ref(index) for index in range(len(prompt_results))
+    }
+    request_evidence_by_execution = _load_vllm_request_evidence(
+        result_dir, prompt_results, errors
+    )
+
+    measurements = metrics.get("measurements")
+    if metrics.get(
+        "schema_version"
+    ) != RUNTIME_NEUTRAL_METRICS_SCHEMA or not isinstance(measurements, list):
+        errors.append(
+            "runtime_neutral_metrics schema_version or measurements is invalid"
+        )
+        measurements = []
+    if len(measurements) != len(prompt_results):
+        errors.append(
+            "runtime_neutral_metrics must contain one measurement per prompt result"
+        )
+    seen_measurements: set[str] = set()
+    failed_executions: set[str] = set()
+    for index, measurement in enumerate(measurements):
+        label = f"runtime_neutral_metrics.measurements[{index}]"
+        if not isinstance(measurement, Mapping):
+            errors.append(f"{label} must be an object")
+            continue
+        execution_ref = measurement.get("execution_ref")
+        if (
+            execution_ref not in known_executions
+            or measurement.get("measurement_id") != vllm_measurement_id(index)
+            or measurement.get("attempt_id") != _ATTEMPT_ID
+            or measurement.get("attempt_sequence") != 0
+            or measurement.get("retry_of_attempt_id") is not None
+            or measurement.get("kind") != "measured"
+            or measurement.get("completion_state") not in {
+                "completed",
+                "failed",
+                "timeout",
+            }
+        ):
+            errors.append(f"{label} has invalid measurement or execution identity")
+        measurement_id = measurement.get("measurement_id")
+        if (
+            not isinstance(measurement_id, str)
+            or not _VLLM_MEASUREMENT_ID_RE.fullmatch(measurement_id)
+            or measurement_id in seen_measurements
+        ):
+            errors.append(f"{label}.measurement_id must be unique")
+        seen_measurements.add(str(measurement_id))
+        completion_state = measurement.get("completion_state", "")
+        if completion_state in {"failed", "timeout"}:
+            failed_executions.add(str(execution_ref))
+        if not isinstance(measurement.get("workload"), Mapping) or not isinstance(
+            measurement.get("execution_placement"), Mapping
+        ):
+            errors.append(f"{label}.workload and execution_placement must be objects")
+        else:
+            placement = measurement["execution_placement"]
+            requested = placement.get("requested")
+            observed = placement.get("observed")
+            if requested != "unknown" or observed != "unknown":
+                errors.append(
+                    f"{label}.execution_placement must be unknown for vLLM; "
+                    "the API does not expose placement"
+                )
+
+        records = measurement.get("metrics")
+        if (
+            not isinstance(records, list)
+            or len(records) < 1
+            or not isinstance(records[0], Mapping)
+        ):
+            errors.append(f"{label}.metrics must contain at least one record")
+            continue
+        metric = records[0]
+        evidence = request_evidence_by_execution.get(str(execution_ref))
+        expected_ref = (
+            f"{evidence[0]}#/request_wall_time_seconds" if evidence else None
+        )
+        available = metric.get("availability") == "available"
+        value = metric.get("value")
+        if (
+            metric.get("metric_id") != "llmgauge.metric.v1.request_wall_time"
+            or metric.get("native_metric_id") != "request_wall_time_seconds"
+            or metric.get("unit") != "s"
+            or metric.get("boundary") != "request_transmit_to_validated_response"
+            or metric.get("evidence_refs") != [expected_ref]
+        ):
+            errors.append(
+                f"{label}.metrics[0] identity or evidence reference is invalid"
+            )
+        if available:
+            if (
+                not isinstance(value, int | float)
+                or isinstance(value, bool)
+                or not math.isfinite(value)
+                or value < 0
+                or metric.get("provenance") != "llmgauge_observed"
+                or metric.get("equivalence") != "unproven"
+            ):
+                errors.append(
+                    f"{label}.metrics[0] available value/provenance is invalid"
+                )
+        elif (
+            value is not None
+            or metric.get("availability") != "unavailable"
+            or metric.get("provenance") != "unavailable"
+            or metric.get("equivalence") != "unavailable"
+        ):
+            errors.append(
+                f"{label}.metrics[0] unavailable value/provenance is invalid"
+            )
+        if evidence is not None and value != evidence[1].get(
+            "request_wall_time_seconds"
+        ):
+            errors.append(f"{label}.metrics[0].value differs from request evidence")
+        if records[1:]:
+            errors.append(
+                f"{label}.metrics contains peak VRAM records that are unsupported "
+                "for vLLM in this slice"
+            )
+
+    observations, primary = (
+        taxonomy.get("observations"),
+        taxonomy.get("primary_by_execution"),
+    )
+    if (
+        taxonomy.get("schema_version") != FAILURE_TAXONOMY_SCHEMA
+        or not isinstance(observations, list)
+        or not isinstance(primary, list)
+    ):
+        return errors + [
+            "failure_taxonomy schema_version, observations, or "
+            "primary_by_execution is invalid"
+        ]
+    observation_ids: set[str] = set()
+    observation_executions: dict[str, str] = {}
+    for index, observation in enumerate(observations):
+        label = f"failure_taxonomy.observations[{index}]"
+        if not isinstance(observation, Mapping):
+            errors.append(f"{label} must be an object")
+            continue
+        observation_id, execution_ref = (
+            observation.get("failure_observation_id"),
+            observation.get("execution_ref"),
+        )
+        if (
+            not isinstance(observation_id, str)
+            or not observation_id
+            or observation_id in observation_ids
+            or execution_ref not in known_executions
+        ):
+            errors.append(f"{label} has invalid identity or execution reference")
+        observation_ids.add(str(observation_id))
+        observation_executions[str(observation_id)] = str(execution_ref)
+        evidence = request_evidence_by_execution.get(str(execution_ref))
+        expected_ref = f"{evidence[0]}#/failure_class" if evidence else None
+        failure_class = evidence[1].get("failure_class") if evidence else None
+        if (
+            observation.get("attempt_id") != _ATTEMPT_ID
+            or observation.get("retry_of_attempt_id") is not None
+            or observation.get("execution_state") != "terminal"
+            or not isinstance(observation.get("evidence_basis"), Mapping)
+            or observation.get("source_fact_refs") != [expected_ref]
+        ):
+            errors.append(f"{label} has invalid structure or evidence reference")
+        if observation.get("category") != _vllm_failure_category(failure_class):
+            errors.append(f"{label}.category differs from request evidence")
+    primary_executions: set[str] = set()
+    for index, entry in enumerate(primary):
+        label = f"failure_taxonomy.primary_by_execution[{index}]"
+        if (
+            not isinstance(entry, Mapping)
+            or entry.get("execution_ref") not in known_executions
+            or entry.get("execution_ref") in primary_executions
+        ):
+            errors.append(f"{label} must uniquely reference a prompt result")
+            continue
+        execution_ref, state, observation_id = (
+            entry["execution_ref"],
+            entry.get("state"),
+            entry.get("primary_observation_id"),
+        )
+        primary_executions.add(str(execution_ref))
+        if str(execution_ref) in failed_executions:
+            if (
+                state != "classified"
+                or observation_executions.get(str(observation_id)) != execution_ref
+            ):
+                errors.append(
+                    f"{label} failed execution must reference its classification"
+                )
+        elif state != "none" or observation_id is not None:
+            errors.append(
+                f"{label} completed execution must have no classification"
+            )
     if primary_executions != known_executions:
         errors.append("failure_taxonomy must classify every prompt execution")
     return errors

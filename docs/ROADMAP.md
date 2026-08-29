@@ -82,6 +82,9 @@ LLMGauge currently provides:
   `llmgauge profiles show PROFILE_ID`)
 - requested `--min-p` sampler capture across run metadata and comparison scope
 - derived device-scoped peak VRAM evidence for native llama.cpp results
+- Area 4 runtime-neutral request-wall-time mapping for external vLLM results
+  (request transmitted → validated non-streaming response boundary; TTFT,
+  prefill/decode throughput, VRAM, and placement remain deferred)
 - bounded structural comparison of all-transcript result sets via
   `llmgauge compare` with explicit eligibility, three-way structural
   classification, role/order-preserving listings, and recorded review-hook
@@ -135,6 +138,11 @@ does not install, start, supervise, or otherwise own the vLLM server lifecycle;
 - Additive runtime evidence for server `/version`, API-readiness state, optional
   `system_fingerprint`, and ordered-unique run-level fingerprints, with
   backward-compatible validation, reporting, and export handling.
+- Area 4 runtime-neutral request-wall-time mapping for transmitted requests:
+  `llmgauge.metric.v1.request_wall_time` with explicit boundary, provenance,
+  equivalence, and evidence references. TTFT, prefill/decode throughput,
+  model-load time, steady-state VRAM, request-window VRAM, and execution
+  placement remain unavailable or deferred under the non-streaming adapter.
 
 ### Validated behavior and methodology
 
@@ -152,7 +160,10 @@ preserved in the changelog. Durable claim boundaries live in
 
 - No remote, authentication, streaming, or concurrency support; no
   LLMGauge-owned vLLM lifecycle.
-- vLLM VRAM is not captured.
+- vLLM VRAM is not captured (request-window peak VRAM deferred).
+- TTFT, prefill, and decode throughput are unavailable under the non-streaming
+  adapter; execution placement is not exposed by the vLLM API; cache state
+  remains unknown (API readiness does not imply warm or cold).
 - Throughput and token fields remain runtime-native and non-equivalent.
 - F16 GGUF and BF16 Transformers weights are not proven bit-identical, and
   prompt rendering/input forms are not proven identical.
@@ -733,6 +744,23 @@ time` is proven (primary source) to end at first evaluation, not model
 readiness, and is unanchored to the sample stream. No stability heuristic may
 substitute for a semantic interval, so no neutral steady-state VRAM record is
 admitted. Peak VRAM and native timing/placement evidence are unchanged.
+
+A sixth bounded Area 4 implementation milestone
+([VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md))
+maps the current vLLM request evidence into the existing Area 4 representation:
+the request-wall-time timer boundary was corrected to include request
+serialization and response validation (matching the accepted contract), and
+`llmgauge.metric.v1.request_wall_time` is now emitted for transmitted vLLM
+requests alongside the preserved native `request_wall_time_seconds`. TTFT,
+prefill/decode throughput, model-load time, steady-state VRAM, request-window
+peak VRAM, and execution placement remain unavailable or deferred for vLLM:
+the non-streaming adapter exposes no first-token boundary, the operator owns
+server lifecycle and model admission, the vLLM API exposes no placement, and
+no VRAM sampler is added. Readiness remains an API-observation only; it never
+sets cache state. The validator, reporter, comparison, fingerprint (when model
+provenance is available), and public-export paths are extended to handle vLLM
+Area 4 evidence. Historical vLLM results without Area 4 remain valid, and
+llama.cpp Area 4 evidence is unchanged.
 
 ### External benchmark importer foundation
 

@@ -461,6 +461,11 @@ def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
     measurements = metrics.get("measurements")
     if not isinstance(measurements, list) or not measurements:
         return []
+    runtime = result.get("runtime")
+    if isinstance(runtime, dict) and runtime.get("backend") == "vllm":
+        return _build_vllm_area4_timing_placement(
+            measurements, result.get("results", [])
+        )
     prompt_results = result.get("results")
     if not isinstance(prompt_results, list):
         return []
@@ -514,6 +519,52 @@ def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
                     f"{_fmt_native_count(placement.get('native_total_layers'))}"
                 ),
                 "- Boundary note: layer count alone does not prove all execution is accelerator resident.",
+                "",
+            ]
+        )
+    return lines
+
+
+def _build_vllm_area4_timing_placement(
+    measurements: list[Any], prompt_results: list[Any]
+) -> list[str]:
+    "Render runtime-neutral Area 4 evidence for vLLM results."
+    lines = [
+        "## Runtime-neutral evidence",
+        "",
+        "The following metric records are runtime-neutral Area 4 representations.",
+        "They are not claimed equivalent across runtimes or workloads.",
+        "",
+    ]
+    for index, measurement in enumerate(measurements):
+        if not isinstance(measurement, dict):
+            continue
+        prompt_result = prompt_results[index] if index < len(prompt_results) else {}
+        if not isinstance(prompt_result, dict):
+            prompt_result = {}
+        prompt_id = prompt_result.get("prompt_id") or measurement.get("measurement_id")
+        records = measurement.get("metrics")
+        if not isinstance(records, list) or not records:
+            continue
+        wall_record = records[0]
+        wall = wall_record.get("value")
+        availability = wall_record.get("availability")
+        provenance = wall_record.get("provenance")
+        completion = measurement.get("completion_state", "unknown")
+        lines.extend(
+            [
+                f"### {prompt_id}",
+                "",
+                (
+                    f"- Request wall time: {wall} s ({availability})"
+                    if wall is not None
+                    else f"- Request wall time: unavailable ({availability})"
+                ),
+                f"  - Provenance: {provenance}",
+                "  - Boundary: request transmit \u2192 validated complete response",
+                f"  - Completion: {completion}",
+                "- TTFT: unavailable (non-streaming transport)",
+                "- Placement: unavailable (vLLM API does not expose execution placement)",
                 "",
             ]
         )
