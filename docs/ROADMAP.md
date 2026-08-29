@@ -721,6 +721,18 @@ ownership. A proven token boundary is available only through the embedded
 server-backed runtime architecture; it is recorded as deferred and not
 implemented. No TTFT implementation is admitted.
 
+A fifth bounded Area 4 architecture milestone
+([LLAMACPP_STEADY_STATE_VRAM_FEASIBILITY.md](LLAMACPP_STEADY_STATE_VRAM_FEASIBILITY.md))
+qualified the neutral steady-state VRAM question: `llmgauge.metric.v1.steady_state_vram`
+remains deferred because the current process-per-request native `llama-cli`
+execution preserves no defensible post-load boundary, performs no warmup in
+the same process, preserves no pre-teardown end boundary aligned to the VRAM
+sample clock, and bridges no wall-clock/monotonic relationship between the
+device-scoped samples and the process lifecycle. llama.cpp's printed `load
+time` is proven (primary source) to end at first evaluation, not model
+readiness, and is unanchored to the sample stream. No stability heuristic may
+substitute for a semantic interval, so no neutral steady-state VRAM record is
+admitted. Peak VRAM and native timing/placement evidence are unchanged.
 
 ### External benchmark importer foundation
 
