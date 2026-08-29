@@ -11,7 +11,6 @@
   emitted; N/N layer offload is not claimed as full accelerator residency;
   requested `-ngl` is not treated as observation.
 
-
 ### Documentation
 
 - Reconciled `docs/ROADMAP.md` release-gate wording after production
@@ -19,6 +18,14 @@
   current-release-line header now state that the release is published to
   production PyPI as `llmgauge` 0.76.0 instead of describing a pending
   release candidate.
+- Added the Area 4 TTFT observation architecture
+  (`docs/LLAMACPP_TTFT_OBSERVATION_ARCHITECTURE.md`): primary-source
+  feasibility evidence that the native `llama-cli` CLI cannot expose a proven
+  first-generated-token boundary (decoded-text UI stdout, unconditional prompt
+  echo, no machine-readable token event), while the embedded `llama-server`
+  HTTP streaming interface does expose per-token SSE token IDs and is recorded
+  as the deferred server-backed route. Architecture only; no TTFT
+  implementation is admitted.
 
 ## v0.76.0 - 2026-08-28
 
