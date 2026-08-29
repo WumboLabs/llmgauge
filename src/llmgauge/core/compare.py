@@ -789,6 +789,44 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             "",
         ]
     )
+    if any(
+        isinstance(result.get("runtime_neutral_metrics"), dict) for result in results
+    ):
+        lines.extend(
+            [
+                "## Runtime-native llama.cpp timing and placement",
+                "",
+                "Values below are backend-native. Equivalence across runs or runtimes is unproven.",
+                "They are not Area 4 neutral prefill, decode, load, or TTFT metrics.",
+                "",
+                "| Run | Observed placement | Native offloaded layers | Native total layers |",
+                "|---|---|---:|---:|",
+            ]
+        )
+        for result in results:
+            run = result.get("run", {})
+            metrics = result.get("runtime_neutral_metrics")
+            measurements = (
+                metrics.get("measurements") if isinstance(metrics, dict) else None
+            )
+            placement = {}
+            if isinstance(measurements, list) and measurements:
+                first = measurements[0]
+                if isinstance(first, dict) and isinstance(
+                    first.get("execution_placement"), dict
+                ):
+                    placement = first["execution_placement"]
+            offloaded = placement.get("native_offloaded_layers")
+            total = placement.get("native_total_layers")
+            lines.append(
+                "| "
+                f"{run.get('run_id')} | "
+                f"{placement.get('observed', 'unavailable')} | "
+                f"{'unavailable' if offloaded is None else offloaded} | "
+                f"{'unavailable' if total is None else total} |"
+            )
+        lines.append("")
+
     lines.extend(_build_publish_readiness_notes(results))
     lines.extend(
         [

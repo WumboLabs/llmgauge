@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- Native single-turn llama.cpp results now preserve backend-owned timing
+  (load, prompt-eval, eval/generation, total) and observed execution
+  placement from llama.cpp diagnostic lines, with conservative Area 4
+  provenance. Neutral load, prefill, decode, and TTFT mappings are not
+  emitted; N/N layer offload is not claimed as full accelerator residency;
+  requested `-ngl` is not treated as observation.
+
+
 ### Documentation
 
 - Reconciled `docs/ROADMAP.md` release-gate wording after production

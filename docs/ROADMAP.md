@@ -700,9 +700,16 @@ A second bounded Area 4 slice adds optional device-scoped
 one record per observed GPU, computed (calculated provenance) from the
 preserved per-prompt `nvidia-smi` samples with a versioned calculation
 semantics, unavailable-not-zero fallback, and validator recomputation
-against the preserved evidence. The remaining Area 4 categories (TTFT,
-load time, prefill/decode throughput, placement observation) stay deferred;
-no cross-runtime VRAM equivalence is claimed.
+against the preserved evidence. No cross-runtime VRAM equivalence is claimed.
+
+A third bounded Area 4 slice preserves backend-native llama.cpp timing
+(load, prompt-eval, eval/generation, total) and observed execution placement
+from llama.cpp-owned diagnostics. Requested GPU layers never become observed
+placement. N/N offload is recorded as native counts with observed `unknown`,
+not `full_accelerator`. Neutral mappings for model-load time, prefill
+throughput, decode throughput, and TTFT remain deferred. Steady-state VRAM,
+vLLM Area 4, and cross-runtime equivalence remain deferred.
+
 
 ### External benchmark importer foundation
 

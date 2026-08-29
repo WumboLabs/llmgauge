@@ -880,8 +880,13 @@ process-launch-to-terminal-output boundary was captured, plus an optional
 derived `llmgauge.metric.v1.peak_vram` record per observed device when that
 prompt's VRAM sampling was attempted (maximum absolute used MiB over the
 preserved per-prompt samples; unavailable rather than zero without valid
-samples). It does not map native prompt or generation throughput, fabricate
-TTFT, or establish runtime equivalence.
+samples). Native llama.cpp diagnostic timing and layer-offload counts may be
+preserved on the contained execution artifact and copied as observed
+placement metadata; they are not mapped to Area 4 load, prefill, decode, or
+TTFT metrics. TTFT remains unavailable for non-streaming native CLI runs.
+Layer N/N does not prove full accelerator residency. Historical results
+without these optional facts remain valid.
+
 
 The associated contained `native/*.execution.json` artifacts preserve bounded
 native execution evidence. The derived taxonomy is limited to runtime

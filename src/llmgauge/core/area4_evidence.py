@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
+from llmgauge.core.metrics import parse_llama_cpp_diagnostics, placement_states
+
 RUNTIME_NEUTRAL_METRICS_SCHEMA = "llmgauge.runtime_neutral_metrics.v1"
 FAILURE_TAXONOMY_SCHEMA = "llmgauge.failure_taxonomy.v1"
 NATIVE_EXECUTION_EVIDENCE_SCHEMA = "llmgauge.native_llama_cpp_execution_evidence.v1"
@@ -154,6 +156,87 @@ def _native_failure(
     }
 
 
+def _execution_placement(execution: Mapping[str, Any]) -> dict[str, Any]:
+    placement = execution.get("llama_cpp_placement")
+    if not isinstance(placement, Mapping):
+        return {"requested": "unknown", "observed": "unknown"}
+    observed = placement.get("observed")
+    if observed not in placement_states():
+        observed = "unknown"
+    record: dict[str, Any] = {"requested": "unknown", "observed": observed}
+    offloaded = placement.get("offloaded_layers")
+    total = placement.get("total_layers")
+    if isinstance(offloaded, int) and isinstance(total, int):
+        record["native_offloaded_layers"] = offloaded
+        record["native_total_layers"] = total
+        source = placement.get("source")
+        if isinstance(source, str) and source:
+            record["native_source"] = source
+    return record
+
+
+def _validate_optional_timing(timing: object, label: str, errors: list[str]) -> None:
+    if timing is None:
+        return
+    if not isinstance(timing, Mapping):
+        errors.append(f"{label} must be an object when present")
+        return
+    seconds_fields = (
+        "load_time_seconds",
+        "prompt_eval_time_seconds",
+        "eval_time_seconds",
+        "total_time_seconds",
+        "prompt_eval_tps",
+        "generation_tps",
+    )
+    count_fields = ("prompt_eval_token_count", "eval_token_count")
+    for field in seconds_fields:
+        value = timing.get(field)
+        if value is None:
+            continue
+        if (
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            errors.append(f"{label}.{field} must be finite and non-negative or null")
+    for field in count_fields:
+        value = timing.get(field)
+        if value is None:
+            continue
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            errors.append(f"{label}.{field} must be a non-negative integer or null")
+
+
+def _validate_optional_placement(
+    placement: object, label: str, errors: list[str]
+) -> dict[str, Any] | None:
+    if placement is None:
+        return None
+    if not isinstance(placement, Mapping):
+        errors.append(f"{label} must be an object when present")
+        return None
+    observed = placement.get("observed")
+    if observed not in placement_states():
+        errors.append(f"{label}.observed is not an admitted placement state")
+    offloaded = placement.get("offloaded_layers")
+    total = placement.get("total_layers")
+    if (offloaded is None) != (total is None):
+        errors.append(f"{label} layer counts must both be present or both null")
+    if offloaded is not None and (
+        not isinstance(offloaded, int)
+        or isinstance(offloaded, bool)
+        or offloaded < 0
+        or not isinstance(total, int)
+        or isinstance(total, bool)
+        or total < 0
+        or offloaded > total
+    ):
+        errors.append(f"{label} layer counts are internally impossible")
+    return dict(placement)
+
+
 def build_native_execution_evidence(
     *,
     prompt_id: str,
@@ -171,11 +254,14 @@ def build_native_execution_evidence(
         and math.isfinite(elapsed_seconds)
         and elapsed_seconds >= 0
     )
+    diagnostics = parse_llama_cpp_diagnostics(f"{stdout}\n{stderr}")
     return {
         "schema_version": NATIVE_EXECUTION_EVIDENCE_SCHEMA,
         "prompt_id": prompt_id,
         "request_wall_time_seconds": float(elapsed_seconds) if valid_elapsed else None,
         "request_wall_time_boundary": "process_launch_to_terminal_output_receipt",
+        "llama_cpp_timing": diagnostics["llama_cpp_timing"],
+        "llama_cpp_placement": diagnostics["llama_cpp_placement"],
         "failure": _native_failure(
             stdout,
             stderr,
@@ -231,7 +317,7 @@ def build_area4_evidence(
                     "requested_runtime_settings_ref": "runtime",
                     "observed_runtime_settings_ref": None,
                 },
-                "execution_placement": {"requested": "unknown", "observed": "unknown"},
+                "execution_placement": _execution_placement(execution),
                 "metrics": [
                     {
                         "metric_id": "llmgauge.metric.v1.request_wall_time",
@@ -480,6 +566,61 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
             measurement.get("execution_placement"), Mapping
         ):
             errors.append(f"{label}.workload and execution_placement must be objects")
+        else:
+            placement = measurement["execution_placement"]
+            requested = placement.get("requested")
+            observed = placement.get("observed")
+            if (
+                requested not in placement_states()
+                or observed not in placement_states()
+            ):
+                errors.append(
+                    f"{label}.execution_placement requested/observed is invalid"
+                )
+            if requested != "unknown":
+                errors.append(
+                    f"{label}.execution_placement.requested must remain unknown; "
+                    "requested GPU layers are not observed placement"
+                )
+            evidence_pair = native.get(str(execution_ref))
+            if evidence_pair is not None:
+                native_evidence = evidence_pair[1]
+                _validate_optional_timing(
+                    native_evidence.get("llama_cpp_timing"),
+                    f"{label} native llama_cpp_timing",
+                    errors,
+                )
+                native_placement = _validate_optional_placement(
+                    native_evidence.get("llama_cpp_placement"),
+                    f"{label} native llama_cpp_placement",
+                    errors,
+                )
+                if native_placement is not None:
+                    if observed != native_placement.get("observed"):
+                        errors.append(
+                            f"{label}.execution_placement.observed differs from "
+                            "native placement evidence"
+                        )
+                    native_off = native_placement.get("offloaded_layers")
+                    native_total = native_placement.get("total_layers")
+                    if native_off is None:
+                        if (
+                            "native_offloaded_layers" in placement
+                            or "native_total_layers" in placement
+                        ):
+                            errors.append(
+                                f"{label}.execution_placement must not invent "
+                                "native layer counts"
+                            )
+                    elif (
+                        placement.get("native_offloaded_layers") != native_off
+                        or placement.get("native_total_layers") != native_total
+                    ):
+                        errors.append(
+                            f"{label}.execution_placement native layer counts "
+                            "differ from native evidence"
+                        )
+
         records = measurement.get("metrics")
         if (
             not isinstance(records, list)

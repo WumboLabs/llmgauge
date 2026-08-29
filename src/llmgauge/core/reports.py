@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from llmgauge.core.scoring import (
     scored_prompt_results,
@@ -411,6 +412,111 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
         "",
     ]
 
+    return lines
+
+
+def _fmt_native_seconds(value: object) -> str:
+    if value is None:
+        return "unavailable"
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return f"{value:.4g} s"
+    return "unavailable"
+
+
+def _fmt_native_tps(value: object) -> str:
+    if value is None:
+        return "unavailable"
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return f"{value:.4g} tok/s"
+    return "unavailable"
+
+
+def _fmt_native_count(value: object) -> str:
+    if value is None:
+        return "unavailable"
+    return str(value)
+
+
+def _load_native_execution_for_report(
+    result: dict[str, Any], prompt_result: Mapping[str, Any]
+) -> Mapping[str, Any] | None:
+    path = prompt_result.get("native_execution_evidence_path")
+    result_dir = result.get("run", {}).get("result_dir")
+    if not isinstance(path, str) or not path or not isinstance(result_dir, str):
+        return None
+    artifact = Path(result_dir) / path
+    if not artifact.is_file():
+        return None
+    try:
+        payload = json.loads(artifact.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
+    metrics = result.get("runtime_neutral_metrics")
+    if not isinstance(metrics, dict):
+        return []
+    measurements = metrics.get("measurements")
+    if not isinstance(measurements, list) or not measurements:
+        return []
+    prompt_results = result.get("results")
+    if not isinstance(prompt_results, list):
+        return []
+    lines = [
+        "## Runtime timing and placement evidence",
+        "",
+        "Backend-native llama.cpp timing is not a runtime-neutral Area 4 metric.",
+        "Observed placement is never inferred from requested GPU layers.",
+        "Layer N/N does not prove full accelerator residency.",
+        "",
+    ]
+    for index, measurement in enumerate(measurements):
+        if not isinstance(measurement, dict):
+            continue
+        prompt_result = prompt_results[index] if index < len(prompt_results) else {}
+        if not isinstance(prompt_result, dict):
+            prompt_result = {}
+        native = _load_native_execution_for_report(result, prompt_result) or {}
+        timing = native.get("llama_cpp_timing")
+        if not isinstance(timing, dict):
+            timing = {}
+        placement = measurement.get("execution_placement")
+        if not isinstance(placement, dict):
+            placement = {}
+        prompt_id = prompt_result.get("prompt_id") or measurement.get("measurement_id")
+        lines.extend(
+            [
+                f"### {prompt_id}",
+                "",
+                "- Timing source: llama.cpp diagnostic (backend-reported, equivalence unproven)",
+                f"- Load time (llama.cpp reported): {_fmt_native_seconds(timing.get('load_time_seconds'))}",
+                (
+                    "- Prompt eval: "
+                    f"{_fmt_native_seconds(timing.get('prompt_eval_time_seconds'))} / "
+                    f"{_fmt_native_count(timing.get('prompt_eval_token_count'))} tok / "
+                    f"{_fmt_native_tps(timing.get('prompt_eval_tps'))}"
+                ),
+                (
+                    "- Generation (llama.cpp eval): "
+                    f"{_fmt_native_seconds(timing.get('eval_time_seconds'))} / "
+                    f"{_fmt_native_count(timing.get('eval_token_count'))} tok / "
+                    f"{_fmt_native_tps(timing.get('generation_tps'))}"
+                ),
+                f"- Total time (llama.cpp reported): {_fmt_native_seconds(timing.get('total_time_seconds'))}",
+                "- TTFT: unavailable (non-streaming native llama.cpp transport)",
+                f"- Requested placement: {placement.get('requested', 'unknown')}",
+                f"- Observed placement: {placement.get('observed', 'unavailable')}",
+                (
+                    "- Native offloaded layers: "
+                    f"{_fmt_native_count(placement.get('native_offloaded_layers'))} / "
+                    f"{_fmt_native_count(placement.get('native_total_layers'))}"
+                ),
+                "- Boundary note: layer count alone does not prove all execution is accelerator resident.",
+                "",
+            ]
+        )
     return lines
 
 
@@ -1073,6 +1179,7 @@ def build_markdown_report(
     ]
     lines.extend(_build_report_scope_section())
     lines.extend(_build_evidence_summary(result))
+    lines.extend(_build_area4_timing_placement(result))
     lines.extend(_build_coding_core_evidence(result))
     lines.extend(_build_generic_core_evidence(result))
     lines.extend(_build_single_run_publish_readiness_notes(result))
