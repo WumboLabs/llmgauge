@@ -8,8 +8,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.76` (release candidate, pending the human
-  merge/tag/publication gate)
+- Current stable tag: `v0.76` (published to production PyPI as `llmgauge`
+  0.76.0)
 - Current package version: `0.76.0`
 - Current stable release line: `v0.76.0`
 - Current release state: `v0.76` is the multi-turn transcript comparison and
@@ -22,8 +22,8 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
   profile release (published to production PyPI as `llmgauge` 0.75.0), and
   v0.74 remains the completed distribution and installation release
   (production PyPI, Trusted Publishing, canonical `uv tool install llmgauge`
-  UX). Production publication of v0.76 happens only through the human
-  annotated-tag/approval gate.
+  UX). Production publication of v0.76 occurred when the human pushed
+  annotated tag `v0.76` and approved the `pypi` environment deployment.
 
 ## What LLMGauge is
 
@@ -913,10 +913,9 @@ Production PyPI publication occurred when the human pushed annotated tag
 Production PyPI publication occurred when the human pushed annotated tag
 `v0.75` and approved the `pypi` environment deployment.
 
-### `v0.76` — Multi-turn transcript comparison and safe public derivatives (release candidate)
+### `v0.76` — Multi-turn transcript comparison and safe public derivatives (published)
 
-**Completed in the prepared release candidate, subject to the final human
-merge/tag/publication gate:**
+**Completed and published to production PyPI as `llmgauge` 0.76.0:**
 
 - bounded structural comparison of all-transcript result sets via
   `llmgauge compare`: exact-identity eligibility, three-way structural
@@ -937,8 +936,8 @@ merge/tag/publication gate:**
 
 No session aggregate score, ranking, winner, statistical, or semantic
 judgment claim exists; transcript text publication remains excluded.
-Production PyPI publication occurs only when the human pushes annotated tag
-`v0.76` and approves the `pypi` environment deployment.
+Production PyPI publication occurred when the human pushed annotated tag
+`v0.76` and approved the `pypi` environment deployment.
 
 These gates assign no release dates.
 
@@ -1035,7 +1034,7 @@ Condensed highlights (newest first). Details remain in [CHANGELOG.md](../CHANGEL
 
 | Release | Focus |
 |---|---|
-| v0.76 | Release candidate: all-transcript `compare` structural comparison, `export-public-comparison` (`llmgauge.public_transcript_comparison.v0`), `export-public-transcript` (`llmgauge.public_transcript.v0`), content-default-deny public derivatives with human review required; no aggregate/ranking/semantic claims |
+| v0.76 | Multi-turn transcript comparison release (published to production PyPI as 0.76.0): all-transcript `compare` structural comparison, `export-public-comparison` (`llmgauge.public_transcript_comparison.v0`), `export-public-transcript` (`llmgauge.public_transcript.v0`), content-default-deny public derivatives with human review required; no aggregate/ranking/semantic claims |
 | v0.75 | Reasoning/sampling profile release (published to production PyPI as 0.75.0): named/versioned profiles (`--sampling-profile`), `controlled-deterministic-v1` plus four vendor-aligned builtins, offline `profiles list`/`profiles show`, `--min-p` capture, derived peak-VRAM metric evidence, Bundle 2 (`llmgauge.bundle2.v0`) import qualification, comparison reasoning/sampling disclosure |
 | v0.74 | Distribution/installation release (published to production PyPI as 0.74.0): PyPI-grade metadata, Trusted Publishing workflow, proven TestPyPI path, configured production publisher/environment, canonical `uv tool install llmgauge` UX |
 | v0.73 | Packaged `generic-core-v1` `0.1.0`: 13-prompt Core / 4-prompt Smoke profiles, D1-D7 deterministic evidence with D5 `not_run`, result/profile/scoring provenance, manual and hybrid review, no profile aggregate; plus Coding Core, runtime evidence controls, lm-eval import, multi-turn and agent-session review, and LocalMaxxing integration |

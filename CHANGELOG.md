@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Documentation
+
+- Reconciled `docs/ROADMAP.md` release-gate wording after production
+  publication of v0.76: the `v0.76` section, release-table row, and
+  current-release-line header now state that the release is published to
+  production PyPI as `llmgauge` 0.76.0 instead of describing a pending
+  release candidate.
+
 ## v0.76.0 - 2026-08-28
 
 LLMGauge v0.76 is the multi-turn transcript comparison and safe public
