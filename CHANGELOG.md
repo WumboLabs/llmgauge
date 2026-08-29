@@ -26,6 +26,14 @@
   HTTP streaming interface does expose per-token SSE token IDs and is recorded
   as the deferred server-backed route. Architecture only; no TTFT
   implementation is admitted.
+- Added the Area 4 steady-state VRAM feasibility record
+  (`docs/LLAMACPP_STEADY_STATE_VRAM_FEASIBILITY.md`): `llmgauge.metric.v1.steady_state_vram`
+  remains deferred because current process-per-request native `llama-cli`
+  execution preserves no post-load boundary, no same-process warmup, and no
+  pre-teardown end boundary aligned to the device-scoped VRAM sample stream,
+  and llama.cpp's printed load time is proven to end at first evaluation
+  rather than model readiness. Architecture only; no neutral steady-state
+  VRAM implementation is admitted, and peak VRAM evidence is unchanged.
 
 ## v0.76.0 - 2026-08-28
 
