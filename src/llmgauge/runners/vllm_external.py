@@ -177,6 +177,7 @@ def _error_result(
     http_status: int | None = None,
     wall_time: float | None = None,
     observed_model: str | None = None,
+    request_transmitted: bool = True,
 ) -> VllmRequestResult:
     return VllmRequestResult(
         success=False,
@@ -195,6 +196,7 @@ def _error_result(
             "http_status": http_status,
             "endpoint_identity": endpoint_identity or {},
             "request_wall_time_seconds": wall_time,
+            "request_transmitted": request_transmitted,
         },
     )
 
@@ -204,6 +206,7 @@ def _map_transport_error(
     *,
     wall_time: float | None = None,
     readiness: bool = False,
+    request_transmitted: bool = True,
 ) -> VllmRequestResult | VllmReadinessResult:
     failure_class = exc.failure_class
     if readiness and failure_class in {
@@ -247,6 +250,7 @@ def _map_transport_error(
         endpoint_identity=exc.endpoint_identity,
         http_status=exc.http_status,
         wall_time=wall_time,
+        request_transmitted=request_transmitted,
     )
 
 
@@ -517,13 +521,18 @@ def run_chat_completion(
         return _error_result(
             failure_class="unsupported_capability",
             detail="empty_prompt",
+            request_transmitted=False,
         )
 
     started = time.monotonic()
     try:
         endpoint = validate_vllm_endpoint(config.endpoint_url)
     except VllmTransportError as exc:
-        return _map_transport_error(exc, wall_time=time.monotonic() - started)  # type: ignore[return-value]
+        return _map_transport_error(  # type: ignore[return-value]
+            exc,
+            wall_time=time.monotonic() - started,
+            request_transmitted=False,
+        )
 
     identity = sanitize_endpoint_identity(endpoint)
     base_path = endpoint.path.rstrip("/")
@@ -533,6 +542,12 @@ def run_chat_completion(
         chat_path = f"{base_path}/chat/completions"
     else:
         chat_path = f"{base_path}/v1/chat/completions"
+
+    # Wall time boundary: immediately before admitted-request serialization
+    # through receipt and validation of the complete response (Area 4
+    # request_wall_time). Serialization, transport, server work, response
+    # transfer, and validation all fall inside the window.
+    transmit_start = time.monotonic()
 
     messages: list[dict[str, str]] = []
     if isinstance(system_prompt, str) and system_prompt:
@@ -551,8 +566,6 @@ def run_chat_completion(
         "utf-8"
     )
 
-    # Wall time: immediately before request transmission through complete response validation.
-    transmit_start = time.monotonic()
     try:
         response = http_request(
             endpoint,
@@ -578,7 +591,6 @@ def run_chat_completion(
             wall_time=time.monotonic() - transmit_start,
         )
 
-    wall = time.monotonic() - transmit_start
     identity = response.endpoint_identity or identity
 
     if response.status >= 400:
@@ -588,7 +600,7 @@ def run_chat_completion(
             detail=f"http_{response.status}",
             endpoint_identity=identity,
             http_status=response.status,
-            wall_time=wall,
+            wall_time=time.monotonic() - transmit_start,
         )
 
     if response.status != 200:
@@ -597,7 +609,7 @@ def run_chat_completion(
             detail=f"unexpected_http_{response.status}",
             endpoint_identity=identity,
             http_status=response.status,
-            wall_time=wall,
+            wall_time=time.monotonic() - transmit_start,
         )
 
     try:
@@ -610,7 +622,7 @@ def run_chat_completion(
             detail=exc.detail,
             endpoint_identity=identity,
             http_status=response.status,
-            wall_time=wall,
+            wall_time=time.monotonic() - transmit_start,
         )
 
     # Optional opaque backend metadata; invalid values never discard the answer.
@@ -625,9 +637,13 @@ def run_chat_completion(
             detail="response_model_mismatch",
             endpoint_identity=identity,
             http_status=response.status,
-            wall_time=wall,
+            wall_time=time.monotonic() - transmit_start,
             observed_model=observed_model,
         )
+
+    # Validation completed: wall time now spans serialization through the
+    # validated complete response (Area 4 request_wall_time boundary).
+    wall = time.monotonic() - transmit_start
 
     e2e_tps: float | None = None
     if (
@@ -664,6 +680,8 @@ def run_chat_completion(
         "usage_complete": usage_complete,
         "token_count_source": "backend_usage" if usage_complete else "backend_usage_partial",
         "request_wall_time_seconds": wall,
+        "request_wall_time_boundary": "request_transmit_to_validated_response",
+        "request_transmitted": True,
         "end_to_end_completion_tps": e2e_tps,
         "connect_seconds": response.connect_seconds,
         "proxy_bypass_policy": PROXY_BYPASS_POLICY,

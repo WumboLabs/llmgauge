@@ -283,11 +283,20 @@ def _prompt_evidence(
             label=f"{label}.vram_samples_path",
         )
     if include_native_execution_evidence:
-        artifact_hashes["native_execution_evidence"] = _artifact_sha256(
-            result_dir,
-            prompt_result.get("native_execution_evidence_path"),
-            label=f"{label}.native_execution_evidence_path",
-        )
+        native_path = prompt_result.get("native_execution_evidence_path")
+        if native_path:
+            artifact_hashes["native_execution_evidence"] = _artifact_sha256(
+                result_dir,
+                native_path,
+                label=f"{label}.native_execution_evidence_path",
+            )
+        request_path = prompt_result.get("request_evidence_path")
+        if request_path:
+            artifact_hashes["request_evidence"] = _artifact_sha256(
+                result_dir,
+                request_path,
+                label=f"{label}.request_evidence_path",
+            )
 
     return {
         "prompt_id": prompt_id,
@@ -302,6 +311,11 @@ def _prompt_evidence(
             "vram_samples_path": prompt_result.get("vram_samples_path"),
             "native_execution_evidence_path": (
                 prompt_result.get("native_execution_evidence_path")
+                if include_native_execution_evidence
+                else None
+            ),
+            "request_evidence_path": (
+                prompt_result.get("request_evidence_path")
                 if include_native_execution_evidence
                 else None
             ),

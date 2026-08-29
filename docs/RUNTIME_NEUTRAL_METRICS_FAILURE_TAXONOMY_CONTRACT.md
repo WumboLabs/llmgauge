@@ -391,3 +391,19 @@ result builder, result validator, and fingerprint builder. It does not adapt
 vLLM transport, streaming, Agent Harness import, transcript execution,
 comparisons, reporters/exporters, VRAM collection, repetitions, or Area 5 shared
 transport. Those remain separately gated.
+
+## Implementation status addendum — vLLM Area 4 request-wall-time mapping
+
+A later bounded implementation milestone
+([VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md)) extended the
+accepted representation to the existing vLLM backend without changing this
+contract's definitions. It maps only `llmgauge.metric.v1.request_wall_time`
+for transmitted vLLM requests, with the timer boundary corrected to include
+request serialization and complete response validation
+(`request_transmit_to_validated_response`) per the definition above. TTFT,
+prefill/decode throughput, model-load time, steady-state VRAM, request-window
+peak VRAM, and execution placement remain unavailable or deferred for vLLM
+under the non-streaming, operator-managed adapter. Failure taxonomy cites
+vLLM `failure_class` through `request/*.json#/failure_class`. The validator
+dispatches by backend; llama.cpp Area 4 evidence and historical vLLM results
+are unchanged.

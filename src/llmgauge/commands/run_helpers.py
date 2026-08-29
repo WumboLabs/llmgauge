@@ -21,6 +21,7 @@ from llmgauge.core.artifacts import prepare_result_dir, write_json, write_text
 from llmgauge.core.area4_evidence import (
     build_area4_evidence,
     build_native_execution_evidence,
+    build_vllm_area4_evidence,
 )
 from llmgauge.core.config import (
     coalesce,
@@ -2343,18 +2344,16 @@ def execute_vllm_run(
             write_text(raw_output_path, "")
             write_text(cleaned_output_path, "")
             write_text(stderr_log_path, format_failure_log(readiness))
-            write_json(
-                request_evidence_path,
-                {
-                    "schema_version": "llmgauge.vllm_request_evidence.v0",
-                    "lifecycle_ownership": "external_operator",
-                    "skipped": True,
-                    "skip_reason": "readiness_or_model_check_failed",
-                    "failure_class": readiness.failure_class,
-                    "failure_detail": readiness.failure_detail,
-                    "endpoint_identity": endpoint_identity,
-                },
-            )
+            request_evidence = {
+                "schema_version": "llmgauge.vllm_request_evidence.v0",
+                "lifecycle_ownership": "external_operator",
+                "skipped": True,
+                "skip_reason": "readiness_or_model_check_failed",
+                "failure_class": readiness.failure_class,
+                "failure_detail": readiness.failure_detail,
+                "endpoint_identity": endpoint_identity,
+            }
+            write_json(request_evidence_path, request_evidence)
 
             prompt_entry = {
                 "prompt_id": prompt_id,
@@ -2366,6 +2365,7 @@ def execute_vllm_run(
                 "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
                 "request_evidence_path": str(request_evidence_path.relative_to(out)),
+                "_area4_vllm_request_evidence": request_evidence,
                 "metrics": build_vllm_metrics(VllmRequestResult(success=False)),
                 "vram": None,
                 "vram_samples_path": None,
@@ -2436,17 +2436,14 @@ def execute_vllm_run(
             else:
                 write_text(stderr_log_path, format_failure_log(request_result))
 
-            write_json(
-                request_evidence_path,
-                request_result.request_evidence
-                or {
-                    "schema_version": "llmgauge.vllm_request_evidence.v0",
-                    "lifecycle_ownership": "external_operator",
-                    "failure_class": request_result.failure_class,
-                    "failure_detail": request_result.failure_detail,
-                    "endpoint_identity": request_result.endpoint_identity,
-                },
-            )
+            request_evidence = request_result.request_evidence or {
+                "schema_version": "llmgauge.vllm_request_evidence.v0",
+                "lifecycle_ownership": "external_operator",
+                "failure_class": request_result.failure_class,
+                "failure_detail": request_result.failure_detail,
+                "endpoint_identity": request_result.endpoint_identity,
+            }
+            write_json(request_evidence_path, request_evidence)
 
             if request_result.system_fingerprint:
                 observed_fingerprints.append(request_result.system_fingerprint)
@@ -2476,6 +2473,7 @@ def execute_vllm_run(
                 "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
                 "request_evidence_path": str(request_evidence_path.relative_to(out)),
+                "_area4_vllm_request_evidence": request_evidence,
                 "metrics": build_vllm_metrics(request_result),
                 "vram": None,
                 "vram_samples_path": None,
@@ -2660,6 +2658,16 @@ def execute_vllm_run(
             "failure_labels": {},
         },
     }
+
+    runtime_neutral_metrics, failure_taxonomy = build_vllm_area4_evidence(
+        prompt_results=prompt_results,
+        suite=result["suite"],
+        runtime=result["runtime"],
+    )
+    for prompt_entry in prompt_results:
+        prompt_entry.pop("_area4_vllm_request_evidence", None)
+    result["runtime_neutral_metrics"] = runtime_neutral_metrics
+    result["failure_taxonomy"] = failure_taxonomy
 
     return _finalize_run_result(
         out=out,

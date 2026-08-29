@@ -133,7 +133,7 @@ anonymous “tokens/s” without labels.
 |---|---|---|---|
 | Prompt token count | Backend / log-derived when present | Backend-reported `prompt_tokens` when present | **Qualified only** — different tokenizers/templates allowed |
 | Completion token count | Backend / log-derived when present | Backend-reported `completion_tokens` when present | **Qualified only** |
-| Request / process wall time | Process wall time for the launched evaluation | `request_wall_time_seconds` at the LLMGauge HTTP boundary | **Qualified** — different lifecycle boundaries |
+| Request / process wall time | Process wall time for the launched evaluation | `request_wall_time_seconds` at the LLMGauge HTTP boundary; additionally mapped to the Area 4 neutral `llmgauge.metric.v1.request_wall_time` when transmitted (see [VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md)) | **Qualified** — different lifecycle boundaries; neutral records share a metric identity but are not `equivalent` without the accepted boundary/workload checks |
 | Prefill / prompt-eval throughput | `prompt_eval_tps` when parsed from llama.cpp logs | Not fabricated from wall time | **Do not equate** missing or differently defined values |
 | Decode / generation throughput | `generation_tps` when parsed from llama.cpp logs | Not claimed; `generation_tps` remains null for vLLM in the current adapter | **Do not equate** to vLLM end-to-end rates |
 | End-to-end completion throughput | May be absent or differently defined | `end_to_end_completion_tps` = completion tokens / positive request wall time | **Report with label**; not decode-only; **not** claimed equivalent to `generation_tps` |
