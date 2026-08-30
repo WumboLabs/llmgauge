@@ -217,6 +217,12 @@ def run(
         "--max-response-bytes",
         help="Maximum vLLM response body size before JSON decode",
     ),
+    vllm_streaming_evidence: bool = typer.Option(
+        False,
+        "--vllm-streaming-evidence",
+        help="Opt-in streaming SSE evidence mode: use vLLM token-ID transport "
+        "to measure runtime-neutral TTFT; default remains non-streaming",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output result directory"),
     auto_name: bool = typer.Option(
         False,
@@ -280,6 +286,7 @@ def run(
         connect_timeout=connect_timeout,
         request_timeout=request_timeout,
         max_response_bytes=max_response_bytes,
+        vllm_streaming_evidence=vllm_streaming_evidence,
     )
 
     if dry_run:

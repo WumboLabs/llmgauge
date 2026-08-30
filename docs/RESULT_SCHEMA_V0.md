@@ -154,14 +154,23 @@ Optional runtime fields:
 - `proxy_bypass_policy`, `streaming`, `authentication`
 - `runtime_command_captured` is false; `runtime-command.json` is not used for HTTP evidence
 
+Optional runtime fields for streaming evidence mode
+(`--vllm-streaming-evidence`): `streaming` is `true` with
+`transport_mode: "openai_compatible_sse"`, `vllm_streaming_evidence: true`,
+and `token_id_extension: {"field": "return_token_ids", "value": true}`.
+
 Optional artifacts:
 
 - `vllm-runtime-evidence.json` (`llmgauge.vllm_runtime_evidence.v0`)
 - per-prompt `request/<prompt>.json` (`llmgauge.vllm_request_evidence.v0`) referenced by
   `results[].request_evidence_path`
+- per-prompt private stream evidence `request/<prompt>.stream.json`
+  (`llmgauge.vllm_stream_evidence.v0`) referenced by
+  `results[].stream_evidence_path` when streaming evidence mode is used
 
 Optional per-prompt fields: `failure_class`, `failure_detail`, `finish_reason`,
-`observed_served_model`, and additive metrics such as
+`observed_served_model`, `stream_evidence_path`, `time_to_first_token_seconds`,
+`first_token_channel`, `stream_terminal_state`, and additive metrics such as
 `request_wall_time_seconds` and `end_to_end_completion_tps` (end-to-end, not
 decode-only; not claimed equivalent to llama.cpp `generation_tps`).
 

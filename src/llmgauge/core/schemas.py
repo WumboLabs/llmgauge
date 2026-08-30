@@ -36,6 +36,7 @@ class ModelProfileEntry(BaseModel):
     connect_timeout: float | None = None
     request_timeout: float | None = None
     max_response_bytes: int | None = None
+    vllm_streaming_evidence: bool | None = None
 
     @field_validator("path")
     @classmethod
@@ -91,6 +92,7 @@ class RuntimeConfig(BaseModel):
     connect_timeout: float | None = None
     request_timeout: float | None = None
     max_response_bytes: int | None = None
+    vllm_streaming_evidence: bool | None = None
 
     @field_validator("backend")
     @classmethod

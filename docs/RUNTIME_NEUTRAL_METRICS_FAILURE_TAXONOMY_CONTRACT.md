@@ -419,3 +419,21 @@ outcome; an attempted capture with no valid samples yields an unavailable
 record. TTFT, prefill/decode throughput, model-load time, steady-state VRAM,
 and execution placement remain unavailable or deferred for vLLM under the
 non-streaming, operator-managed adapter.
+
+## Implementation-status addendum (vLLM streaming TTFT V1)
+
+The vLLM streaming TTFT implementation implements the neutral TTFT metric
+defined in this contract:
+
+- `llmgauge.metric.v1.time_to_first_token` is now emitted for vLLM streaming
+  evidence mode (opt-in `--vllm-streaming-evidence`). No other metric from
+  this contract is implemented in this milestone.
+- The request-start boundary is unchanged (`transmit_start` immediately before
+  serialization).
+- TTFT uses the same monotonic origin as request wall time.
+- No token ⇒ TTFT unavailable; timeout/failure before token ⇒ unavailable;
+  timeout/failure after token ⇒ may retain available TTFT with non-completed
+  completion state.
+- The first reasoning token counts (human contract resolution).
+- Non-streaming requests have no TTFT; no value is derived from wall time,
+  completion tokens, or server-reported timing.

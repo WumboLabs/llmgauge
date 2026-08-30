@@ -83,8 +83,14 @@ LLMGauge currently provides:
 - requested `--min-p` sampler capture across run metadata and comparison scope
 - derived device-scoped peak VRAM evidence for native llama.cpp results
 - Area 4 runtime-neutral request-wall-time mapping for external vLLM results
-  (request transmitted → validated non-streaming response boundary; TTFT,
-  prefill/decode throughput, and placement remain deferred)
+  (request transmitted → validated response boundary; TTFT, prefill/decode
+  throughput, and placement remain deferred under the non-streaming default)
+- opt-in vLLM streaming evidence mode (`--vllm-streaming-evidence`) using the
+  vLLM-specific `return_token_ids=true` SSE extension: runtime-neutral TTFT
+  (`llmgauge.metric.v1.time_to_first_token`) measured from the first
+  backend-generated token ID at the LLMGauge transport boundary, with preserved
+  private per-request stream evidence; reasoning tokens count under the
+  resolved human contract; the non-streaming default is unchanged
 - Area 4 request-window peak VRAM evidence for external vLLM results:
   `llmgauge.metric.v1.peak_vram` calculated from a bounded concurrent
   NVIDIA telemetry sampler active only during the LLMGauge evaluation
@@ -136,18 +142,27 @@ does not install, start, supervise, or otherwise own the vLLM server lifecycle;
 
 ### Implemented capability
 
-- External local vLLM adapter with sequential, non-streaming requests to an
-  operator-managed loopback server.
-- Bounded readiness and served-model checks; no remote, authenticated, streaming,
+- External local vLLM adapter with sequential requests to an operator-managed
+  loopback server; non-streaming is the default, and streaming SSE evidence is
+  an explicit opt-in mode.
+- Bounded readiness and served-model checks; no remote, authenticated,
   concurrent, or server-lifecycle management support.
 - Additive runtime evidence for server `/version`, API-readiness state, optional
   `system_fingerprint`, and ordered-unique run-level fingerprints, with
   backward-compatible validation, reporting, and export handling.
 - Area 4 runtime-neutral request-wall-time mapping for transmitted requests:
   `llmgauge.metric.v1.request_wall_time` with explicit boundary, provenance,
-  equivalence, and evidence references. TTFT, prefill/decode throughput,
-  model-load time, steady-state VRAM, request-window VRAM, and execution
-  placement remain unavailable or deferred under the non-streaming adapter.
+  equivalence, and evidence references. Prefill/decode throughput,
+  model-load time, steady-state VRAM, and execution placement remain
+  unavailable or deferred.
+- Area 4 runtime-neutral TTFT for streaming evidence mode:
+  `llmgauge.metric.v1.time_to_first_token` measured from the same request
+  start boundary to the first backend-generated token ID exposed in an
+  admitted completion-stream event (first reasoning token counts; first
+  final-answer content token counts when no earlier generated token occurred;
+  empty-decoded tokens count when token-ID evidence proves them). Preserved
+  private per-request stream evidence makes TTFT recomputable; the validator
+  cross-checks the represented record against that evidence.
 
 ### Validated behavior and methodology
 
@@ -163,18 +178,22 @@ preserved in the changelog. Durable claim boundaries live in
 
 ### Active limitations
 
-- No remote, authentication, streaming, or concurrency support; no
-  LLMGauge-owned vLLM lifecycle.
+- No remote, authentication, or concurrency support; no LLMGauge-owned vLLM
+  lifecycle. Streaming is an explicit opt-in evidence mode, never the default.
 - vLLM request-window peak VRAM is captured via a bounded concurrent NVIDIA
   telemetry sampler; the value is absolute device-used memory, not server or
   model footprint, and the observation boundary is distinct from the native
   llama.cpp process-window boundary.
-- TTFT, prefill, and decode throughput are unavailable under the non-streaming
-  adapter; the vLLM streaming TTFT architecture is qualified as feasible via
-  the vLLM-specific `return_token_ids=true` streaming option, with
-  implementation deferred and a reasoning-token contract gap still open;
-  execution placement is not exposed by the vLLM API; cache state remains
-  unknown (API readiness does not imply warm or cold).
+- Streaming TTFT V1 is implemented for backend=vllm under
+  `--vllm-streaming-evidence` with the vLLM-specific `return_token_ids=true`
+  extension; it is version-qualified (admitted for observed vLLM >= 0.15.1 per
+  accepted primary-source evidence; qualified target 0.27.1) and never
+  fallbacks to a second non-streaming request. Reasoning tokens count as
+  generated-token TTFT events when exposed by the backend; canonical generated
+  answer text remains final `content` only. Prefill/decode throughput,
+  model-load time, and steady-state VRAM remain deferred; execution placement
+  is not exposed by the vLLM API; cache state remains unknown (API readiness
+  does not imply warm or cold).
 - Throughput and token fields remain runtime-native and non-equivalent.
 - F16 GGUF and BF16 Transformers weights are not proven bit-identical, and
   prompt rendering/input forms are not proven identical.
@@ -189,9 +208,13 @@ preserved in the changelog. Durable claim boundaries live in
 
 ### Current decision
 
-The bounded vLLM evidence track is complete enough for the present release line.
-No immediate production feature expansion is justified solely by the current
-evidence. Future vLLM work requires a concrete product or evidence need.
+The bounded vLLM evidence track now includes opt-in streaming TTFT evidence.
+The recommended next gate is a bounded real-vLLM streaming + TTFT validation
+run against the qualified local vLLM 0.27.1 runtime before additional neutral
+timing metrics are built on the streaming transport. Prefill/decode
+throughput, model-load time, steady-state VRAM, warm/cold lifecycle evidence,
+and observed execution placement remain deferred and are not marked complete;
+Area 4 overall is not marked complete.
 
 ## Fit Ladder terminal-path validation
 
@@ -775,20 +798,21 @@ llama.cpp Area 4 evidence is unchanged.
 
 A seventh bounded Area 4 architecture milestone
 ([VLLM_STREAMING_TTFT_ARCHITECTURE.md](VLLM_STREAMING_TTFT_ARCHITECTURE.md))
-qualified the vLLM streaming TTFT question: vLLM's OpenAI-compatible streaming
-interface, with the vLLM-specific `return_token_ids=true` request option, does
-expose a genuine first-generated-token boundary (raw backend token IDs in
-`choices[0].token_ids`), making neutral TTFT architecture-feasible for the
-vLLM streaming path. The first SSE event is role-only (no token), and the
+qualified the vLLM streaming TTFT question, and the human resolved the
+reasoning-token contract: **the first backend-generated token counts for
+neutral TTFT, including reasoning tokens**. vLLM's OpenAI-compatible streaming
+interface, with the vLLM-specific `return_token_ids=true` request option,
+exposes a genuine first-generated-token boundary (raw backend token IDs in
+`choices[0].token_ids`). The first SSE event is role-only (no token), and the
 first chunk whose `token_ids` is non-empty carries the first generated token
 ID(s). One chunk may contain multiple token IDs (engine merging under load,
 speculative decode), so TTFT is timestamped at chunk arrival — the first
 token's transport-boundary availability — with token count recorded per event.
-A reasoning-model contract gap (whether "first generated output token" includes
-reasoning tokens) must be resolved before any implementation. The architecture
-remains deferred; no production streaming, TTFT, or Area 4 schema change is
-implemented. The synthetic SSE experiment (22/22 assertions, stdlib only)
-proves client-mechanics feasibility.
+The architecture is now implemented as opt-in streaming evidence mode:
+`--vllm-streaming-evidence` uses the qualified vLLM SSE transport, preserves
+private per-request stream evidence (`llmgauge.vllm_stream_evidence.v0`,
+`request/<prompt>.stream.json`), and emits the neutral TTFT metric with
+validator recomputation. The non-streaming default is unchanged.
 
 ### External benchmark importer foundation
 

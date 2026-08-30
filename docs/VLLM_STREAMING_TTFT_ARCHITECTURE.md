@@ -2,22 +2,17 @@
 
 ## Status
 
-**FEASIBLE ARCHITECTURE — IMPLEMENTATION DEFERRED**
+**IMPLEMENTED — V1 COMPLETE**
 
-vLLM's OpenAI-compatible `/v1/chat/completions` streaming interface can, with
-the vLLM-specific `return_token_ids=true` request option, expose a genuine
-first-generated-token event that satisfies the accepted Area 4 neutral TTFT
-definition. The token boundary is a raw backend token ID carried in a stream
-chunk, not a text, role, or metadata event. No production streaming is
-implemented here; this document is architecture and feasibility only.
+The architecture described below is implemented as opt-in streaming evidence
+mode (`--vllm-streaming-evidence`) with the qualified vLLM SSE transport
+(`return_token_ids=true`). The reasoning-token contract question is RESOLVED
+by human decision: the first backend-generated token counts for neutral TTFT,
+including reasoning tokens. See [Implementation status](#implementation-status)
+below for the reconciliation with this document's original text.
 
-The single blocking contract question is **reasoning-token semantics**: for
-reasoning models, vLLM streams `delta.reasoning` deltas before `delta.content`,
-and the first generated token may be a reasoning token. Whether
-`llmgauge.metric.v1.time_to_first_token` counts reasoning tokens as generated
-output tokens is a contract gap that must be resolved by a human decision
-before implementation. For non-reasoning text models the boundary is
-unambiguous.
+The token boundary is a raw backend token ID carried in a stream chunk, not a
+text, role, or metadata event. The non-streaming default is unchanged.
 
 ## Current non-streaming boundary
 
@@ -484,6 +479,57 @@ before implementation.
 22. Public export does not leak raw stream events (default-deny).
 23. No new material dependency without explicit approval.
 24. Real-vLLM validation only under later human authorization.
+
+## Implementation status
+
+V1 is implemented and synthetically validated (no real vLLM in this
+milestone):
+
+- **Transport**: `src/llmgauge/runners/vllm_http.py::http_request_stream`
+  reads bounded SSE events over the existing loopback stdlib stack
+  (`http.client` + `socket`), enforcing per-line, per-event, total-body, and
+  event-count bounds, a whole-request monotonic deadline, loopback-only
+  validation, proxy bypass, no redirects, and deterministic connection
+  cleanup. No new dependency.
+- **Adapter**: `src/llmgauge/runners/vllm_external.py::run_chat_completion_stream`
+  sends `stream=true`, `return_token_ids=true`, and
+  `stream_options.include_usage=true`, assembles canonical final content from
+  `delta.content` only (reasoning stays private stream evidence), and records
+  the first-token channel (`reasoning` / `content` / `other_generated`).
+- **Selection surface**: `--vllm-streaming-evidence` (CLI, config
+  `runtime.vllm_streaming_evidence`, profile `vllm_streaming_evidence`);
+  default remains non-streaming.
+- **Version qualification**: observed vLLM >= 0.15.1 is admitted
+  (`return_token_ids` present since 0.15.1 per accepted primary-source
+  evidence; qualified target 0.27.1). Unknown/unqualified versions fail
+  cleanly with one unsupported-capability result; no automatic second
+  non-streaming request.
+- **Stream evidence**: `request/<prompt>.stream.json`,
+  `llmgauge.vllm_stream_evidence.v0`, private, with ordered per-event elapsed
+  seconds, token counts, TTFT trigger marker, first-token channel, version
+  qualification, and terminal state.
+- **Neutral metric**: `llmgauge.metric.v1.time_to_first_token` in
+  `runtime_neutral_metrics` with boundary
+  `request_transmit_to_first_generated_token`, provenance
+  `llmgauge_observed`, and contained evidence refs. The validator recomputes
+  TTFT from preserved stream evidence.
+- **Failure table** implemented per this document (see
+  [Failure / timeout semantics](#failure--timeout-semantics)).
+- **Privacy**: stream evidence, TTFT values, and reasoning text are private;
+  public export strips them while keeping transport-mode disclosure.
+
+### Resolved contract: reasoning tokens
+
+`llmgauge.metric.v1.time_to_first_token` means elapsed time from the admitted
+request-start boundary to the first backend-generated token exposed at the
+LLMGauge transport boundary. Therefore the first reasoning token counts, the
+first final-answer content token counts when no earlier generated token
+occurred, and a generated token whose decoded text is empty counts when raw
+token-ID evidence proves it. Role-only, metadata-only, usage-only,
+finish-only, prompt-token-ID, empty-delta, `[DONE]`, HTTP-header, and
+text-without-proven-token-identity events never count. This milestone does
+not redefine TTFT as user-visible-final-answer latency; a distinct future
+first-final-answer-token metric is separate.
 
 ## Related documents
 

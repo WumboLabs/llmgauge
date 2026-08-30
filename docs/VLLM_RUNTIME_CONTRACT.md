@@ -49,10 +49,13 @@ stop, restart, supervise, configure, or recover the server. The operator owns
 server lifecycle, model admission, device selection, and server logs. A server
 failure remains visible; LLMGauge must not silently restart it.
 
-The initial contract excludes multimodal inputs, streaming, remote or cloud
-endpoints, authentication, arbitrary request headers, LoRA adapters,
-speculative decoding, batching, concurrency benchmarking, distributed
-inference, and automatic server lifecycle management.
+The initial contract excludes multimodal inputs, remote or cloud endpoints,
+authentication, arbitrary request headers, LoRA adapters, speculative
+decoding, batching, concurrency benchmarking, distributed inference, and
+automatic server lifecycle management. Streaming is added as an explicit
+opt-in evidence mode (`--vllm-streaming-evidence`) using the qualified vLLM
+SSE transport with `return_token_ids=true`; the non-streaming default remains
+unchanged.
 
 ### Backend boundary
 
@@ -290,6 +293,8 @@ NVFP4, and startup evidence selecting an NVFP4 kernel are three different facts.
 The initial backend supports only these normalized metrics:
 
 - request wall time;
+- time to first token (under explicit streaming evidence mode, using the
+  qualified vLLM token-ID SSE transport);;
 - backend-reported prompt tokens, when present;
 - backend-reported completion tokens, when present;
 - end-to-end completion throughput, calculated only as completion tokens divided

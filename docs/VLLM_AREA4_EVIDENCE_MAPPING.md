@@ -23,7 +23,8 @@ The vLLM backend remains:
 - loopback-only;
 - externally/operator-managed (LLMGauge does not start, stop, supervise,
   configure, or recover the server);
-- non-streaming, sequential, text-only.
+- sequential, text-only, with non-streaming as the default and streaming
+  SSE evidence an explicit opt-in mode (`--vllm-streaming-evidence`).
 
 Two evidence scopes stay separate and are never merged:
 
@@ -37,7 +38,7 @@ Two evidence scopes stay separate and are never merged:
 | Metric | Current source | Boundary match? | Provenance | Admission | Why |
 |---|---|---|---|---|---|
 | Request wall time | `request_wall_time_seconds` in `request/*.json` | Yes (after timer correction) | `llmgauge_observed` | **ADMITTED** | Monotonic timer spans serialization through receipt and structural validation of the complete response; failure paths preserve honest elapsed intervals. |
-| TTFT | None | No | — | **DEFERRED** | Non-streaming transport exposes no first-token boundary. |
+| TTFT | `request/*.stream.json`; `time_to_first_token_seconds` in `request/*.json` | Yes (streaming evidence mode) | `llmgauge_observed` | **ADMITTED** (opt-in) | Streaming evidence mode uses the qualified vLLM `return_token_ids=true` SSE transport; TTFT = request start → first generated token ID at the LLMGauge transport boundary. Requires observed vLLM >= 0.15.1; unsupported versions fail cleanly. Non-streaming requests have no TTFT. |
 | Model load time | None | No | — | **UNAVAILABLE** | Operator owns server lifecycle and model admission; request evidence cannot infer load duration. |
 | Prefill throughput | None | No | — | **UNAVAILABLE** | Backend `prompt_tokens` exist but no prefill-phase duration is observed; `prompt_tokens / wall_time` is not prefill throughput. |
 | Decode generation throughput | `end_to_end_completion_tps` | No | `calculated` (native) | **NATIVE ONLY** | End-to-end completion TPS is not decode-only throughput and is not mapped. |
@@ -99,11 +100,29 @@ wall time and is explicitly not decode-only throughput; it is never mapped to
 
 ## TTFT
 
-Non-streaming chat completions return the complete response at once. There is
-no first-generated-token event at the LLMGauge transport boundary, so
-`llmgauge.metric.v1.time_to_first_token` is **DEFERRED** under this adapter.
-No value is derived from wall time, completion tokens, server timing, first
-JSON byte, or connection time.
+Non-streaming chat completions return the complete response at once and have
+no first-generated-token event, so TTFT is absent for the non-streaming
+default. Under explicit streaming evidence mode, the qualified vLLM SSE
+transport (`stream=true`, `return_token_ids=true`,
+`stream_options.include_usage=true`) exposes raw generated token IDs, and
+`llmgauge.metric.v1.time_to_first_token` is **ADMITTED**:
+
+- boundary: `request_transmit_to_first_generated_token` (same monotonic
+  request start as request wall time);
+- provenance: `llmgauge_observed`;
+- the first event whose `token_ids` array contains at least one generated
+  token ID establishes TTFT; the first reasoning token counts (human
+  contract), and an empty-decoded token counts when token-ID evidence proves
+  it;
+- TTFT is recomputable from the preserved private stream evidence artifact
+  (`llmgauge.vllm_stream_evidence.v0`, `request/<prompt>.stream.json`), and
+  the Area 4 validator recomputes it;
+- no token stream, malformed token IDs, or failure before the first token ⇒
+  TTFT unavailable; a proven token followed by failure/timeout may retain
+  TTFT with a non-completed completion state;
+- version-qualified: observed vLLM >= 0.15.1; no TTFT is guessed for
+  unknown or unsupported implementations, and there is no automatic fallback
+  to a second non-streaming request.
 
 ## VRAM
 
@@ -190,8 +209,13 @@ The Area 4 validator now dispatches by backend:
 - vLLM results are validated against the preserved `request/*.json` evidence:
   finite non-negative wall time, expected metric identity, boundary,
   provenance, completion state, exact evidence reference, and value equality
-  with the native field. Peak-VRAM records are rejected for vLLM in this
-  slice (no sampler). Readiness/`unknown` placement is enforced.
+  with the native field. Peak-VRAM records are validated against preserved
+  `vram/*.samples.json`. For streaming evidence, the validator recomputes
+  TTFT from `request/<prompt>.stream.json`: transport/observation-method
+  identity, version qualification, `return_token_ids`, first token-bearing
+  event, elapsed equality, closed first-token channel vocabulary, no earlier
+  token event, and no TTFT for no-token or non-streaming evidence.
+  Readiness/`unknown` placement is enforced.
 
 Historical vLLM results without Area 4 evidence remain valid; llama.cpp Area 4
 evidence is unchanged.
@@ -216,6 +240,8 @@ sanitization rules remain at least as restrictive as before.
 ## Compatibility
 
 - Historical vLLM results without Area 4 remain valid.
+- Historical non-streaming vLLM results remain valid and unchanged; stream
+  evidence and TTFT are additive.
 - llama.cpp Area 4 evidence (wall time, peak VRAM, timing/placement, failure
   taxonomy) is unchanged.
 - vLLM native fields (`request_wall_time_seconds`, `end_to_end_completion_tps`,
@@ -225,9 +251,12 @@ sanitization rules remain at least as restrictive as before.
 
 ## Outcome
 
-This milestone implements the smallest honest Area 4 mapping for the vLLM
-backend: `llmgauge.metric.v1.request_wall_time` for transmitted requests, with
-everything else preserved as native or deferred. No claim is made that vLLM
-request wall time is equivalent to llama.cpp process wall time, that API
-readiness implies warmth, that a completed request implies accelerator
-placement, or that end-to-end completion TPS is decode throughput.
+This record documents the honest Area 4 mapping for the vLLM backend:
+`llmgauge.metric.v1.request_wall_time` for transmitted requests,
+request-window peak VRAM, and — under explicit streaming evidence mode —
+`llmgauge.metric.v1.time_to_first_token` with recomputable preserved stream
+evidence. Everything else is preserved as native or deferred. No claim is made
+that vLLM request wall time is equivalent to llama.cpp process wall time, that
+TTFT is equivalent across runtimes, that API readiness implies warmth, that a
+completed request implies accelerator placement, or that end-to-end completion
+TPS is decode throughput.

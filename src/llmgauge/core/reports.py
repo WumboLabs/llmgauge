@@ -110,6 +110,9 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
                 f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
                 f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
                 f"- Streaming: {runtime.get('streaming', False)}",
+                (
+                    f"- Transport mode: {runtime.get('transport_mode') or 'non-streaming'}"
+                ),
                 f"- Authentication: {runtime.get('authentication') or 'none'}",
                 f"- Proxy bypass policy: {runtime.get('proxy_bypass_policy') or 'unknown'}",
                 (
@@ -569,7 +572,51 @@ def _build_vllm_area4_timing_placement(
                 f"  - Provenance: {provenance}",
                 "  - Boundary: request transmit \u2192 validated complete response",
                 f"  - Completion: {completion}",
-                "- TTFT: unavailable (non-streaming transport)",
+            ]
+        )
+        ttft_records = [
+            record
+            for record in records[1:]
+            if isinstance(record, dict)
+            and record.get("metric_id") == "llmgauge.metric.v1.time_to_first_token"
+        ]
+        if ttft_records:
+            ttft = ttft_records[0]
+            if (
+                ttft.get("availability") == "available"
+                and ttft.get("value") is not None
+            ):
+                lines.extend(
+                    [
+                        f"- TTFT: {ttft['value']} s ({ttft.get('availability')})",
+                        f"  - TTFT provenance: {ttft.get('provenance')}",
+                        (
+                            "  - TTFT boundary: request \u2192 first generated token"
+                        ),
+                        (
+                            f"  - First token channel: {ttft.get('channel') or 'unknown'}"
+                        ),
+                        "  - TTFT transport: vLLM SSE streaming (return_token_ids)",
+                        "",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        "- TTFT: unavailable",
+                        "  - TTFT reason: no generated token observed",
+                        "",
+                    ]
+                )
+        else:
+            lines.extend(
+                [
+                    "- TTFT: unavailable (non-streaming transport)",
+                    "",
+                ]
+            )
+        lines.extend(
+            [
                 "- Placement: unavailable (vLLM API does not expose execution placement)",
                 "",
             ]
