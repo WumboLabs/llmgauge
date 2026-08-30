@@ -17,9 +17,14 @@
   ordered per-event elapsed timestamps, token-ID counts, TTFT trigger marker,
   first-token channel classification, version qualification, and terminal
   state. The artifact is omitted from public export.
-- Version-qualified streaming admission: observed vLLM >= 0.15.1 required;
-  unsupported versions fail cleanly with a single unsupported-capability
-  result; no automatic second non-streaming request.
+- Version-qualified streaming admission: V1 admits exactly vLLM 0.27.1
+  (detailed SSE token/event semantics were inspected against that runtime);
+  older, newer, suffixed, and unknown versions fail cleanly with a single
+  unsupported-capability result; no automatic second non-streaming request.
+- Version-qualification hardening: `return_token_ids` availability since
+  0.15.1 is historical evidence, not protocol qualification for every
+  `>= 0.15.1` runtime; the validator recomputes the exact version rule from
+  preserved stream evidence instead of trusting a stored boolean.
 - Failure-table semantics: timeout/failure before first token → TTFT
   unavailable; after first token → TTFT may remain available with
   failed/partial completion; malformed token IDs → TTFT unavailable;

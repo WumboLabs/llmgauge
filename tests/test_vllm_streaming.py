@@ -257,31 +257,89 @@ def _config(url: str, **kwargs: Any) -> VllmExternalConfig:
 # ---------------------------------------------------------------------------
 
 
-def test_version_qualification_table() -> None:
+def test_version_qualification_exact_0_27_1() -> None:
+    """Admitted: exactly 0.27.1."""
     assert streaming_ttft_version_admitted("0.27.1") == (
         True,
-        "observed_version_ge_0.15.1",
+        "observed_version_exact_0.27.1",
     )
-    assert streaming_ttft_version_admitted("0.15.1") == (
-        True,
-        "observed_version_ge_0.15.1",
+
+
+def test_version_qualification_rejects_parseable_not_qualified() -> None:
+    """Well-formed X.Y.Z that is not 0.27.1."""
+    for v in ("0.27.0", "0.27.2", "0.15.1", "0.14.0", "0.28.0", "1.0.0", "99.0.0"):
+        admitted, rule = streaming_ttft_version_admitted(v)
+        assert admitted is False, f"{v} should not be admitted"
+        assert rule == "observed_version_not_qualified", (
+            f"{v}: expected not_qualified, got {rule}"
+        )
+
+
+def test_version_qualification_rejects_unparseable() -> None:
+    """Strings that are not canonical X.Y.Z."""
+    for v in (
+        "unknown",
+        "0.27.1rc1",
+        "0.27.1.dev0",
+        "0.27.1+local",
+        "0.27.1.post1",
+        "garbage",
+    ):
+        admitted, rule = streaming_ttft_version_admitted(v)
+        assert admitted is False, f"{v} should not be admitted"
+        assert rule == "observed_version_unparseable", (
+            f"{v}: expected unparseable, got {rule}"
+        )
+
+
+def test_version_qualification_rejects_unavailable() -> None:
+    """Empty or invalid strings."""
+    for v in ("", "x" * 65, "\x00"):
+        admitted, rule = streaming_ttft_version_admitted(v)
+        assert admitted is False, f"{v!r} should not be admitted"
+        assert rule == "observed_version_unavailable", (
+            f"{v!r}: expected unavailable, got {rule}"
+        )
+
+
+def test_stream_evidence_records_exact_qualified_version(sse_server) -> None:
+    url, scenario = sse_server
+    scenario.events = [
+        chunk(role="assistant", content=""),
+        chunk(content="Hello", token_ids=[101]),
+        usage_chunk(prompt_tokens=5, completion_tokens=1),
+        finish(),
+        done(),
+    ]
+    result = run_chat_completion_stream(
+        _config(url), prompt="x", vllm_version="0.27.1"
     )
-    assert streaming_ttft_version_admitted("0.14.0") == (
-        False,
-        "observed_version_below_0.15.1",
+    assert result.success is True
+    assert result.stream_evidence is not None
+    qual = result.stream_evidence["version_qualification"]
+    assert qual["admitted"] is True
+    assert qual["rule"] == "observed_version_exact_0.27.1"
+    assert qual["observed_vllm_version"] == "0.27.1"
+
+
+def test_stream_evidence_records_unqualified_version(sse_server) -> None:
+    url, scenario = sse_server
+    scenario.events = [
+        chunk(role="assistant", content=""),
+        chunk(content="Hello", token_ids=[101]),
+        usage_chunk(prompt_tokens=5, completion_tokens=1),
+        finish(),
+        done(),
+    ]
+    result = run_chat_completion_stream(
+        _config(url), prompt="x", vllm_version="0.27.2"
     )
-    assert streaming_ttft_version_admitted("unknown") == (
-        False,
-        "observed_version_unparseable",
-    )
-    assert streaming_ttft_version_admitted("") == (
-        False,
-        "observed_version_unavailable",
-    )
-    assert streaming_ttft_version_admitted("1.0.0") == (
-        True,
-        "observed_version_ge_0.15.1",
-    )
+    assert result.success is True
+    assert result.stream_evidence is not None
+    qual = result.stream_evidence["version_qualification"]
+    assert qual["admitted"] is False
+    assert qual["rule"] == "observed_version_not_qualified"
+    assert qual["observed_vllm_version"] == "0.27.2"
 
 
 # ---------------------------------------------------------------------------

@@ -45,7 +45,7 @@ def _stream_evidence(
         "vllm_version_source": "server_/version",
         "version_qualification": {
             "admitted": True,
-            "rule": "observed_version_ge_0.15.1",
+            "rule": "observed_version_exact_0.27.1",
             "observed_vllm_version": vllm_version,
         },
         "return_token_ids": True,
@@ -362,6 +362,49 @@ def test_validator_accepts_streaming_ttft(tmp_path: Path) -> None:
     result = _vllm_result([prompt])
     result_dir = _result_dir(tmp_path, result)
     assert validate_result_dir(result_dir) == []
+
+
+def test_validator_rejects_forged_version_qualification(tmp_path: Path) -> None:
+    """A stored admitted=true must not survive recomputation against the
+    represented observed version; vLLM 0.99.0 is not qualified for V1."""
+    evidence = _stream_request_evidence()
+    stream_ev = _stream_evidence(
+        events=[
+            _event(0, 0.01, 0),
+            _event(1, 0.284, 1, trigger=True),
+        ],
+        first_token={
+            "event_index": 1,
+            "elapsed_seconds": 0.284,
+            "channel": "content",
+            "token_ids_in_event": 1,
+        },
+        vllm_version="0.99.0",
+    )
+    # Forge the stored boolean and rule while keeping the observed version.
+    stream_ev["version_qualification"] = {
+        "admitted": True,
+        "rule": "observed_version_exact_0.27.1",
+        "observed_vllm_version": "0.99.0",
+    }
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    errors = validate_result_dir(result_dir)
+    assert any("version qualification" in err for err in errors)
+
+
+def test_validator_rejects_qualification_version_mismatch(tmp_path: Path) -> None:
+    """The qualification observed version must match the top-level stream
+    vLLM version recorded in the artifact."""
+    evidence = _stream_request_evidence()
+    stream_ev = _token_stream_evidence()
+    stream_ev["vllm_version"] = "0.27.2"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    errors = validate_result_dir(result_dir)
+    assert any("version qualification" in err for err in errors)
 
 
 def test_validator_accepts_no_token_stream_unavailable_ttft(tmp_path: Path) -> None:

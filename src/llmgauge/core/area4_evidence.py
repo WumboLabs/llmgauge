@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from llmgauge.core.metrics import parse_llama_cpp_diagnostics, placement_states
+from llmgauge.runners.vllm_external import streaming_ttft_version_admitted
 
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
 VLLM_STREAM_EVIDENCE_SCHEMA = "llmgauge.vllm_stream_evidence.v0"
@@ -1141,9 +1142,21 @@ def _expected_ttft_record(
         errors.append(f"{label} stream evidence return_token_ids is not represented")
         return None
     version_qual = stream_evidence.get("version_qualification")
+    if not isinstance(version_qual, Mapping):
+        errors.append(f"{label} stream evidence version qualification is invalid")
+        return None
+    observed = version_qual.get("observed_vllm_version")
+    stored_admitted = version_qual.get("admitted") is True
+    stored_rule = version_qual.get("rule")
+    if not isinstance(observed, str):
+        errors.append(f"{label} stream evidence version qualification is invalid")
+        return None
+    recomputed_admitted, recomputed_rule = streaming_ttft_version_admitted(observed)
     if (
-        not isinstance(version_qual, Mapping)
-        or version_qual.get("admitted") is not True
+        not stored_admitted
+        or not recomputed_admitted
+        or stored_rule != recomputed_rule
+        or observed != stream_evidence.get("vllm_version")
     ):
         errors.append(f"{label} stream evidence version qualification is invalid")
         return None
