@@ -57,6 +57,17 @@
   and llama.cpp's printed load time is proven to end at first evaluation
   rather than model readiness. Architecture only; no neutral steady-state
   VRAM implementation is admitted, and peak VRAM evidence is unchanged.
+- Added the Area 4 vLLM streaming TTFT architecture record
+  (`docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md`): primary-source feasibility
+  evidence (installed vLLM 0.27.1 plus upstream version lineage) that the
+  OpenAI-compatible `/v1/chat/completions` streaming interface can expose a
+  genuine first-generated-token boundary through the vLLM-specific
+  `return_token_ids=true` option (`choices[0].token_ids` per chunk), with
+  role-only first events and empty/control-token events excluded, chunk
+  arrival timestamped at the LLMGauge transport boundary, and a
+  reasoning-token contract gap identified as the open prerequisite.
+  Architecture only; no streaming transport, TTFT field, or Area 4 schema
+  change is implemented, and neutral TTFT remains deferred.
 
 ## v0.76.0 - 2026-08-28
 
