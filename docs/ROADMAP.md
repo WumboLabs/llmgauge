@@ -170,8 +170,11 @@ preserved in the changelog. Durable claim boundaries live in
   model footprint, and the observation boundary is distinct from the native
   llama.cpp process-window boundary.
 - TTFT, prefill, and decode throughput are unavailable under the non-streaming
-  adapter; execution placement is not exposed by the vLLM API; cache state
-  remains unknown (API readiness does not imply warm or cold).
+  adapter; the vLLM streaming TTFT architecture is qualified as feasible via
+  the vLLM-specific `return_token_ids=true` streaming option, with
+  implementation deferred and a reasoning-token contract gap still open;
+  execution placement is not exposed by the vLLM API; cache state remains
+  unknown (API readiness does not imply warm or cold).
 - Throughput and token fields remain runtime-native and non-equivalent.
 - F16 GGUF and BF16 Transformers weights are not proven bit-identical, and
   prompt rendering/input forms are not proven identical.
@@ -769,6 +772,23 @@ sets cache state. The validator, reporter, comparison, fingerprint (when model
 provenance is available), and public-export paths are extended to handle vLLM
 Area 4 evidence. Historical vLLM results without Area 4 remain valid, and
 llama.cpp Area 4 evidence is unchanged.
+
+A seventh bounded Area 4 architecture milestone
+([VLLM_STREAMING_TTFT_ARCHITECTURE.md](VLLM_STREAMING_TTFT_ARCHITECTURE.md))
+qualified the vLLM streaming TTFT question: vLLM's OpenAI-compatible streaming
+interface, with the vLLM-specific `return_token_ids=true` request option, does
+expose a genuine first-generated-token boundary (raw backend token IDs in
+`choices[0].token_ids`), making neutral TTFT architecture-feasible for the
+vLLM streaming path. The first SSE event is role-only (no token), and the
+first chunk whose `token_ids` is non-empty carries the first generated token
+ID(s). One chunk may contain multiple token IDs (engine merging under load,
+speculative decode), so TTFT is timestamped at chunk arrival — the first
+token's transport-boundary availability — with token count recorded per event.
+A reasoning-model contract gap (whether "first generated output token" includes
+reasoning tokens) must be resolved before any implementation. The architecture
+remains deferred; no production streaming, TTFT, or Area 4 schema change is
+implemented. The synthetic SSE experiment (22/22 assertions, stdlib only)
+proves client-mechanics feasibility.
 
 ### External benchmark importer foundation
 
