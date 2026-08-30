@@ -92,6 +92,8 @@ from llmgauge.runners.vllm_external import (
     check_readiness_and_model,
     format_failure_log,
     run_chat_completion,
+    run_chat_completion_stream,
+    streaming_ttft_version_admitted,
 )
 from llmgauge.runners.vllm_http import VllmTransportError, validate_vllm_endpoint
 
@@ -499,6 +501,7 @@ def resolve_run_options(
     connect_timeout: float | None = None,
     request_timeout: float | None = None,
     max_response_bytes: int | None = None,
+    vllm_streaming_evidence: bool | None = None,
 ) -> dict[str, Any]:
     resolved_config_path = config_path or default_existing_path(
         DEFAULT_LOCAL_CONFIG,
@@ -759,6 +762,11 @@ def resolve_run_options(
             "backend=llama.cpp"
         )
 
+    if vllm_streaming_evidence is True and resolved_backend != "vllm":
+        raise typer.BadParameter(
+            "--vllm-streaming-evidence is supported only by backend=vllm"
+        )
+
     if resolved_backend == "vllm" and any(
         value is not None
         for value in (
@@ -850,6 +858,14 @@ def resolve_run_options(
                 DEFAULT_MAX_RESPONSE_BYTES,
             )
         )
+        resolved_vllm_streaming_evidence = optional_bool(
+            coalesce(
+                vllm_streaming_evidence,
+                profile.get("vllm_streaming_evidence"),
+                get_config_value(config_data, "runtime.vllm_streaming_evidence"),
+            ),
+            field_name="vllm_streaming_evidence",
+        )
 
         # Directory/GGUF provenance is deferred for vLLM. Reject local paths so
         # collect_model_provenance is never applied to a served checkpoint.
@@ -880,6 +896,7 @@ def resolve_run_options(
             "connect_timeout": resolved_connect_timeout,
             "request_timeout": resolved_request_timeout,
             "max_response_bytes": resolved_max_response_bytes,
+            "vllm_streaming_evidence": resolved_vllm_streaming_evidence,
             "ctx": resolved_ctx,
             "max_tokens": resolved_max_tokens,
             "temp": resolved_temp,
@@ -940,6 +957,7 @@ def resolve_run_options(
         "connect_timeout": None,
         "request_timeout": None,
         "max_response_bytes": None,
+        "vllm_streaming_evidence": None,
         "ctx": resolved_ctx,
         "max_tokens": resolved_max_tokens,
         "temp": resolved_temp,
@@ -1092,10 +1110,14 @@ def print_run_preflight(
     table.add_row("Output plan", output_plan)
 
     if backend == "vllm":
-        table.add_row(
-            "Request shape",
-            "non-streaming OpenAI-compatible chat.completions (external server)",
+        streaming_evidence = resolved.get("vllm_streaming_evidence") is True
+        request_shape = (
+            "streaming SSE chat.completions with return_token_ids "
+            "(token-ID TTFT evidence)"
+            if streaming_evidence
+            else "non-streaming OpenAI-compatible chat.completions (external server)"
         )
+        table.add_row("Request shape", request_shape)
         if out is not None:
             evidence_path = str(out / VLLM_RUNTIME_EVIDENCE_FILENAME)
         elif auto_name:
@@ -2293,6 +2315,7 @@ def execute_vllm_run(
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
     run_id = out.name
+    streaming_evidence = resolved.get("vllm_streaming_evidence") is True
     vllm_config = VllmExternalConfig(
         endpoint_url=str(resolved["vllm_endpoint"]),
         served_model=str(resolved["served_model"]),
@@ -2302,6 +2325,7 @@ def execute_vllm_run(
         connect_timeout=float(resolved["connect_timeout"]),
         request_timeout=float(resolved["request_timeout"]),
         max_response_bytes=int(resolved["max_response_bytes"]),
+        streaming_evidence=streaming_evidence,
         ctx_size=int(resolved["ctx"]),
     )
 
@@ -2319,14 +2343,33 @@ def execute_vllm_run(
         readiness=readiness,
         endpoint_identity=endpoint_identity,
         observed_system_fingerprints=observed_fingerprints,
+        streaming_evidence=streaming_evidence,
     )
     runtime_evidence_path = out / VLLM_RUNTIME_EVIDENCE_FILENAME
     write_json(runtime_evidence_path, runtime_evidence)
 
     prompt_results: list[dict] = []
 
-    if not readiness.success:
+    streaming_unsupported_reason: str | None = None
+    if streaming_evidence and readiness.success:
+        admitted, reason = streaming_ttft_version_admitted(readiness.vllm_version)
+        if not admitted:
+            streaming_unsupported_reason = reason
+
+    if not readiness.success or streaming_unsupported_reason is not None:
         # Fail all selected prompts deterministically without evaluation requests.
+        # Determine the skip reason: readiness failure vs streaming version unsupported.
+        if streaming_unsupported_reason is not None:
+            skip_failure_class = "unsupported_capability"
+            skip_failure_detail = f"streaming_ttft_unsupported:{streaming_unsupported_reason}"
+            skip_reason = "streaming_ttft_version_unsupported"
+            skip_log_text = f"Streaming TTFT unsupported: {streaming_unsupported_reason}"
+        else:
+            skip_failure_class = readiness.failure_class or "readiness_failure"
+            skip_failure_detail = readiness.failure_detail or "readiness_or_model_check_failed"
+            skip_reason = "readiness_or_model_check_failed"
+            skip_log_text = format_failure_log(readiness)
+
         for prompt_meta in selected_prompts:
             prompt_id = prompt_meta["id"]
             prompt_path = suite / prompt_meta["file"]
@@ -2344,14 +2387,14 @@ def execute_vllm_run(
             write_text(raw_prompt_path, combined_prompt)
             write_text(raw_output_path, "")
             write_text(cleaned_output_path, "")
-            write_text(stderr_log_path, format_failure_log(readiness))
+            write_text(stderr_log_path, skip_log_text)
             request_evidence = {
                 "schema_version": "llmgauge.vllm_request_evidence.v0",
                 "lifecycle_ownership": "external_operator",
                 "skipped": True,
-                "skip_reason": "readiness_or_model_check_failed",
-                "failure_class": readiness.failure_class,
-                "failure_detail": readiness.failure_detail,
+                "skip_reason": skip_reason,
+                "failure_class": skip_failure_class,
+                "failure_detail": skip_failure_detail,
                 "endpoint_identity": endpoint_identity,
             }
             write_json(request_evidence_path, request_evidence)
@@ -2375,9 +2418,9 @@ def execute_vllm_run(
                 "failure_labels": [],
                 "notes": "",
                 "exit_status": 1,
-                "error": readiness.failure_detail or readiness.failure_class,
-                "failure_class": readiness.failure_class,
-                "failure_detail": readiness.failure_detail,
+                "error": skip_failure_detail,
+                "failure_class": skip_failure_class,
+                "failure_detail": skip_failure_detail,
                 "finish_reason": None,
             }
             coding_evidence = build_coding_prompt_evidence(
@@ -2417,8 +2460,12 @@ def execute_vllm_run(
 
             write_text(raw_prompt_path, combined_prompt)
 
+            streaming_label = "streaming" if streaming_evidence else "non-streaming"
             console.print(
                 f"[{index}/{len(selected_prompts)}] Requesting {prompt_id} "
+                f"({streaming_label} chat.completions with return_token_ids)"
+                if streaming_evidence
+                else f"[{index}/{len(selected_prompts)}] Requesting {prompt_id} "
                 f"(non-streaming chat.completions)"
             )
             # Request-window VRAM telemetry: one bounded observer samples
@@ -2430,11 +2477,19 @@ def execute_vllm_run(
             vram_sampler = VramSampler()
             vram_sampler.start()
             try:
-                request_result = run_chat_completion(
-                    vllm_config,
-                    prompt=prompt_text,
-                    system_prompt=system_prompt,
-                )
+                if streaming_evidence:
+                    request_result = run_chat_completion_stream(
+                        vllm_config,
+                        prompt=prompt_text,
+                        system_prompt=system_prompt,
+                        vllm_version=runtime_evidence.get("vllm_version") or "unknown",
+                    )
+                else:
+                    request_result = run_chat_completion(
+                        vllm_config,
+                        prompt=prompt_text,
+                        system_prompt=system_prompt,
+                    )
             finally:
                 vram_samples, vram_errors = vram_sampler.stop()
 
@@ -2456,6 +2511,15 @@ def execute_vllm_run(
                 "endpoint_identity": request_result.endpoint_identity,
             }
             write_json(request_evidence_path, request_evidence)
+
+            # Preserve authoritative private stream evidence (TTFT recomputable)
+            # for streaming evidence mode only.
+            stream_evidence_path = None
+            if request_result.stream_evidence is not None:
+                stream_evidence_path = (
+                    out / "request" / f"{prompt_id.replace('/', '__')}.stream.json"
+                )
+                write_json(stream_evidence_path, request_result.stream_evidence)
 
             # Preserve the request-owned VRAM sample stream only when a request
             # was actually transmitted; otherwise no telemetry window exists.
@@ -2509,7 +2573,13 @@ def execute_vllm_run(
                 "cleaned_output_path": str(cleaned_output_path.relative_to(out)),
                 "stderr_log_path": str(stderr_log_path.relative_to(out)),
                 "request_evidence_path": str(request_evidence_path.relative_to(out)),
+                "stream_evidence_path": (
+                    str(stream_evidence_path.relative_to(out))
+                    if stream_evidence_path is not None
+                    else None
+                ),
                 "_area4_vllm_request_evidence": request_evidence,
+                "_area4_vllm_stream_evidence": request_result.stream_evidence,
                 "metrics": build_vllm_metrics(request_result),
                 "vram": None,
                 "vram_samples_path": (
@@ -2681,7 +2751,13 @@ def execute_vllm_run(
             else None,
             "backend_provenance": backend_provenance,
             "proxy_bypass_policy": runtime_evidence.get("proxy_bypass_policy"),
-            "streaming": False,
+            "streaming": streaming_evidence,
+            "transport_mode": (
+                runtime_evidence.get("transport_mode")
+                if streaming_evidence
+                else None
+            ),
+            "vllm_streaming_evidence": streaming_evidence,
             "authentication": "none",
         },
         "suite": build_result_suite_metadata(
@@ -2709,6 +2785,7 @@ def execute_vllm_run(
     )
     for prompt_entry in prompt_results:
         prompt_entry.pop("_area4_vllm_request_evidence", None)
+        prompt_entry.pop("_area4_vllm_stream_evidence", None)
         prompt_entry.pop("_area4_vram_samples", None)
     result["runtime_neutral_metrics"] = runtime_neutral_metrics
     result["failure_taxonomy"] = failure_taxonomy

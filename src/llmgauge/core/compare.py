@@ -796,13 +796,15 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             [
                 "## Runtime-neutral Area 4 evidence",
                 "",
-                "Runtime-neutral request wall time shares a metric identity across",
-                "runtimes only when the accepted boundary and workload equivalence",
-                "requirements are met. Do not read equivalent values as proof of",
-                "runtime equivalence; sampling boundaries may differ.",
+                "Runtime-neutral request wall time and TTFT share metric identities",
+                "across runtimes only when the accepted boundary and workload",
+                "equivalence requirements are met. Do not read equivalent values as proof",
+                "of runtime equivalence; sampling boundaries may differ. TTFT is not",
+                "declared equivalent across runs merely because both have the metric;",
+                "streaming state is disclosed per run.",
                 "",
-                "| Run | Backend | Request wall time s | Boundary | Placement observed | Peak VRAM MiB | VRAM boundary | VRAM device |",
-                "|---|---|---:|---|---|---:|---|---|",
+                "| Run | Backend | Streaming | Transport / observation | Request wall time s | TTFT s | TTFT channel | Boundary | Placement observed | Peak VRAM MiB | VRAM boundary | VRAM device |",
+                "|---|---|:--|---|---:|---:|---|---|---|---:|---|---|",
             ]
         )
         for result in results:
@@ -819,6 +821,12 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             peak_vram = None
             peak_vram_boundary = "unavailable"
             peak_vram_device = "unavailable"
+            streaming = False
+            transport = "non-streaming"
+            ttft = None
+            ttft_channel = "unavailable"
+            if isinstance(runtime, dict) and isinstance(runtime.get("streaming"), bool):
+                streaming = runtime["streaming"]
             if isinstance(measurements, list) and measurements:
                 first = measurements[0]
                 if isinstance(first, dict):
@@ -834,6 +842,17 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                             boundary = wall_record.get("boundary", boundary)
                         for record in records[1:]:
                             if not isinstance(record, dict):
+                                continue
+                            if (
+                                record.get("metric_id")
+                                == "llmgauge.metric.v1.time_to_first_token"
+                            ):
+                                if (
+                                    record.get("availability") == "available"
+                                    and record.get("value") is not None
+                                ):
+                                    ttft = record.get("value")
+                                ttft_channel = record.get("channel") or "unavailable"
                                 continue
                             if (
                                 record.get("metric_id")
@@ -856,11 +875,20 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                         placement = first["execution_placement"].get(
                             "observed", "unavailable"
                         )
+            if streaming and isinstance(runtime, dict):
+                transport = runtime.get("transport_mode") or (
+                    "openai_compatible_sse "
+                    f"(vllm {runtime.get('vllm_version') or 'unknown'})"
+                )
             lines.append(
                 "| "
                 f"{run.get('run_id')} | "
                 f"{backend or 'unknown'} | "
+                f"{'streaming' if streaming else 'non-streaming'} | "
+                f"{transport} | "
                 f"{'unavailable' if wall is None else wall} | "
+                f"{'unavailable' if ttft is None else ttft} | "
+                f"{ttft_channel} | "
                 f"{boundary} | "
                 f"{placement} | "
                 f"{'unavailable' if peak_vram is None else peak_vram} | "

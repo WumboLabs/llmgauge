@@ -12,6 +12,7 @@ import ipaddress
 import json
 import socket
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -19,6 +20,7 @@ from urllib.parse import urlsplit
 # Fixed minimal headers only; no arbitrary or credential-bearing headers.
 _ACCEPT_JSON = "application/json"
 _CONTENT_JSON = "application/json"
+_ACCEPT_EVENT_STREAM = "text/event-stream"
 
 PROXY_BYPASS_POLICY = "stdlib_http_client_no_env_proxy"
 
@@ -62,6 +64,21 @@ class HttpResponse:
     transfer_seconds: float
     total_seconds: float
     endpoint_identity: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class StreamEvent:
+    """One complete bounded SSE event with its monotonic receipt timestamp.
+
+    `monotonic_seconds` is captured at event completion (terminating blank
+    line, `[DONE]` marker, or EOF), so elapsed time is computable against any
+    request-start monotonic origin chosen by the caller.
+    """
+
+    index: int
+    monotonic_seconds: float
+    data: str
+    is_done: bool
 
 
 def sanitize_endpoint_identity(endpoint: ValidatedEndpoint) -> dict[str, Any]:
@@ -308,6 +325,36 @@ def _read_bounded_body(
     return b"".join(chunks)
 
 
+def _read_bounded_line(
+    response: http.client.HTTPResponse,
+    *,
+    max_line_bytes: int,
+    deadline: float,
+) -> bytes:
+    """Read one SSE line under a byte bound and the whole-request deadline.
+
+    Returns b"" at EOF. Over-long lines raise a malformed-response transport
+    error instead of buffering an unbounded line.
+    """
+    parts: list[bytes] = []
+    total = 0
+    while True:
+        _remaining_timeout(deadline)
+        chunk = response.readline(65536)
+        if not chunk:
+            break
+        total += len(chunk)
+        parts.append(chunk)
+        if total > max_line_bytes:
+            raise VllmTransportError(
+                "malformed_response",
+                "stream_line_exceeds_limit",
+            )
+        if chunk.endswith(b"\n"):
+            break
+    return b"".join(parts)
+
+
 def _classify_connect_error(exc: BaseException) -> VllmTransportError:
     if isinstance(exc, TimeoutError) or isinstance(exc, socket.timeout):
         return VllmTransportError("endpoint_unavailable", "connect_timeout")
@@ -352,7 +399,9 @@ def http_request(
     if connect_timeout <= 0 or request_timeout <= 0:
         raise VllmTransportError("malformed_response", "timeout_not_positive")
     if max_response_bytes <= 0:
-        raise VllmTransportError("malformed_response", "max_response_bytes_not_positive")
+        raise VllmTransportError(
+            "malformed_response", "max_response_bytes_not_positive"
+        )
 
     method_upper = method.upper()
     if method_upper not in {"GET", "POST"}:
@@ -448,6 +497,212 @@ def http_request(
             total_seconds=total_seconds,
             endpoint_identity=identity,
         )
+    except KeyboardInterrupt as exc:
+        raise VllmTransportError(
+            "operator_cancellation",
+            "keyboard_interrupt",
+            endpoint_identity=identity,
+        ) from exc
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+        elif sock is not None:
+            try:
+                sock.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def http_request_stream(
+    endpoint: ValidatedEndpoint,
+    *,
+    method: str,
+    path: str,
+    body: bytes | None = None,
+    connect_timeout: float,
+    request_timeout: float,
+    max_response_bytes: int,
+    max_event_bytes: int,
+    max_event_count: int,
+) -> Iterator[StreamEvent]:
+    """Issue one streaming HTTP request and yield bounded SSE events.
+
+    Shares the loopback-only validation, proxy bypass, redirect refusal,
+    fixed headers, and whole-request deadline of ``http_request``. Reads the
+    response incrementally as SSE lines, enforcing per-line, per-event,
+    total-body, and event-count bounds, and timestamps each complete event
+    with the monotonic clock. Every terminal path closes the connection.
+    """
+    if connect_timeout <= 0 or request_timeout <= 0:
+        raise VllmTransportError("malformed_response", "timeout_not_positive")
+    if max_response_bytes <= 0:
+        raise VllmTransportError(
+            "malformed_response",
+            "max_response_bytes_not_positive",
+        )
+    if max_event_bytes <= 0 or max_event_count <= 0:
+        raise VllmTransportError("malformed_response", "stream_bounds_not_positive")
+
+    method_upper = method.upper()
+    if method_upper not in {"GET", "POST"}:
+        raise VllmTransportError("unsupported_capability", "method_not_allowed")
+
+    request_path = path if path.startswith("/") else f"/{path}"
+    deadline = time.monotonic() + float(request_timeout)
+    addresses = resolve_loopback_addresses(endpoint)
+
+    # Prefer the first resolved loopback address; sequential single-request use.
+    connect_host, connect_port, family_label = addresses[0]
+    identity = {
+        "scheme": "http",
+        "loopback_class": (
+            "ipv4_loopback" if family_label == "ipv4" else "ipv6_loopback"
+        ),
+        "port": endpoint.port,
+        "proxy_bypass_policy": PROXY_BYPASS_POLICY,
+    }
+
+    conn: http.client.HTTPConnection | None = None
+    sock: socket.socket | None = None
+
+    try:
+        try:
+            connect_budget = min(float(connect_timeout), _remaining_timeout(deadline))
+            sock = socket.create_connection(
+                (connect_host, connect_port),
+                timeout=connect_budget,
+            )
+        except VllmTransportError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — mapped to failure class
+            raise _classify_connect_error(exc) from exc
+
+        remaining = _remaining_timeout(deadline)
+        sock.settimeout(remaining)
+
+        # HTTPConnection does not consult HTTP(S)_PROXY / ALL_PROXY / NO_PROXY.
+        conn = http.client.HTTPConnection(connect_host, connect_port, timeout=remaining)
+        conn.sock = sock
+
+        headers = {
+            "Host": endpoint.host_header,
+            "Accept": _ACCEPT_EVENT_STREAM,
+            "Connection": "close",
+        }
+        if body is not None:
+            headers["Content-Type"] = _CONTENT_JSON
+            headers["Content-Length"] = str(len(body))
+
+        try:
+            conn.request(method_upper, request_path, body=body, headers=headers)
+            response = conn.getresponse()
+            status = int(response.status)
+
+            if 300 <= status < 400:
+                # Drain/close without following Location.
+                try:
+                    response.read(max_response_bytes + 1)
+                except Exception:  # noqa: BLE001
+                    pass
+                raise VllmTransportError(
+                    "malformed_response",
+                    "redirect_disallowed",
+                    http_status=status,
+                    endpoint_identity=identity,
+                )
+            if status >= 400:
+                # Drain a bounded error body so the connection can close.
+                try:
+                    _read_bounded_body(
+                        response,
+                        max_bytes=max_response_bytes,
+                        deadline=deadline,
+                    )
+                except VllmTransportError:
+                    pass
+                raise VllmTransportError(
+                    "server_request_error",
+                    f"http_{status}",
+                    http_status=status,
+                    endpoint_identity=identity,
+                )
+        except VllmTransportError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise _classify_transfer_error(exc) from exc
+
+        total_bytes = 0
+        event_count = 0
+        try:
+            while True:
+                # The socket timeout is set once (like the non-streaming path);
+                # each read still enforces the whole-request deadline, and a
+                # stalled single read times out against the socket budget.
+                # Re-arming here is unsafe: http.client may already have closed
+                # the socket after a `Connection: close` response, and calling
+                # settimeout on a closed descriptor raises OSError.
+                _remaining_timeout(deadline)
+                data_parts: list[str] = []
+                event_bytes = 0
+                saw_line = False
+                while True:
+                    _remaining_timeout(deadline)
+                    line = _read_bounded_line(
+                        response,
+                        max_line_bytes=max_event_bytes,
+                        deadline=deadline,
+                    )
+                    if not line:
+                        break  # EOF
+                    saw_line = True
+                    event_bytes += len(line)
+                    total_bytes += len(line)
+                    if event_bytes > max_event_bytes:
+                        raise VllmTransportError(
+                            "malformed_response",
+                            "stream_event_exceeds_limit",
+                        )
+                    if total_bytes > max_response_bytes:
+                        raise VllmTransportError(
+                            "malformed_response",
+                            "stream_body_exceeds_limit",
+                        )
+                    if line in (b"\n", b"\r\n"):
+                        break  # SSE event terminator
+                    if line.startswith(b"data:"):
+                        payload = line[len(b"data:") :].strip(b" \t\r\n")
+                        try:
+                            data_parts.append(payload.decode("utf-8"))
+                        except UnicodeDecodeError as exc:
+                            raise VllmTransportError(
+                                "malformed_response",
+                                "stream_not_utf8",
+                            ) from exc
+                    # Other SSE fields and comment lines are ignored.
+                if not saw_line and not data_parts:
+                    break  # clean EOF before any further event
+                event_count += 1
+                if event_count > max_event_count:
+                    raise VllmTransportError(
+                        "malformed_response",
+                        "stream_event_count_exceeds_limit",
+                    )
+                data_text = "\n".join(data_parts)
+                yield StreamEvent(
+                    index=event_count - 1,
+                    monotonic_seconds=time.monotonic(),
+                    data=data_text,
+                    is_done=data_text.strip() == "[DONE]",
+                )
+                if data_text.strip() == "[DONE]":
+                    break
+        except VllmTransportError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise _classify_transfer_error(exc) from exc
     except KeyboardInterrupt as exc:
         raise VllmTransportError(
             "operator_cancellation",

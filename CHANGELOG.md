@@ -3,6 +3,44 @@
 ## Unreleased
 
 ### Added
+- vLLM streaming evidence mode (`--vllm-streaming-evidence`): opt-in bounded
+  SSE transport using the vLLM-specific `return_token_ids=true` extension to
+  expose the first backend-generated token boundary at the LLMGauge transport
+  level. The non-streaming default is unchanged.
+- Neutral TTFT metric (`llmgauge.metric.v1.time_to_first_token`): elapsed
+  seconds from the request start boundary (unchanged) to the first generated
+  token ID in an admitted completion-stream event. Reasoning tokens count as
+  generated-token TTFT events (human contract decision). The metric is
+  recomputable from preserved private stream evidence.
+- Private per-request stream evidence artifact
+  (`llmgauge.vllm_stream_evidence.v0`, `request/<prompt>.stream.json`) with
+  ordered per-event elapsed timestamps, token-ID counts, TTFT trigger marker,
+  first-token channel classification, version qualification, and terminal
+  state. The artifact is omitted from public export.
+- Version-qualified streaming admission: observed vLLM >= 0.15.1 required;
+  unsupported versions fail cleanly with a single unsupported-capability
+  result; no automatic second non-streaming request.
+- Failure-table semantics: timeout/failure before first token → TTFT
+  unavailable; after first token → TTFT may remain available with
+  failed/partial completion; malformed token IDs → TTFT unavailable;
+  premature EOF → TTFT retained if already proven.
+- Area 4 builder emits TTFT metric records; validator recomputes TTFT from
+  preserved stream evidence (elapsed, channel, first-token index, no earlier
+  token-bearing event).
+- Single-run report and comparison report disclose TTFT, provenance,
+  boundary, first-token channel, and streaming transport mode.
+- Public export strips TTFT records, stream evidence artifacts, and TTFT
+  lines from the exported report; transport mode disclosure remains public.
+- Fingerprint payload includes stream evidence artifact hash when present
+  (additive; historical fingerprints unchanged).
+- Config, profile, and CLI surface: `--vllm-streaming-evidence` / config
+  `runtime.vllm_streaming_evidence` / profile `vllm_streaming_evidence`.
+
+Existing non-streaming vLLM requests are unchanged in default, request body,
+response path, evidence, and wall-time semantics. Historical vLLM results
+without TTFT or stream evidence remain valid. llama.cpp TTFT remains
+unavailable under its current CLI transport. No new material dependencies.
+
 
 - Native single-turn llama.cpp results now preserve backend-owned timing
   (load, prompt-eval, eval/generation, total) and observed execution

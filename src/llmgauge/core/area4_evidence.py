@@ -9,6 +9,9 @@ from typing import Any, Mapping
 from llmgauge.core.metrics import parse_llama_cpp_diagnostics, placement_states
 
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
+VLLM_STREAM_EVIDENCE_SCHEMA = "llmgauge.vllm_stream_evidence.v0"
+TTFT_METRIC_ID = "llmgauge.metric.v1.time_to_first_token"
+TTFT_BOUNDARY = "request_transmit_to_first_generated_token"
 _VLLM_REQUEST_FORM = "chat_messages"
 _VLLM_MEASUREMENT_ID_RE = re.compile(r"^vllm-request-[0-9]+$")
 
@@ -418,6 +421,72 @@ def build_area4_evidence(
     )
 
 
+
+def _ttft_metric_record(
+    stream_evidence: Mapping[str, Any],
+    stream_path: str | None,
+) -> dict[str, Any] | None:
+    """Derive the neutral TTFT metric record from preserved stream evidence.
+
+    Returns None when the evidence cannot support an honest TTFT record
+    (malformed structure, no first-token marker); an unavailable record is
+    still emitted for an admitted streaming observation without a first token.
+    """
+    first_token = stream_evidence.get("first_token")
+    if not isinstance(first_token, Mapping):
+        return {
+            "metric_id": TTFT_METRIC_ID,
+            "native_metric_id": "time_to_first_token_seconds",
+            "value": None,
+            "unit": "s",
+            "availability": "unavailable",
+            "provenance": "unavailable",
+            "boundary": TTFT_BOUNDARY,
+            "equivalence": "unavailable",
+            "evidence_refs": (
+                [f"{stream_path}#/terminal/state"] if stream_path is not None else []
+            ),
+        }
+    elapsed = first_token.get("elapsed_seconds")
+    if (
+        not isinstance(elapsed, int | float)
+        or isinstance(elapsed, bool)
+        or not math.isfinite(elapsed)
+        or elapsed < 0
+    ):
+        return {
+            "metric_id": TTFT_METRIC_ID,
+            "native_metric_id": "time_to_first_token_seconds",
+            "value": None,
+            "unit": "s",
+            "availability": "unavailable",
+            "provenance": "unavailable",
+            "boundary": TTFT_BOUNDARY,
+            "equivalence": "unavailable",
+            "evidence_refs": (
+                [f"{stream_path}#/first_token/elapsed_seconds"]
+                if stream_path is not None
+                else []
+            ),
+        }
+    return {
+        "metric_id": TTFT_METRIC_ID,
+        "native_metric_id": "time_to_first_token_seconds",
+        "value": float(elapsed),
+        "unit": "s",
+        "availability": "available",
+        "provenance": "llmgauge_observed",
+        "boundary": TTFT_BOUNDARY,
+        "equivalence": "unproven",
+        "channel": first_token.get("channel"),
+        "evidence_refs": (
+            [f"{stream_path}#/first_token/elapsed_seconds"]
+            if stream_path is not None
+            else []
+        ),
+    }
+
+
 def build_vllm_area4_evidence(
     *,
     prompt_results: list[Mapping[str, Any]],
@@ -513,6 +582,17 @@ def build_vllm_area4_evidence(
                     boundary=VLLM_PEAK_VRAM_BOUNDARY,
                 )
             )
+        # Neutral TTFT: represented only when streaming evidence was admitted.
+        stream_evidence = prompt_result.get("_area4_vllm_stream_evidence")
+        stream_path = prompt_result.get("stream_evidence_path")
+        streaming = evidence.get("streaming") is True
+        if streaming and isinstance(stream_evidence, Mapping):
+            ttft_record = _ttft_metric_record(
+                stream_evidence,
+                stream_path if isinstance(stream_path, str) else None,
+            )
+            if ttft_record is not None:
+                measurements[-1]["metrics"].append(ttft_record)
         if status == "completed":
             primary_by_execution.append(
                 {
@@ -693,6 +773,48 @@ def _load_vllm_request_evidence(
         loaded[execution_ref] = (path, evidence)
     return loaded
 
+
+def _load_vllm_stream_evidence(
+    result_dir: Path, prompt_results: list[object], errors: list[str]
+) -> dict[str, tuple[str, Mapping[str, Any]] | None]:
+    """Load preserved stream evidence for each vLLM execution when present."""
+    from llmgauge.core.run_fingerprint import (
+        FingerprintUnavailable,
+        resolve_contained_result_artifact,
+    )
+
+    loaded: dict[str, tuple[str, Mapping[str, Any]] | None] = {}
+    for index, prompt_result in enumerate(prompt_results):
+        if not isinstance(prompt_result, Mapping):
+            continue
+        execution_ref = native_execution_ref(index)
+        path = prompt_result.get("stream_evidence_path")
+        if not isinstance(path, str) or not path:
+            loaded[execution_ref] = None
+            continue
+        try:
+            artifact = resolve_contained_result_artifact(
+                result_dir,
+                path,
+                label=f"{execution_ref}.stream_evidence_path",
+                require_file=True,
+            )
+            evidence = json.loads(artifact.read_text(encoding="utf-8"))
+        except (FingerprintUnavailable, json.JSONDecodeError) as exc:
+            errors.append(f"{execution_ref}.stream_evidence_path is invalid: {exc}")
+            loaded[execution_ref] = None
+            continue
+        if not isinstance(evidence, Mapping):
+            errors.append(f"{execution_ref} vLLM stream evidence must be an object")
+            loaded[execution_ref] = None
+            continue
+        if evidence.get("schema_version") != VLLM_STREAM_EVIDENCE_SCHEMA:
+            errors.append(
+                f"{execution_ref} vLLM stream evidence schema_version "
+                f"must be {VLLM_STREAM_EVIDENCE_SCHEMA}"
+            )
+        loaded[execution_ref] = (path, evidence)
+    return loaded
 
 def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> list[str]:
     """Validate represented Area 4 evidence without changing legacy requirements."""
@@ -989,6 +1111,138 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
     return errors
 
 
+FIRST_TOKEN_CHANNELS = frozenset({"reasoning", "content", "other_generated"})
+
+
+def _expected_ttft_record(
+    stream_evidence: Mapping[str, Any],
+    stream_path: str | None,
+    label: str,
+    errors: list[str],
+) -> dict[str, Any] | None:
+    """Recompute the neutral TTFT record from preserved stream evidence.
+
+    Validates: streamed transport admitted, observation-method identity,
+    version qualification, `return_token_ids` representation, the first
+    token-bearing event, elapsed finiteness/non-negativity, closed channel
+    vocabulary, and the absence of any earlier token-bearing event.
+    Returns None (with errors appended) when the evidence is malformed.
+    """
+    if (
+        stream_evidence.get("transport_mode") != "openai_compatible_sse"
+        or stream_evidence.get("streaming") is not True
+    ):
+        errors.append(f"{label} stream evidence transport identity is invalid")
+        return None
+    if stream_evidence.get("observation_method") != VLLM_STREAM_EVIDENCE_SCHEMA:
+        errors.append(f"{label} stream evidence observation method is invalid")
+        return None
+    if stream_evidence.get("return_token_ids") is not True:
+        errors.append(f"{label} stream evidence return_token_ids is not represented")
+        return None
+    version_qual = stream_evidence.get("version_qualification")
+    if (
+        not isinstance(version_qual, Mapping)
+        or version_qual.get("admitted") is not True
+    ):
+        errors.append(f"{label} stream evidence version qualification is invalid")
+        return None
+
+    events = stream_evidence.get("events")
+    if not isinstance(events, list):
+        errors.append(f"{label} stream evidence events must be a list")
+        return None
+    first_token = stream_evidence.get("first_token")
+    if first_token is None:
+        # No token: verify no event carries token evidence, then an
+        # unavailable TTFT record is expected.
+        for event in events:
+            if isinstance(event, Mapping) and event.get("token_ids_count"):
+                errors.append(
+                    f"{label} stream evidence has a token event but no "
+                    "first_token marker"
+                )
+                return None
+        return {
+            "metric_id": TTFT_METRIC_ID,
+            "native_metric_id": "time_to_first_token_seconds",
+            "value": None,
+            "unit": "s",
+            "availability": "unavailable",
+            "provenance": "unavailable",
+            "boundary": TTFT_BOUNDARY,
+            "equivalence": "unavailable",
+            "evidence_refs": (
+                [f"{stream_path}#/terminal/state"] if stream_path is not None else []
+            ),
+        }
+    if not isinstance(first_token, Mapping):
+        errors.append(f"{label} stream evidence first_token must be an object")
+        return None
+    first_index = first_token.get("event_index")
+    elapsed = first_token.get("elapsed_seconds")
+    channel = first_token.get("channel")
+    if (
+        not isinstance(first_index, int)
+        or isinstance(first_index, bool)
+        or first_index < 0
+        or first_index >= len(events)
+    ):
+        errors.append(f"{label} stream evidence first_token event_index is invalid")
+        return None
+    if (
+        not isinstance(elapsed, int | float)
+        or isinstance(elapsed, bool)
+        or not math.isfinite(elapsed)
+        or elapsed < 0
+    ):
+        errors.append(f"{label} stream evidence first_token elapsed is invalid")
+        return None
+    if channel not in FIRST_TOKEN_CHANNELS:
+        errors.append(f"{label} stream evidence first_token channel is invalid")
+        return None
+    # The first token-bearing event must be the recorded first_token, and no
+    # earlier event may carry token evidence.
+    first_token_event = events[first_index]
+    if not isinstance(first_token_event, Mapping):
+        errors.append(f"{label} stream evidence first_token event is invalid")
+        return None
+    if not first_token_event.get("token_ids_count"):
+        errors.append(
+            f"{label} stream evidence first_token event has no token evidence"
+        )
+        return None
+    if first_token_event.get("ttft_trigger") is not True:
+        errors.append(f"{label} stream evidence first_token event is not marked")
+        return None
+    for event in events[:first_index]:
+        if isinstance(event, Mapping) and event.get("token_ids_count"):
+            errors.append(f"{label} stream evidence has an earlier token-bearing event")
+            return None
+    event_elapsed = first_token_event.get("elapsed_seconds")
+    if event_elapsed != elapsed:
+        errors.append(
+            f"{label} stream evidence first_token elapsed differs from its event"
+        )
+        return None
+    return {
+        "metric_id": TTFT_METRIC_ID,
+        "native_metric_id": "time_to_first_token_seconds",
+        "value": float(elapsed),
+        "unit": "s",
+        "availability": "available",
+        "provenance": "llmgauge_observed",
+        "boundary": TTFT_BOUNDARY,
+        "equivalence": "unproven",
+        "channel": channel,
+        "evidence_refs": (
+            [f"{stream_path}#/first_token/elapsed_seconds"]
+            if stream_path is not None
+            else []
+        ),
+    }
+
+
 def _validate_vllm_area4_evidence(
     result_dir: Path,
     data: Mapping[str, object],
@@ -1004,6 +1258,9 @@ def _validate_vllm_area4_evidence(
         native_execution_ref(index) for index in range(len(prompt_results))
     }
     request_evidence_by_execution = _load_vllm_request_evidence(
+        result_dir, prompt_results, errors
+    )
+    stream_evidence_by_execution = _load_vllm_stream_evidence(
         result_dir, prompt_results, errors
     )
     vram_samples_by_execution = _load_vram_samples(result_dir, prompt_results, errors)
@@ -1130,10 +1387,98 @@ def _validate_vllm_area4_evidence(
                 vram_path if isinstance(vram_path, str) else None,
                 boundary=VLLM_PEAK_VRAM_BOUNDARY,
             )
-        if records[1:] != expected_peak_records:
+        # TTFT: recompute from preserved stream evidence.
+        stream_pair = stream_evidence_by_execution.get(str(execution_ref))
+        stream_path = stream_pair[0] if stream_pair is not None else None
+        stream_evidence = stream_pair[1] if stream_pair is not None else None
+        streaming_evidence_flag = (
+            isinstance(evidence, tuple)
+            and len(evidence) == 2
+            and isinstance(evidence[1], Mapping)
+            and evidence[1].get("streaming") is True
+        )
+        expected_ttft: dict[str, Any] | None = None
+        if streaming_evidence_flag:
+            req_claims_ttft = (
+                isinstance(evidence, tuple)
+                and len(evidence) == 2
+                and isinstance(evidence[1], Mapping)
+                and (
+                    evidence[1].get("time_to_first_token_seconds") is not None
+                    or evidence[1].get("first_token_channel") is not None
+                )
+            )
+            if stream_evidence is None and req_claims_ttft:
+                errors.append(
+                    f"{label} TTFT claim is missing stream evidence"
+                )
+            elif stream_evidence is not None:
+                expected_ttft = _expected_ttft_record(
+                    stream_evidence,
+                    stream_path,
+                    label,
+                    errors,
+                )
+                if expected_ttft is None:
+                    errors.append(
+                        f"{label} TTFT cannot be recomputed from stream evidence"
+                    )
+                    expected_ttft = {
+                        "metric_id": TTFT_METRIC_ID,
+                        "native_metric_id": "time_to_first_token_seconds",
+                        "value": None,
+                        "unit": "s",
+                        "availability": "unavailable",
+                        "provenance": "unavailable",
+                        "boundary": TTFT_BOUNDARY,
+                        "equivalence": "unavailable",
+                        "evidence_refs": (
+                            [f"{stream_path}#/terminal/state"]
+                            if stream_path is not None
+                            else []
+                        ),
+                    }
+        represented_ttft = [
+            record
+            for record in records[1:]
+            if isinstance(record, dict)
+            and record.get("metric_id") == TTFT_METRIC_ID
+        ]
+        if represented_ttft and expected_ttft is None:
             errors.append(
-                f"{label}.metrics peak VRAM records differ from the "
-                "preserved vram samples evidence"
+                f"{label} TTFT must not be represented without streaming evidence"
+            )
+        if not streaming_evidence_flag and represented_ttft:
+            errors.append(
+                f"{label} TTFT must not be represented for non-streaming evidence"
+            )
+        if (
+            expected_ttft is not None
+            and isinstance(evidence, tuple)
+            and len(evidence) == 2
+            and isinstance(evidence[1], Mapping)
+            and expected_ttft.get("availability") == "available"
+        ):
+            req_channel = evidence[1].get("first_token_channel")
+            if req_channel is not None and isinstance(stream_evidence, Mapping):
+                stream_first = stream_evidence.get("first_token")
+                stream_channel = (
+                    stream_first.get("channel")
+                    if isinstance(stream_first, Mapping)
+                    else None
+                )
+                if req_channel != stream_channel:
+                    errors.append(
+                        f"{label} request-evidence first_token_channel differs "
+                        "from stream evidence"
+                    )
+        expected_tail = expected_peak_records + (
+            [expected_ttft] if expected_ttft is not None else []
+        )
+        if records[1:] != expected_tail:
+            errors.append(
+                f"{label}.metrics records differ from the preserved evidence "
+                "(peak VRAM records differ or TTFT mismatch)"
             )
 
     observations, primary = (

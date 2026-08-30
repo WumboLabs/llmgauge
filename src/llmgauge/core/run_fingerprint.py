@@ -297,6 +297,13 @@ def _prompt_evidence(
                 request_path,
                 label=f"{label}.request_evidence_path",
             )
+        stream_path = prompt_result.get("stream_evidence_path")
+        if stream_path:
+            artifact_hashes["stream_evidence"] = _artifact_sha256(
+                result_dir,
+                stream_path,
+                label=f"{label}.stream_evidence_path",
+            )
 
     return {
         "prompt_id": prompt_id,
@@ -316,6 +323,11 @@ def _prompt_evidence(
             ),
             "request_evidence_path": (
                 prompt_result.get("request_evidence_path")
+                if include_native_execution_evidence
+                else None
+            ),
+            "stream_evidence_path": (
+                prompt_result.get("stream_evidence_path")
                 if include_native_execution_evidence
                 else None
             ),

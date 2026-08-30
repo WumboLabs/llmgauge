@@ -299,6 +299,11 @@ Run a full suite:
       --runs-root results \
       --run-name practical-full
 
+Use `--vllm-streaming-evidence` with `backend=vllm` to opt into the streaming
+SSE evidence mode for vLLM: the request uses the qualified token-ID SSE transport
+(`return_token_ids=true`) to measure runtime-neutral TTFT while preserving the
+complete-response wall time and the non-streaming default.
+
 Run the same bounded native conversation by removing `--dry-run` and providing
 `--out` or `--auto-name`. Both llama.cpp and externally managed local vLLM use
 the same sequential orchestration; vLLM lifecycle remains operator-owned.

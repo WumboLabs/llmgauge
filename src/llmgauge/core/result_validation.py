@@ -1345,6 +1345,43 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
                     f"{prompt_id}.finish_reason must be a string when present"
                 )
 
+            # Optional per-prompt streaming evidence (additive; absent for
+            # non-streaming requests).
+            stream_path_value = prompt_result.get("stream_evidence_path")
+            if stream_path_value is not None:
+                if not isinstance(stream_path_value, str) or not stream_path_value:
+                    errors.append(
+                        f"{prompt_id}.stream_evidence_path must be a "
+                        "non-empty string"
+                    )
+                else:
+                    try:
+                        stream_path = resolve_contained_result_artifact(
+                            result_dir,
+                            stream_path_value,
+                            label=f"{prompt_id}.stream_evidence_path",
+                            require_file=True,
+                        )
+                    except FingerprintUnavailable as exc:
+                        errors.append(str(exc))
+                    else:
+                        try:
+                            stream_data = json.loads(
+                                stream_path.read_text(encoding="utf-8")
+                            )
+                        except json.JSONDecodeError:
+                            errors.append(
+                                f"{prompt_id}.stream_evidence_path is not valid JSON"
+                            )
+                        else:
+                            if stream_data.get("schema_version") != (
+                                "llmgauge.vllm_stream_evidence.v0"
+                            ):
+                                errors.append(
+                                    f"{prompt_id} stream evidence schema_version "
+                                    "must be llmgauge.vllm_stream_evidence.v0"
+                                )
+
     errors.extend(_validate_optional_coding_core(result_dir, data))
     errors.extend(_validate_optional_generic_core(result_dir, data))
     errors.extend(validate_agent_harness_result(result_dir, data))

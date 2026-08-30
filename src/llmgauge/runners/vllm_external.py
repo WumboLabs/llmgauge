@@ -6,6 +6,7 @@ Does not start, stop, supervise, or recover the server. Operator owns lifecycle.
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,17 +17,34 @@ from llmgauge.runners.vllm_http import (
     VllmTransportError,
     decode_json_object,
     http_request,
+    http_request_stream,
     sanitize_endpoint_identity,
     validate_vllm_endpoint,
 )
 
 VLLM_RUNTIME_EVIDENCE_SCHEMA = "llmgauge.vllm_runtime_evidence.v0"
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
+VLLM_STREAM_EVIDENCE_SCHEMA = "llmgauge.vllm_stream_evidence.v0"
 VLLM_RUNTIME_EVIDENCE_FILENAME = "vllm-runtime-evidence.json"
 
 DEFAULT_CONNECT_TIMEOUT = 5.0
 DEFAULT_REQUEST_TIMEOUT = 120.0
 DEFAULT_MAX_RESPONSE_BYTES = 2_000_000
+
+# vLLM SSE streaming evidence bounds (all untrusted-server safe).
+STREAM_TRANSPORT_MODE = "openai_compatible_sse"
+DEFAULT_MAX_STREAM_EVENT_BYTES = 1_000_000
+DEFAULT_MAX_STREAM_EVENTS = 2_000_000
+MAX_TOKEN_IDS_PER_EVENT = 4096
+MAX_TOKEN_IDS_TOTAL = 1_000_000
+# `return_token_ids` is a vLLM extension absent upstream in v0.14.0 and
+# present since v0.15.1 (accepted primary-source evidence); the qualified
+# installed target is vLLM 0.27.1. V1 admits only >= 0.15.1.
+MIN_STREAMING_VLLM_VERSION = (0, 15, 1)
+VLLM_TTFT_METRIC_ID = "llmgauge.metric.v1.time_to_first_token"
+VLLM_TTFT_BOUNDARY = "request_transmit_to_first_generated_token"
+FIRST_TOKEN_CHANNELS = frozenset({"reasoning", "content", "other_generated"})
+OBSERVATION_METHOD = "llmgauge.vllm_stream_evidence.v0"
 
 # Bounded untrusted server metadata (version endpoint + OpenAI-compatible fields).
 MAX_VLLM_VERSION_LENGTH = 64
@@ -112,6 +130,27 @@ def ordered_unique_fingerprints(values: list[str]) -> list[str]:
     return ordered
 
 
+def streaming_ttft_version_admitted(vllm_version: str) -> tuple[bool, str]:
+    """Admit the `return_token_ids` streaming observation method for a version.
+
+    V1 is deliberately conservative: the extension is absent upstream in
+    vLLM 0.14.0 and present since 0.15.1 (accepted primary-source evidence),
+    and the qualified installed target is 0.27.1. Unknown or unparseable
+    versions are not admitted; the caller must fail cleanly rather than
+    guess token-ID streaming semantics.
+    """
+    version = parse_bounded_server_string(vllm_version, max_length=MAX_VLLM_VERSION_LENGTH)
+    if version is None:
+        return False, "observed_version_unavailable"
+    match = re.match(r"^(\d+)\.(\d+)\.(\d+)", version)
+    if match is None:
+        return False, "observed_version_unparseable"
+    observed = tuple(int(part) for part in match.groups())
+    if observed < MIN_STREAMING_VLLM_VERSION:
+        return False, "observed_version_below_0.15.1"
+    return True, "observed_version_ge_0.15.1"
+
+
 @dataclass(frozen=True)
 class VllmExternalConfig:
     endpoint_url: str
@@ -122,6 +161,8 @@ class VllmExternalConfig:
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
     max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES
+    # Explicit opt-in streaming evidence mode (default remains non-streaming).
+    streaming_evidence: bool = False
     # Requested context is recorded for evidence only; not sent as a vLLM field
     # unless a later contract admits it.
     ctx_size: int | None = None
@@ -147,6 +188,14 @@ class VllmRequestResult:
     incomplete_usage: bool = False
     system_fingerprint: str | None = None
     system_fingerprint_status: str | None = None
+    # Streaming evidence mode fields (additive; absent for non-streaming).
+    streaming: bool = False
+    transport_mode: str | None = None
+    time_to_first_token_seconds: float | None = None
+    first_token_channel: str | None = None
+    first_token_event_index: int | None = None
+    stream_evidence: dict[str, Any] | None = None
+    stream_terminal_state: str | None = None
 
 
 @dataclass
@@ -178,7 +227,24 @@ def _error_result(
     wall_time: float | None = None,
     observed_model: str | None = None,
     request_transmitted: bool = True,
+    streaming: bool = False,
+    transport_mode: str | None = None,
+    vllm_version: str | None = None,
 ) -> VllmRequestResult:
+    evidence: dict[str, Any] = {
+        "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
+        "lifecycle_ownership": "external_operator",
+        "streaming": streaming,
+        "failure_class": failure_class,
+        "failure_detail": detail,
+        "http_status": http_status,
+        "endpoint_identity": endpoint_identity or {},
+        "request_wall_time_seconds": wall_time,
+        "request_transmitted": request_transmitted,
+    }
+    if streaming:
+        evidence["transport_mode"] = transport_mode or STREAM_TRANSPORT_MODE
+        evidence["stream_terminal_state"] = "request_error"
     return VllmRequestResult(
         success=False,
         failure_class=failure_class,
@@ -187,17 +253,9 @@ def _error_result(
         request_wall_time_seconds=wall_time,
         endpoint_identity=endpoint_identity or {},
         observed_model=observed_model,
-        request_evidence={
-            "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
-            "lifecycle_ownership": "external_operator",
-            "streaming": False,
-            "failure_class": failure_class,
-            "failure_detail": detail,
-            "http_status": http_status,
-            "endpoint_identity": endpoint_identity or {},
-            "request_wall_time_seconds": wall_time,
-            "request_transmitted": request_transmitted,
-        },
+        request_evidence=evidence,
+        streaming=streaming,
+        transport_mode=transport_mode if streaming else None,
     )
 
 
@@ -717,6 +775,542 @@ def run_chat_completion(
     )
 
 
+def _stream_result(
+    *,
+    config: VllmExternalConfig,
+    identity: dict[str, Any],
+    transmit_start: float,
+    observed: "_StreamObservation",
+    http_status: int | None = None,
+    transport_error: VllmTransportError | None = None,
+) -> VllmRequestResult:
+    """Build a VllmRequestResult from a completed or failed stream observation."""
+    wall = time.monotonic() - transmit_start
+    generated_text = "".join(observed.content_parts)
+    e2e_tps: float | None = None
+    if (
+        observed.completion_tokens is not None
+        and wall > 0
+        and observed.completion_tokens >= 0
+    ):
+        e2e_tps = float(observed.completion_tokens) / wall
+    incomplete_usage = observed.usage_present and not observed.usage_complete
+    if not observed.usage_present:
+        incomplete_usage = True
+    success = (
+        observed.done_received
+        and observed.finish_reason is not None
+        and observed.server_error is None
+        and observed.malformed_detail is None
+        and transport_error is None
+    )
+    if transport_error is not None:
+        failure_class = transport_error.failure_class
+        failure_detail = transport_error.detail
+        status = transport_error.http_status
+    elif observed.malformed_detail is not None:
+        failure_class = "malformed_response"
+        failure_detail = observed.malformed_detail
+        status = http_status
+    elif observed.server_error is not None:
+        failure_class = "server_request_error"
+        failure_detail = (
+            observed.server_error.get("detail")
+            if isinstance(observed.server_error, dict)
+            else None
+        )
+        status = http_status
+    elif incomplete_usage:
+        failure_class = "incomplete_usage_metadata"
+        failure_detail = "usage_fields_incomplete"
+        status = http_status
+    else:
+        failure_class = None
+        failure_detail = None
+        status = http_status
+
+    evidence: dict[str, Any] = {
+        "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
+        "lifecycle_ownership": "external_operator",
+        "streaming": True,
+        "transport_mode": STREAM_TRANSPORT_MODE,
+        "observation_method": OBSERVATION_METHOD,
+        "return_token_ids": True,
+        "stream_options": {"include_usage": True},
+        "input_form": "chat_messages",
+        "system_text": None,
+        "user_text": None,
+        "requested_served_model": config.served_model,
+        "observed_served_model": observed.observed_model or config.served_model,
+        "endpoint_identity": identity,
+        "http_status": status,
+        "finish_reason": observed.finish_reason,
+        "backend_finish_reason": observed.finish_reason,
+        "prompt_tokens": observed.prompt_tokens,
+        "completion_tokens": observed.completion_tokens,
+        "usage_complete": observed.usage_complete,
+        "token_count_source": (
+            "backend_usage" if observed.usage_complete else "backend_usage_partial"
+        ),
+        "request_wall_time_seconds": wall,
+        "request_wall_time_boundary": "request_transmit_to_validated_response",
+        "request_transmitted": True,
+        "end_to_end_completion_tps": e2e_tps,
+        "proxy_bypass_policy": PROXY_BYPASS_POLICY,
+        "max_tokens_field": "max_tokens",
+        "incomplete_usage_metadata": incomplete_usage,
+        "system_fingerprint_status": observed.system_fingerprint_status,
+        "time_to_first_token_seconds": (
+            observed.first_token["elapsed_seconds"] if observed.first_token else None
+        ),
+        "first_token_channel": (
+            observed.first_token["channel"] if observed.first_token else None
+        ),
+        "first_token_event_index": (
+            observed.first_token["event_index"] if observed.first_token else None
+        ),
+        "stream_terminal_state": observed._terminal_state,
+    }
+    if observed.system_fingerprint is not None:
+        evidence["system_fingerprint"] = observed.system_fingerprint
+        evidence["system_fingerprint_claim"] = (
+            "opaque backend-provided metadata; not a stable server, build, "
+            "model, hardware, or reproducibility identity"
+        )
+
+    return VllmRequestResult(
+        success=success,
+        generated_text=generated_text,
+        finish_reason=observed.finish_reason,
+        backend_finish_reason=observed.finish_reason,
+        prompt_tokens=observed.prompt_tokens,
+        completion_tokens=observed.completion_tokens,
+        usage_complete=observed.usage_complete,
+        request_wall_time_seconds=wall,
+        end_to_end_completion_tps=e2e_tps,
+        failure_class=failure_class,
+        failure_detail=failure_detail,
+        http_status=status,
+        observed_model=observed.observed_model or config.served_model,
+        endpoint_identity=identity,
+        request_evidence=evidence,
+        incomplete_usage=incomplete_usage,
+        system_fingerprint=observed.system_fingerprint,
+        system_fingerprint_status=observed.system_fingerprint_status,
+        # Streaming-specific fields.
+        streaming=True,
+        transport_mode=STREAM_TRANSPORT_MODE,
+        time_to_first_token_seconds=(
+            observed.first_token["elapsed_seconds"] if observed.first_token else None
+        ),
+        first_token_channel=(
+            observed.first_token["channel"] if observed.first_token else None
+        ),
+        first_token_event_index=(
+            observed.first_token["event_index"] if observed.first_token else None
+        ),
+        stream_terminal_state=observed._terminal_state,
+    )
+
+
+@dataclass
+class _StreamObservation:
+    """Accumulated state during one streaming chat-completion observation."""
+
+    transmit_start: float
+    content_parts: list[str] = field(default_factory=list)
+    reasoning_parts: list[str] = field(default_factory=list)
+    first_token: dict[str, Any] | None = None
+    finish_reason: str | None = None
+    observed_model: str | None = None
+    usage_present: bool = False
+    usage_complete: bool = False
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    system_fingerprint: str | None = None
+    system_fingerprint_status: str = SYSTEM_FINGERPRINT_STATUS_ABSENT
+    done_received: bool = False
+    server_error: dict[str, Any] | None = None
+    malformed_detail: str | None = None
+    total_token_ids: int = 0
+    event_records: list[dict[str, Any]] = field(default_factory=list)
+    _terminal_state: str = "no_events"
+
+
+def run_chat_completion_stream(
+    config: VllmExternalConfig,
+    *,
+    prompt: str,
+    system_prompt: str | None = None,
+    vllm_version: str = "unknown",
+) -> VllmRequestResult:
+    """One streaming text chat-completions request with TTFT measurement.
+
+    Uses the qualified vLLM token-ID extension to establish the first
+    generated-token boundary. Preserves authoritative per-event stream
+    evidence for TTFT recomputation.
+    """
+    if not isinstance(prompt, str) or not prompt:
+        return _error_result(
+            failure_class="unsupported_capability",
+            detail="empty_prompt",
+            request_transmitted=False,
+            streaming=True,
+            transport_mode=STREAM_TRANSPORT_MODE,
+        )
+
+    started = time.monotonic()
+    try:
+        endpoint = validate_vllm_endpoint(config.endpoint_url)
+    except VllmTransportError as exc:
+        return _map_transport_error(
+            exc,
+            wall_time=time.monotonic() - started,
+            request_transmitted=False,
+        )
+
+    identity = sanitize_endpoint_identity(endpoint)
+    base_path = endpoint.path.rstrip("/")
+    if base_path in {"", "/"}:
+        chat_path = "/v1/chat/completions"
+    elif base_path.endswith("/v1"):
+        chat_path = f"{base_path}/chat/completions"
+    else:
+        chat_path = f"{base_path}/v1/chat/completions"
+
+    transmit_start = time.monotonic()
+
+    messages: list[dict[str, str]] = []
+    if isinstance(system_prompt, str) and system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    request_body = {
+        "model": config.served_model,
+        "messages": messages,
+        "max_tokens": int(config.max_tokens),
+        "temperature": float(config.temperature),
+        "top_p": float(config.top_p),
+        "stream": True,
+        "return_token_ids": True,
+        "stream_options": {"include_usage": True},
+    }
+    body_bytes = json.dumps(
+        request_body, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+    obs = _StreamObservation(transmit_start=transmit_start)
+    transport_error: VllmTransportError | None = None
+    http_status: int | None = None
+
+    try:
+        for event in http_request_stream(
+            endpoint,
+            method="POST",
+            path=chat_path,
+            body=body_bytes,
+            connect_timeout=config.connect_timeout,
+            request_timeout=config.request_timeout,
+            max_response_bytes=config.max_response_bytes,
+            max_event_bytes=DEFAULT_MAX_STREAM_EVENT_BYTES,
+            max_event_count=DEFAULT_MAX_STREAM_EVENTS,
+        ):
+            elapsed = event.monotonic_seconds - transmit_start
+            rec: dict[str, Any] = {
+                "index": event.index,
+                "elapsed_seconds": elapsed,
+                "kind": "done" if event.is_done else "data",
+                "data": event.data,
+                "token_ids_count": 0,
+                "ttft_trigger": False,
+            }
+            obs.event_records.append(rec)
+
+            if event.is_done:
+                obs.done_received = True
+                # Terminal state set by a prior error/malformed must not be
+                # overwritten by the trailing [DONE] marker; the server_error
+                # or malformed classification is the authoritative terminal
+                # state.  A clean [DONE] with no prior error is done_received.
+                if obs._terminal_state == "no_events":
+                    obs._terminal_state = "done_received"
+                break
+
+            if not event.data.strip():
+                continue
+
+            try:
+                payload = json.loads(event.data)
+            except json.JSONDecodeError:
+                obs.malformed_detail = "stream_json_decode_error"
+                obs._terminal_state = "malformed"
+                break
+            if not isinstance(payload, dict):
+                obs.malformed_detail = "stream_json_not_object"
+                obs._terminal_state = "malformed"
+                break
+
+            if "error" in payload:
+                err = payload["error"]
+                if isinstance(err, dict):
+                    obs.server_error = {
+                        "class": parse_bounded_server_string(
+                            err.get("type") or err.get("code") or "unknown",
+                            max_length=64,
+                        ),
+                        "detail": parse_bounded_server_string(
+                            str(err.get("message", "")),
+                            max_length=256,
+                        ),
+                    }
+                else:
+                    obs.server_error = {"class": "unknown", "detail": None}
+                obs._terminal_state = "server_error"
+                continue
+
+            choices = payload.get("choices")
+            if not isinstance(choices, list):
+                obs.malformed_detail = "choices_not_list"
+                obs._terminal_state = "malformed"
+                break
+            if len(choices) == 0:
+                # Usage-only chunk when stream_options.include_usage is set.
+                usage = payload.get("usage")
+                if isinstance(usage, dict):
+                    pt = usage.get("prompt_tokens")
+                    ct = usage.get("completion_tokens")
+                    pt_ok = isinstance(pt, int) and not isinstance(pt, bool)
+                    ct_ok = isinstance(ct, int) and not isinstance(ct, bool)
+                    if pt_ok:
+                        obs.prompt_tokens = int(pt)
+                    if ct_ok:
+                        obs.completion_tokens = int(ct)
+                    obs.usage_complete = pt_ok and ct_ok
+                    obs.usage_present = True
+                fp, fstat = extract_system_fingerprint(payload)
+                if fp is not None:
+                    obs.system_fingerprint = fp
+                    obs.system_fingerprint_status = fstat
+                continue
+
+            choice = choices[0]
+            if not isinstance(choice, dict):
+                obs.malformed_detail = "choice_not_object"
+                obs._terminal_state = "malformed"
+                break
+
+            delta = choice.get("delta") or {}
+            if not isinstance(delta, dict):
+                obs.malformed_detail = "delta_not_object"
+                obs._terminal_state = "malformed"
+                break
+
+            # Extract token IDs with validation.
+            token_ids_raw = choice.get("token_ids")
+            token_ids: list[int] = []
+            if token_ids_raw is not None:
+                if not isinstance(token_ids_raw, list):
+                    obs.malformed_detail = "malformed_token_ids"
+                    obs._terminal_state = "malformed"
+                    break
+                token_ids = []
+                malformed = False
+                for tid in token_ids_raw:
+                    if isinstance(tid, int) and not isinstance(tid, bool):
+                        token_ids.append(tid)
+                    else:
+                        malformed = True
+                        break
+                if malformed:
+                    obs.malformed_detail = "malformed_token_ids"
+                    obs._terminal_state = "malformed"
+                    break
+                if len(token_ids) > MAX_TOKEN_IDS_PER_EVENT:
+                    obs.malformed_detail = "token_ids_per_event_exceeds_limit"
+                    obs._terminal_state = "malformed"
+                    break
+                obs.total_token_ids += len(token_ids)
+                if obs.total_token_ids > MAX_TOKEN_IDS_TOTAL:
+                    obs.malformed_detail = "token_ids_total_exceeds_limit"
+                    obs._terminal_state = "malformed"
+                    break
+                rec["token_ids_count"] = len(token_ids)
+
+            # Content and reasoning from delta.
+            content = delta.get("content")
+            if isinstance(content, str):
+                obs.content_parts.append(content)
+            elif content is not None:
+                obs.malformed_detail = "delta_content_not_string"
+                obs._terminal_state = "malformed"
+                break
+            reasoning = delta.get("reasoning")
+            if isinstance(reasoning, str):
+                obs.reasoning_parts.append(reasoning)
+            elif reasoning is not None:
+                obs.malformed_detail = "delta_reasoning_not_string"
+                obs._terminal_state = "malformed"
+                break
+
+            # TTFT: first token-bearing event wins; later chunks never replace it.
+            if token_ids and obs.first_token is None:
+                if reasoning:
+                    channel = "reasoning"
+                elif content:
+                    channel = "content"
+                else:
+                    channel = "other_generated"
+                obs.first_token = {
+                    "event_index": event.index,
+                    "elapsed_seconds": elapsed,
+                    "channel": channel,
+                    "token_ids_in_event": len(token_ids),
+                }
+                rec["ttft_trigger"] = True
+
+            # Finish reason.
+            fr = choice.get("finish_reason")
+            if isinstance(fr, str):
+                obs.finish_reason = fr
+
+            # Model identity: contradictory identities fail closed.
+            model = payload.get("model")
+            if isinstance(model, str):
+                if obs.observed_model is None:
+                    obs.observed_model = model
+                elif obs.observed_model != model:
+                    obs.malformed_detail = "served_model_contradiction"
+                    obs._terminal_state = "malformed"
+                    break
+
+            # System fingerprint.
+            fp, fstat = extract_system_fingerprint(payload)
+            if fp is not None:
+                obs.system_fingerprint = fp
+                obs.system_fingerprint_status = fstat
+    except VllmTransportError as exc:
+        transport_error = exc
+        http_status = exc.http_status
+
+    # Terminal-state classification (failure table in the architecture doc).
+    if transport_error is not None:
+        if obs._terminal_state == "no_events" and obs.event_records:
+            # Token (or metadata) then transport failure.
+            if transport_error.failure_class == "request_timeout":
+                obs._terminal_state = "timeout"
+            else:
+                obs._terminal_state = "request_error"
+        elif not obs.event_records:
+            obs._terminal_state = "request_error"
+    elif obs.malformed_detail is not None:
+        pass  # already classified
+    elif obs.server_error is not None:
+        pass  # already classified
+    elif obs.done_received and obs.finish_reason is None:
+        obs.malformed_detail = "finish_reason_missing"
+        obs._terminal_state = "malformed"
+    elif not obs.done_received:
+        obs._terminal_state = "premature_eof"
+
+    # Build the contained stream evidence document whenever any stream event
+    # was received (or an HTTP status was observed). Connect failures before
+    # any event keep a minimal request-evidence failure record instead.
+    stream_ev: dict[str, Any] | None = None
+    if obs.event_records:
+        vq_admitted, vq_reason = streaming_ttft_version_admitted(vllm_version)
+        terminal_rec = {
+            "state": obs._terminal_state,
+            "finish_reason": obs.finish_reason,
+            "usage_present": obs.usage_present,
+            "done_received": obs.done_received,
+            "server_error": obs.server_error is not None,
+            "malformed_event_index": None,
+        }
+        stream_ev = {
+            "schema_version": VLLM_STREAM_EVIDENCE_SCHEMA,
+            "transport_mode": STREAM_TRANSPORT_MODE,
+            "streaming": True,
+            "observation_method": OBSERVATION_METHOD,
+            "vllm_version": vllm_version,
+            "vllm_version_source": (
+                "server_/version" if vllm_version != "unknown" else "unavailable"
+            ),
+            "version_qualification": {
+                "admitted": vq_admitted,
+                "rule": vq_reason,
+                "observed_vllm_version": vllm_version,
+            },
+            "return_token_ids": True,
+            "stream_options": {"include_usage": True},
+            "request_start_relationship": "elapsed_seconds_since_transmit_start",
+            "events": obs.event_records,
+            "first_token": (
+                {
+                    "event_index": obs.first_token["event_index"],
+                    "elapsed_seconds": obs.first_token["elapsed_seconds"],
+                    "channel": obs.first_token["channel"],
+                    "token_ids_in_event": obs.first_token["token_ids_in_event"],
+                }
+                if obs.first_token is not None
+                else None
+            ),
+            "terminal": terminal_rec,
+            "failure": {
+                "class": (
+                    transport_error.failure_class
+                    if transport_error is not None
+                    else (
+                        obs.malformed_detail
+                        or (
+                            obs.server_error.get("class")
+                            if isinstance(obs.server_error, dict)
+                            else None
+                        )
+                    )
+                ),
+                "detail": (
+                    transport_error.detail
+                    if transport_error is not None
+                    else (
+                        obs.malformed_detail
+                        or (
+                            obs.server_error.get("detail")
+                            if isinstance(obs.server_error, dict)
+                            else None
+                        )
+                    )
+                ),
+            },
+        }
+        if transport_error is not None:
+            stream_ev["failure"]["http_status"] = transport_error.http_status
+
+    if transport_error is not None and not obs.event_records:
+        return _error_result(
+            failure_class=transport_error.failure_class,
+            detail=transport_error.detail,
+            endpoint_identity=identity,
+            http_status=transport_error.http_status,
+            wall_time=time.monotonic() - transmit_start,
+            request_transmitted=True,
+            streaming=True,
+            transport_mode=STREAM_TRANSPORT_MODE,
+            vllm_version=vllm_version,
+        )
+
+    result = _stream_result(
+        config=config,
+        identity=identity,
+        transmit_start=transmit_start,
+        observed=obs,
+        http_status=http_status,
+        transport_error=transport_error,
+    )
+    if stream_ev is not None:
+        result.stream_evidence = stream_ev
+    return result
+
+
 def build_vllm_metrics(result: VllmRequestResult) -> dict[str, Any]:
     """Additive metrics map; does not claim llama.cpp decode-equivalent throughput."""
     return {
@@ -738,6 +1332,9 @@ def build_vllm_metrics(result: VllmRequestResult) -> dict[str, Any]:
         "finish_reason": result.finish_reason,
         "backend_finish_reason": result.backend_finish_reason,
         "usage_complete": result.usage_complete,
+        "streaming": result.streaming,
+        "time_to_first_token_seconds": result.time_to_first_token_seconds,
+        "first_token_channel": result.first_token_channel,
     }
 
 
@@ -747,6 +1344,7 @@ def build_runtime_evidence_document(
     readiness: VllmReadinessResult,
     endpoint_identity: dict[str, Any],
     observed_system_fingerprints: list[str] | None = None,
+    streaming_evidence: bool = False,
 ) -> dict[str, Any]:
     """Build run-level vLLM evidence. server_state is API-ready observation only."""
     vllm_version = readiness.vllm_version if readiness.success else "unknown"
@@ -783,7 +1381,7 @@ def build_runtime_evidence_document(
             if server_state == SERVER_STATE_READY
             else "unavailable"
         ),
-        "streaming": False,
+        "streaming": streaming_evidence,
         "authentication": "none",
         "observed_system_fingerprints": fingerprints,
         "system_fingerprint_claim": (
@@ -791,6 +1389,10 @@ def build_runtime_evidence_document(
             "prove identical runtime state; inequality must not be overinterpreted"
         ),
     }
+    if streaming_evidence:
+        doc["transport_mode"] = STREAM_TRANSPORT_MODE
+        doc["vllm_streaming_evidence"] = True
+        doc["token_id_extension"] = {"field": "return_token_ids", "value": True}
     return doc
 
 

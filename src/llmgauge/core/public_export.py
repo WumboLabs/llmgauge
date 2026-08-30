@@ -239,6 +239,18 @@ def _sanitize_json_artifact(
             if key in sanitized:
                 sanitized.pop(key, None)
                 categories.add("vllm_sensitive_request_field")
+        # TTFT observation fields stay private; transport mode/identity remain
+        # public-safe disclosure.
+        for key in (
+            "stream_evidence_path",
+            "time_to_first_token_seconds",
+            "first_token_channel",
+            "first_token_event_index",
+            "stream_terminal_state",
+        ):
+            if key in sanitized:
+                sanitized.pop(key, None)
+                categories.add("vllm_stream_evidence_omitted")
 
     write_json(output_path, sanitized)
 
@@ -289,6 +301,40 @@ def _sanitize_result_json(path: Path, output_path: Path, categories: set[str]) -
 
     if isinstance(sanitized, dict):
         sanitized.pop(RUN_FINGERPRINT_FIELD, None)
+        metrics_obj = sanitized.get("runtime_neutral_metrics")
+        if isinstance(metrics_obj, dict):
+            measurements = metrics_obj.get("measurements")
+            if isinstance(measurements, list):
+                for measurement in measurements:
+                    if not isinstance(measurement, dict):
+                        continue
+                    records = measurement.get("metrics")
+                    if not isinstance(records, list):
+                        continue
+                    measurement["metrics"] = [
+                        record
+                        for record in records
+                        if not (
+                            isinstance(record, dict)
+                            and record.get("metric_id")
+                            == "llmgauge.metric.v1.time_to_first_token"
+                        )
+                    ]
+                    categories.add("area4_ttft_omitted")
+        prompt_results = sanitized.get("results")
+        if isinstance(prompt_results, list):
+            for prompt_result in prompt_results:
+                if not isinstance(prompt_result, dict):
+                    continue
+                for key in (
+                    "stream_evidence_path",
+                    "time_to_first_token_seconds",
+                    "first_token_channel",
+                    "first_token_event_index",
+                    "stream_terminal_state",
+                ):
+                    if prompt_result.pop(key, None) is not None:
+                        categories.add("vllm_stream_evidence_omitted")
         runtime = sanitized.get("runtime")
         if isinstance(runtime, dict):
             runtime["command"] = _sanitize_command_argv(
@@ -327,6 +373,13 @@ def _is_known_artifact(relative_path: Path) -> bool:
     }:
         return False
 
+    # Private raw stream evidence (token IDs, content deltas, reasoning text)
+    # is never projected into public export.
+    if relative_path.parts[0] == "request" and relative_path.name.endswith(
+        ".stream.json"
+    ):
+        return False
+
     return relative_path.suffix.lower() in {
         ".md",
         ".txt",
@@ -354,6 +407,17 @@ def _candidate_files(source_dir: Path) -> tuple[list[Path], list[str]]:
     return selected, omitted
 
 
+def _strip_ttft_report_lines(text: str) -> str:
+    """Remove TTFT presentation lines from a private report for public export."""
+    keep: list[str] = []
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("- TTFT") or stripped.startswith("- First token channel:"):
+            continue
+        keep.append(line)
+    return "".join(keep)
+
+
 def _copy_or_transform(
     source_dir: Path,
     output_dir: Path,
@@ -371,6 +435,11 @@ def _copy_or_transform(
         return "transformed"
 
     text = source_path.read_text(encoding="utf-8", errors="replace")
+    if relative_path.name == "report.md":
+        stripped = _strip_ttft_report_lines(text)
+        if stripped != text:
+            categories.add("area4_ttft_omitted")
+        text = stripped
     sanitized = _sanitize_text(text, categories)
     write_text(output_path, sanitized)
     return "transformed" if sanitized != text else "copied"

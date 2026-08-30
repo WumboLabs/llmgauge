@@ -288,7 +288,7 @@ notes or ignored local config—not in public methodology claims.
 - No context ladder or fit ladder
 - No batching or continuous-batch throughput curves
 - No remote/cloud endpoints or authentication
-- No streaming / TTFT claims
+- No streaming / TTFT claims (V1 now implemented under opt-in `--vllm-streaming-evidence`; TTFT comparison is disclosed per run, never declared equivalent across runs)
 - No long-context preload stress (`long-context/synthetic-agent-preload` is out
   of the first subset)
 - No Gemma NVFP4 CPU-offload work
@@ -315,7 +315,7 @@ It does **not** require that one runtime “wins.”
 - Directory-model provenance fingerprints for vLLM checkpoints
 - Broader suite expansion and multi-prompt statistical replication
 - Same-tokenizer recount studies (explicitly labeled secondary analysis)
-- Streaming / TTFT methodology
+- Streaming / TTFT methodology (V1 implementation is complete; see [VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md) and [VLLM_STREAMING_TTFT_ARCHITECTURE.md](VLLM_STREAMING_TTFT_ARCHITECTURE.md))
 - Concurrency and continuous-batch methodology
 - Gemma NVFP4 CPU-offload audit as its own investigation
 

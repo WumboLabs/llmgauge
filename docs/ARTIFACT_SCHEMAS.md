@@ -537,7 +537,34 @@ Optional fields are additive: older artifacts without them remain valid.
   ownership or cold/warm lifecycle history.
 - `observed_system_fingerprints`: ordered unique opaque fingerprints from the run.
 
-## Schema: llmgauge.vllm_request_evidence.v0
+## Schema: llmgauge.vllm_request_evidence.v0## Schema: llmgauge.vllm_stream_evidence.v0
+
+Private per-request stream evidence artifact for the opt-in vLLM streaming
+evidence mode (`--vllm-streaming-evidence`). Preserved as
+`request/<prompt>.stream.json`; omitted from public export. Makes TTFT
+recomputable by the Area 4 validator.
+
+Required top-level fields:
+
+- `schema_version`: `"llmgauge.vllm_stream_evidence.v0"`
+- `transport_mode`: `"openai_compatible_sse"`
+- `streaming`: `true`
+- `observation_method`: `"llmgauge.vllm_stream_evidence.v0"`
+- `vllm_version`: observed server version string
+- `version_qualification`: `{"admitted": bool, "rule": str, "observed_vllm_version": str}`
+- `return_token_ids`: `true`
+- `stream_options`: `{"include_usage": true}`
+- `request_start_relationship`: `"elapsed_seconds_since_transmit_start"`
+- `events`: ordered list of per-event records with `index`, `elapsed_seconds`,
+  `kind` (`"data"` | `"done"`), `data` (exact SSE event payload), `token_ids_count`,
+  `ttft_trigger`
+- `first_token`: nullable object with `event_index`, `elapsed_seconds`,
+  `channel` (`"reasoning"` | `"content"` | `"other_generated"`), `token_ids_in_event`
+- `terminal`: object with `state`, `finish_reason`, `usage_present`,
+  `done_received`, `server_error`, `malformed_event_index`
+- `failure`: object with `class` and `detail` (nullable)
+
+
 
 Primary files:
 
@@ -922,11 +949,16 @@ llama.cpp process-window boundary). Sampler failure never affects the request
 outcome; the metric becomes `unavailable` rather than zero when no valid
 samples exist. Historical vLLM results without VRAM evidence remain valid.
 
-No TTFT, prefill, decode, load, or placement neutral records are emitted for
-vLLM: the non-streaming transport exposes no first-token boundary, the
-operator owns server lifecycle and model admission, and the vLLM API exposes
-no execution placement. `workload.cache_state` remains `unknown`; API
-readiness does not imply warm or cold.
+Under the non-streaming default, no TTFT, prefill, decode, load, or placement
+neutral records are emitted for vLLM. Under the explicit opt-in streaming
+evidence mode (`--vllm-streaming-evidence`), `llmgauge.metric.v1.time_to_first_token`
+is emitted with the `request_transmit_to_first_generated_token` boundary,
+provenance `llmgauge_observed`, and contained evidence refs pointing to the
+preserved private stream evidence artifact (`llmgauge.vllm_stream_evidence.v0`,
+`request/<prompt>.stream.json`). The non-streaming default is unchanged, and
+historical results remain valid. Prefill, decode, load, and placement remain
+unavailable for vLLM regardless of mode. `workload.cache_state` remains
+`unknown`; API readiness does not imply warm or cold.
 
 The derived failure taxonomy maps vLLM failure classes (`endpoint_unavailable`,
 `request_timeout`, `malformed_response`, `served_model_mismatch`, and others)
