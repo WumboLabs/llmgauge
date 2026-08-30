@@ -186,10 +186,10 @@ preserved in the changelog. Durable claim boundaries live in
   llama.cpp process-window boundary.
 - Streaming TTFT V1 is implemented for backend=vllm under
   `--vllm-streaming-evidence` with the vLLM-specific `return_token_ids=true`
-  extension; it is version-qualified (admitted for observed vLLM >= 0.15.1 per
-  accepted primary-source evidence; qualified target 0.27.1) and never
-  fallbacks to a second non-streaming request. Reasoning tokens count as
-  generated-token TTFT events when exposed by the backend; canonical generated
+  extension; it is version-qualified (admitted for observed vLLM 0.27.1 only;
+  V1 admits exactly the qualified version, not a range) and never fallbacks to
+  a second non-streaming request. Reasoning tokens count as generated-token
+  TTFT events when exposed by the backend; canonical generated
   answer text remains final `content` only. Prefill/decode throughput,
   model-load time, and steady-state VRAM remain deferred; execution placement
   is not exposed by the vLLM API; cache state remains unknown (API readiness

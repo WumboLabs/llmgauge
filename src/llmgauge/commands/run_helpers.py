@@ -2363,7 +2363,11 @@ def execute_vllm_run(
             skip_failure_class = "unsupported_capability"
             skip_failure_detail = f"streaming_ttft_unsupported:{streaming_unsupported_reason}"
             skip_reason = "streaming_ttft_version_unsupported"
-            skip_log_text = f"Streaming TTFT unsupported: {streaming_unsupported_reason}"
+            skip_log_text = (
+                "vLLM streaming TTFT evidence is qualified for vLLM 0.27.1; "
+                f"observed version {readiness.vllm_version} is not yet "
+                "qualified by LLMGauge"
+            )
         else:
             skip_failure_class = readiness.failure_class or "readiness_failure"
             skip_failure_detail = readiness.failure_detail or "readiness_or_model_check_failed"

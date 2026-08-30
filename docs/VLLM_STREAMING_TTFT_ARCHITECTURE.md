@@ -96,8 +96,11 @@ All source findings are from the operator's installed vLLM environment:
 Version lineage: `return_token_ids` was verified absent in upstream v0.14.0 and
 present in v0.15.1 (raw GitHub protocol source), and is present in installed
 0.27.1. The operator's `vllm-admission-evidence/requirements.freeze.txt` pins
-`vllm==0.27.1`. Do not claim all future or older vLLM versions behave
-identically; the implementation must version-qualify the observation method.
+`vllm==0.27.1`. Field availability observed since 0.15.1 is not protocol
+qualification for every `>= 0.15.1` runtime: the V1 implementation admits the
+exact qualified vLLM 0.27.1 only, because detailed SSE token/event semantics
+were inspected end-to-end against that runtime. Future versions require a
+separately reviewed qualification before admission.
 
 ### `/v1/chat/completions` with `stream=true`
 
@@ -499,11 +502,14 @@ milestone):
 - **Selection surface**: `--vllm-streaming-evidence` (CLI, config
   `runtime.vllm_streaming_evidence`, profile `vllm_streaming_evidence`);
   default remains non-streaming.
-- **Version qualification**: observed vLLM >= 0.15.1 is admitted
-  (`return_token_ids` present since 0.15.1 per accepted primary-source
-  evidence; qualified target 0.27.1). Unknown/unqualified versions fail
+- **Version qualification**: V1 admits exactly the qualified vLLM 0.27.1
+  runtime, because the detailed SSE token/event semantics were inspected
+  end-to-end only against that version. `return_token_ids` field availability
+  since 0.15.1 (accepted primary-source evidence) is historical evidence, not
+  protocol qualification: older, newer, suffixed, and unknown versions fail
   cleanly with one unsupported-capability result; no automatic second
-  non-streaming request.
+  non-streaming request. Future versions require a separately reviewed
+  qualification before admission.
 - **Stream evidence**: `request/<prompt>.stream.json`,
   `llmgauge.vllm_stream_evidence.v0`, private, with ordered per-event elapsed
   seconds, token counts, TTFT trigger marker, first-token channel, version

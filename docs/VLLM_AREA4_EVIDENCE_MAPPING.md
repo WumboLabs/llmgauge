@@ -38,7 +38,7 @@ Two evidence scopes stay separate and are never merged:
 | Metric | Current source | Boundary match? | Provenance | Admission | Why |
 |---|---|---|---|---|---|
 | Request wall time | `request_wall_time_seconds` in `request/*.json` | Yes (after timer correction) | `llmgauge_observed` | **ADMITTED** | Monotonic timer spans serialization through receipt and structural validation of the complete response; failure paths preserve honest elapsed intervals. |
-| TTFT | `request/*.stream.json`; `time_to_first_token_seconds` in `request/*.json` | Yes (streaming evidence mode) | `llmgauge_observed` | **ADMITTED** (opt-in) | Streaming evidence mode uses the qualified vLLM `return_token_ids=true` SSE transport; TTFT = request start → first generated token ID at the LLMGauge transport boundary. Requires observed vLLM >= 0.15.1; unsupported versions fail cleanly. Non-streaming requests have no TTFT. |
+| TTFT | `request/*.stream.json`; `time_to_first_token_seconds` in `request/*.json` | Yes (streaming evidence mode) | `llmgauge_observed` | **ADMITTED** (opt-in) | Streaming evidence mode uses the qualified vLLM `return_token_ids=true` SSE transport; TTFT = request start → first generated token ID at the LLMGauge transport boundary. Requires observed vLLM exactly 0.27.1 (V1 qualification); all other versions fail cleanly. Non-streaming requests have no TTFT. |
 | Model load time | None | No | — | **UNAVAILABLE** | Operator owns server lifecycle and model admission; request evidence cannot infer load duration. |
 | Prefill throughput | None | No | — | **UNAVAILABLE** | Backend `prompt_tokens` exist but no prefill-phase duration is observed; `prompt_tokens / wall_time` is not prefill throughput. |
 | Decode generation throughput | `end_to_end_completion_tps` | No | `calculated` (native) | **NATIVE ONLY** | End-to-end completion TPS is not decode-only throughput and is not mapped. |
@@ -120,9 +120,9 @@ transport (`stream=true`, `return_token_ids=true`,
 - no token stream, malformed token IDs, or failure before the first token ⇒
   TTFT unavailable; a proven token followed by failure/timeout may retain
   TTFT with a non-completed completion state;
-- version-qualified: observed vLLM >= 0.15.1; no TTFT is guessed for
-  unknown or unsupported implementations, and there is no automatic fallback
-  to a second non-streaming request.
+- version-qualified: observed vLLM exactly 0.27.1 (V1 qualification); no TTFT
+  is guessed for older, newer, or unknown implementations, and there is no
+  automatic fallback to a second non-streaming request.
 
 ## VRAM
 

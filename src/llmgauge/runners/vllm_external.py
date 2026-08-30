@@ -38,9 +38,11 @@ DEFAULT_MAX_STREAM_EVENTS = 2_000_000
 MAX_TOKEN_IDS_PER_EVENT = 4096
 MAX_TOKEN_IDS_TOTAL = 1_000_000
 # `return_token_ids` is a vLLM extension absent upstream in v0.14.0 and
-# present since v0.15.1 (accepted primary-source evidence); the qualified
-# installed target is vLLM 0.27.1. V1 admits only >= 0.15.1.
-MIN_STREAMING_VLLM_VERSION = (0, 15, 1)
+# present since v0.15.1 (accepted primary-source evidence). V1 admits only
+# the exact qualified runtime whose detailed SSE token/event semantics were
+# inspected end-to-end: vLLM 0.27.1. Field availability is not protocol
+# qualification; older, newer, suffixed, and unknown versions fail closed.
+QUALIFIED_STREAMING_VLLM_VERSION = (0, 27, 1)
 VLLM_TTFT_METRIC_ID = "llmgauge.metric.v1.time_to_first_token"
 VLLM_TTFT_BOUNDARY = "request_transmit_to_first_generated_token"
 FIRST_TOKEN_CHANNELS = frozenset({"reasoning", "content", "other_generated"})
@@ -134,21 +136,23 @@ def streaming_ttft_version_admitted(vllm_version: str) -> tuple[bool, str]:
     """Admit the `return_token_ids` streaming observation method for a version.
 
     V1 is deliberately conservative: the extension is absent upstream in
-    vLLM 0.14.0 and present since 0.15.1 (accepted primary-source evidence),
-    and the qualified installed target is 0.27.1. Unknown or unparseable
-    versions are not admitted; the caller must fail cleanly rather than
-    guess token-ID streaming semantics.
+    vLLM 0.14.0 and present since 0.15.1 (accepted primary-source evidence).
+    Detailed SSE token/event semantics were inspected end-to-end only against
+    the exact qualified runtime vLLM 0.27.1, so V1 admits exactly that
+    version. Field availability since 0.15.1 is not protocol qualification:
+    older, newer, suffixed, and unknown or unparseable versions fail closed
+    rather than guess token-ID streaming semantics.
     """
     version = parse_bounded_server_string(vllm_version, max_length=MAX_VLLM_VERSION_LENGTH)
     if version is None:
         return False, "observed_version_unavailable"
-    match = re.match(r"^(\d+)\.(\d+)\.(\d+)", version)
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
     if match is None:
         return False, "observed_version_unparseable"
     observed = tuple(int(part) for part in match.groups())
-    if observed < MIN_STREAMING_VLLM_VERSION:
-        return False, "observed_version_below_0.15.1"
-    return True, "observed_version_ge_0.15.1"
+    if observed != QUALIFIED_STREAMING_VLLM_VERSION:
+        return False, "observed_version_not_qualified"
+    return True, "observed_version_exact_0.27.1"
 
 
 @dataclass(frozen=True)
