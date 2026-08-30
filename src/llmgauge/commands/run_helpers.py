@@ -23,6 +23,7 @@ from llmgauge.core.area4_evidence import (
     build_native_execution_evidence,
     build_vllm_area4_evidence,
 )
+from llmgauge.core.vram import VramSampler
 from llmgauge.core.config import (
     coalesce,
     get_config_value,
@@ -2420,11 +2421,22 @@ def execute_vllm_run(
                 f"[{index}/{len(selected_prompts)}] Requesting {prompt_id} "
                 f"(non-streaming chat.completions)"
             )
-            request_result = run_chat_completion(
-                vllm_config,
-                prompt=prompt_text,
-                system_prompt=system_prompt,
-            )
+            # Request-window VRAM telemetry: one bounded observer samples
+            # absolute device-used memory while this single evaluation request
+            # is in flight. The probe runs before the request wall timer starts
+            # and after it reaches terminal state, so request wall time is
+            # measured independently of telemetry overhead. Telemetry failure
+            # never changes the request outcome.
+            vram_sampler = VramSampler()
+            vram_sampler.start()
+            try:
+                request_result = run_chat_completion(
+                    vllm_config,
+                    prompt=prompt_text,
+                    system_prompt=system_prompt,
+                )
+            finally:
+                vram_samples, vram_errors = vram_sampler.stop()
 
             write_text(raw_output_path, request_result.generated_text)
             write_text(
@@ -2444,6 +2456,30 @@ def execute_vllm_run(
                 "endpoint_identity": request_result.endpoint_identity,
             }
             write_json(request_evidence_path, request_evidence)
+
+            # Preserve the request-owned VRAM sample stream only when a request
+            # was actually transmitted; otherwise no telemetry window exists.
+            vram_samples_path = None
+            if request_result.request_evidence.get("request_transmitted") is True:
+                vram_samples_path = (
+                    out / "vram" / f"{prompt_id.replace('/', '__')}.samples.json"
+                )
+                write_json(
+                    vram_samples_path,
+                    {
+                        "schema_version": "llmgauge.vram.samples.v0",
+                        "prompt_id": prompt_id,
+                        "sampler_window": {
+                            "kind": "vllm_request_window",
+                            "interval_seconds": VramSampler.DEFAULT_INTERVAL_SECONDS,
+                            "start_boundary": "immediately_before_request_attempt",
+                            "stop_boundary": "request_terminal_state",
+                            "final_sample": "taken_at_stop",
+                        },
+                        "errors": vram_errors or None,
+                        "samples": vram_samples,
+                    },
+                )
 
             if request_result.system_fingerprint:
                 observed_fingerprints.append(request_result.system_fingerprint)
@@ -2476,7 +2512,14 @@ def execute_vllm_run(
                 "_area4_vllm_request_evidence": request_evidence,
                 "metrics": build_vllm_metrics(request_result),
                 "vram": None,
-                "vram_samples_path": None,
+                "vram_samples_path": (
+                    str(vram_samples_path.relative_to(out))
+                    if vram_samples_path is not None
+                    else None
+                ),
+                "_area4_vram_samples": (
+                    vram_samples if vram_samples_path is not None else None
+                ),
                 "vram_guardrails": None,
                 "score": None,
                 "failure_labels": [],
@@ -2666,6 +2709,7 @@ def execute_vllm_run(
     )
     for prompt_entry in prompt_results:
         prompt_entry.pop("_area4_vllm_request_evidence", None)
+        prompt_entry.pop("_area4_vram_samples", None)
     result["runtime_neutral_metrics"] = runtime_neutral_metrics
     result["failure_taxonomy"] = failure_taxonomy
 

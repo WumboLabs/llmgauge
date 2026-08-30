@@ -84,7 +84,12 @@ LLMGauge currently provides:
 - derived device-scoped peak VRAM evidence for native llama.cpp results
 - Area 4 runtime-neutral request-wall-time mapping for external vLLM results
   (request transmitted → validated non-streaming response boundary; TTFT,
-  prefill/decode throughput, VRAM, and placement remain deferred)
+  prefill/decode throughput, and placement remain deferred)
+- Area 4 request-window peak VRAM evidence for external vLLM results:
+  `llmgauge.metric.v1.peak_vram` calculated from a bounded concurrent
+  NVIDIA telemetry sampler active only during the LLMGauge evaluation
+  request window (absolute device-used memory, not server/model
+  footprint; distinct from the llama.cpp process-window boundary)
 - bounded structural comparison of all-transcript result sets via
   `llmgauge compare` with explicit eligibility, three-way structural
   classification, role/order-preserving listings, and recorded review-hook
@@ -160,7 +165,10 @@ preserved in the changelog. Durable claim boundaries live in
 
 - No remote, authentication, streaming, or concurrency support; no
   LLMGauge-owned vLLM lifecycle.
-- vLLM VRAM is not captured (request-window peak VRAM deferred).
+- vLLM request-window peak VRAM is captured via a bounded concurrent NVIDIA
+  telemetry sampler; the value is absolute device-used memory, not server or
+  model footprint, and the observation boundary is distinct from the native
+  llama.cpp process-window boundary.
 - TTFT, prefill, and decode throughput are unavailable under the non-streaming
   adapter; execution placement is not exposed by the vLLM API; cache state
   remains unknown (API readiness does not imply warm or cold).
