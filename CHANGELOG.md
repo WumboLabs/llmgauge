@@ -18,12 +18,21 @@
   complete non-streaming response, matching the accepted request-wall-time
   boundary. The backend-native `request_wall_time_seconds` field keeps its
   meaning and is preserved unchanged. TTFT, prefill/decode throughput,
-  model-load time, steady-state VRAM, request-window VRAM, and execution
-  placement remain unavailable or deferred for vLLM: the non-streaming
-  transport exposes no first-token boundary, the operator owns server
-  lifecycle and model admission, the API exposes no placement, and no VRAM
-  sampler is added. Readiness remains an API-observation only; it never
-  sets cache state to warm or cold.
+  model-load time, steady-state VRAM, and execution placement remain
+  unavailable or deferred for vLLM: the non-streaming transport exposes no
+  first-token boundary, the operator owns server lifecycle and model
+  admission, and the API exposes no placement. Readiness remains an
+  API-observation only; it never sets cache state to warm or cold.
+- Added device-scoped calculated peak-VRAM evidence for external vLLM
+  evaluation request windows: `llmgauge.metric.v1.peak_vram` records
+  are now emitted for transmitted vLLM requests, sourced from a bounded
+  concurrent NVIDIA telemetry sampler that observes absolute device-used
+  memory during the evaluation request window. Request wall time is
+  measured independently of telemetry overhead; sampler failure never
+  affects request outcome. The peak-VRAM boundary
+  (`request_window_peak_vram_observation`) is distinct from the
+  native llama.cpp process-window boundary; the two are not automatically
+  equivalent. Historical vLLM results without VRAM evidence remain valid.
 
 ### Documentation
 

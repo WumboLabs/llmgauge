@@ -39,6 +39,7 @@ _KV_CACHE_RE = re.compile(r"\b(?:llama_kv_cache|kv[ _-]?cache)", re.I)
 _PEAK_VRAM_METRIC_ID = "llmgauge.metric.v1.peak_vram"
 PEAK_VRAM_CALCULATION = "llmgauge.area4.peak_used_mib_by_device.v1"
 _PEAK_VRAM_BOUNDARY = "process_launch_to_completion_sampling_window"
+VLLM_PEAK_VRAM_BOUNDARY = "request_window_peak_vram_observation"
 
 
 def _valid_vram_samples(samples: object) -> list[dict[str, Any]]:
@@ -66,7 +67,10 @@ def _valid_vram_samples(samples: object) -> list[dict[str, Any]]:
 
 
 def _peak_vram_metric_records(
-    samples: list[Any], evidence_path: str | None
+    samples: list[Any],
+    evidence_path: str | None,
+    *,
+    boundary: str = _PEAK_VRAM_BOUNDARY,
 ) -> list[dict[str, Any]]:
     """Deterministic peak-VRAM metric records over preserved samples.
 
@@ -93,7 +97,7 @@ def _peak_vram_metric_records(
                 "unit": "MiB",
                 "availability": "available",
                 "provenance": "calculated",
-                "boundary": _PEAK_VRAM_BOUNDARY,
+                "boundary": boundary,
                 "equivalence": "unproven",
                 "evidence_refs": evidence_refs,
                 "calculation_semantics": PEAK_VRAM_CALCULATION,
@@ -111,7 +115,7 @@ def _peak_vram_metric_records(
                 "unit": "MiB",
                 "availability": "unavailable",
                 "provenance": "unavailable",
-                "boundary": _PEAK_VRAM_BOUNDARY,
+                "boundary": boundary,
                 "equivalence": "unavailable",
                 "evidence_refs": evidence_refs,
                 "calculation_semantics": PEAK_VRAM_CALCULATION,
@@ -422,10 +426,14 @@ def build_vllm_area4_evidence(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build Area 4 representations for vLLM per-request evidence.
 
-    Only the vLLM request_wall_time metric is represented. Request transmission
-    and complete response validation both fall inside its boundary. Execution
-    placement and cache state stay unknown because the vLLM API does not expose
-    them. No peak-VRAM record is emitted for vLLM in this slice.
+    The vLLM request_wall_time metric is always represented for transmitted
+    requests. Request transmission and complete response validation both fall
+    inside its boundary. Execution placement and cache state stay unknown
+    because the vLLM API does not expose them. When a request-window VRAM
+    sample artifact exists for a transmitted request, one calculated peak-VRAM
+    record per observed device is added under the request-window observation
+    boundary; an attempted sampler with no valid samples yields an unavailable
+    record, and an untransmitted request yields no peak record.
     """
     measurements: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
@@ -496,6 +504,15 @@ def build_vllm_area4_evidence(
             ],
         }
         measurements.append(measurement)
+        vram_samples = prompt_result.get("_area4_vram_samples")
+        if transmitted and isinstance(vram_samples, list):
+            measurements[-1]["metrics"].extend(
+                _peak_vram_metric_records(
+                    vram_samples,
+                    prompt_result.get("vram_samples_path"),
+                    boundary=VLLM_PEAK_VRAM_BOUNDARY,
+                )
+            )
         if status == "completed":
             primary_by_execution.append(
                 {
@@ -664,14 +681,10 @@ def _load_vllm_request_evidence(
             )
             evidence = json.loads(artifact.read_text(encoding="utf-8"))
         except (FingerprintUnavailable, json.JSONDecodeError) as exc:
-            errors.append(
-                f"{execution_ref}.request_evidence_path is invalid: {exc}"
-            )
+            errors.append(f"{execution_ref}.request_evidence_path is invalid: {exc}")
             continue
         if not isinstance(evidence, Mapping):
-            errors.append(
-                f"{execution_ref} vLLM request evidence must be an object"
-            )
+            errors.append(f"{execution_ref} vLLM request evidence must be an object")
             continue
         if evidence.get("schema_version") != VLLM_REQUEST_EVIDENCE_SCHEMA:
             errors.append(
@@ -974,6 +987,8 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
     if primary_executions != known_executions:
         errors.append("failure_taxonomy must classify every prompt execution")
     return errors
+
+
 def _validate_vllm_area4_evidence(
     result_dir: Path,
     data: Mapping[str, object],
@@ -991,6 +1006,7 @@ def _validate_vllm_area4_evidence(
     request_evidence_by_execution = _load_vllm_request_evidence(
         result_dir, prompt_results, errors
     )
+    vram_samples_by_execution = _load_vram_samples(result_dir, prompt_results, errors)
 
     measurements = metrics.get("measurements")
     if metrics.get(
@@ -1019,7 +1035,8 @@ def _validate_vllm_area4_evidence(
             or measurement.get("attempt_sequence") != 0
             or measurement.get("retry_of_attempt_id") is not None
             or measurement.get("kind") != "measured"
-            or measurement.get("completion_state") not in {
+            or measurement.get("completion_state")
+            not in {
                 "completed",
                 "failed",
                 "timeout",
@@ -1061,9 +1078,7 @@ def _validate_vllm_area4_evidence(
             continue
         metric = records[0]
         evidence = request_evidence_by_execution.get(str(execution_ref))
-        expected_ref = (
-            f"{evidence[0]}#/request_wall_time_seconds" if evidence else None
-        )
+        expected_ref = f"{evidence[0]}#/request_wall_time_seconds" if evidence else None
         available = metric.get("availability") == "available"
         value = metric.get("value")
         if (
@@ -1094,17 +1109,31 @@ def _validate_vllm_area4_evidence(
             or metric.get("provenance") != "unavailable"
             or metric.get("equivalence") != "unavailable"
         ):
-            errors.append(
-                f"{label}.metrics[0] unavailable value/provenance is invalid"
-            )
+            errors.append(f"{label}.metrics[0] unavailable value/provenance is invalid")
         if evidence is not None and value != evidence[1].get(
             "request_wall_time_seconds"
         ):
             errors.append(f"{label}.metrics[0].value differs from request evidence")
-        if records[1:]:
+        vram_samples = vram_samples_by_execution.get(str(execution_ref))
+        expected_peak_records: list[dict[str, Any]] = []
+        if vram_samples is not None:
+            prompt_result = prompt_results[
+                int(str(execution_ref).removeprefix("results/"))
+            ]
+            vram_path = (
+                prompt_result.get("vram_samples_path")
+                if isinstance(prompt_result, Mapping)
+                else None
+            )
+            expected_peak_records = _peak_vram_metric_records(
+                vram_samples,
+                vram_path if isinstance(vram_path, str) else None,
+                boundary=VLLM_PEAK_VRAM_BOUNDARY,
+            )
+        if records[1:] != expected_peak_records:
             errors.append(
-                f"{label}.metrics contains peak VRAM records that are unsupported "
-                "for vLLM in this slice"
+                f"{label}.metrics peak VRAM records differ from the "
+                "preserved vram samples evidence"
             )
 
     observations, primary = (
@@ -1178,9 +1207,7 @@ def _validate_vllm_area4_evidence(
                     f"{label} failed execution must reference its classification"
                 )
         elif state != "none" or observation_id is not None:
-            errors.append(
-                f"{label} completed execution must have no classification"
-            )
+            errors.append(f"{label} completed execution must have no classification")
     if primary_executions != known_executions:
         errors.append("failure_taxonomy must classify every prompt execution")
     return errors

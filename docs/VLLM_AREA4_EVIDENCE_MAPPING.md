@@ -41,7 +41,7 @@ Two evidence scopes stay separate and are never merged:
 | Model load time | None | No | — | **UNAVAILABLE** | Operator owns server lifecycle and model admission; request evidence cannot infer load duration. |
 | Prefill throughput | None | No | — | **UNAVAILABLE** | Backend `prompt_tokens` exist but no prefill-phase duration is observed; `prompt_tokens / wall_time` is not prefill throughput. |
 | Decode generation throughput | `end_to_end_completion_tps` | No | `calculated` (native) | **NATIVE ONLY** | End-to-end completion TPS is not decode-only throughput and is not mapped. |
-| Request-window peak VRAM | None | — | — | **DEFERRED** | No vLLM VRAM sampler exists; adding one is a separate telemetry milestone. |
+| Request-window peak VRAM | `request/*.json` evidence; `vram/<prompt>.samples.json` | Yes (request-window boundary) | `calculated` | **ADMITTED** | Bounded concurrent NVIDIA telemetry sampler observes absolute device-used memory during the evaluation request window. The boundary (`request_window_peak_vram_observation`) is distinct from the native llama.cpp process-window boundary. Sampler failure never affects the request outcome. |
 | Steady-state VRAM | None | No | — | **DEFERRED** | API readiness does not prove post-load, post-warmup state; no warm-state lifecycle evidence exists. |
 | Execution placement | None | No | — | **UNAVAILABLE** | The vLLM API exposes no placement; requested device/readiness never becomes observed placement. |
 
@@ -107,13 +107,32 @@ JSON byte, or connection time.
 
 ## VRAM
 
-The current vLLM path collects no `nvidia-smi` samples. The llama.cpp sampler
-is coupled to the process-per-request lifecycle and is not reused. Admitted
-request-window peak VRAM would require a concurrent telemetry sampler with an
-explicit request-owned sampling window, failure/timeout cleanup, and no server
-lifecycle involvement; that is deferred to a separate milestone. The
-`vram`/`vram_samples_path` fields stay absent, and no
-`llmgauge.metric.v1.peak_vram` record is emitted for vLLM.
+External vLLM requests now carry request-window peak VRAM evidence:
+`llmgauge.metric.v1.peak_vram` records are calculated from a preserved
+per-request sample artifact (`vram/<prompt>.samples.json`, schema
+`llmgauge.vram.samples.v0`) captured by a bounded concurrent NVIDIA telemetry
+sampler that runs only while the evaluation request is in flight.
+
+The observation window is explicit and request-owned:
+
+1. the sampler starts immediately before the request attempt and takes an
+   initial probe outside the request wall timer;
+2. the request executes (serialization, transmission, server work, response
+   receipt, validation) under its own `request_wall_time_seconds` timer;
+3. on every terminal path (success, HTTP error, malformed response, timeout,
+   transport failure) the sampler stops, takes a final probe, and joins;
+4. a sample artifact is preserved only when the request was transmitted.
+
+Request wall time is never measured through the telemetry probe: the two
+observations are independent and the telemetry window has its own boundary
+(`request_window_peak_vram_observation`), distinct from the native llama.cpp
+process-window boundary. The value is the maximum absolute device-used memory
+per device; it is not server/model footprint, baseline delta, or a
+cross-device sum. `nvidia-smi` absence, timeout, or failure makes the metric
+`unavailable` and never changes the request outcome. Sampled peak is not the
+guaranteed instantaneous physical maximum. The sampler adds no server
+lifecycle operation; the server existed before the request and may continue
+after it.
 
 ## Placement
 

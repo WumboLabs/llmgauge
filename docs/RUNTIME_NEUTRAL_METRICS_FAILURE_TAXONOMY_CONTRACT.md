@@ -397,13 +397,25 @@ transport. Those remain separately gated.
 A later bounded implementation milestone
 ([VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md)) extended the
 accepted representation to the existing vLLM backend without changing this
-contract's definitions. It maps only `llmgauge.metric.v1.request_wall_time`
+contract's definitions. It maps `llmgauge.metric.v1.request_wall_time`
 for transmitted vLLM requests, with the timer boundary corrected to include
 request serialization and complete response validation
-(`request_transmit_to_validated_response`) per the definition above. TTFT,
-prefill/decode throughput, model-load time, steady-state VRAM, request-window
-peak VRAM, and execution placement remain unavailable or deferred for vLLM
-under the non-streaming, operator-managed adapter. Failure taxonomy cites
-vLLM `failure_class` through `request/*.json#/failure_class`. The validator
-dispatches by backend; llama.cpp Area 4 evidence and historical vLLM results
-are unchanged.
+(`request_transmit_to_validated_response`) per the definition above. Failure
+taxonomy cites vLLM `failure_class` through `request/*.json#/failure_class`.
+The validator dispatches by backend; llama.cpp Area 4 evidence and historical
+vLLM results are unchanged.
+
+## Implementation status addendum — vLLM request-window peak VRAM
+
+A subsequent bounded implementation milestone
+([VLLM_AREA4_EVIDENCE_MAPPING.md](VLLM_AREA4_EVIDENCE_MAPPING.md)) added
+`llmgauge.metric.v1.peak_vram` for external vLLM results: one calculated
+record per observed device sourced from a bounded concurrent NVIDIA telemetry
+sampler active only during the LLMGauge evaluation request window. The
+observation boundary is `request_window_peak_vram_observation` (absolute
+device-used memory, not server/model footprint), distinct from the native
+llama.cpp process-window boundary. Sampler failure never affects the request
+outcome; an attempted capture with no valid samples yields an unavailable
+record. TTFT, prefill/decode throughput, model-load time, steady-state VRAM,
+and execution placement remain unavailable or deferred for vLLM under the
+non-streaming, operator-managed adapter.

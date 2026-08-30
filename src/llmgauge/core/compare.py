@@ -801,8 +801,8 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                 "requirements are met. Do not read equivalent values as proof of",
                 "runtime equivalence; sampling boundaries may differ.",
                 "",
-                "| Run | Backend | Request wall time s | Boundary | Placement observed |",
-                "|---|---|---:|---|---|",
+                "| Run | Backend | Request wall time s | Boundary | Placement observed | Peak VRAM MiB | VRAM boundary | VRAM device |",
+                "|---|---|---:|---|---|---:|---|---|",
             ]
         )
         for result in results:
@@ -816,6 +816,9 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             wall = None
             boundary = "unavailable"
             placement = "unavailable"
+            peak_vram = None
+            peak_vram_boundary = "unavailable"
+            peak_vram_device = "unavailable"
             if isinstance(measurements, list) and measurements:
                 first = measurements[0]
                 if isinstance(first, dict):
@@ -829,6 +832,26 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                             ):
                                 wall = wall_record.get("value")
                             boundary = wall_record.get("boundary", boundary)
+                        for record in records[1:]:
+                            if not isinstance(record, dict):
+                                continue
+                            if (
+                                record.get("metric_id")
+                                != "llmgauge.metric.v1.peak_vram"
+                            ):
+                                continue
+                            peak_vram_boundary = record.get("boundary", "unavailable")
+                            if (
+                                record.get("availability") == "available"
+                                and record.get("value") is not None
+                            ):
+                                peak_vram = record.get("value")
+                            device_scope = record.get("device_scope")
+                            if (
+                                isinstance(device_scope, dict)
+                                and device_scope.get("gpu_index") is not None
+                            ):
+                                peak_vram_device = f"GPU {device_scope['gpu_index']}"
                     if isinstance(first.get("execution_placement"), dict):
                         placement = first["execution_placement"].get(
                             "observed", "unavailable"
@@ -839,7 +862,10 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                 f"{backend or 'unknown'} | "
                 f"{'unavailable' if wall is None else wall} | "
                 f"{boundary} | "
-                f"{placement} |"
+                f"{placement} | "
+                f"{'unavailable' if peak_vram is None else peak_vram} | "
+                f"{peak_vram_boundary} | "
+                f"{peak_vram_device} |"
             )
         lines.append("")
 

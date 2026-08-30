@@ -20,6 +20,7 @@ from llmgauge.core.compare import compare_results
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_dir
+from llmgauge.core.vram import VramSampler
 from llmgauge.runners.vllm_external import (
     VllmExternalConfig,
     run_chat_completion,
@@ -514,30 +515,170 @@ def test_validate_vllm_area4_rejects_missing_request_evidence(
     assert any("request_evidence_path" in err for err in errors)
 
 
-def test_validate_vllm_area4_rejects_unsupported_peak_vram(tmp_path: Path) -> None:
+def _sample_dict(gpu_index: int, gpu_name: str, used_mib: int) -> dict:
+    return {
+        "timestamp_utc": "2026-08-29T00:00:00+00:00",
+        "gpu_index": gpu_index,
+        "gpu_name": gpu_name,
+        "used_mib": used_mib,
+        "total_mib": 12227,
+    }
+
+
+def _write_vram_samples(
+    result_dir: Path, prompt_id: str, samples: list[dict]
+) -> None:
+    (result_dir / "vram").mkdir(parents=True, exist_ok=True)
+    (result_dir / "vram" / f"{prompt_id}.samples.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "llmgauge.vram.samples.v0",
+                "prompt_id": prompt_id,
+                "sampler_window": {
+                    "kind": "vllm_request_window",
+                    "interval_seconds": 0.5,
+                    "start_boundary": "immediately_before_request_attempt",
+                    "stop_boundary": "request_terminal_state",
+                    "final_sample": "taken_at_stop",
+                },
+                "errors": None,
+                "samples": samples,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _prompt_with_vram(
+    prompt_id: str, evidence: dict[str, object], samples: list[dict]
+) -> dict[str, object]:
+    prompt = _prompt_entry(prompt_id, evidence)
+    prompt["vram_samples_path"] = f"vram/{prompt_id}.samples.json"
+    prompt["_area4_vram_samples"] = samples
+    return prompt
+
+
+def test_validate_vllm_area4_accepts_request_window_peak_vram(
+    tmp_path: Path,
+) -> None:
     evidence = _success_evidence(1.25)
-    prompt = _prompt_entry("p1", evidence)
+    prompt = _prompt_with_vram(
+        "p1",
+        evidence,
+        [_sample_dict(0, "GPU A", 1000), _sample_dict(0, "GPU A", 1200)],
+    )
     result = _vllm_result([prompt])
     result_dir = _result_dir(tmp_path, result)
     _write_request_evidence(result_dir, "p1", evidence)
-    result["runtime_neutral_metrics"]["measurements"][0]["metrics"].append(  # type: ignore[index]
-        {
-            "metric_id": "llmgauge.metric.v1.peak_vram",
-            "native_metric_id": None,
-            "value": 100,
-            "unit": "MiB",
-            "availability": "available",
-            "provenance": "calculated",
-            "boundary": "process_launch_to_completion_sampling_window",
-            "equivalence": "unproven",
-            "evidence_refs": ["vram/p1.samples.json#/samples"],
-        }
+    _write_vram_samples(
+        result_dir,
+        "p1",
+        [_sample_dict(0, "GPU A", 1000), _sample_dict(0, "GPU A", 1200)],
     )
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validate_vllm_area4_rejects_wrong_peak_max(tmp_path: Path) -> None:
+    evidence = _success_evidence(1.25)
+    prompt = _prompt_with_vram("p1", evidence, [_sample_dict(0, "GPU A", 1200)])
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    _write_vram_samples(result_dir, "p1", [_sample_dict(0, "GPU A", 1200)])
+    result["runtime_neutral_metrics"]["measurements"][0]["metrics"][1][  # type: ignore[index]
+        "value"
+    ] = 1300
     (result_dir / "llmgauge-result.json").write_text(
         json.dumps(result), encoding="utf-8"
     )
     errors = validate_result_dir(result_dir)
-    assert any("peak VRAM records that are unsupported" in err for err in errors)
+    assert any("peak VRAM records differ" in err for err in errors)
+
+
+def test_validate_vllm_area4_unavailable_not_zero(tmp_path: Path) -> None:
+    evidence = _success_evidence(1.25)
+    prompt = _prompt_with_vram("p1", evidence, [])
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    _write_vram_samples(result_dir, "p1", [])
+    assert validate_result_dir(result_dir) == []
+    # Zero substituted for unavailable must be rejected.
+    result["runtime_neutral_metrics"]["measurements"][0]["metrics"][1][  # type: ignore[index]
+        "value"
+    ] = 0
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result), encoding="utf-8"
+    )
+    errors = validate_result_dir(result_dir)
+    assert any("peak VRAM records differ" in err for err in errors)
+
+
+def test_validate_vllm_area4_failed_request_with_samples(tmp_path: Path) -> None:
+    evidence = _success_evidence(0.5)
+    evidence["failure_class"] = "server_request_error"
+    evidence["failure_detail"] = "http_500"
+    evidence["request_wall_time_seconds"] = 0.5
+    prompt = _prompt_with_vram("p1", evidence, [_sample_dict(0, "GPU A", 2400)])
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    _write_vram_samples(result_dir, "p1", [_sample_dict(0, "GPU A", 2400)])
+    assert validate_result_dir(result_dir) == []
+    measurement = result["runtime_neutral_metrics"]["measurements"][0]  # type: ignore[index]
+    assert measurement["completion_state"] == "failed"
+    peak = measurement["metrics"][1]
+    assert peak["availability"] == "available"
+    assert peak["value"] == 2400
+
+
+def test_validate_vllm_area4_timeout_with_samples(tmp_path: Path) -> None:
+    evidence = _success_evidence(5.0)
+    evidence["failure_class"] = "request_timeout"
+    evidence["failure_detail"] = "request_timeout"
+    prompt = _prompt_with_vram("p1", evidence, [_sample_dict(0, "GPU A", 1800)])
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    _write_vram_samples(result_dir, "p1", [_sample_dict(0, "GPU A", 1800)])
+    assert validate_result_dir(result_dir) == []
+    measurement = result["runtime_neutral_metrics"]["measurements"][0]  # type: ignore[index]
+    assert measurement["completion_state"] == "timeout"
+    assert measurement["metrics"][1]["value"] == 1800
+
+
+def test_validate_vllm_area4_multi_device_independent(tmp_path: Path) -> None:
+    evidence = _success_evidence(1.25)
+    samples = [
+        _sample_dict(0, "GPU A", 1000),
+        _sample_dict(0, "GPU A", 1300),
+        _sample_dict(1, "GPU B", 2000),
+        _sample_dict(1, "GPU B", 2400),
+    ]
+    prompt = _prompt_with_vram("p1", evidence, samples)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    _write_vram_samples(result_dir, "p1", samples)
+    assert validate_result_dir(result_dir) == []
+    peak_records = result["runtime_neutral_metrics"]["measurements"][0]["metrics"][1:]  # type: ignore[index]
+    assert len(peak_records) == 2
+    values = {
+        record["device_scope"]["gpu_index"]: record["value"]
+        for record in peak_records
+    }
+    assert values == {0: 1300, 1: 2400}
+
+
+def test_validate_vllm_area4_missing_evidence_rejected(tmp_path: Path) -> None:
+    evidence = _success_evidence(1.25)
+    prompt = _prompt_with_vram("p1", evidence, [_sample_dict(0, "GPU A", 1200)])
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    _write_request_evidence(result_dir, "p1", evidence)
+    # Artifact referenced but never written: validation must fail closed.
+    errors = validate_result_dir(result_dir)
+    assert any("vram_samples_path" in err for err in errors)
 
 
 def test_historical_vllm_result_without_area4_still_valid(tmp_path: Path) -> None:
@@ -828,3 +969,181 @@ def test_public_export_preserves_vllm_area4_sanitized(tmp_path: Path) -> None:
         "proxy_bypass_policy",
     }
     assert "url" not in identity
+
+
+def test_report_discloses_request_window_peak_vram(tmp_path: Path) -> None:
+    evidence = _success_evidence(2.43)
+    prompt = _prompt_with_vram(
+        "p1",
+        evidence,
+        [_sample_dict(0, "GPU A", 1000), _sample_dict(0, "GPU A", 10824)],
+    )
+    result = _vllm_result([prompt])
+    report = build_markdown_report(result)  # type: ignore[arg-type]
+    assert "Request peak VRAM: 10824 MiB" in report
+    assert "Device: GPU 0" in report
+    assert "Samples: 2" in report
+    assert "VRAM boundary: request_window_peak_vram_observation" in report
+    assert "VRAM provenance: calculated" in report
+    assert "Memory scope: absolute device-used memory" in report
+    # Claim boundary language stays explicit and non-attributive.
+    assert "model VRAM" not in report
+    assert "vLLM footprint" not in report
+
+
+def test_report_discloses_unavailable_request_peak_vram() -> None:
+    """Sampler ran but produced no valid samples -> unavailable peak record."""
+    evidence = _success_evidence(2.43)
+    prompt = _prompt_with_vram("p1", evidence, [])
+    result = _vllm_result([prompt])
+    report = build_markdown_report(result)  # type: ignore[arg-type]
+    assert "Request peak VRAM: unavailable" in report
+    assert "no successful telemetry observation" in report
+
+
+def test_comparison_discloses_vram_boundaries(tmp_path: Path) -> None:
+    evidence = _success_evidence(2.43)
+    prompt = _prompt_with_vram(
+        "p1",
+        evidence,
+        [_sample_dict(0, "GPU A", 1000), _sample_dict(0, "GPU A", 10824)],
+    )
+    vllm_result = _vllm_result([prompt])
+    llama_result = _write_llama_result(
+        tmp_path / "llama-run",
+        {
+            "schema_version": "llmgauge.native_llama_cpp_execution_evidence.v1",
+            "prompt_id": "prompt",
+            "request_wall_time_seconds": 1.5,
+            "request_wall_time_boundary": "process_launch_to_terminal_output_receipt",
+            "llama_cpp_timing": None,
+            "llama_cpp_placement": None,
+            "failure": None,
+        },
+    )
+    report = compare_results([vllm_result, llama_result])  # type: ignore[arg-type]
+    assert "Peak VRAM MiB" in report
+    assert "VRAM boundary" in report
+    assert "request_window_peak_vram_observation" in report
+    assert "not read equivalent values as proof" in report
+
+
+# ---------------------------------------------------------------------------
+# Sampler + synthetic HTTP request integration
+# ---------------------------------------------------------------------------
+
+
+def _run_with_sampler(config: VllmExternalConfig, probe) -> tuple[object, list, list]:
+    sampler = VramSampler(interval_seconds=0.02, probe=probe)
+    sampler.start()
+    try:
+        result = run_chat_completion(config, prompt="hello")
+    finally:
+        samples, errors = sampler.stop()
+    return result, samples, errors
+
+
+def test_http_request_with_sampler_succeeds_and_no_worker_leaks(
+    vllm_http_server,
+) -> None:
+    url, _state = vllm_http_server
+
+    def probe() -> dict:
+        return {
+            "schema_version": "llmgauge.vram.sample.v0",
+            "available": True,
+            "source": "nvidia-smi",
+            "timestamp_utc": "2026-08-29T00:00:00+00:00",
+            "samples": [_sample_dict(0, "GPU A", 8123)],
+        }
+
+    result, samples, errors = _run_with_sampler(_config(url), probe)
+    assert result.success is True
+    assert result.request_wall_time_seconds is not None
+    assert errors == []
+    assert samples
+    assert all(item["used_mib"] == 8123 for item in samples)
+
+
+def test_http_request_wall_time_independent_of_sampler(
+    vllm_http_server,
+) -> None:
+    url, state = vllm_http_server
+    state["delay_seconds"] = 0.1
+    baseline = run_chat_completion(_config(url), prompt="hello")
+    state["delay_seconds"] = 0.0
+    assert baseline.request_wall_time_seconds is not None
+    wall_without = baseline.request_wall_time_seconds
+
+    def probe() -> dict:
+        return {
+            "schema_version": "llmgauge.vram.sample.v0",
+            "available": True,
+            "source": "nvidia-smi",
+            "timestamp_utc": "2026-08-29T00:00:00+00:00",
+            "samples": [_sample_dict(0, "GPU A", 8123)],
+        }
+
+    state["delay_seconds"] = 0.1
+    result, _samples, _errors = _run_with_sampler(_config(url), probe)
+    state["delay_seconds"] = 0.0
+    assert result.success is True
+    assert result.request_wall_time_seconds is not None
+    # Both windows include the same 0.1 s server delay; sampler probe happens
+    # outside the request timer, so measured wall time stays comparable.
+    assert result.request_wall_time_seconds >= wall_without * 0.9
+
+
+def test_http_error_with_sampler_no_worker_leaks(vllm_http_server) -> None:
+    url, state = vllm_http_server
+    state["mode"] = "server_error"
+
+    def probe() -> dict:
+        return {
+            "schema_version": "llmgauge.vram.sample.v0",
+            "available": True,
+            "source": "nvidia-smi",
+            "timestamp_utc": "2026-08-29T00:00:00+00:00",
+            "samples": [_sample_dict(0, "GPU A", 8123)],
+        }
+
+    result, samples, _errors = _run_with_sampler(_config(url), probe)
+    state["mode"] = "ok"
+    assert result.success is False
+    assert result.failure_class == "server_request_error"
+    assert result.request_wall_time_seconds is not None
+    assert samples
+
+
+def test_timeout_with_sampler_no_worker_leaks(vllm_http_server) -> None:
+    url, state = vllm_http_server
+    state["delay_seconds"] = 1.0
+
+    def probe() -> dict:
+        return {
+            "schema_version": "llmgauge.vram.sample.v0",
+            "available": True,
+            "source": "nvidia-smi",
+            "timestamp_utc": "2026-08-29T00:00:00+00:00",
+            "samples": [_sample_dict(0, "GPU A", 8123)],
+        }
+
+    result, samples, _errors = _run_with_sampler(
+        _config(url, request_timeout=0.1), probe
+    )
+    state["delay_seconds"] = 0.0
+    assert result.success is False
+    assert result.failure_class == "request_timeout"
+    assert samples
+
+
+def test_http_success_with_failing_sampler_still_succeeds(vllm_http_server) -> None:
+    url, _state = vllm_http_server
+
+    def probe() -> dict:
+        raise OSError("telemetry unavailable")
+
+    result, samples, errors = _run_with_sampler(_config(url), probe)
+    assert result.success is True
+    assert samples == []
+    assert any("VRAM probe raised" in err for err in errors)

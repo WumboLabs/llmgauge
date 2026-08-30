@@ -905,18 +905,28 @@ continue to verify unchanged.
 External vLLM results may also carry the same optional
 `runtime_neutral_metrics` (`llmgauge.runtime_neutral_metrics.v1`) and
 `failure_taxonomy` (`llmgauge.failure_taxonomy.v1`) top-level objects. The
-current vLLM slice maps only `llmgauge.metric.v1.request_wall_time` for
-transmitted requests. The timer boundary is
+vLLM slice maps `llmgauge.metric.v1.request_wall_time` for transmitted
+requests, with the timer boundary
 `request_transmit_to_validated_response`: monotonic time from immediately
 before request serialization through receipt and structural validation of the
 complete non-streaming response. The preserved native
 `request_wall_time_seconds` field in `request/*.json` artifacts keeps its own
-meaning and is unchanged. No TTFT, prefill, decode, load, VRAM, or placement
-neutral records are emitted for vLLM in this slice: the non-streaming
-transport exposes no first-token boundary, the operator owns server lifecycle
-and model admission, the vLLM API exposes no execution placement, and no VRAM
-sampler is added. `workload.cache_state` remains `unknown`; API readiness does
-not imply warm or cold.
+meaning and is unchanged.
+
+When a request-window VRAM sampler is available for a transmitted vLLM
+request, one `llmgauge.metric.v1.peak_vram` record per observed device is
+additionally emitted with the request-window observation boundary
+(`request_window_peak_vram_observation`: absolute device-used memory sampled
+via a bounded concurrent NVIDIA telemetry probe, distinct from the native
+llama.cpp process-window boundary). Sampler failure never affects the request
+outcome; the metric becomes `unavailable` rather than zero when no valid
+samples exist. Historical vLLM results without VRAM evidence remain valid.
+
+No TTFT, prefill, decode, load, or placement neutral records are emitted for
+vLLM: the non-streaming transport exposes no first-token boundary, the
+operator owns server lifecycle and model admission, and the vLLM API exposes
+no execution placement. `workload.cache_state` remains `unknown`; API
+readiness does not imply warm or cold.
 
 The derived failure taxonomy maps vLLM failure classes (`endpoint_unavailable`,
 `request_timeout`, `malformed_response`, `served_model_mismatch`, and others)

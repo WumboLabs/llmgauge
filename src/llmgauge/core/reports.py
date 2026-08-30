@@ -551,6 +551,12 @@ def _build_vllm_area4_timing_placement(
         availability = wall_record.get("availability")
         provenance = wall_record.get("provenance")
         completion = measurement.get("completion_state", "unknown")
+        peak_records = [
+            record
+            for record in records[1:]
+            if isinstance(record, dict)
+            and record.get("metric_id") == "llmgauge.metric.v1.peak_vram"
+        ]
         lines.extend(
             [
                 f"### {prompt_id}",
@@ -568,6 +574,36 @@ def _build_vllm_area4_timing_placement(
                 "",
             ]
         )
+        for peak in peak_records:
+            if (
+                peak.get("availability") == "available"
+                and peak.get("value") is not None
+            ):
+                device = peak.get("device_scope")
+                device_text = (
+                    f"GPU {device.get('gpu_index')}"
+                    if isinstance(device, dict) and device.get("gpu_index") is not None
+                    else "unknown"
+                )
+                lines.extend(
+                    [
+                        f"- Request peak VRAM: {peak['value']} MiB",
+                        f"  - Device: {device_text}",
+                        f"  - Samples: {peak.get('sample_count', 'unknown')}",
+                        f"  - VRAM boundary: {peak.get('boundary', 'unknown')}",
+                        "  - VRAM provenance: calculated",
+                        "  - Memory scope: absolute device-used memory",
+                        "",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        "- Request peak VRAM: unavailable",
+                        "  - Reason: no successful telemetry observation",
+                        "",
+                    ]
+                )
     return lines
 
 
