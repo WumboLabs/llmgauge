@@ -2635,6 +2635,7 @@ def execute_vllm_run(
         readiness=readiness,
         endpoint_identity=endpoint_identity,
         observed_system_fingerprints=observed_fingerprints,
+        streaming_evidence=streaming_evidence,
     )
     write_json(runtime_evidence_path, runtime_evidence)
 

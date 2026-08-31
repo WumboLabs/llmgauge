@@ -77,6 +77,14 @@ unavailable under its current CLI transport. No new material dependencies.
   native llama.cpp process-window boundary; the two are not automatically
   equivalent. Historical vLLM results without VRAM evidence remain valid.
 
+### Fixed
+
+- Fixed final vLLM streaming transport propagation so result/runtime metadata,
+  canonical runtime evidence, request and stream evidence, reports, and
+  comparisons agree on SSE streaming state. `validate-result` now rejects
+  contradictory represented transport facts instead of accepting or
+  mislabeling them.
+
 ### Documentation
 
 - Reconciled `docs/ROADMAP.md` release-gate wording after production

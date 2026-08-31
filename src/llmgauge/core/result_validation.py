@@ -38,6 +38,11 @@ from llmgauge.core.run_fingerprint import (
 from llmgauge.core.sampling_profiles import validate_runtime_profile
 from llmgauge.core.suite import ScoringRole, SuiteDefinitionError, load_normalized_suite
 from llmgauge.core.suite_paths import resolve_suite_path
+from llmgauge.runners.vllm_external import (
+    OBSERVATION_METHOD,
+    STREAM_TRANSPORT_MODE,
+    streaming_ttft_version_admitted,
+)
 
 
 REQUIRED_TOP_LEVEL_KEYS = [
@@ -378,6 +383,377 @@ def _validate_runtime_command_consistency(
                         f"runtime command artifact prompt_commands[{index}] "
                         "argv transport requires prompt argv"
                     )
+    return errors
+
+
+_TRANSPORT_MISSING = object()
+
+
+def _load_vllm_transport_artifact(
+    result_dir: Path,
+    path_value: Any,
+    *,
+    label: str,
+) -> dict[str, Any] | None:
+    """Load an already-validated contained artifact for consistency checks."""
+    if not isinstance(path_value, str) or not path_value:
+        return None
+    try:
+        path = resolve_contained_result_artifact(
+            result_dir,
+            path_value,
+            label=label,
+            require_file=True,
+        )
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (FingerprintUnavailable, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _validate_vllm_transport_identity(
+    mapping: dict[str, Any],
+    *,
+    label: str,
+    required: bool,
+) -> tuple[bool | None, list[str]]:
+    errors: list[str] = []
+    streaming = mapping.get("streaming", _TRANSPORT_MISSING)
+    transport = mapping.get("transport_mode")
+    if streaming is _TRANSPORT_MISSING:
+        if required or transport is not None:
+            errors.append(
+                f"{label}.streaming must be a boolean when transport evidence "
+                "is represented"
+            )
+        return None, errors
+    if not isinstance(streaming, bool):
+        errors.append(f"{label}.streaming must be a boolean")
+        return None, errors
+    if streaming:
+        if transport != STREAM_TRANSPORT_MODE:
+            errors.append(
+                f"{label}.transport_mode must be {STREAM_TRANSPORT_MODE} "
+                "when streaming is true"
+            )
+    elif transport is not None:
+        errors.append(f"{label}.transport_mode must be absent when streaming is false")
+    return streaming, errors
+
+
+def _vllm_ttft_execution_indexes(data: dict[str, Any]) -> set[int]:
+    indexes: set[int] = set()
+    metrics = data.get("runtime_neutral_metrics")
+    measurements = metrics.get("measurements") if isinstance(metrics, dict) else None
+    if not isinstance(measurements, list):
+        return indexes
+    for measurement in measurements:
+        if not isinstance(measurement, dict):
+            continue
+        records = measurement.get("metrics")
+        if not isinstance(records, list) or not any(
+            isinstance(record, dict)
+            and record.get("metric_id") == "llmgauge.metric.v1.time_to_first_token"
+            for record in records
+        ):
+            continue
+        execution_ref = measurement.get("execution_ref")
+        if not isinstance(execution_ref, str) or not execution_ref.startswith(
+            "results/"
+        ):
+            continue
+        index_text = execution_ref.removeprefix("results/")
+        if index_text.isdigit():
+            indexes.add(int(index_text))
+    return indexes
+
+
+def _validate_vllm_transport_consistency(
+    result_dir: Path,
+    data: dict[str, Any],
+) -> list[str]:
+    """Recompute vLLM transport consistency across represented artifacts."""
+    runtime = data.get("runtime")
+    if not isinstance(runtime, dict) or runtime.get("backend") != "vllm":
+        return []
+
+    runtime_evidence = _load_vllm_transport_artifact(
+        result_dir,
+        runtime.get("vllm_runtime_evidence_path"),
+        label="runtime.vllm_runtime_evidence_path",
+    )
+    prompt_results = data.get("results")
+    if not isinstance(prompt_results, list):
+        return []
+
+    prompt_evidence: list[
+        tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]
+    ] = []
+    stream_path_represented = False
+    for prompt_result in prompt_results:
+        if not isinstance(prompt_result, dict):
+            continue
+        prompt_id = str(prompt_result.get("prompt_id", "prompt"))
+        request_evidence = _load_vllm_transport_artifact(
+            result_dir,
+            prompt_result.get("request_evidence_path"),
+            label=f"{prompt_id}.request_evidence_path",
+        )
+        stream_path = prompt_result.get("stream_evidence_path")
+        if stream_path is not None:
+            stream_path_represented = True
+        stream_evidence = _load_vllm_transport_artifact(
+            result_dir,
+            stream_path,
+            label=f"{prompt_id}.stream_evidence_path",
+        )
+        prompt_evidence.append((prompt_result, request_evidence, stream_evidence))
+
+    ttft_indexes = _vllm_ttft_execution_indexes(data)
+    public_export_manifest = _load_vllm_transport_artifact(
+        result_dir,
+        "public-export-manifest.json",
+        label="public-export-manifest.json",
+    )
+    public_derivative = (
+        public_export_manifest is not None
+        and public_export_manifest.get("schema_version") == "llmgauge.public_export.v0"
+    )
+    represented = (
+        "streaming" in runtime
+        or "transport_mode" in runtime
+        or (
+            runtime_evidence is not None
+            and (
+                "streaming" in runtime_evidence or "transport_mode" in runtime_evidence
+            )
+        )
+        or any(
+            request_evidence is not None
+            and (
+                request_evidence.get("streaming") is True
+                or request_evidence.get("transport_mode") is not None
+            )
+            for _, request_evidence, _ in prompt_evidence
+        )
+        or stream_path_represented
+        or bool(ttft_indexes)
+    )
+    if not represented:
+        return []
+
+    errors: list[str] = []
+    runtime_streaming, identity_errors = _validate_vllm_transport_identity(
+        runtime,
+        label="runtime",
+        required=True,
+    )
+    errors.extend(identity_errors)
+    runtime_streaming_flag = runtime.get("vllm_streaming_evidence", _TRANSPORT_MISSING)
+    if runtime_streaming_flag is not _TRANSPORT_MISSING:
+        if not isinstance(runtime_streaming_flag, bool):
+            errors.append("runtime.vllm_streaming_evidence must be a boolean")
+        elif (
+            runtime_streaming is not None
+            and runtime_streaming_flag != runtime_streaming
+        ):
+            errors.append(
+                "runtime.vllm_streaming_evidence differs from runtime.streaming"
+            )
+
+    runtime_evidence_streaming: bool | None = None
+    if runtime_evidence is None:
+        errors.append(
+            "vLLM transport consistency requires readable canonical runtime evidence"
+        )
+    else:
+        runtime_evidence_streaming, evidence_errors = _validate_vllm_transport_identity(
+            runtime_evidence,
+            label="vLLM runtime evidence",
+            required=True,
+        )
+        errors.extend(evidence_errors)
+        runtime_evidence_version = runtime_evidence.get("vllm_version")
+        if runtime_evidence_streaming is True:
+            admitted, _ = streaming_ttft_version_admitted(
+                runtime_evidence_version
+                if isinstance(runtime_evidence_version, str)
+                else None
+            )
+            if not admitted:
+                errors.append(
+                    "vLLM runtime evidence streaming version is not qualified"
+                )
+        runtime_version = runtime.get("vllm_version")
+        if runtime_version is not None and runtime_version != runtime_evidence_version:
+            errors.append(
+                "runtime.vllm_version differs from canonical runtime evidence"
+            )
+        if (
+            runtime_streaming is not None
+            and runtime_evidence_streaming is not None
+            and runtime_streaming != runtime_evidence_streaming
+        ):
+            errors.append(
+                "runtime.streaming differs from vLLM runtime evidence.streaming"
+            )
+
+    for index, (prompt_result, request_evidence, stream_evidence) in enumerate(
+        prompt_evidence
+    ):
+        prompt_id = str(prompt_result.get("prompt_id", f"results[{index}]"))
+        stream_path = prompt_result.get("stream_evidence_path")
+        ttft_represented = index in ttft_indexes
+        if request_evidence is None:
+            request_path = prompt_result.get("request_evidence_path")
+            request_path_represented = isinstance(request_path, str) and bool(
+                request_path
+            )
+            if request_path_represented or stream_path is not None or ttft_represented:
+                errors.append(
+                    f"{prompt_id} transport evidence requires readable request evidence"
+                )
+            continue
+
+        skipped = request_evidence.get("skipped") is True
+        transmitted = request_evidence.get("request_transmitted") is True
+        completed = prompt_result.get("status") == "completed"
+        request_identity_required = not skipped and (
+            transmitted or completed or stream_path is not None or ttft_represented
+        )
+        request_streaming, request_errors = _validate_vllm_transport_identity(
+            request_evidence,
+            label=f"{prompt_id} request evidence",
+            required=request_identity_required,
+        )
+        errors.extend(request_errors)
+        if (
+            runtime_streaming is not None
+            and request_streaming is not None
+            and runtime_streaming != request_streaming
+        ):
+            errors.append(
+                f"{prompt_id} request evidence.streaming differs from runtime.streaming"
+            )
+        if (
+            runtime_evidence_streaming is not None
+            and request_streaming is not None
+            and runtime_evidence_streaming != request_streaming
+        ):
+            errors.append(
+                f"{prompt_id} request evidence.streaming differs from "
+                "vLLM runtime evidence.streaming"
+            )
+
+        request_observation = request_evidence.get("observation_method")
+        if request_streaming is True:
+            if request_observation is not None and (
+                request_observation != OBSERVATION_METHOD
+            ):
+                errors.append(
+                    f"{prompt_id} request evidence.observation_method is invalid"
+                )
+            if (
+                transmitted or completed or stream_path is not None
+            ) and request_observation != OBSERVATION_METHOD:
+                errors.append(
+                    f"{prompt_id} transmitted/observed streaming request must "
+                    "disclose its observation_method"
+                )
+        elif request_observation is not None:
+            errors.append(
+                f"{prompt_id} non-streaming request must not disclose a streaming "
+                "observation_method"
+            )
+
+        if stream_path is not None:
+            if stream_evidence is None:
+                errors.append(f"{prompt_id} stream evidence path is unreadable")
+            if runtime_streaming is not True:
+                errors.append(
+                    f"{prompt_id} stream evidence is incompatible with "
+                    "runtime.streaming"
+                )
+            if request_streaming is not True:
+                errors.append(
+                    f"{prompt_id} stream evidence is incompatible with request "
+                    "evidence.streaming"
+                )
+
+        if stream_evidence is not None:
+            stream_streaming, stream_errors = _validate_vllm_transport_identity(
+                stream_evidence,
+                label=f"{prompt_id} stream evidence",
+                required=True,
+            )
+            errors.extend(stream_errors)
+            if stream_streaming is not True:
+                errors.append(f"{prompt_id} stream evidence.streaming must be true")
+            if stream_evidence.get("observation_method") != OBSERVATION_METHOD:
+                errors.append(
+                    f"{prompt_id} stream evidence.observation_method is invalid"
+                )
+            if (
+                request_observation is not None
+                and request_observation != stream_evidence.get("observation_method")
+            ):
+                errors.append(
+                    f"{prompt_id} request and stream observation methods differ"
+                )
+
+            stream_version = stream_evidence.get("vllm_version")
+            admitted, qualification_rule = streaming_ttft_version_admitted(
+                stream_version if isinstance(stream_version, str) else None
+            )
+            qualification = stream_evidence.get("version_qualification")
+            if (
+                not admitted
+                or not isinstance(qualification, dict)
+                or qualification.get("admitted") is not True
+                or qualification.get("rule") != qualification_rule
+                or qualification.get("observed_vllm_version") != stream_version
+            ):
+                errors.append(
+                    f"{prompt_id} stream evidence exact vLLM qualification is invalid"
+                )
+            if (
+                runtime_evidence is not None
+                and runtime_evidence.get("vllm_version") != stream_version
+            ):
+                errors.append(
+                    f"{prompt_id} stream evidence vLLM version differs from "
+                    "canonical runtime evidence"
+                )
+        elif completed and request_streaming is True and not public_derivative:
+            errors.append(
+                f"{prompt_id} completed streaming request is missing required "
+                "stream evidence"
+            )
+
+        request_claims_ttft = any(
+            request_evidence.get(field) is not None
+            for field in (
+                "time_to_first_token_seconds",
+                "first_token_channel",
+                "first_token_event_index",
+            )
+        )
+        if request_claims_ttft and stream_evidence is None:
+            errors.append(
+                f"{prompt_id} request TTFT claim is missing required stream evidence"
+            )
+        if ttft_represented:
+            if runtime_streaming is not True:
+                errors.append(
+                    f"{prompt_id} TTFT is incompatible with runtime.streaming"
+                )
+            if request_streaming is not True:
+                errors.append(
+                    f"{prompt_id} TTFT is incompatible with request evidence.streaming"
+                )
+            if stream_evidence is None:
+                errors.append(f"{prompt_id} TTFT is missing required stream evidence")
+
     return errors
 
 
@@ -1387,6 +1763,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     errors.extend(validate_agent_harness_result(result_dir, data))
     errors.extend(validate_external_benchmark_result(result_dir, data))
     errors.extend(validate_result_transcript(result_dir, data))
+    errors.extend(_validate_vllm_transport_consistency(result_dir, data))
     errors.extend(validate_area4_evidence(result_dir, data))
 
     errors.extend(verify_run_fingerprint(result_dir, data))

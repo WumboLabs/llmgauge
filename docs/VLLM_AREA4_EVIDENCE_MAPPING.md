@@ -217,25 +217,33 @@ The Area 4 validator now dispatches by backend:
   token event, and no TTFT for no-token or non-streaming evidence.
   Readiness/`unknown` placement is enforced.
 
+Result validation also cross-checks the represented transport authority chain:
+result runtime metadata → canonical runtime evidence → request evidence →
+private stream evidence → TTFT record. Streaming requires
+`openai_compatible_sse`; non-streaming forbids stream artifacts and TTFT.
+Completed streaming requests require stream evidence, while truthful
+pre-transmission and no-event failure states may omit it.
+
 Historical vLLM results without Area 4 evidence remain valid; llama.cpp Area 4
 evidence is unchanged.
 
 ## Reporting and comparison
 
-The single-run report shows the neutral vLLM wall-time record under
-"Runtime-neutral evidence" with provenance, boundary, and completion state,
-and keeps backend-native token/throughput evidence separate. The comparison
-report shows request wall time with backend and boundary columns and does not
-mark values equivalent; a llama.cpp process-window record and a vLLM
-request-window record share a metric identity but have different sampling
-boundaries, which is disclosed rather than normalized.
+The single-run report shows the neutral vLLM wall-time and TTFT records under
+"Runtime-neutral evidence" with provenance, boundary, completion state, and
+first-token channel. It renders transport mode from represented runtime
+metadata and never converts a missing streaming transport into
+`non-streaming`. The comparison report discloses streaming state, transport
+mode, request observation method, TTFT availability, and sampling boundaries;
+it does not infer transport from TTFT or mark values equivalent.
 
 ## Public export / privacy
 
-No new sensitive fields are introduced. Request evidence files already undergo
-endpoint-identity sanitization; the Area 4 objects carry only metric values,
-contained relative evidence references, and closed vocabulary states. Export
-sanitization rules remain at least as restrictive as before.
+Public export keeps the existing V1 privacy boundary: private stream artifacts,
+raw SSE events, token IDs, TTFT records, and stream references are omitted.
+The sanitized request/runtime transport disclosure may remain. Export
+validation recognizes this deliberate derivative shape without weakening
+canonical private-result validation.
 
 ## Compatibility
 

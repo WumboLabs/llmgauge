@@ -10,10 +10,13 @@ import threading
 import time
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from llmgauge.commands.run_helpers import execute_vllm_run
+from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.runners.vllm_external import (
     DEFAULT_MAX_RESPONSE_BYTES,
     VLLM_STREAM_EVIDENCE_SCHEMA,
@@ -937,3 +940,70 @@ def test_non_streaming_produces_no_stream_artifact(sse_server) -> None:
     result = run_chat_completion(config, prompt="x")
     assert result.stream_evidence is None
     assert result.request_evidence.get("stream_evidence_path") is None
+
+
+def test_run_assembly_preserves_streaming_runtime_evidence(
+    sse_server,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url, scenario = sse_server
+    scenario.events = [
+        chunk(role="assistant", content=""),
+        chunk(content="Hello", token_ids=[101]),
+        usage_chunk(prompt_tokens=5, completion_tokens=1),
+        finish(),
+        done(),
+    ]
+
+    class _SyntheticVramSampler:
+        DEFAULT_INTERVAL_SECONDS = 0.1
+
+        def start(self) -> None:
+            return None
+
+        def stop(self) -> tuple[list[dict[str, Any]], list[str]]:
+            return [], ["synthetic_sampler_disabled"]
+
+    monkeypatch.setattr(
+        "llmgauge.commands.run_helpers.VramSampler",
+        _SyntheticVramSampler,
+    )
+    out = tmp_path / "streaming-run"
+    result = execute_vllm_run(
+        suite=Path("core-v1"),
+        only="honesty-unknown-tool",
+        include="all",
+        resolved={
+            "model_id": "test-model",
+            "model_profile": None,
+            "profile": {},
+            "config_path": None,
+            "model_profiles_path": None,
+            "vllm_endpoint": url,
+            "served_model": "test-model",
+            "connect_timeout": 2.0,
+            "request_timeout": 5.0,
+            "max_response_bytes": 100_000,
+            "vllm_streaming_evidence": True,
+            "ctx": 2048,
+            "max_tokens": 32,
+            "temp": 0.2,
+            "top_p": 0.95,
+            "runtime_label": "synthetic-loopback",
+            "reasoning_mode": "none",
+            "model_source": "served_model",
+            "vram_min_headroom_warn_mib": None,
+        },
+        out=out,
+        fail_on_failed_prompts=True,
+    )
+
+    runtime_evidence = json.loads(
+        (out / "vllm-runtime-evidence.json").read_text(encoding="utf-8")
+    )
+    assert runtime_evidence["streaming"] is True
+    assert runtime_evidence["transport_mode"] == "openai_compatible_sse"
+    assert result["runtime"]["streaming"] is True
+    assert result["runtime"]["transport_mode"] == "openai_compatible_sse"
+    assert validate_result_dir(out) == []

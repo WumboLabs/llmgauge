@@ -230,15 +230,11 @@ claimed.
   only `message.content`, and the non-streaming adapter does not admit
   reasoning deltas at all. The accepted neutral TTFT definition says "first
   generated output token" without excluding reasoning tokens.
-- **Contract gap (blocks implementation):** whether the first reasoning token
-  triggers neutral TTFT, or only the first final-answer `content` token,
-  must be explicitly resolved. Do not silently choose. The existing
-  reasoning/output evidence model treats reasoning as distinct native
-  evidence; a resolution may define TTFT over "first generated output token
-  of the admitted response kind" with reasoning disclosed in the workload.
-- Until resolved, the safe implementation posture is: non-reasoning text
-  models are unambiguous; reasoning-model TTFT requires the contract
-  decision.
+- **Resolved contract:** the first backend-generated token triggers neutral
+  TTFT, including a reasoning token. The first final-answer content token
+  triggers TTFT only when no earlier generated token occurred. The implemented
+  rule and excluded event kinds are stated under
+  [Resolved contract: reasoning tokens](#resolved-contract-reasoning-tokens).
 
 ## Logprobs / token identity
 
@@ -349,38 +345,35 @@ into completed inference.
 ## Transport identity
 
 Streaming is a deliberate extension of the accepted non-streaming contract,
-not a silent reinterpretation. Future evidence must record:
+not a silent reinterpretation. Implemented evidence records:
 
-- `streaming: true` and `transport_mode: "openai_compatible_sse"` (or
-  equivalent versioned method string);
-- the request options that produced token identity (`return_token_ids=true`
-  and/or logprobs options) and their vLLM version qualification;
-- the observation-method identity (schema/version of the stream evidence
-  artifact).
+- `streaming: true` and
+  `transport_mode: "openai_compatible_sse"`;
+- the request options that produce token identity (`return_token_ids=true`)
+  and their exact vLLM version qualification;
+- the observation-method identity (`llmgauge.vllm_stream_evidence.v0`).
 
-The runtime-evidence `streaming` field already exists (`False` today) and is
-the natural place for the flag.
+Canonical runtime evidence records the resolved streaming selection. Result,
+request, stream, and Area 4 evidence must agree with it.
 
 ## Fingerprint / result implications
 
 - vLLM results currently carry no run fingerprint when model SHA-256
-  provenance is unavailable; when Area 4 vLLM evidence is present, the
-  existing fingerprint logic hashes contained `request/*.json` artifacts.
-- A preserved stream evidence artifact is authoritative per-prompt evidence;
-  when added, it should be included in the fingerprint artifact set (additive,
-  historical fingerprints remain valid). If the fingerprint payload needs a
-  new version to represent transport mode, that is an implementation
-  prerequisite — the existing payload shape does not change here.
+  provenance is unavailable. Where the existing Area 4 fingerprint payload
+  applies, request and stream evidence artifacts are included in its
+  authoritative per-prompt artifact hashes.
+- Streaming state and transport already use represented runtime/request/stream
+  fields. No fingerprint schema or payload version changed; historical
+  fingerprints remain valid.
 
 ## Comparison boundary
 
-Future TTFT comparison must disclose: backend/runtime, transport observation
-method/version, streaming state, workload identity, model identity/provenance,
-cache state, completion state, request settings, and hardware. Matching
+Current TTFT comparison discloses backend/runtime, transport observation
+method/version, streaming state, workload identity, completion state, request
+settings, and hardware evidence where represented. Matching
 `llmgauge.metric.v1.time_to_first_token` IDs alone never implies equivalence;
-a llama-server TTFT and a vLLM TTFT can share the neutral metric only if their
-observation boundaries are proven equivalent. The current vLLM TTFT remains
-deferred until implementation.
+transport and observation differences remain explicit, with no winner or
+ranking.
 
 ## Security / privacy
 
@@ -407,12 +400,13 @@ deferred until implementation.
 - Request wall time under streaming includes the same components plus stream
   transfer; the metric boundary is documented, not assumed equivalent to
   non-streaming wall time.
-- Future evidence must record `transport_mode: streaming` and the
-  observation-method identity so timing differences are attributable.
+- Current evidence records `transport_mode: "openai_compatible_sse"` and the
+  observation-method identity so timing differences remain attributable.
 
 ## Feasibility decision
 
-**VLLM_STREAMING_TTFT = FEASIBLE** (architecture; implementation deferred).
+**VLLM_STREAMING_TTFT = FEASIBLE AND IMPLEMENTED** for exactly qualified vLLM
+0.27.1.
 
 Evidence for each required element:
 
@@ -438,11 +432,10 @@ Evidence for each required element:
 9. **Privacy/evidence boundaries tractable** — private stream artifact,
    default-deny sanitizer, no remote/auth/concurrency expansion. ✓
 
-Open contract gap (implementation blocker, not feasibility blocker):
-**reasoning-token semantics** for TTFT must be resolved by a human decision
-before implementation.
+The reasoning-token contract is resolved below and no longer blocks the
+implemented transport.
 
-## Future implementation acceptance gates
+## Implemented acceptance gates
 
 1. First generated-token boundary proven: the first chunk whose
    `choices[0].token_ids` is non-empty, with `return_token_ids=true`.
@@ -450,9 +443,9 @@ before implementation.
    prompt_text, usage-only chunk) can never trigger TTFT.
 3. Empty events (empty `delta.content` with no `token_ids`) can never trigger
    TTFT.
-4. Reasoning semantics explicitly resolved (contract gap above); the chosen
-   identity (first generated token vs first final-answer token) recorded in
-   the workload/evidence.
+4. Reasoning semantics explicitly resolved: the first backend-generated token,
+   including a reasoning token, triggers neutral TTFT and the channel is
+   recorded in evidence.
 5. Token/logprob representation version-qualified (vLLM version +
    `return_token_ids`/`return_tokens_as_token_ids` + stream evidence schema
    version).
