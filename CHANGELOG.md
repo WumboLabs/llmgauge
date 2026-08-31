@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.77.0 - 2026-08-30
+
+LLMGauge v0.77 is the Area 4 runtime-evidence stabilization release: it
+adds opt-in vLLM streaming TTFT evidence, vLLM request-wall-time and
+request-window peak-VRAM evidence, native llama.cpp timing and placement
+evidence, and hardens public-export privacy and runtime-evidence
+consistency. Canonical result schemas and historical fingerprints are
+unchanged; previously valid v0.76 results remain valid.
 
 ### Added
 - vLLM streaming evidence mode (`--vllm-streaming-evidence`): opt-in bounded
@@ -40,20 +47,12 @@
   (additive; historical fingerprints unchanged).
 - Config, profile, and CLI surface: `--vllm-streaming-evidence` / config
   `runtime.vllm_streaming_evidence` / profile `vllm_streaming_evidence`.
-
-Existing non-streaming vLLM requests are unchanged in default, request body,
-response path, evidence, and wall-time semantics. Historical vLLM results
-without TTFT or stream evidence remain valid. llama.cpp TTFT remains
-unavailable under its current CLI transport. No new material dependencies.
-
-
 - Native single-turn llama.cpp results now preserve backend-owned timing
   (load, prompt-eval, eval/generation, total) and observed execution
   placement from llama.cpp diagnostic lines, with conservative Area 4
   provenance. Neutral load, prefill, decode, and TTFT mappings are not
   emitted; N/N layer offload is not claimed as full accelerator residency;
   requested `-ngl` is not treated as observation.
-
 - External vLLM request results now carry an Area 4 runtime-neutral
   `llmgauge.metric.v1.request_wall_time` mapping when the request was
   transmitted: monotonic wall time is measured from immediately before
@@ -76,6 +75,11 @@ unavailable under its current CLI transport. No new material dependencies.
   (`request_window_peak_vram_observation`) is distinct from the
   native llama.cpp process-window boundary; the two are not automatically
   equivalent. Historical vLLM results without VRAM evidence remain valid.
+
+Existing non-streaming vLLM requests are unchanged in default, request body,
+response path, evidence, and wall-time semantics. Historical vLLM results
+without TTFT or stream evidence remain valid. llama.cpp TTFT remains
+unavailable under its current CLI transport. No new material dependencies.
 
 ### Fixed
 

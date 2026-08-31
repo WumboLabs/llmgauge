@@ -18,7 +18,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).parents[1]
 LICENSE_PATH = REPOSITORY_ROOT / "LICENSE"
 
-EXPECTED_VERSION = "0.76.0"
+EXPECTED_VERSION = "0.77.0"
 EXPECTED_URLS = {
     "Homepage": "https://github.com/WumboLabs/llmgauge",
     "Repository": "https://github.com/WumboLabs/llmgauge",

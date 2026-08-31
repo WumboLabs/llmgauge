@@ -294,7 +294,7 @@ The initial backend supports only these normalized metrics:
 
 - request wall time;
 - time to first token (under explicit streaming evidence mode, using the
-  qualified vLLM token-ID SSE transport);;
+  qualified vLLM token-ID SSE transport);
 - backend-reported prompt tokens, when present;
 - backend-reported completion tokens, when present;
 - end-to-end completion throughput, calculated only as completion tokens divided
