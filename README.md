@@ -53,11 +53,11 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.76
+Current stable tag: v0.77
 
-Current package version: 0.76.0
+Current package version: 0.77.0
 
-Current release line: v0.76.0.
+Current release line: v0.77.0.
 
 Install from PyPI:
 
@@ -74,12 +74,12 @@ Upgrade and uninstall:
 
 Alternatives: `pipx install llmgauge` for another isolated CLI install, or
 `pip install llmgauge` to install into an existing Python environment. A
-pinned version is available with `uv tool install "llmgauge==0.76.0"`.
+pinned version is available with `uv tool install "llmgauge==0.77.0"`.
 
 Pinned Git source installation remains available as an explicit
 pinned-source/development/fallback method:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.76
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.77
 
 Contributors and unreleased development should use a source checkout with
 `uv sync` and `uv run llmgauge ...`. Editable installation is a development

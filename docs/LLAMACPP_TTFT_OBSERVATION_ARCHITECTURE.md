@@ -76,12 +76,12 @@ All source findings are from the installed binary's own source checkout,
 proven identical by version string.
 
 - Installed executable:
-  `/home/cheez/Projects/local-llm/llama.cpp-current/bin/llama-cli`
+  `<operator-local>/llama.cpp-current/bin/llama-cli`
   (symlink to
-  `/home/cheez/Projects/local-llm/llama.cpp-sm120-upgrade/build-cuda-sm120-new/bin/llama-cli`)
+  `<operator-local>/llama.cpp-sm120-upgrade/build-cuda-sm120-new/bin/llama-cli`)
 - Reported build: `version: 0.1.0-dev (build 10449, commit 0d9ceae1e)`,
   built with GNU 15.3.1 for Linux x86_64.
-- Source checkout: `/home/cheez/Projects/local-llm/llama.cpp-sm120-upgrade`
+- Source checkout: `<operator-local>/llama.cpp-sm120-upgrade`
   at `HEAD = 0d9ceae1e38291035605613ab41a8f5e693d6fcd`
   ("ui: read structuredContent from MCP tool result when content is empty").
 - **INSTALLED BINARY ↔ SOURCE correspondence is proven**: the binary reports

@@ -118,8 +118,7 @@ Candidate: llama.cpp printed `load time` (preserved as
 `llama_cpp_timing.load_time_seconds` in `native/*.execution.json`).
 
 Primary-source finding (installed binary at commit `0d9ceae1e`, source
-`/home/cheez/Projects/local-llm/llama.cpp-sm120-upgrade`, proven identical by
-version string):
+`<operator-local-llama.cpp-sm120-upgrade>`, proven identical by version string):
 
 - `src/llama.cpp:336-337` starts a `time_meas tm(model->t_load_us)` timer at
   model load start (`model->t_start_us`).

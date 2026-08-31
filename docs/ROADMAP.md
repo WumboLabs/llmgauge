@@ -8,22 +8,20 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.76` (published to production PyPI as `llmgauge`
-  0.76.0)
-- Current package version: `0.76.0`
-- Current stable release line: `v0.76.0`
-- Current release state: `v0.76` is the multi-turn transcript comparison and
-  safe public derivative release: bounded structural comparison of
-  all-transcript result sets via `llmgauge compare`, the content-default-deny
-  public comparison derivative `llmgauge export-public-comparison`
-  (`llmgauge.public_transcript_comparison.v0`), and the content-default-deny
-  single-transcript public derivative `llmgauge export-public-transcript`
-  (`llmgauge.public_transcript.v0`). v0.75 remains the reasoning/sampling
-  profile release (published to production PyPI as `llmgauge` 0.75.0), and
-  v0.74 remains the completed distribution and installation release
-  (production PyPI, Trusted Publishing, canonical `uv tool install llmgauge`
-  UX). Production publication of v0.76 occurred when the human pushed
-  annotated tag `v0.76` and approved the `pypi` environment deployment.
+- Current stable tag: `v0.77` (release candidate, pending the human
+  merge/tag/publication gate)
+- Current package version: `0.77.0`
+- Current stable release line: `v0.77.0`
+- Current release state: `v0.77` is the Area 4 runtime-evidence
+  stabilization release: opt-in vLLM streaming TTFT evidence
+  (`--vllm-streaming-evidence`), vLLM request-wall-time and request-window
+  peak-VRAM evidence, native llama.cpp timing and placement evidence, and
+  public-export privacy/integrity hardening. v0.76 remains the multi-turn
+  transcript comparison and safe public derivative release (published to
+  production PyPI as `llmgauge` 0.76.0), and v0.75 remains the
+  reasoning/sampling profile release (published to production PyPI as
+  `llmgauge` 0.75.0). Production publication of v0.77 happens only through
+  the human annotated-tag/approval gate.
 
 ## What LLMGauge is
 
@@ -1051,6 +1049,36 @@ No session aggregate score, ranking, winner, statistical, or semantic
 judgment claim exists; transcript text publication remains excluded.
 Production PyPI publication occurred when the human pushed annotated tag
 `v0.76` and approved the `pypi` environment deployment.
+
+### `v0.77` — Area 4 runtime-evidence stabilization (release candidate)
+
+**Completed in the prepared release candidate, subject to the final human
+merge/tag/publication gate:**
+
+- opt-in vLLM streaming evidence mode (`--vllm-streaming-evidence`) using
+  the qualified vLLM token-ID SSE transport (`return_token_ids=true`),
+  with runtime-neutral TTFT (`llmgauge.metric.v1.time_to_first_token`),
+  preserved private per-request stream evidence
+  (`llmgauge.vllm_stream_evidence.v0`), and exact vLLM 0.27.1 version
+  qualification; the non-streaming default is unchanged;
+- Area 4 request-wall-time mapping for transmitted external vLLM requests
+  (`llmgauge.metric.v1.request_wall_time`) and request-window peak-VRAM
+  evidence (`llmgauge.metric.v1.peak_vram`) from a bounded concurrent
+  NVIDIA telemetry sampler;
+- native llama.cpp backend-owned timing and observed execution placement
+  with conservative Area 4 provenance (no neutral load/prefill/decode/TTFT
+  mappings, no full-accelerator-residency claim);
+- runtime-evidence transport consistency hardening: result, runtime
+  evidence, request and stream evidence, reports, and comparisons agree on
+  streaming state, and `validate-result` rejects represented
+  contradictions;
+- public-export privacy/integrity hardening: TTFT, stream/token evidence,
+  generated reasoning, and local endpoint identity omitted while exact
+  API-route prose and transport disclosure remain;
+- unchanged canonical schemas and historical fingerprints.
+
+Production PyPI publication of v0.77 occurs only when the human pushes
+annotated tag `v0.77` and approves the `pypi` environment deployment.
 
 These gates assign no release dates.
 

@@ -70,12 +70,12 @@ from final-answer tokens (see [Reasoning-content semantics](#reasoning-content-s
 
 All source findings are from the operator's installed vLLM environment:
 
-- Environment: `/home/cheez/Projects/local-llm/vllm-env/` (Python 3.12
+- Environment: `<operator-local>/vllm-env/` (Python 3.12
   virtualenv)
 - Version: `vllm 0.27.1` (`vllm-0.27.1.dist-info`, `vllm.__version__`
   import probe, and `vllm-admission-evidence/version.json`)
 - Source package:
-  `/home/cheez/Projects/local-llm/vllm-env/lib/python3.12/site-packages/vllm/`
+  `<operator-local>/vllm-env/lib/python3.12/site-packages/vllm/`
 - Relevant files (installed source, not network copies):
   - `entrypoints/openai/chat_completion/serving.py`
     (`chat_completion_stream_generator`)
