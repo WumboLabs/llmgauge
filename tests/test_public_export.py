@@ -23,6 +23,8 @@ def _write_run(
     model_filename: str = "model.gguf",
     executable_filename: str = "llama-cli",
     with_area4: bool = False,
+    raw_output: str = "api_key=private-value\nRelative/path remains.\n",
+    cleaned_output: str = "cleaned output\n",
 ) -> Path:
     result_dir = tmp_path / "source-run"
     (result_dir / "raw").mkdir(parents=True)
@@ -147,10 +149,10 @@ def _write_run(
         "Use /home/private-user/config.yaml\n", encoding="utf-8"
     )
     (result_dir / "raw" / "honesty-unknown-tool.output.txt").write_text(
-        "api_key=private-value\nRelative/path remains.\n", encoding="utf-8"
+        raw_output, encoding="utf-8"
     )
     (result_dir / "cleaned" / "honesty-unknown-tool.output.txt").write_text(
-        "cleaned output\n", encoding="utf-8"
+        cleaned_output, encoding="utf-8"
     )
     (result_dir / "logs" / "honesty-unknown-tool.stderr.log").write_text(
         "stderr /tmp/private-run\n", encoding="utf-8"
@@ -228,6 +230,87 @@ def test_public_export_sanitizes_without_modifying_source(tmp_path: Path) -> Non
     assert "REDACTED_SECRET" in (
         output_dir / "raw" / "honesty-unknown-tool.output.txt"
     ).read_text(encoding="utf-8")
+
+
+def test_public_export_omits_reasoning_bearing_generated_outputs(
+    tmp_path: Path,
+) -> None:
+    private_reasoning = "<think>PRIVATE_REASONING_SENTINEL</think>final answer"
+    source_dir = _write_run(
+        tmp_path,
+        raw_output=private_reasoning,
+        cleaned_output=private_reasoning,
+    )
+    output_dir = tmp_path / "public-export"
+
+    manifest = export_public_run(source_dir, output_dir)
+
+    assert (output_dir / "raw/honesty-unknown-tool.output.txt").read_text(
+        encoding="utf-8"
+    ) == ""
+    assert (output_dir / "cleaned/honesty-unknown-tool.output.txt").read_text(
+        encoding="utf-8"
+    ) == ""
+    assert "generated_reasoning_omitted" in manifest["redaction_categories"]
+    assert validate_result_dir(output_dir) == []
+
+
+def test_public_export_retains_final_answer_only_outputs(tmp_path: Path) -> None:
+    final_answer = "ordinary final answer\n"
+    source_dir = _write_run(
+        tmp_path,
+        raw_output=final_answer,
+        cleaned_output=final_answer,
+    )
+    output_dir = tmp_path / "public-export"
+
+    manifest = export_public_run(source_dir, output_dir)
+
+    assert (output_dir / "raw/honesty-unknown-tool.output.txt").read_text(
+        encoding="utf-8"
+    ) == final_answer
+    assert (output_dir / "cleaned/honesty-unknown-tool.output.txt").read_text(
+        encoding="utf-8"
+    ) == final_answer
+    assert "generated_reasoning_omitted" not in manifest["redaction_categories"]
+    assert "area4_ttft_omitted" not in manifest["redaction_categories"]
+    assert validate_result_dir(output_dir) == []
+
+
+def test_public_export_validator_rejects_private_projection_mutations(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "public-export"
+    export_public_run(_write_run(tmp_path), output_dir)
+
+    result_path = output_dir / "llmgauge-result.json"
+    exported = json.loads(result_path.read_text(encoding="utf-8"))
+    exported["runtime"]["endpoint_identity"] = {"port": 18081}
+    exported["results"][0]["reasoning"] = "PRIVATE_REASONING"
+    exported["results"][0]["token_ids"] = [987654321]
+    result_path.write_text(json.dumps(exported), encoding="utf-8")
+    (output_dir / "raw/honesty-unknown-tool.output.txt").write_text(
+        "<think>PRIVATE_REASONING</think>",
+        encoding="utf-8",
+    )
+    (output_dir / "request").mkdir()
+    (output_dir / "request/private.stream.json").write_text(
+        json.dumps({"token_ids": [987654321]}),
+        encoding="utf-8",
+    )
+    manifest_path = output_dir / "public-export-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files_omitted"].append("raw/honesty-unknown-tool.output.txt")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    errors = validate_result_dir(output_dir)
+
+    assert any("structured reasoning" in error for error in errors)
+    assert any("private token IDs" in error for error in errors)
+    assert any("local endpoint identity" in error for error in errors)
+    assert any("generated reasoning marker" in error for error in errors)
+    assert any("private stream artifact" in error for error in errors)
+    assert any("claims omitted file is present" in error for error in errors)
 
 
 def test_public_export_preserves_native_execution_evidence(tmp_path: Path) -> None:

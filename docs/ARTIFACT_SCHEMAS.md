@@ -220,16 +220,29 @@ new or empty.
 The export policy preserves known report, prompt, output, score, VRAM, log, and
 machine-readable artifacts after explicit text or JSON sanitization. It omits
 unknown files by default. Absolute local paths, secret-like metadata, credential
-URLs, full local SHA-256 values, and legacy inline prompt duplication are
-redacted or removed. Relative artifact references and shortened public
-fingerprints remain usable. Stderr logs are transformed under the same bounded
-text policy so exported result references remain structurally valid.
+URLs, full local SHA-256 values, legacy inline prompt duplication, local
+endpoint host/port identity, and private stream/token evidence are redacted or
+removed. Exact LLMGauge-generated API route literals (`/version`, `/v1/models`,
+and `/v1/chat/completions`) remain readable; slash-prefixed filesystem paths
+and route-like extensions remain subject to path redaction.
+
+V1 public derivatives omit every represented TTFT projection: neutral metric
+records and their evidence refs, per-prompt and request aliases (including
+nested convenience metrics), stream refs/first-token fields, private stream
+artifacts, and TTFT report lines. Transport-mode disclosure may remain.
+Structured reasoning fields are removed. A generated output artifact containing
+a known `<think>...</think>` marker is emitted empty rather than heuristically
+split into a presumed final answer; final-answer-only output remains available.
+The canonical private source and its raw/cleaned output are unchanged.
 
 `public-export-manifest.json` uses schema `llmgauge.public_export.v0` and records
 the source artifact type, copied/transformed/omitted relative files, redaction
 categories, export timestamp, and the claim boundary that sanitization is not
-answer-quality validation. Users must review the export before publication;
-the policy is conservative but does not guarantee complete secret removal.
+answer-quality validation. Public-result validation checks represented manifest
+file claims and rejects known TTFT, reasoning, token-ID, private-stream, and
+structured endpoint contradictions. Users must still review the export before
+publication; the bounded policy does not detect arbitrary unmarked reasoning or
+guarantee complete secret removal.
 
 When the source run has a canonical run fingerprint, the manifest records it as
 `source_run_fingerprint`. This labels the fingerprint of the canonical private

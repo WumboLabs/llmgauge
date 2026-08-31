@@ -85,10 +85,16 @@ For a single-run public derivative, use:
     uv run llmgauge export-public results/<run-directory> --out public/<run-directory>
 
 The local run directory remains the canonical private evidence. The public
-export is a derived copy that preserves selected reports, prompts, outputs,
-scores, telemetry, and sanitized machine-readable metadata. It transforms
-private paths, secrets, full local hashes, and prompt duplication; unknown files
-are omitted and recorded in the export manifest.
+export is a derived copy that preserves selected reports, prompts, final-answer
+outputs, scores, telemetry, and sanitized machine-readable metadata. It removes
+private paths, secrets, full local hashes, prompt duplication, every known TTFT
+projection, stream/token evidence, and local endpoint host/port identity.
+Structured reasoning stays private. A generated output containing a known
+`<think>...</think>` block is omitted in full rather than heuristically reduced
+to a presumed final answer; arbitrary unmarked reasoning is not claimed
+detectable. Exact LLMGauge API route prose such as `/version` remains readable,
+while filesystem paths remain redacted. Unknown files are omitted and recorded
+in the export manifest.
 
 When available, the export manifest includes `source_run_fingerprint`, the
 fingerprint of the canonical private source evidence. It helps reviewers cite

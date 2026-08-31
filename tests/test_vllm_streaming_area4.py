@@ -328,6 +328,14 @@ def _result_dir(tmp_path: Path, result: dict[str, Any]) -> Path:
     return result_dir
 
 
+def _all_exported_text(export_dir: Path) -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8", errors="replace")
+        for path in export_dir.rglob("*")
+        if path.is_file()
+    )
+
+
 # ---------------------------------------------------------------------------
 # Builder
 # ---------------------------------------------------------------------------
@@ -942,40 +950,134 @@ def test_comparison_rejects_contradictory_source_result(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_public_export_omits_stream_evidence_and_ttft(tmp_path: Path) -> None:
-    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+def test_public_export_real_shaped_streaming_privacy_acceptance(
+    tmp_path: Path,
+) -> None:
+    private_ttft = 0.284731
+    private_port = 18081
+    private_endpoint = f"http://127.0.0.1:{private_port}"
+    private_path = "/home/test/private-model"
+    private_reasoning = (
+        "<think>\nPRIVATE_REASONING_SENTINEL\n</think>\nFINAL_ANSWER_SENTINEL"
+    )
+    private_token_id = 987654321
+
+    request_evidence = _stream_request_evidence()
+    request_evidence["time_to_first_token_seconds"] = private_ttft
+    request_evidence["endpoint_identity"]["port"] = private_port
+    request_evidence["url"] = private_endpoint
+    request_evidence["reasoning"] = "PRIVATE_STRUCTURED_REASONING_SENTINEL"
+    request_evidence["final_content"] = "AUTHORITATIVE_FINAL_CONTENT"
+    stream_evidence = _token_stream_evidence()
+    stream_evidence["events"][1]["elapsed_seconds"] = private_ttft
+    stream_evidence["events"][1]["token_ids"] = [private_token_id]
+    stream_evidence["first_token"]["elapsed_seconds"] = private_ttft
+    stream_evidence["prompt_token_ids"] = [123456789]
+    stream_evidence["reasoning_deltas"] = ["PRIVATE_STREAM_REASONING_SENTINEL"]
+    prompt = _prompt_entry("p1", request_evidence, stream_evidence)
+    prompt["generated_text"] = private_reasoning
+    prompt["cleaned_output_path"] = "cleaned/p1.output.txt"
     result = _vllm_result([prompt])
+    result["runtime"]["endpoint_identity"]["port"] = private_port
+    result["runtime"]["vllm_endpoint"] = private_endpoint
+    result["summary"]["local_endpoint_port"] = private_port
     result_dir = _result_dir(tmp_path, result)
+    (result_dir / "cleaned").mkdir()
+    (result_dir / "cleaned/p1.output.txt").write_text(
+        private_reasoning,
+        encoding="utf-8",
+    )
+    with (result_dir / "report.md").open("a", encoding="utf-8") as report:
+        report.write(
+            "\nDiscovery: GET /version; GET /v1/models; "
+            "POST /v1/chat/completions\n"
+            f"Private endpoint: {private_endpoint}\n"
+            f"Private model path: {private_path}\n"
+        )
+    assert validate_result_dir(result_dir) == []
     export_dir = tmp_path / "export"
+
     manifest = export_public_run(result_dir, export_dir)
-    # Stream evidence file must be omitted (not transformed).
-    assert not (export_dir / "request" / "p1.stream.json").exists()
-    omitted = manifest.get("files_omitted", [])
-    assert "request/p1.stream.json" in omitted
-    # Exported result JSON must not contain TTFT records or stream refs.
+
+    assert validate_result_dir(export_dir) == []
+    assert "area4_ttft_omitted" in manifest["redaction_categories"]
+    assert "generated_reasoning_omitted" in manifest["redaction_categories"]
+    assert "structured_reasoning_omitted" in manifest["redaction_categories"]
+    assert "vllm_endpoint_field_omitted" in manifest["redaction_categories"]
+    assert "request/p1.stream.json" in manifest["files_omitted"]
+    assert not (export_dir / "request/p1.stream.json").exists()
+    assert (export_dir / "raw/p1.output.txt").read_text(encoding="utf-8") == ""
+    assert (export_dir / "cleaned/p1.output.txt").read_text(encoding="utf-8") == ""
+
     exported = json.loads(
         (export_dir / "llmgauge-result.json").read_text(encoding="utf-8")
     )
-    measurements = exported["runtime_neutral_metrics"]["measurements"]
-    for measurement in measurements:
-        for record in measurement["metrics"]:
-            assert record["metric_id"] != TTFT_METRIC_ID
-    for prompt_result in exported["results"]:
-        assert prompt_result.get("stream_evidence_path") is None
-        assert prompt_result.get("time_to_first_token_seconds") is None
-        assert prompt_result.get("first_token_channel") is None
-    # Exported report must not leak TTFT lines.
-    report_text = (export_dir / "report.md").read_text(encoding="utf-8")
-    assert "TTFT" not in report_text
-    # Exported request evidence must not carry stream refs or TTFT values.
-    request_ev = json.loads(
-        (export_dir / "request" / "p1.json").read_text(encoding="utf-8")
+    assert all(
+        record["metric_id"] != TTFT_METRIC_ID
+        for measurement in exported["runtime_neutral_metrics"]["measurements"]
+        for record in measurement["metrics"]
     )
-    assert request_ev.get("stream_evidence_path") is None
-    assert request_ev.get("time_to_first_token_seconds") is None
-    assert request_ev["streaming"] is True  # transport mode stays disclosed
+    exported_prompt = exported["results"][0]
+    assert exported_prompt["generated_text"] == ""
+    assert "stream_evidence_path" not in exported_prompt
+    assert "time_to_first_token_seconds" not in exported_prompt["metrics"]
+    assert "first_token_channel" not in exported_prompt["metrics"]
+    assert not any(key.startswith("_area4_") for key in exported_prompt)
+    assert "port" not in exported["runtime"]["endpoint_identity"]
+    assert exported["summary"]["local_endpoint_port"] == "REDACTED_LOCAL_ENDPOINT"
+    assert exported["runtime"]["streaming"] is True
+    assert exported["runtime"]["transport_mode"] == STREAM_TRANSPORT_MODE
+
+    request_ev = json.loads(
+        (export_dir / "request/p1.json").read_text(encoding="utf-8")
+    )
+    assert "reasoning" not in request_ev
+    assert request_ev["final_content"] == "AUTHORITATIVE_FINAL_CONTENT"
+    assert "port" not in request_ev["endpoint_identity"]
+    assert "return_token_ids" not in request_ev
+    assert request_ev["streaming"] is True
     assert request_ev["transport_mode"] == STREAM_TRANSPORT_MODE
     assert request_ev["observation_method"] == OBSERVATION_METHOD
+
+    report_text = (export_dir / "report.md").read_text(encoding="utf-8")
+    assert "TTFT" not in report_text
+    assert "/version" in report_text
+    assert "/v1/models" in report_text
+    assert "/v1/chat/completions" in report_text
+    assert "REDACTED_HOME_PATH" in report_text
+    exported_text = _all_exported_text(export_dir)
+    for forbidden in (
+        str(private_ttft),
+        "PRIVATE_REASONING_SENTINEL",
+        "PRIVATE_STRUCTURED_REASONING_SENTINEL",
+        "PRIVATE_STREAM_REASONING_SENTINEL",
+        str(private_token_id),
+        "123456789",
+        private_endpoint,
+        "127.0.0.1",
+        str(private_port),
+        private_path,
+    ):
+        assert forbidden not in exported_text
+
+
+def test_public_export_validator_rejects_ttft_omission_contradiction(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    export_dir = tmp_path / "export"
+    manifest = export_public_run(result_dir, export_dir)
+    assert "area4_ttft_omitted" in manifest["redaction_categories"]
+
+    result_path = export_dir / "llmgauge-result.json"
+    exported = json.loads(result_path.read_text(encoding="utf-8"))
+    exported["results"][0]["metrics"]["time_to_first_token_seconds"] = 9.87654321
+    result_path.write_text(json.dumps(exported), encoding="utf-8")
+
+    errors = validate_result_dir(export_dir)
+
+    assert any("public export" in error and "TTFT" in error for error in errors)
 
 
 # ---------------------------------------------------------------------------

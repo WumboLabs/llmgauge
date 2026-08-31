@@ -187,6 +187,18 @@ Optional per-prompt fields: `failure_class`, `failure_detail`, `finish_reason`,
 `request_wall_time_seconds` and `end_to_end_completion_tps` (end-to-end, not
 decode-only; not claimed equivalent to llama.cpp `generation_tps`).
 
+These fields describe canonical private result evidence. The V1 public
+projection removes the neutral TTFT record and evidence refs, every per-prompt
+or request TTFT/first-token alias (including nested
+`results[].metrics.time_to_first_token_seconds`), stream refs and artifacts, and
+TTFT report lines. It also removes endpoint host/port/URL reconstruction data
+while retaining admitted coarse transport facts such as `streaming` and
+`transport_mode`. Generated structured reasoning is private; when a referenced
+raw or cleaned output contains a known `<think>...</think>` block and no
+authoritative structured final-answer-only representation exists, that public
+output content is omitted in full. Canonical private fields, artifacts, and
+validation requirements are unchanged.
+
 ### Backend provenance
 
 New real-run results may include additive `runtime.backend_provenance` metadata.
