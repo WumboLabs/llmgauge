@@ -208,13 +208,16 @@ preserved in the changelog. Durable claim boundaries live in
 
 ### Current decision
 
-The bounded vLLM evidence track now includes opt-in streaming TTFT evidence.
-The recommended next gate is a bounded real-vLLM streaming + TTFT validation
-run against the qualified local vLLM 0.27.1 runtime before additional neutral
-timing metrics are built on the streaming transport. Prefill/decode
-throughput, model-load time, steady-state VRAM, warm/cold lifecycle evidence,
-and observed execution placement remain deferred and are not marked complete;
-Area 4 overall is not marked complete.
+The bounded vLLM evidence track includes opt-in streaming TTFT evidence and its
+public-projection privacy boundary. Single-run public derivatives omit all
+known TTFT aliases/refs, private stream/token and reasoning evidence, and local
+endpoint identity while retaining admitted coarse transport disclosure. The
+next product gate is v0.77 stabilization / release-readiness review, not
+another Area 4 feature. Prefill/decode throughput, model-load time,
+steady-state VRAM, warm/cold lifecycle evidence, and observed execution
+placement remain deferred; Area 4 overall is not marked complete. After stable
+v0.77 publication, the planned WumboJets normal-published-package multi-model
+validation remains a separate outside-development-environment campaign.
 
 ## Fit Ladder terminal-path validation
 

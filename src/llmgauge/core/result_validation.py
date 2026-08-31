@@ -757,6 +757,17 @@ def _validate_vllm_transport_consistency(
     return errors
 
 
+def _validate_public_export_derivative(
+    result_dir: Path,
+    data: dict[str, Any],
+) -> list[str]:
+    if not (result_dir / "public-export-manifest.json").exists():
+        return []
+    from llmgauge.core.public_export import validate_public_export_privacy
+
+    return validate_public_export_privacy(result_dir, data)
+
+
 def load_result_json(result_dir: Path) -> dict[str, Any]:
     result_path = result_dir / "llmgauge-result.json"
     if not result_path.exists():
@@ -1727,8 +1738,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
             if stream_path_value is not None:
                 if not isinstance(stream_path_value, str) or not stream_path_value:
                     errors.append(
-                        f"{prompt_id}.stream_evidence_path must be a "
-                        "non-empty string"
+                        f"{prompt_id}.stream_evidence_path must be a non-empty string"
                     )
                 else:
                     try:
@@ -1765,6 +1775,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     errors.extend(validate_result_transcript(result_dir, data))
     errors.extend(_validate_vllm_transport_consistency(result_dir, data))
     errors.extend(validate_area4_evidence(result_dir, data))
+    errors.extend(_validate_public_export_derivative(result_dir, data))
 
     errors.extend(verify_run_fingerprint(result_dir, data))
 

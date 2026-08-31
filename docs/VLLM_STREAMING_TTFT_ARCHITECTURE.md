@@ -514,8 +514,15 @@ milestone):
   TTFT from preserved stream evidence.
 - **Failure table** implemented per this document (see
   [Failure / timeout semantics](#failure--timeout-semantics)).
-- **Privacy**: stream evidence, TTFT values, and reasoning text are private;
-  public export strips them while keeping transport-mode disclosure.
+- **Privacy**: stream evidence, token IDs, every TTFT projection, generated
+  reasoning text, and local endpoint identity are private. Public export keeps
+  admitted coarse transport disclosure but removes neutral/per-prompt/request
+  TTFT aliases and refs, stream artifacts, endpoint host/port/URL values, and
+  TTFT report lines. Structured reasoning is removed; a canonical output with a
+  known `<think>...</think>` block is omitted in full unless an already
+  authoritative structured final-answer-only representation exists. This is a
+  bounded known/structured-reasoning rule, not arbitrary free-text
+  chain-of-thought detection.
 
 ### Resolved contract: reasoning tokens
 

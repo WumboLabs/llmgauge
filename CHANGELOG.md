@@ -84,6 +84,11 @@ unavailable under its current CLI transport. No new material dependencies.
   comparisons agree on SSE streaming state. `validate-result` now rejects
   contradictory represented transport facts instead of accepting or
   mislabeling them.
+- Hardened single-run public export so every known TTFT projection, generated
+  reasoning, private stream/token evidence, and local endpoint identity is
+  omitted; public validation now checks manifest/privacy contradictions.
+  Exact generated API route prose such as `/version` remains readable while
+  filesystem paths remain redacted.
 
 ### Documentation
 
