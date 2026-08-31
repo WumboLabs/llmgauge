@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Any
 
 from llmgauge.core.scoring import scoring_evidence_summary
+from llmgauge.core.reports import _vllm_transport_display
+from llmgauge.core.result_validation import _validate_vllm_transport_consistency
+from llmgauge.core.run_fingerprint import (
+    FingerprintUnavailable,
+    resolve_contained_result_artifact,
+)
 
 
 def load_compare_result(result_dir: Path) -> dict[str, Any]:
@@ -13,7 +19,51 @@ def load_compare_result(result_dir: Path) -> dict[str, Any]:
         raise FileNotFoundError(f"Missing result file: {result_path}")
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
+    transport_errors = _validate_vllm_transport_consistency(result_dir, result)
+    if transport_errors:
+        raise ValueError(
+            "Source result validation failed: " + "; ".join(transport_errors[:5])
+        )
     result["_result_dir"] = str(result_dir)
+    observation_methods: set[str] = set()
+    runtime = result.get("runtime")
+    prompt_results = result.get("results")
+    if (
+        isinstance(runtime, dict)
+        and runtime.get("backend") == "vllm"
+        and isinstance(prompt_results, list)
+    ):
+        for prompt_result in prompt_results:
+            if not isinstance(prompt_result, dict):
+                continue
+            request_path_value = prompt_result.get("request_evidence_path")
+            if not isinstance(request_path_value, str) or not request_path_value:
+                continue
+            try:
+                request_path = resolve_contained_result_artifact(
+                    result_dir,
+                    request_path_value,
+                    label="comparison request evidence",
+                    require_file=True,
+                )
+                request_evidence = json.loads(request_path.read_text(encoding="utf-8"))
+            except (
+                FingerprintUnavailable,
+                OSError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ) as exc:
+                raise ValueError(
+                    "Comparison request evidence changed after source validation"
+                ) from exc
+            observation_method = (
+                request_evidence.get("observation_method")
+                if isinstance(request_evidence, dict)
+                else None
+            )
+            if isinstance(observation_method, str) and observation_method:
+                observation_methods.add(observation_method)
+    result["_vllm_transport_observation_methods"] = sorted(observation_methods)
     return result
 
 
@@ -821,12 +871,23 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
             peak_vram = None
             peak_vram_boundary = "unavailable"
             peak_vram_device = "unavailable"
-            streaming = False
-            transport = "non-streaming"
+            streaming: bool | None = None
+            transport = (
+                _vllm_transport_display(runtime)
+                if isinstance(runtime, dict)
+                else "unknown"
+            )
+            observation = "unavailable"
             ttft = None
             ttft_channel = "unavailable"
             if isinstance(runtime, dict) and isinstance(runtime.get("streaming"), bool):
                 streaming = runtime["streaming"]
+            if streaming is False:
+                observation = "not applicable"
+            elif streaming is True:
+                methods = result.get("_vllm_transport_observation_methods")
+                if isinstance(methods, list) and len(methods) == 1:
+                    observation = str(methods[0])
             if isinstance(measurements, list) and measurements:
                 first = measurements[0]
                 if isinstance(first, dict):
@@ -875,17 +936,19 @@ def build_compare_report(results: list[dict[str, Any]]) -> str:
                         placement = first["execution_placement"].get(
                             "observed", "unavailable"
                         )
-            if streaming and isinstance(runtime, dict):
-                transport = runtime.get("transport_mode") or (
-                    "openai_compatible_sse "
-                    f"(vllm {runtime.get('vllm_version') or 'unknown'})"
-                )
+            streaming_label = (
+                "streaming"
+                if streaming is True
+                else "non-streaming"
+                if streaming is False
+                else "unknown"
+            )
             lines.append(
                 "| "
                 f"{run.get('run_id')} | "
                 f"{backend or 'unknown'} | "
-                f"{'streaming' if streaming else 'non-streaming'} | "
-                f"{transport} | "
+                f"{streaming_label} | "
+                f"{transport} / {observation} | "
                 f"{'unavailable' if wall is None else wall} | "
                 f"{'unavailable' if ttft is None else ttft} | "
                 f"{ttft_channel} | "

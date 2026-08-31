@@ -532,6 +532,12 @@ stored.
 
 Optional fields are additive: older artifacts without them remain valid.
 
+For current represented transport evidence, `streaming: true` requires
+`transport_mode: "openai_compatible_sse"`; `streaming: false` requires no
+streaming transport mode. `validate-result` recomputes agreement with the
+result runtime, per-request evidence, any private stream evidence, and any
+Area 4 TTFT record. It does not trust a stored consistency boolean.
+
 - `vllm_version`: bounded string from server `GET /version`, or `unknown`.
 - `server_state`: API readiness observation (`ready` or `unknown`), not process
   ownership or cold/warm lifecycle history.
@@ -563,6 +569,14 @@ Required top-level fields:
 - `terminal`: object with `state`, `finish_reason`, `usage_present`,
   `done_received`, `server_error`, `malformed_event_index`
 - `failure`: object with `class` and `detail` (nullable)
+
+A completed transmitted streaming request requires this artifact in the
+canonical private result, including the exact qualified vLLM identity. A
+pre-transmission capability/readiness failure may omit it. A transmitted
+streaming failure may omit it only when no stream event was observed; once
+stream events exist, the artifact preserves them whether or not TTFT became
+available. Public export intentionally omits this private artifact and its
+TTFT references while retaining admitted transport disclosure.
 
 
 

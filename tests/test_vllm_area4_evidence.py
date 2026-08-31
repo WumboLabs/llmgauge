@@ -145,6 +145,7 @@ def _result_dir(tmp_path: Path, result: dict[str, object]) -> Path:
                     "vllm_version": "0.25.1",
                     "server_state": "ready",
                     "observed_system_fingerprints": [],
+                    "streaming": runtime.get("streaming", False),
                 }
             ),
             encoding="utf-8",
@@ -940,6 +941,7 @@ def test_public_export_preserves_vllm_area4_sanitized(tmp_path: Path) -> None:
                 "vllm_version": "0.25.1",
                 "server_state": "ready",
                 "observed_system_fingerprints": ["vllm-0.25.1-testfp"],
+                "streaming": False,
             }
         ),
         encoding="utf-8",

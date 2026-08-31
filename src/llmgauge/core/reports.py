@@ -23,6 +23,7 @@ from llmgauge.core.generic_core_scoring import (
     GENERIC_CORE_SUITE_ID,
     GENERIC_CORE_VERSION,
 )
+from llmgauge.runners.vllm_external import STREAM_TRANSPORT_MODE
 
 _MISSING = object()
 
@@ -51,6 +52,20 @@ def _fmt_endpoint_identity(identity: Any) -> str:
     port = identity.get("port")
     port_text = str(port) if port is not None else "unknown"
     return f"{scheme} loopback_class={loopback} port={port_text}"
+
+
+def _vllm_transport_display(runtime: Mapping[str, Any]) -> str:
+    streaming = runtime.get("streaming")
+    transport = runtime.get("transport_mode")
+    if streaming is True:
+        if transport == STREAM_TRANSPORT_MODE:
+            return STREAM_TRANSPORT_MODE
+        if transport is None:
+            return "unavailable (streaming transport metadata missing)"
+        return f"inconsistent ({transport})"
+    if streaming is False:
+        return "non-streaming" if transport is None else f"inconsistent ({transport})"
+    return "unknown" if transport is None else f"inconsistent ({transport})"
 
 
 def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
@@ -110,9 +125,7 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
                 f"- Runtime label: {runtime.get('runtime_label') or 'unknown'}",
                 f"- Reasoning mode: {runtime.get('reasoning_mode') or 'unknown'}",
                 f"- Streaming: {runtime.get('streaming', False)}",
-                (
-                    f"- Transport mode: {runtime.get('transport_mode') or 'non-streaming'}"
-                ),
+                f"- Transport mode: {_vllm_transport_display(runtime)}",
                 f"- Authentication: {runtime.get('authentication') or 'none'}",
                 f"- Proxy bypass policy: {runtime.get('proxy_bypass_policy') or 'unknown'}",
                 (

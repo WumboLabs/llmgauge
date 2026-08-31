@@ -11,13 +11,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from llmgauge.core.area4_evidence import (
     TTFT_BOUNDARY,
     TTFT_METRIC_ID,
     VLLM_STREAM_EVIDENCE_SCHEMA,
     build_vllm_area4_evidence,
 )
-from llmgauge.core.compare import compare_results
+from llmgauge.core.compare import compare_results, load_compare_result
 from llmgauge.core.public_export import export_public_run
 from llmgauge.core.reports import build_markdown_report
 from llmgauge.core.result_validation import validate_result_dir
@@ -129,6 +131,40 @@ def _stream_request_evidence(wall: float = 2.43) -> dict[str, Any]:
         "first_token_event_index": 1,
         "stream_terminal_state": "done_received",
     }
+
+
+def _non_stream_request_evidence(wall: float = 2.43) -> dict[str, Any]:
+    evidence = _stream_request_evidence(wall)
+    evidence["streaming"] = False
+    for field in (
+        "transport_mode",
+        "observation_method",
+        "return_token_ids",
+        "stream_options",
+        "time_to_first_token_seconds",
+        "first_token_channel",
+        "first_token_event_index",
+        "stream_terminal_state",
+    ):
+        evidence.pop(field, None)
+    return evidence
+
+
+def _no_event_stream_failure_request_evidence() -> dict[str, Any]:
+    evidence = _stream_request_evidence()
+    evidence.update(
+        {
+            "completion_tokens": None,
+            "failure_class": "request_timeout",
+            "failure_detail": "stream_timeout",
+            "finish_reason": None,
+            "time_to_first_token_seconds": None,
+            "first_token_channel": None,
+            "first_token_event_index": None,
+            "stream_terminal_state": "timeout",
+        }
+    )
+    return evidence
 
 
 def _prompt_entry(
@@ -364,6 +400,247 @@ def test_validator_accepts_streaming_ttft(tmp_path: Path) -> None:
     assert validate_result_dir(result_dir) == []
 
 
+def test_validator_rejects_real_streaming_runtime_contradiction(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result["runtime"]["transport_mode"] = None
+    result_dir = _result_dir(tmp_path, result)
+    runtime_evidence_path = result_dir / "vllm-runtime-evidence.json"
+    runtime_evidence = json.loads(runtime_evidence_path.read_text(encoding="utf-8"))
+    runtime_evidence["streaming"] = False
+    runtime_evidence.pop("transport_mode", None)
+    runtime_evidence_path.write_text(json.dumps(runtime_evidence), encoding="utf-8")
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("streaming" in error.lower() for error in errors)
+    assert any(
+        "request evidence.streaming differs from vLLM runtime evidence.streaming"
+        in error
+        for error in errors
+    )
+
+
+def test_validator_rejects_nonstream_runtime_with_streaming_runtime_evidence(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _non_stream_request_evidence(), None)
+    result = _vllm_result([prompt], streaming=False)
+    result_dir = _result_dir(tmp_path, result)
+    runtime_evidence_path = result_dir / "vllm-runtime-evidence.json"
+    runtime_evidence = json.loads(runtime_evidence_path.read_text(encoding="utf-8"))
+    runtime_evidence["streaming"] = True
+    runtime_evidence["transport_mode"] = STREAM_TRANSPORT_MODE
+    runtime_evidence_path.write_text(json.dumps(runtime_evidence), encoding="utf-8")
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("runtime.streaming differs" in error for error in errors)
+    assert any(
+        "request evidence.streaming differs from vLLM runtime evidence.streaming"
+        in error
+        for error in errors
+    )
+
+
+def test_validator_rejects_streaming_runtime_without_transport(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result["runtime"]["transport_mode"] = None
+    result_dir = _result_dir(tmp_path, result)
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("transport_mode" in error for error in errors)
+
+
+def test_validator_rejects_streaming_runtime_with_wrong_transport(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result["runtime"]["transport_mode"] = "openai_compatible_json"
+    result_dir = _result_dir(tmp_path, result)
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("transport_mode" in error for error in errors)
+
+
+def test_validator_rejects_nonstream_request_in_streaming_run(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    request_path = result_dir / "request/p1.json"
+    request_evidence = json.loads(request_path.read_text(encoding="utf-8"))
+    request_evidence["streaming"] = False
+    request_evidence.pop("transport_mode", None)
+    request_path.write_text(json.dumps(request_evidence), encoding="utf-8")
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("request evidence.streaming differs" in error for error in errors)
+
+
+def test_validator_rejects_stream_artifact_for_nonstream_request(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _non_stream_request_evidence(), None)
+    result = _vllm_result([prompt], streaming=False)
+    result["results"][0]["stream_evidence_path"] = "request/p1.stream.json"
+    result_dir = _result_dir(tmp_path, result)
+    (result_dir / "request/p1.stream.json").write_text(
+        json.dumps(_token_stream_evidence()),
+        encoding="utf-8",
+    )
+    (result_dir / "llmgauge-result.json").write_text(
+        json.dumps(result),
+        encoding="utf-8",
+    )
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("stream evidence is incompatible" in error for error in errors)
+
+
+def test_validator_rejects_ttft_metric_for_nonstreaming_run(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _non_stream_request_evidence(), None)
+    result = _vllm_result([prompt], streaming=False)
+    result["runtime_neutral_metrics"]["measurements"][0]["metrics"].append(
+        {
+            "metric_id": TTFT_METRIC_ID,
+            "native_metric_id": "time_to_first_token_seconds",
+            "value": 0.1,
+            "unit": "s",
+            "availability": "available",
+            "provenance": "llmgauge_observed",
+            "boundary": TTFT_BOUNDARY,
+            "equivalence": "unproven",
+            "channel": "content",
+            "evidence_refs": ["request/p1.stream.json#/first_token/elapsed_seconds"],
+        }
+    )
+    result_dir = _result_dir(tmp_path, result)
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("TTFT is incompatible" in error for error in errors)
+
+
+def test_validator_accepts_pretransmission_streaming_capability_failure(
+    tmp_path: Path,
+) -> None:
+    request_evidence = {
+        "schema_version": "llmgauge.vllm_request_evidence.v0",
+        "lifecycle_ownership": "external_operator",
+        "skipped": True,
+        "skip_reason": "streaming_ttft_version_unsupported",
+        "failure_class": "unsupported_capability",
+        "failure_detail": "streaming_ttft_unsupported",
+        "endpoint_identity": {},
+    }
+    prompt = _prompt_entry("p1", request_evidence, None)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validator_accepts_no_event_streaming_failure_without_stream_artifact(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry(
+        "p1",
+        _no_event_stream_failure_request_evidence(),
+        None,
+    )
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validator_requires_observation_for_transmitted_streaming_failure(
+    tmp_path: Path,
+) -> None:
+    request_evidence = _no_event_stream_failure_request_evidence()
+    request_evidence.pop("observation_method")
+    prompt = _prompt_entry("p1", request_evidence, None)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("observation_method" in error for error in errors)
+
+
+def test_validator_rejects_unqualified_streaming_runtime_without_stream_artifact(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry(
+        "p1",
+        _no_event_stream_failure_request_evidence(),
+        None,
+    )
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    runtime_evidence_path = result_dir / "vllm-runtime-evidence.json"
+    runtime_evidence = json.loads(runtime_evidence_path.read_text(encoding="utf-8"))
+    runtime_evidence["vllm_version"] = "0.27.2"
+    runtime_evidence_path.write_text(json.dumps(runtime_evidence), encoding="utf-8")
+
+    errors = validate_result_dir(result_dir)
+
+    assert any("streaming version is not qualified" in error for error in errors)
+
+
+@pytest.mark.parametrize("with_ttft", [False, True], ids=["without-ttft", "with-ttft"])
+def test_validator_accepts_consistent_midstream_failure(
+    tmp_path: Path,
+    with_ttft: bool,
+) -> None:
+    request_evidence = _stream_request_evidence()
+    request_evidence.update(
+        {
+            "failure_class": "request_timeout",
+            "failure_detail": "stream_timeout",
+            "finish_reason": None,
+            "stream_terminal_state": "timeout",
+        }
+    )
+    if with_ttft:
+        stream_evidence = _token_stream_evidence()
+    else:
+        request_evidence["time_to_first_token_seconds"] = None
+        request_evidence["first_token_channel"] = None
+        request_evidence["first_token_event_index"] = None
+        stream_evidence = _no_token_stream_evidence()
+    stream_evidence["terminal"].update(
+        {
+            "state": "timeout",
+            "finish_reason": None,
+            "done_received": False,
+        }
+    )
+    stream_evidence["failure"] = {
+        "class": "request_timeout",
+        "detail": "stream_timeout",
+    }
+    prompt = _prompt_entry("p1", request_evidence, stream_evidence)
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+
+    assert validate_result_dir(result_dir) == []
+
+
 def test_validator_rejects_forged_version_qualification(tmp_path: Path) -> None:
     """A stored admitted=true must not survive recomputation against the
     represented observed version; vLLM 0.99.0 is not qualified for V1."""
@@ -564,6 +841,23 @@ def test_report_renders_ttft(tmp_path: Path) -> None:
     assert "TTFT boundary" in report
     assert "First token channel: content" in report
     assert "vLLM SSE streaming" in report
+    assert "- Streaming: True" in report
+    assert f"- Transport mode: {STREAM_TRANSPORT_MODE}" in report
+
+
+def test_report_never_labels_missing_streaming_transport_non_streaming(
+    tmp_path: Path,
+) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result["runtime"]["transport_mode"] = None
+    result_dir = _result_dir(tmp_path, result)
+
+    report = build_markdown_report(result, result_dir=result_dir)
+
+    assert "- Streaming: True" in report
+    assert "- Transport mode: non-streaming" not in report
+    assert "unavailable (streaming transport metadata missing)" in report
 
 
 def test_report_renders_unavailable_ttft(tmp_path: Path) -> None:
@@ -594,6 +888,8 @@ def test_report_non_streaming_ttft_line(tmp_path: Path) -> None:
     result_dir = _result_dir(tmp_path, result)
     report = build_markdown_report(result, result_dir=result_dir)
     assert "TTFT: unavailable (non-streaming transport)" in report
+    assert "- Streaming: False" in report
+    assert "- Transport mode: non-streaming" in report
 
 
 # ---------------------------------------------------------------------------
@@ -604,29 +900,41 @@ def test_report_non_streaming_ttft_line(tmp_path: Path) -> None:
 def test_comparison_discloses_streaming_and_ttft(tmp_path: Path) -> None:
     prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
     streaming_result = _vllm_result([prompt], streaming=True)
-    _result_dir(tmp_path / "a", streaming_result)
+    streaming_dir = _result_dir(tmp_path / "a", streaming_result)
 
-    non_stream_evidence = _stream_request_evidence()
-    non_stream_evidence["streaming"] = False
-    non_stream_evidence.pop("transport_mode", None)
-    non_stream_evidence.pop("observation_method", None)
-    non_stream_evidence.pop("return_token_ids", None)
-    non_stream_evidence.pop("stream_options", None)
-    non_stream_evidence.pop("time_to_first_token_seconds", None)
-    non_stream_evidence.pop("first_token_channel", None)
-    non_stream_evidence.pop("first_token_event_index", None)
-    non_stream_evidence.pop("stream_terminal_state", None)
-    non_stream_prompt = _prompt_entry("p1", non_stream_evidence, None)
+    non_stream_prompt = _prompt_entry("p1", _non_stream_request_evidence(), None)
     non_stream_result = _vllm_result([non_stream_prompt], streaming=False)
-    _result_dir(tmp_path / "b", non_stream_result)
+    non_stream_result["run"]["run_id"] = "vllm-control-run"
+    non_stream_dir = _result_dir(tmp_path / "b", non_stream_result)
 
     report = compare_results(
-        [streaming_result, non_stream_result]  # type: ignore[arg-type]
+        [
+            load_compare_result(streaming_dir),
+            load_compare_result(non_stream_dir),
+        ]
     )
+
     assert "streaming" in report
     assert "non-streaming" in report
     assert "0.284" in report
-    assert "openai_compatible_sse" in report
+    assert STREAM_TRANSPORT_MODE in report
+    assert OBSERVATION_METHOD in report
+    assert "not applicable" in report
+    assert "not a universal ranking" in report
+
+
+def test_comparison_rejects_contradictory_source_result(tmp_path: Path) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    runtime_evidence_path = result_dir / "vllm-runtime-evidence.json"
+    runtime_evidence = json.loads(runtime_evidence_path.read_text(encoding="utf-8"))
+    runtime_evidence["streaming"] = False
+    runtime_evidence.pop("transport_mode", None)
+    runtime_evidence_path.write_text(json.dumps(runtime_evidence), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Source result validation failed"):
+        load_compare_result(result_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -666,6 +974,8 @@ def test_public_export_omits_stream_evidence_and_ttft(tmp_path: Path) -> None:
     assert request_ev.get("stream_evidence_path") is None
     assert request_ev.get("time_to_first_token_seconds") is None
     assert request_ev["streaming"] is True  # transport mode stays disclosed
+    assert request_ev["transport_mode"] == STREAM_TRANSPORT_MODE
+    assert request_ev["observation_method"] == OBSERVATION_METHOD
 
 
 # ---------------------------------------------------------------------------

@@ -159,6 +159,10 @@ Optional runtime fields for streaming evidence mode
 `transport_mode: "openai_compatible_sse"`, `vllm_streaming_evidence: true`,
 and `token_id_extension: {"field": "return_token_ids", "value": true}`.
 
+Current non-streaming vLLM results represent `streaming: false` and omit
+`transport_mode`. A represented streaming state is authoritative evidence, not
+a report-formatting hint.
+
 Optional artifacts:
 
 - `vllm-runtime-evidence.json` (`llmgauge.vllm_runtime_evidence.v0`)
@@ -167,6 +171,15 @@ Optional artifacts:
 - per-prompt private stream evidence `request/<prompt>.stream.json`
   (`llmgauge.vllm_stream_evidence.v0`) referenced by
   `results[].stream_evidence_path` when streaming evidence mode is used
+
+For current results that represent transport state, `validate-result`
+recomputes consistency across result runtime metadata,
+`vllm-runtime-evidence.json`, request evidence, stream evidence, and Area 4
+TTFT records. A completed transmitted streaming request requires the private
+stream artifact in the canonical result. A failure before transmission or
+before any stream event may truthfully omit it; a sanitized public derivative
+also omits it under the public-export contract. Historical artifacts that do
+not represent transport fields remain valid.
 
 Optional per-prompt fields: `failure_class`, `failure_detail`, `finish_reason`,
 `observed_served_model`, `stream_evidence_path`, `time_to_first_token_seconds`,
