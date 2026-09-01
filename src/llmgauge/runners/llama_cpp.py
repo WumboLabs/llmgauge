@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from llmgauge.core.metrics import retain_native_diagnostics_stderr
+from llmgauge.core.native_diagnostics import NATIVE_DIAGNOSTICS_VERBOSITY
 from llmgauge.core.vram import sample_nvidia_smi_memory, summarize_vram_samples
 
 
@@ -43,6 +45,7 @@ class LlamaCppRunConfig:
     fit: str | None = None
     reasoning_preserve: bool | None = None
     spec_type: str | None = None
+    native_diagnostics_capture: bool = False
 
 
 @dataclass(frozen=True)
@@ -57,6 +60,7 @@ class LlamaCppRunResult:
     vram_samples: list[dict[str, Any]] = field(default_factory=list)
     vram_summary: dict[str, Any] | None = None
     prompt_transport: dict[str, Any] = field(default_factory=dict)
+    diagnostics_capture: dict[str, Any] = field(default_factory=dict)
 
 
 def build_llama_command(
@@ -83,6 +87,10 @@ def build_llama_command(
         "-fa",
         config.flash_attn,
     ]
+    if config.native_diagnostics_capture:
+        # Deterministic evidence-capture verbosity for the exact qualified
+        # llama-cli runtime (slot print_timing needs >=3, load_tensors >=4).
+        command.extend(["--verbosity", str(NATIVE_DIAGNOSTICS_VERBOSITY)])
 
     if config.cache_type_k is not None:
         command.extend(["--cache-type-k", config.cache_type_k])
@@ -208,6 +216,10 @@ def run_llama_cpp(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            # Verbosity-4 trace output can contain invalid UTF-8 (vocab
+            # dumps). Replace undecodable bytes instead of crashing; the
+            # admitted diagnostic grammars are pure ASCII.
+            errors="replace",
         )
     except OSError as exc:
         if capture_vram:
@@ -249,10 +261,26 @@ def run_llama_cpp(
     if capture_vram:
         _capture_vram_sample(vram_samples, vram_errors)
 
+    captured_stderr = stderr
+    diagnostics_capture: dict[str, Any] = {}
+    succeeded = process.returncode == 0 and not timed_out
+    if config.native_diagnostics_capture and succeeded:
+        # Verbosity 4 emits unrelated info/trace stderr (buffer sizes,
+        # absolute model paths). Successful runs persist only the admitted
+        # diagnostic lines plus warning/error output; failed runs keep the
+        # full trace so failures stay diagnosable.
+        captured_stderr = retain_native_diagnostics_stderr(stderr)
+        diagnostics_capture = {
+            "effective_verbosity": NATIVE_DIAGNOSTICS_VERBOSITY,
+            "stderr_selectively_retained": True,
+            "raw_stderr_lines": len(stderr.splitlines()),
+            "retained_stderr_lines": len(captured_stderr.splitlines()),
+        }
+
     result = LlamaCppRunResult(
         command=command,
         stdout=stdout,
-        stderr=stderr,
+        stderr=captured_stderr,
         exit_status=process.returncode if process.returncode is not None else 1,
         timed_out=timed_out,
         elapsed_seconds=time.monotonic() - started_at,
@@ -261,6 +289,7 @@ def run_llama_cpp(
         if capture_vram
         else None,
         prompt_transport=prompt_transport,
+        diagnostics_capture=diagnostics_capture,
     )
     if prompt_file is not None:
         prompt_file.unlink(missing_ok=True)

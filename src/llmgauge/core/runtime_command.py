@@ -8,6 +8,7 @@ from typing import Any, Literal
 import typer
 
 from llmgauge.core.config import coalesce, get_config_value
+from llmgauge.core.native_diagnostics import NATIVE_DIAGNOSTICS_VERBOSITY
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, build_llama_command
 
 RUNTIME_COMMAND_FILENAME = "runtime-command.json"
@@ -122,6 +123,17 @@ def build_runtime_command_document(
         "parallel_sequences": 1,
         "gpu_layers": config.gpu_layers,
         "kv_offload": "requested_on",
+        "native_diagnostics_capture": config.native_diagnostics_capture,
+        "effective_verbosity": (
+            NATIVE_DIAGNOSTICS_VERBOSITY if config.native_diagnostics_capture else None
+        ),
+        "effective_verbosity_note": (
+            "verbosity 4 is an internal deterministic evidence-capture setting "
+            "for the exact qualified llama-cli runtime; it adds runtime logging "
+            "work and is not equivalent to historical runs without it"
+            if config.native_diagnostics_capture
+            else "runtime default verbosity"
+        ),
         "cache_type_k": config.cache_type_k,
         "cache_type_k_state": (
             "explicit" if config.cache_type_k is not None else "runtime_default"

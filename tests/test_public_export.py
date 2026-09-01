@@ -23,6 +23,9 @@ def _write_run(
     model_filename: str = "model.gguf",
     executable_filename: str = "llama-cli",
     with_area4: bool = False,
+    native_stderr: str = "",
+    native_admitted: bool = False,
+    backend_provenance_extra: dict | None = None,
     raw_output: str = "api_key=private-value\nRelative/path remains.\n",
     cleaned_output: str = "cleaned output\n",
 ) -> Path:
@@ -63,6 +66,7 @@ def _write_run(
         "model": model,
         "runtime": {
             "backend": "llama.cpp",
+            **({"parallel_sequences": 1} if native_admitted else {}),
             "llama_cli": str(tmp_path / "private-home" / "llama.cpp" / "llama-cli"),
             "config_path": str(tmp_path / "private-home" / "config.yaml"),
             "model_profiles_path": str(tmp_path / "private-home" / "profiles.yaml"),
@@ -75,8 +79,9 @@ def _write_run(
                 "executable_sha256": "b" * 64,
                 "public_executable_fingerprint": "sha256:bbbbbbbbbbbbbbbb",
                 "reported_version": "b1234",
-                "build_metadata": "gcc 13.2.0",
                 "status": "available",
+                **(backend_provenance_extra or {}),
+                "build_metadata": "gcc 13.2.0",
             },
             "api_key": "should-not-leak",
         },
@@ -108,10 +113,11 @@ def _write_run(
             prompt_id="honesty-unknown-tool",
             elapsed_seconds=1.0,
             stdout="output",
-            stderr="",
+            stderr=native_stderr,
             exit_status=0,
             timed_out=False,
             launch_error=None,
+            current_diagnostics_admitted=native_admitted,
         )
         native_path = "native/honesty-unknown-tool.execution.json"
         result["results"][0]["native_execution_evidence_path"] = native_path
@@ -139,6 +145,7 @@ def _write_run(
                 "model_path": "redacted",
                 "command_argv": ["llama-cli", "-p", "SYSTEM: private prompt"],
                 "prompt_placeholder": "__PROMPT_FROM_RAW_ARTIFACT__",
+                **({"parallel_sequences": 1} if native_admitted else {}),
             },
             indent=2,
         )
@@ -328,6 +335,48 @@ def test_public_export_preserves_native_execution_evidence(tmp_path: Path) -> No
     assert exported["runtime_neutral_metrics"]["measurements"][0]["metrics"][0][
         "evidence_refs"
     ] == [f"{native_path}#/request_wall_time_seconds"]
+    assert validate_result_dir(output_dir) == []
+
+
+def test_public_export_projects_current_native_diagnostics_safely(
+    tmp_path: Path,
+) -> None:
+    stderr = (
+        "0.00.064.132 I cmn  common_param: common_params_print_info:"
+        " verbosity = 4 (adjust with the `-lv N` CLI arg)\n"
+        "0.00.232.437 I load_tensors: offloaded 5/17 layers to GPU\n"
+        "0.00.520.660 I slot print_timing: id  0 | task 0 | prompt eval time ="
+        "      43.38 ms /    16 tokens (    2.71 ms per token,   368.85 tokens"
+        " per second)\n"
+        "0.00.520.663 I slot print_timing: id  0 | task 0 |        eval time ="
+        "      10.76 ms /     2 tokens (   10.76 ms per token,    92.97 tokens"
+        " per second)\n"
+        "0.00.520.664 I slot print_timing: id  0 | task 0 |       total time ="
+        "      54.13 ms /    18 tokens\n"
+        "0.00.520.668 I slot print_timing: id  0 | task 0 |    graphs reused ="
+        "          1\n"
+    )
+    source_dir = _write_run(
+        tmp_path,
+        with_area4=True,
+        native_stderr=stderr,
+        native_admitted=True,
+        backend_provenance_extra={
+            "build_number": "10449",
+            "commit": "0d9ceae1e",
+        },
+    )
+    output_dir = tmp_path / "public-export"
+    export_public_run(source_dir, output_dir)
+
+    native_path = "native/honesty-unknown-tool.execution.json"
+    exported_native = json.loads((output_dir / native_path).read_text(encoding="utf-8"))
+    assert exported_native["llama_cpp_placement"]["source"] == "load_tensors"
+    assert exported_native["slot_print_timing"]["availability"] == "available"
+    assert exported_native["slot_print_timing"]["total_time_seconds"] is None
+    # no verbosity-4 trace noise or private absolute paths are projected
+    assert "private-home" not in json.dumps(exported_native)
+    assert "model buffer size" not in json.dumps(exported_native)
     assert validate_result_dir(output_dir) == []
 
 

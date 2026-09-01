@@ -60,6 +60,10 @@ from llmgauge.core.multi_turn import (
     execute_native_conversation,
     load_multi_turn_task,
 )
+from llmgauge.core.native_diagnostics import (
+    current_native_diagnostics_admitted,
+    native_diagnostics_capture_state,
+)
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
 from llmgauge.core.reports import build_markdown_report
@@ -1942,6 +1946,15 @@ def execute_run(
 
     prepare_result_dir(out)
 
+    backend_provenance = collect_backend_provenance(resolved["llama_cli"])
+    if backend_provenance["status"] == "unavailable":
+        console.print(f"[yellow]{backend_provenance['warning']}[/yellow]")
+    backend_provenance.update(discover_llama_runtime_identity(resolved["llama_cli"]))
+    if backend_provenance.get("discovery_warning"):
+        console.print(f"[yellow]{backend_provenance['discovery_warning']}[/yellow]")
+    current_diagnostics_admitted = current_native_diagnostics_admitted(
+        backend_provenance
+    )
     config = LlamaCppRunConfig(
         llama_cli=resolved["llama_cli"],
         model_path=resolved["model_path"],
@@ -1964,6 +1977,7 @@ def execute_run(
         fit=resolved.get("fit"),
         reasoning_preserve=resolved.get("reasoning_preserve"),
         spec_type=resolved.get("spec_type"),
+        native_diagnostics_capture=current_diagnostics_admitted,
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -1976,12 +1990,6 @@ def execute_run(
     )
     runtime_command_path = out / RUNTIME_COMMAND_FILENAME
     write_json(runtime_command_path, runtime_command_document)
-    backend_provenance = collect_backend_provenance(resolved["llama_cli"])
-    if backend_provenance["status"] == "unavailable":
-        console.print(f"[yellow]{backend_provenance['warning']}[/yellow]")
-    backend_provenance.update(discover_llama_runtime_identity(resolved["llama_cli"]))
-    if backend_provenance.get("discovery_warning"):
-        console.print(f"[yellow]{backend_provenance['discovery_warning']}[/yellow]")
     run_id = out.name
     prompt_results: list[dict] = []
     redacted_command: list[str] | None = None
@@ -2022,16 +2030,21 @@ def execute_run(
             **prompt_transport,
             "raw_prompt_path": raw_prompt_relative_path,
         }
-        prompt_command_entries.append(
-            {
-                "prompt_id": prompt_id,
-                "command_argv": build_redacted_command(
-                    run_result.command,
-                    resolved["model_path"],
-                ),
-                "prompt_transport": prompt_transport,
+        diagnostics_capture = getattr(run_result, "diagnostics_capture", None)
+        prompt_command_entry: dict[str, Any] = {
+            "prompt_id": prompt_id,
+            "command_argv": build_redacted_command(
+                run_result.command,
+                resolved["model_path"],
+            ),
+            "prompt_transport": prompt_transport,
+        }
+        if isinstance(diagnostics_capture, dict) and diagnostics_capture:
+            prompt_command_entry["native_diagnostics_capture"] = {
+                **native_diagnostics_capture_state(backend_provenance),
+                **diagnostics_capture,
             }
-        )
+        prompt_command_entries.append(prompt_command_entry)
 
         write_text(raw_output_path, run_result.stdout)
         write_text(cleaned_output_path, clean_llama_output(run_result.stdout))
@@ -2044,6 +2057,7 @@ def execute_run(
             exit_status=run_result.exit_status,
             timed_out=getattr(run_result, "timed_out", False),
             launch_error=getattr(run_result, "launch_error", None),
+            current_diagnostics_admitted=current_diagnostics_admitted,
         )
         native_execution_path = (
             out / "native" / f"{prompt_id.replace('/', '__')}.execution.json"
@@ -2249,6 +2263,9 @@ def execute_run(
             if resolved["model_profiles_path"]
             else None,
             "backend_provenance": backend_provenance,
+            "native_diagnostics_capture": native_diagnostics_capture_state(
+                backend_provenance
+            ),
         },
         "suite": build_result_suite_metadata(
             loaded_suite=loaded_suite,

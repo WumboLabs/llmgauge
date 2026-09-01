@@ -307,6 +307,12 @@ def parse_llama_version_output(stdout: str, stderr: str = "") -> dict[str, Any]:
     )
     if build_number_match is None:
         build_number_match = re.search(r"(?i)\bversion\s*:\s*b(\d+)\b", combined)
+    if build_number_match is None:
+        # llama-cli --version prints
+        # `version: 0.1.0-dev (build 10449, commit 0d9ceae1e)`
+        build_number_match = re.search(
+            r"(?im)^\s*(?:llama\.cpp\s+)?version\s*:.*\bbuild\s+(\d+)\b", combined
+        )
     build_type_match = re.search(
         r"(?im)^\s*build\s+type\s*:\s*(\S(?:.*?\S)?)\s*$", combined
     )
