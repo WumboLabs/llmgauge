@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Current llama-cli native diagnostics capture (Area 4), admitted only for the
+  exact qualified runtime (observed build 10449, commit 0d9ceae1e): the renamed
+  `load_tensors:` offload line is parsed with its actual prefix preserved as
+  placement source identity (`load_tensors` versus historical
+  `llm_load_tensors`), and the request-final `slot print_timing:` block is
+  captured as a distinct `slot_print_timing` backend-native timing source.
+  Slot timing admits only the prompt/eval field pairs, keeps
+  `load_time_seconds`, `total_time_seconds`, and `graphs_reused` unavailable,
+  preserves the source `n_gen` count alongside the `n_gen - 1` decode-step
+  rate denominator, and requires `--parallel 1` single-turn eligibility.
+  Progress (`print_timings_pp`/`print_timings_tg`) lines, ambiguous final
+  blocks, and unqualified runtimes fail closed to unavailable.
+- Deterministic evidence-capture verbosity: qualified native runs invoke
+  `llama-cli --verbosity 4`; the effective verbosity and capture policy are
+  recorded in `runtime-command.json` and result runtime provenance. Successful
+  runs persist only admitted diagnostic lines plus warning/error output in
+  `logs/` (the full verbosity-4 trace, including absolute model paths, is not
+  retained as ordinary success evidence); failed runs keep full stderr for
+  diagnosis.
+- Source-aware Area 4 validation: native timing/placement projections and the
+  `slot_print_timing` object are recomputed from preserved authoritative
+  diagnostic lines; stored values that contradict the preserved evidence,
+  current-prefix claims on unqualified runtimes, and slot timing claims outside
+  `--parallel 1` are rejected. Historical results without `raw_lines` remain
+  valid.
+
 ## v0.77.0 - 2026-08-30
 
 LLMGauge v0.77 is the Area 4 runtime-evidence stabilization release: it

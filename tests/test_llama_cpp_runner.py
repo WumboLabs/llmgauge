@@ -34,7 +34,7 @@ def test_run_llama_cpp_captures_vram(monkeypatch) -> None:
 
     captured = {}
 
-    def fake_popen(command, stdout, stderr, text):
+    def fake_popen(command, stdout, stderr, text, **kwargs):
         captured["command"] = command
         captured["stdout"] = stdout
         captured["stderr"] = stderr
@@ -113,7 +113,7 @@ def test_run_llama_cpp_handles_unavailable_vram(monkeypatch) -> None:
         def communicate(self, timeout=None):
             return ("stdout text", "stderr text")
 
-    def fake_popen(command, stdout, stderr, text):
+    def fake_popen(command, stdout, stderr, text, **kwargs):
         return FakeProcess()
 
     def fake_sample_nvidia_smi_memory():
@@ -282,7 +282,7 @@ def test_run_llama_cpp_transports_large_prompt_by_temporary_file(monkeypatch) ->
 
     captured: dict[str, str] = {}
 
-    def fake_popen(command, stdout, stderr, text):
+    def fake_popen(command, stdout, stderr, text, **kwargs):
         prompt_file = Path(command[command.index("--file") + 1])
         captured["path"] = str(prompt_file)
         captured["content"] = prompt_file.read_text(encoding="utf-8")

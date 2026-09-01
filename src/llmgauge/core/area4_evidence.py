@@ -6,7 +6,14 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-from llmgauge.core.metrics import parse_llama_cpp_diagnostics, placement_states
+from llmgauge.core.metrics import (
+    CURRENT_PLACEMENT_SOURCE,
+    SLOT_TIMING_SOURCE,
+    parse_llama_cpp_diagnostics,
+    parse_slot_print_timing,
+    placement_states,
+)
+from llmgauge.core.native_diagnostics import current_native_diagnostics_admitted
 from llmgauge.runners.vllm_external import streaming_ttft_version_admitted
 
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
@@ -269,6 +276,193 @@ def _validate_optional_placement(
     return dict(placement)
 
 
+def _raw_lines(value: object) -> list[str] | None:
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        return None
+    return value
+
+
+def _validate_native_current_diagnostics(
+    evidence: Mapping[str, Any],
+    *,
+    runtime: Mapping[str, Any],
+    label: str,
+    errors: list[str],
+) -> None:
+    """Recompute native timing/placement projections from preserved lines.
+
+    The validator never trusts stored summary values: it re-parses the
+    preserved authoritative diagnostic lines and rejects any divergence,
+    any current-prefix evidence on an unqualified runtime, and any slot
+    timing claim outside ``--parallel 1`` eligibility. Artifacts without
+    ``raw_lines`` predate selective capture and keep their historical
+    structural-only validation.
+    """
+    admitted = current_native_diagnostics_admitted(runtime.get("backend_provenance"))
+    timing = evidence.get("llama_cpp_timing")
+    placement = evidence.get("llama_cpp_placement")
+    slot = evidence.get("slot_print_timing")
+
+    if isinstance(placement, Mapping):
+        lines = _raw_lines(placement.get("raw_lines"))
+        if lines is None and placement.get("raw_lines") is not None:
+            errors.append(f"{label} placement raw_lines must be a list of strings")
+        elif lines:
+            joined = "\n".join(lines)
+            recomputed = parse_llama_cpp_diagnostics(
+                joined,
+                stderr=joined,
+                current_diagnostics_admitted=admitted,
+            )["llama_cpp_placement"]
+            for field in ("observed", "offloaded_layers", "total_layers", "source"):
+                if placement.get(field) != recomputed.get(field):
+                    errors.append(
+                        f"{label}.llama_cpp_placement.{field} differs from "
+                        "recomputed placement evidence"
+                    )
+        elif lines is not None and any(
+            placement.get(field) is not None
+            for field in ("offloaded_layers", "total_layers", "source")
+        ):
+            errors.append(
+                f"{label}.llama_cpp_placement claims values with no preserved lines"
+            )
+        if not admitted and placement.get("source") == CURRENT_PLACEMENT_SOURCE:
+            errors.append(
+                f"{label}.llama_cpp_placement.source is current-prefix on an "
+                "unqualified runtime"
+            )
+
+    if isinstance(timing, Mapping):
+        lines = _raw_lines(timing.get("raw_lines"))
+        if lines is None and timing.get("raw_lines") is not None:
+            errors.append(f"{label} timing raw_lines must be a list of strings")
+        elif lines:
+            joined = "\n".join(lines)
+            recomputed = parse_llama_cpp_diagnostics(
+                joined,
+                stderr=joined,
+                current_diagnostics_admitted=admitted,
+            )["llama_cpp_timing"]
+            for field in (
+                "load_time_seconds",
+                "prompt_eval_time_seconds",
+                "prompt_eval_token_count",
+                "prompt_eval_tps",
+                "eval_time_seconds",
+                "eval_token_count",
+                "generation_tps",
+                "total_time_seconds",
+                "source",
+            ):
+                if timing.get(field) != recomputed.get(field):
+                    errors.append(
+                        f"{label}.llama_cpp_timing.{field} differs from "
+                        "recomputed timing evidence"
+                    )
+        elif lines is not None and any(
+            timing.get(field) is not None
+            for field in (
+                "load_time_seconds",
+                "prompt_eval_time_seconds",
+                "eval_time_seconds",
+                "total_time_seconds",
+                "source",
+            )
+        ):
+            errors.append(
+                f"{label}.llama_cpp_timing claims values with no preserved lines"
+            )
+
+    if slot is None:
+        return
+    if not isinstance(slot, Mapping):
+        errors.append(f"{label}.slot_print_timing must be an object when present")
+        return
+    if not admitted:
+        errors.append(
+            f"{label}.slot_print_timing is present on an unqualified runtime; "
+            "current slot timing evidence requires the exact qualified llama-cli"
+        )
+        return
+    if slot.get("source") != SLOT_TIMING_SOURCE:
+        errors.append(f"{label}.slot_print_timing.source must be {SLOT_TIMING_SOURCE}")
+    if (
+        slot.get("availability") == "available"
+        and runtime.get("parallel_sequences") != 1
+    ):
+        errors.append(
+            f"{label}.slot_print_timing available claim requires "
+            "runtime.parallel_sequences=1"
+        )
+    for field in ("load_time_seconds", "total_time_seconds", "graphs_reused"):
+        if slot.get(field) is not None:
+            errors.append(
+                f"{label}.slot_print_timing.{field} is rejected for this source "
+                "and must remain null"
+            )
+    lines = _raw_lines(
+        (slot.get("raw") or {}).get("lines")
+        if isinstance(slot.get("raw"), Mapping)
+        else None
+    )
+    if slot.get("availability") == "available":
+        if not lines:
+            errors.append(
+                f"{label}.slot_print_timing claims values with no preserved "
+                "final-block lines"
+            )
+            return
+        recomputed = parse_slot_print_timing("\n".join(lines))
+        if recomputed.get("availability") != "available":
+            errors.append(
+                f"{label}.slot_print_timing preserved lines do not form a "
+                "complete unambiguous final block"
+            )
+            return
+        for field in (
+            "prompt_eval_time_seconds",
+            "prompt_eval_token_count",
+            "prompt_eval_tps",
+            "eval_time_seconds",
+            "eval_token_count",
+            "generation_tps",
+        ):
+            if slot.get(field) != recomputed.get(field):
+                errors.append(
+                    f"{label}.slot_print_timing.{field} differs from "
+                    "recomputed source evidence"
+                )
+        raw = slot.get("raw")
+        expected_denominator = "eval_tokens_minus_one"
+        if (
+            not isinstance(raw, Mapping)
+            or raw.get("generation_rate_denominator") != expected_denominator
+        ):
+            errors.append(
+                f"{label}.slot_print_timing.raw must record "
+                "generation_rate_denominator=eval_tokens_minus_one"
+            )
+    elif slot.get("availability") != "unavailable":
+        errors.append(
+            f"{label}.slot_print_timing.availability must be available or unavailable"
+        )
+    elif any(
+        slot.get(field) is not None
+        for field in (
+            "prompt_eval_time_seconds",
+            "prompt_eval_token_count",
+            "prompt_eval_tps",
+            "eval_time_seconds",
+            "eval_token_count",
+            "generation_tps",
+        )
+    ):
+        errors.append(
+            f"{label}.slot_print_timing unavailable must carry null admitted fields"
+        )
+
+
 def build_native_execution_evidence(
     *,
     prompt_id: str,
@@ -278,16 +472,28 @@ def build_native_execution_evidence(
     exit_status: int,
     timed_out: bool,
     launch_error: str | None,
+    current_diagnostics_admitted: bool = False,
 ) -> dict[str, Any]:
-    """Build bounded LLMGauge-observed evidence for one native process attempt."""
+    """Build bounded LLMGauge-observed evidence for one native process attempt.
+
+    ``current_diagnostics_admitted`` must come from exact-runtime
+    qualification (``current_native_diagnostics_admitted``). Historical
+    parsing is unchanged; current ``load_tensors:`` placement provenance and
+    the request-final ``slot print_timing:`` block are only parsed from
+    stderr when the qualified runtime is proven.
+    """
     valid_elapsed = (
         isinstance(elapsed_seconds, int | float)
         and not isinstance(elapsed_seconds, bool)
         and math.isfinite(elapsed_seconds)
         and elapsed_seconds >= 0
     )
-    diagnostics = parse_llama_cpp_diagnostics(f"{stdout}\n{stderr}")
-    return {
+    diagnostics = parse_llama_cpp_diagnostics(
+        f"{stdout}\n{stderr}",
+        stderr=stderr,
+        current_diagnostics_admitted=current_diagnostics_admitted,
+    )
+    evidence: dict[str, Any] = {
         "schema_version": NATIVE_EXECUTION_EVIDENCE_SCHEMA,
         "prompt_id": prompt_id,
         "request_wall_time_seconds": float(elapsed_seconds) if valid_elapsed else None,
@@ -302,6 +508,9 @@ def build_native_execution_evidence(
             launch_error=launch_error,
         ),
     }
+    if current_diagnostics_admitted:
+        evidence["slot_print_timing"] = diagnostics["slot_print_timing"]
+    return evidence
 
 
 def build_area4_evidence(
@@ -936,6 +1145,12 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
                     f"{label} native llama_cpp_placement",
                     errors,
                 )
+                _validate_native_current_diagnostics(
+                    native_evidence,
+                    runtime=runtime,
+                    label=f"{label} native evidence",
+                    errors=errors,
+                )
                 if native_placement is not None:
                     if observed != native_placement.get("observed"):
                         errors.append(
@@ -960,6 +1175,13 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
                         errors.append(
                             f"{label}.execution_placement native layer counts "
                             "differ from native evidence"
+                        )
+                    if "native_source" in placement and placement.get(
+                        "native_source"
+                    ) != native_placement.get("source"):
+                        errors.append(
+                            f"{label}.execution_placement.native_source differs "
+                            "from native placement evidence"
                         )
 
         records = measurement.get("metrics")

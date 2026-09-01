@@ -503,15 +503,51 @@ def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
         timing = native.get("llama_cpp_timing")
         if not isinstance(timing, dict):
             timing = {}
+        slot = native.get("slot_print_timing")
+        slot_available = (
+            isinstance(slot, dict) and slot.get("availability") == "available"
+        )
         placement = measurement.get("execution_placement")
         if not isinstance(placement, dict):
             placement = {}
         prompt_id = prompt_result.get("prompt_id") or measurement.get("measurement_id")
-        lines.extend(
-            [
-                f"### {prompt_id}",
-                "",
-                "- Timing source: llama.cpp diagnostic (backend-reported, equivalence unproven)",
+        if slot_available:
+            assert isinstance(slot, dict)
+            source_lines = [
+                "- Timing source: slot_print_timing (backend-native "
+                "server-slot request accounting, equivalence unproven; "
+                "distinct from llama_perf_context_print / llama_print_timings)",
+                "- Load time (slot_print_timing): unavailable "
+                "(rejected for this source)",
+                (
+                    "- Prompt eval (slot, non-cached processed tokens): "
+                    f"{_fmt_native_seconds(slot.get('prompt_eval_time_seconds'))} / "
+                    f"{_fmt_native_count(slot.get('prompt_eval_token_count'))} tok / "
+                    f"{_fmt_native_tps(slot.get('prompt_eval_tps'))}"
+                ),
+                (
+                    "- Generation (slot, rate over n_gen-1 decode steps): "
+                    f"{_fmt_native_seconds(slot.get('eval_time_seconds'))} / "
+                    f"{_fmt_native_count(slot.get('eval_token_count'))} tok / "
+                    f"{_fmt_native_tps(slot.get('generation_tps'))}"
+                ),
+                "- Total time (slot_print_timing): unavailable "
+                "(rejected for this source)",
+            ]
+        else:
+            timing_source = timing.get("source")
+            if isinstance(timing_source, str) and timing_source:
+                source_line = (
+                    f"- Timing source: {timing_source} "
+                    "(backend-reported, equivalence unproven)"
+                )
+            else:
+                source_line = (
+                    "- Timing source: llama.cpp diagnostic "
+                    "(backend-reported, equivalence unproven)"
+                )
+            source_lines = [
+                source_line,
                 f"- Load time (llama.cpp reported): {_fmt_native_seconds(timing.get('load_time_seconds'))}",
                 (
                     "- Prompt eval: "
@@ -526,6 +562,13 @@ def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
                     f"{_fmt_native_tps(timing.get('generation_tps'))}"
                 ),
                 f"- Total time (llama.cpp reported): {_fmt_native_seconds(timing.get('total_time_seconds'))}",
+            ]
+        placement_source = placement.get("native_source")
+        lines.extend(
+            [
+                f"### {prompt_id}",
+                "",
+                *source_lines,
                 "- TTFT: unavailable (non-streaming native llama.cpp transport)",
                 f"- Requested placement: {placement.get('requested', 'unknown')}",
                 f"- Observed placement: {placement.get('observed', 'unavailable')}",
@@ -533,6 +576,10 @@ def _build_area4_timing_placement(result: dict[str, Any]) -> list[str]:
                     "- Native offloaded layers: "
                     f"{_fmt_native_count(placement.get('native_offloaded_layers'))} / "
                     f"{_fmt_native_count(placement.get('native_total_layers'))}"
+                ),
+                (
+                    "- Placement source: "
+                    f"{placement_source if isinstance(placement_source, str) and placement_source else 'unavailable'}"
                 ),
                 "- Boundary note: layer count alone does not prove all execution is accelerator resident.",
                 "",

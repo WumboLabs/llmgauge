@@ -280,3 +280,13 @@ default timestamp prefix and may contain absolute model paths; any selective
 capture must strip timestamps, avoid retaining unrelated verbose output,
 preserve command/runtime provenance, and keep private paths out of public
 artifacts. No logging policy is enabled by this contract.
+
+Implementation status (capture milestone): the capture milestone admitted by
+this addendum is implemented. For the exact qualified runtime only, LLMGauge
+invokes `llama-cli` with `--verbosity 4` (the narrowest deterministic control
+covering both sources), records the effective verbosity in
+`runtime-command.json` and result runtime provenance, parses current-prefix
+evidence from stderr only, and on successful runs persists only admitted
+diagnostic lines plus warning/error output to `logs/` instead of the full
+verbosity-4 trace. Failed runs retain the full stderr for diagnosis. This
+note records enablement; it does not alter any decision above.
