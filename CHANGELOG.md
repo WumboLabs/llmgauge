@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Qualification-policy decision (contract only, no behavior change): current
+  llama-cli native diagnostics admission is now specified as per-source bounded
+  commit ranges — placement `5343f4502..0d9ceae1e` (builds 9538..10449, emitting
+  region byte-identical) and slot timing `decaf508b..0d9ceae1e` (builds
+  10406..10449, floor at the metrics refactor that changed the generation-rate
+  denominator) — proven from upstream source history and a two-build runtime
+  comparison. The implemented exact 10449/0d9ceae1e gate remains in force as a
+  strict subset until a follow-up encodes the intervals. See
+  `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
 - Current llama-cli native diagnostics capture (Area 4), admitted only for the
   exact qualified runtime (observed build 10449, commit 0d9ceae1e): the renamed
   `load_tensors:` offload line is parsed with its actual prefix preserved as
