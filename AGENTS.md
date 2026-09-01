@@ -57,6 +57,8 @@ policy instead of choosing silently.
 > Solve the named problem. Make the smallest correct change. Prove that change.
 > Stop.
 
+At the start of each non-trivial task, provide a concise to-do list before performing the work. Use the environment's native task/todo mechanism when available; otherwise provide the list directly in the response. Keep it updated as work progresses and mark items complete as they are finished.
+
 A milestone must be bounded, independently inspectable, testable, and mergeable.
 Use a focused branch rather than editing `main`. The canonical repository
 directory is the default and preferred working location. Closing or replacing a
@@ -131,7 +133,8 @@ execute the bounded milestone:
 - **Required delta** — observable changes and acceptance criteria.
 - **Milestone-specific non-goals** — nearby work intentionally excluded.
 - **Special validation** — checks beyond this file's defaults.
-- **Report path** — exact ignored `tmp/*-review-report.md` path.
+- **Report path** — one exact absolute path, canonically the ignored
+  `tmp/<milestone-name>/REPORT.md`.
 - **Git boundary** — the exact instruction: `Do not stage, commit, merge, or
   push. Leave all changes unstaged and uncommitted.`
 
@@ -520,9 +523,15 @@ and inspection of the sanitized derivative. Never publish or submit by default.
 ## Required review report
 
 Every substantial feature, documentation, process, audit, validation, or release
-milestone must end with the required untracked `tmp/` report. Small read-only
-inspections need no report unless requested. About 150 lines is the normal
-ceiling unless evidence requires more.
+milestone must end with the required untracked report at
+`tmp/<milestone-name>/REPORT.md`. Small read-only inspections need no report
+unless requested. About 150 lines is the normal ceiling unless evidence
+requires more.
+
+Real evaluation or campaign evidence that a handoff or this file keeps outside
+the repository belongs in its external campaign workspace
+(`<project-parent>/<project>-<campaign-name>/`), with `REPORT.md` at that
+workspace root.
 
 A progress update is not the milestone report. Do not write or present the
 completion report merely because some implementation has succeeded while
@@ -555,7 +564,8 @@ and next gate; do not rewrite history or duplicate the full report. Do not
 include secrets, private identifiers, full private hashes, raw prompts or model
 outputs, oversized logs, or complete successful test output. The report must be
 the last intentional task artifact, remain untracked, and have its absolute path
-printed in the final response.
+printed as the final line of the response in the form
+`REPORT: /absolute/path/to/REPORT.md`.
 
 ## Code and communication standards
 
@@ -591,8 +601,7 @@ Goal: Clarify that assisted score drafts require human review.
 Canonical sources: AGENTS.md; docs/PUBLIC_REPORTING.md; docs/SCORING_RUBRICS.md
 Required delta: Align current scoring language and add one Unreleased entry.
 Milestone-specific non-goals: No CLI, schema, or scoring behavior changes.
-Special validation: Check changed links and contradictory scoring claims.
-Report path: tmp/clarify-score-review-report.md
+Report path: /path/to/llmgauge/tmp/clarify-score-review/REPORT.md
 Git boundary: Do not stage, commit, merge, or push. Leave all changes unstaged and uncommitted.
 ```
 
