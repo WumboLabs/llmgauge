@@ -142,3 +142,141 @@ use `llmgauge.run_fingerprint.v1` and
 adds canonical JSON for both Area 4 top-level objects, and adds SHA-256 hashes
 for every referenced native execution artifact. It does not hash
 `llmgauge-result.json`, avoiding a self-referential fingerprint.
+
+## Current llama-cli diagnostic prefix qualification (v1 addendum)
+
+This section qualifies two diagnostic forms emitted by the current
+`llama-cli` runtime family (inspected build 10449 / commit `0d9ceae1e`,
+source tree `llama.cpp-sm120-upgrade`). It records a contract decision only.
+No parser or capture path is implemented here, and no existing provenance
+identity is redefined.
+
+### `load_tensors:` offload line — placement
+
+Producer: `llama_model_base::load_tensors`, `src/llama-model.cpp`, the
+`offloaded %d/%d layers to GPU` `LLAMA_LOG_INFO`. The prefix is `__func__`.
+This is the same function previously named `llm_load_tensors`; the historical
+`llm_load_tensors:` prefix and the current `load_tensors:` prefix are one
+producer renamed (upstream commit `994118a18`, 2026-05-04). The reported
+formula is unchanged: `N = min(n_gpu_layers, n_layer_all + 1)` and
+`M = n_layer_all + 1`, where `n_layer_all` is the GGUF `block_count` and the
+`+ 1` is the logical output layer.
+
+`N`/`M` count logical model layers (repeating transformer layers plus the
+output layer). They are not tensor counts, graph-node counts, or a
+backend-specific subset. The input/embedding layer is always assigned to the
+CPU and is excluded from `M`. The line is emitted only when
+`llama_supports_gpu_offload()` is true, once per model load.
+
+`N` reflects the requested `--n-gpu-layers` clamped to model capacity; it is
+not proof that buffer allocation stayed on the accelerator, because the GPU
+buffer-type list carries a CPU fallback and allocation may silently land on
+CPU. This requested-versus-effective caveat is identical to the historical
+`llm_load_tensors:` diagnostic and does not change the classification rules.
+
+Decision: `CURRENT_LOAD_TENSORS_PLACEMENT = ADMIT_EXISTING_SEMANTICS`. The
+current prefix is semantically equivalent to the already-supported historical
+placement diagnostic for every classification LLMGauge emits:
+
+- `N = 0` with `M > 0` → `cpu_only` (every layer, including output, is
+  assigned to the CPU device).
+- `0 < N < M` → `hybrid_accelerator_cpu`.
+- `N = M` → `unknown`. `N/N` still does not prove `full_accelerator`: the
+  always-CPU input layer, the CPU buffer fallback, and possible non-layer
+  CPU execution remain.
+- no supported line → `unavailable`.
+
+Admission is conditional on provenance honesty: the persisted
+`placement_source` must record the actual prefix observed
+(`load_tensors` versus `llm_load_tensors`) so the runtime family that
+produced the evidence stays distinguishable. Multiple GPUs do not change the
+classification: `N`/`M` are model-wide layer counts and the split across
+devices is orthogonal to the `cpu_only` / `hybrid` / `unknown` decision. If
+conflicting `offloaded N/M` lines appear in one captured stream (for example
+multiple model loads), the existing conflict rule applies and the field is
+left absent.
+
+### `slot print_timing:` lines — timing
+
+Producer: `server_slot::print_timings`, `tools/server/server-context.cpp`,
+emitted through the `SLT_INF` macro. The `print_timing` prefix is `%12.*s` of
+`__func__` (`print_timings`, 13 characters) truncated to 12. `llama-cli`
+reaches this code because it is a client over an embedded
+OpenAI-compatible server; each prompt is one `/v1/chat/completions` request
+onto a slot.
+
+These lines are server-slot request accounting, not `libllama`
+context-level performance counters. They are not equivalent to
+`llama_perf_context_print:` / `llama_print_timings:` and must not be merged
+into those provenance identities. Material differences proven from source:
+
+- The `print_timing` prefix is shared by three functions: the request-final
+  `print_timings()` block, the `print_timings_pp()` prompt-progress line
+  (emitted only when prompt time exceeds 3 s), and the `print_timings_tg()`
+  generation-progress line (emitted only when `n_gen >= 100`). A prefix match
+  alone cannot separate them; only the request-final block carries the
+  `prompt eval time` / `eval time` / `total time` field text.
+- Slot counters reset per request: `stats = {}` runs in `reset()` on slot
+  release, and `n_gen` is zeroed when the prompt completes. Repeated requests
+  on one slot report independent prompt/gen counts (confirmed by direct
+  runs).
+- `prompt eval time` token count is `n_prompt_processed`, which excludes
+  KV-cache-reused prompt tokens (`n_prompt_cached`). This differs from
+  `llama_perf` `n_p_eval`, which has no cache concept.
+- `eval time` displays `n_gen` tokens but computes ms-per-token and tokens
+  per second over `n_gen - 1` decode steps (the first token is "free" from
+  the prompt logits). The displayed count and the rate denominator differ by
+  one, unlike `llama_perf` `eval time`, whose count and rate share `n_eval`.
+- `total time` is `t_prompt_ms + t_gen_ms`, i.e. prompt-start through last
+  generated token. It excludes model load and any queue/HTTP/tokenization
+  time before the slot began processing. This is a narrower boundary than
+  the existing `total_time_seconds`, which for `llama_perf` spans from
+  context creation.
+- `graphs reused` is read from `llama_perf_context(ctx_tgt).n_reused`, a
+  server-global cumulative counter that the server never resets. It is not
+  request-local (confirmed monotonic across turns in direct runs).
+- Under continuous batching (`--parallel > 1`) a slot's wall-clock interval
+  includes co-resident slots' compute between its own batches, so per-slot
+  timings are not isolated. Only `--parallel 1` single-turn yields a clean
+  request-local boundary.
+- Sampling time is inside the slot prompt/gen wall intervals; speculative
+  decoding adds a separate `draft acceptance` line and changes the
+  step/token relationship.
+
+Decision: `SLOT_PRINT_TIMING = PARTIAL_ADMISSION`. Only the request-final
+block, under `--parallel 1` single-turn, is trustworthy, and only as a new
+distinct source identity (`slot_print_timing`). It must never populate the
+existing `llama_perf`-derived native timing fields, because the meanings
+differ. Per-field status:
+
+- `prompt_eval_time_seconds`: admitted as distinct (prompt-start to first
+  token; excludes load and queue).
+- `prompt_eval_token_count`: admitted as distinct, meaning non-cached
+  processed tokens only.
+- `prompt_eval_tps`: admitted as distinct.
+- `eval_time_seconds`: admitted as distinct (generation wall time).
+- `eval_token_count`: admitted as distinct, with the `n_gen` versus
+  `n_gen - 1` denominator caveat recorded.
+- `generation_tps`: admitted as distinct (over decode steps).
+- `total_time_seconds`: rejected. Boundary excludes load and pre-slot queue;
+  not the existing total meaning.
+- `load_time_seconds`: rejected. No load line is emitted by this source.
+- `graphs reused`: rejected as evidence. Server-global, not request-local.
+- progress lines (`print_timings_pp` / `print_timings_tg`): rejected. Prefix
+  collision and non-final partial values.
+
+Unavailable stays unavailable; missing is null, never zero. The compact
+stdout UI trailer remains generic throughput evidence only and is not
+relabeled.
+
+### Logging requirement (identified, not enabled)
+
+`slot print_timing:` requires verbosity >= 3 (`LOG_INF` maps directly to
+`LOG_LEVEL_INFO`). `load_tensors:` requires verbosity >= 4 (libllama
+`LLAMA_LOG_INFO` maps to `LOG_LEVEL_TRACE` through
+`common_log_default_callback`). A future capture milestone would need
+verbosity 4 for placement and only 3 for timing. Captured lines carry a
+default timestamp prefix and may contain absolute model paths; any selective
+capture must strip timestamps, avoid retaining unrelated verbose output,
+preserve command/runtime provenance, and keep private paths out of public
+artifacts. No logging policy is enabled by this contract.
