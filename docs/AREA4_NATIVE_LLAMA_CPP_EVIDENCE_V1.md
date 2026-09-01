@@ -290,3 +290,110 @@ evidence from stderr only, and on successful runs persists only admitted
 diagnostic lines plus warning/error output to `logs/` instead of the full
 verbosity-4 trace. Failed runs retain the full stderr for diagnosis. This
 note records enablement; it does not alter any decision above.
+
+## Current llama-cli runtime qualification policy v2
+
+The v1 addendum above qualified the diagnostic forms themselves. This section
+decides how runtimes emitting those forms are admitted, replacing the
+single-exact-build restriction left open by the capture milestone. The
+decision rests on upstream source history (local clone `llama.cpp-sm120-upgrade`,
+origin `ggml-org/llama.cpp`, inspected through `0d9ceae1e`, the local
+`origin/master` tip) plus a bounded two-build runtime comparison. No evidence
+semantics change; every per-field decision above stands.
+
+### Evidence basis
+
+Placement (`load_tensors:` offload line):
+
+- The emitting region of `llama_model_base::load_tensors` (the
+  `llama_supports_gpu_offload()` block containing
+  `offloaded %d/%d layers to GPU`) is byte-identical from `5343f4502`
+  (2026-06-06, build 9538) through `0d9ceae1e` (build 10449); `git log -L`
+  over the region shows no commit touching it after `5343f4502`.
+- `5343f4502` is the last semantic edit of the region (local `n_layer` →
+  `n_layer_all` rename after the `7acb4e8cd` hparams refactor). Across the
+  interval: `N = min(n_gpu_layers, n_layer_all + 1)`, `M = n_layer_all + 1`,
+  the output-layer `+1`, the always-CPU input layer, the GPU buffer-type
+  list's CPU fallback append, the `llama_supports_gpu_offload()` gate, and
+  the `__func__` prefix are unchanged; no commit in the interval changes
+  `n_gpu_layers` parameter mapping or `n_layer_all`'s definition.
+- The `load_tensors:` prefix exists since the producer rename `994118a18`
+  (2026-05-04), an ancestor of the floor.
+- Runtime check: build 9672 (`74ade5274`, inside the interval) emits the
+  identical form (`load_tensors: offloaded 5/17 layers to GPU`) under the
+  same parameters as build 10449.
+
+Slot timing (`slot print_timing:` request-final block):
+
+- `decaf508b` (2026-08-13, build 10406, "server: refactor + correctness
+  fixes for metrics") materially changed slot timing semantics: it
+  introduced `server_slot_stats` with `n_gen_steps()` and moved the
+  displayed generation rate denominator from `n_decoded` (tokens) to
+  `n_gen − 1` (decode steps), re-deriving prompt/gen totals from
+  `t_start` / `t_prompt_last` / `t_gen_last`.
+- From `decaf508b` through `0d9ceae1e`, `print_timings()`,
+  `print_timings_pp()`, `print_timings_tg()`, `server_slot_stats`, the
+  `SLT_INF` macro, the per-request `stats = {}` reset, and every stats
+  update call site are identical (line numbers shift only; no commit in the
+  interval touches server timing code, `common/log.*`, or CLI entry
+  plumbing).
+- Runtime check under identical parameters: build 9672 (before the floor)
+  reports `eval time = 68.79 ms / 8 tokens (… 116.29 tokens per second)` —
+  rate over `n_gen` — while build 10449 reports
+  `eval time = 73.42 ms / 8 tokens (… 95.34 tokens per second)` — rate over
+  `n_gen − 1`. Byte-identical grammar, different semantics. This proves
+  directly that line/prefix existence cannot qualify timing and that
+  `decaf508b` is a real semantic boundary.
+
+### Policy
+
+`CURRENT_LLAMA_NATIVE_QUALIFICATION_POLICY = BOUNDED_COMMIT_RANGE`
+(per-source floors, shared ceiling):
+
+- `PLACEMENT_QUALIFICATION_POLICY = BOUNDED_COMMIT_RANGE`
+  - first admitted commit `5343f4502` (build 9538): last edit of the
+    emitting region; everything after it through the ceiling is
+    byte-identical;
+  - last admitted commit `0d9ceae1e` (build 10449): last commit inspected
+    in local upstream history. Admission never extrapolates beyond it.
+- `SLOT_TIMING_QUALIFICATION_POLICY = BOUNDED_COMMIT_RANGE`
+  - first admitted commit `decaf508b` (build 10406): the commit that
+    established the qualified timing semantics; earlier builds emit the
+    same grammar with the old denominator and must not be admitted;
+  - last admitted commit `0d9ceae1e` (build 10449): same ceiling.
+
+Admission rule (to be encoded by a bounded follow-up implementation): the
+observed `build_number` parses as an integer inside the source's interval
+(placement `[9538, 10449]`, timing `[10406, 10449]`) and the observed
+`commit` metadata is present; the observed commit string is recorded
+verbatim as provenance. Missing, partial, unparseable, or out-of-interval
+metadata fails closed exactly as before. Build numbers are monotonic on
+upstream `master`: `cmake/build-info.cmake` derives the build number as
+`git rev-list --count HEAD`, so the integer interval corresponds exactly to
+the commit interval. Runtimes beyond `0d9ceae1e` require a new bounded
+re-qualification against post-ceiling history.
+
+Rejected alternatives:
+
+- Exact build + commit allowlist (v1 behavior): correct but unnecessarily
+  narrow for placement, whose emitting region is provably byte-identical
+  across 911 commits, and unnecessarily narrow for timing above the real
+  `decaf508b` boundary. Kept as fallback if interval encoding proves
+  untrustworthy.
+- Semantic capability check alone: rejected. The b9672-versus-b10449
+  comparison proves identical observable grammar can hide a changed
+  denominator; no runtime-observable evidence available to LLMGauge
+  distinguishes them without source knowledge.
+- Hybrid (commit family plus runtime diagnostic fingerprint): unnecessary
+  inside a closed proven interval. The strict capture grammars already fail
+  closed on structural drift, and a fingerprint adds no protection against
+  forged `--version` metadata that the exact-commit gate cannot detect
+  either.
+
+### Implementation status
+
+The capture implementation still enforces the exact `10449 / 0d9ceae1e`
+gate. That is a strict subset of the accepted intervals and remains
+fail-closed: builds inside the intervals but not equal to the qualified
+pair continue to reject current-prefix evidence until a bounded follow-up
+milestone encodes the interval rule. This milestone changes no code.
