@@ -949,12 +949,18 @@ unclassified unknown; it does not replace source stderr, exit status, or
 timeout evidence. Exact IDs, references, availability, and v1 fingerprint
 rules are defined in [Area 4 native llama.cpp evidence v1](AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md).
 
-For the exact qualified llama-cli runtime (observed build 10449, commit
-`0d9ceae1e`), the execution artifact may additionally carry the current
-`load_tensors:` placement prefix as `llama_cpp_placement.source` (distinct
-from historical `llm_load_tensors`), preserved authoritative diagnostic
-`raw_lines` for validator recomputation, and a separate `slot_print_timing`
-object holding only the request-final server-slot block's admitted fields.
+For a lineage-qualified llama.cpp runtime — an observed `build_number` plus
+`commit` pair resolving to exactly one record of the frozen packaged
+upstream identity manifest (`llmgauge.llama_runtime_lineage.v1`,
+`src/llmgauge/data/llama_runtime_lineage.json`, policy
+`upstream_identity_allowlist`) — the execution artifact may additionally
+carry the current `load_tensors:` placement prefix as
+`llama_cpp_placement.source` (distinct from historical `llm_load_tensors`),
+preserved authoritative diagnostic `raw_lines` for validator recomputation,
+and, only when the matched record independently admits slot timing, a
+separate `slot_print_timing` object holding the request-final server-slot
+block's admitted fields. Placement admission covers builds 9538..10449;
+slot-timing admission covers the 44-identity subset 10406..10449.
 `slot_print_timing` is a distinct backend-native source identity: it never
 populates `llama_cpp_timing`, and its `load_time_seconds`,
 `total_time_seconds`, and `graphs_reused` remain null (rejected for that
@@ -963,9 +969,16 @@ steps while `eval_token_count` preserves the displayed `n_gen`; validators
 recompute both from the preserved lines. Capture runs the qualified
 executable at effective verbosity 4; successful runs persist only the
 admitted diagnostic lines plus warning/error output in `logs/`, never the
-full verbosity trace. Unqualified or unknown runtimes never emit
-current-prefix evidence. Historical results without these fields remain
-valid.
+full verbosity trace. A placement-only identity never emits a
+`slot_print_timing` object even when matching timing lines are present.
+Unqualified or unknown runtimes never emit current-prefix evidence.
+`runtime.native_diagnostics_capture` records the bounded lineage facts
+(policy, identity match, matched canonical short commit, observed build,
+independent admission flags, effective verbosity, reason); validators
+recompute them from persisted backend provenance plus the packaged
+manifest and reject divergence. Pre-lineage capture blobs without
+`lineage_policy` are historical records and are not reinterpreted.
+Historical results without these fields remain valid.
 
 Results with Area 4 evidence use `llmgauge.run_fingerprint.v1` and a v1 payload
 that adds canonical Area 4 records and hashes their referenced native execution

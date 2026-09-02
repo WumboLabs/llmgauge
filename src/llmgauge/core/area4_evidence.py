@@ -13,7 +13,7 @@ from llmgauge.core.metrics import (
     parse_slot_print_timing,
     placement_states,
 )
-from llmgauge.core.native_diagnostics import current_native_diagnostics_admitted
+from llmgauge.core.native_diagnostics import qualify_current_native_diagnostics
 from llmgauge.runners.vllm_external import streaming_ttft_version_admitted
 
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
@@ -291,14 +291,20 @@ def _validate_native_current_diagnostics(
 ) -> None:
     """Recompute native timing/placement projections from preserved lines.
 
-    The validator never trusts stored summary values: it re-parses the
-    preserved authoritative diagnostic lines and rejects any divergence,
-    any current-prefix evidence on an unqualified runtime, and any slot
-    timing claim outside ``--parallel 1`` eligibility. Artifacts without
+    The validator never trusts stored summary values: it re-derives lineage
+    qualification from the packaged manifest plus persisted backend
+    provenance, re-parses the preserved authoritative diagnostic lines, and
+    rejects any divergence, any current-prefix placement claim outside
+    placement admission, any slot claim outside timing admission, and any
+    slot timing claim outside ``--parallel 1`` eligibility. Artifacts without
     ``raw_lines`` predate selective capture and keep their historical
     structural-only validation.
     """
-    admitted = current_native_diagnostics_admitted(runtime.get("backend_provenance"))
+    qualification = qualify_current_native_diagnostics(
+        runtime.get("backend_provenance")
+    )
+    placement_admitted = qualification.placement_admitted
+    slot_timing_admitted = qualification.slot_timing_admitted
     timing = evidence.get("llama_cpp_timing")
     placement = evidence.get("llama_cpp_placement")
     slot = evidence.get("slot_print_timing")
@@ -312,7 +318,8 @@ def _validate_native_current_diagnostics(
             recomputed = parse_llama_cpp_diagnostics(
                 joined,
                 stderr=joined,
-                current_diagnostics_admitted=admitted,
+                placement_admitted=placement_admitted,
+                slot_timing_admitted=slot_timing_admitted,
             )["llama_cpp_placement"]
             for field in ("observed", "offloaded_layers", "total_layers", "source"):
                 if placement.get(field) != recomputed.get(field):
@@ -327,10 +334,13 @@ def _validate_native_current_diagnostics(
             errors.append(
                 f"{label}.llama_cpp_placement claims values with no preserved lines"
             )
-        if not admitted and placement.get("source") == CURRENT_PLACEMENT_SOURCE:
+        if (
+            not placement_admitted
+            and placement.get("source") == CURRENT_PLACEMENT_SOURCE
+        ):
             errors.append(
-                f"{label}.llama_cpp_placement.source is current-prefix on an "
-                "unqualified runtime"
+                f"{label}.llama_cpp_placement.source is current-prefix on a "
+                "lineage-unqualified runtime"
             )
 
     if isinstance(timing, Mapping):
@@ -342,7 +352,8 @@ def _validate_native_current_diagnostics(
             recomputed = parse_llama_cpp_diagnostics(
                 joined,
                 stderr=joined,
-                current_diagnostics_admitted=admitted,
+                placement_admitted=placement_admitted,
+                slot_timing_admitted=slot_timing_admitted,
             )["llama_cpp_timing"]
             for field in (
                 "load_time_seconds",
@@ -379,10 +390,11 @@ def _validate_native_current_diagnostics(
     if not isinstance(slot, Mapping):
         errors.append(f"{label}.slot_print_timing must be an object when present")
         return
-    if not admitted:
+    if not slot_timing_admitted:
         errors.append(
-            f"{label}.slot_print_timing is present on an unqualified runtime; "
-            "current slot timing evidence requires the exact qualified llama-cli"
+            f"{label}.slot_print_timing is present on a runtime whose lineage "
+            "identity does not admit slot timing; current slot timing evidence "
+            "requires a timing-qualified upstream identity"
         )
         return
     if slot.get("source") != SLOT_TIMING_SOURCE:
@@ -472,15 +484,18 @@ def build_native_execution_evidence(
     exit_status: int,
     timed_out: bool,
     launch_error: str | None,
-    current_diagnostics_admitted: bool = False,
+    placement_admitted: bool = False,
+    slot_timing_admitted: bool = False,
 ) -> dict[str, Any]:
     """Build bounded LLMGauge-observed evidence for one native process attempt.
 
-    ``current_diagnostics_admitted`` must come from exact-runtime
-    qualification (``current_native_diagnostics_admitted``). Historical
-    parsing is unchanged; current ``load_tensors:`` placement provenance and
-    the request-final ``slot print_timing:`` block are only parsed from
-    stderr when the qualified runtime is proven.
+    ``placement_admitted`` / ``slot_timing_admitted`` must come from
+    lineage qualification (``qualify_current_native_diagnostics``) and are
+    independent: a placement-only identity parses the current
+    ``load_tensors:`` prefix but never emits a ``slot_print_timing`` object,
+    even when matching timing lines are present. Historical parsing is
+    unchanged; current-prefix sources are only parsed from stderr when the
+    corresponding lineage flag is proven.
     """
     valid_elapsed = (
         isinstance(elapsed_seconds, int | float)
@@ -491,7 +506,8 @@ def build_native_execution_evidence(
     diagnostics = parse_llama_cpp_diagnostics(
         f"{stdout}\n{stderr}",
         stderr=stderr,
-        current_diagnostics_admitted=current_diagnostics_admitted,
+        placement_admitted=placement_admitted,
+        slot_timing_admitted=slot_timing_admitted,
     )
     evidence: dict[str, Any] = {
         "schema_version": NATIVE_EXECUTION_EVIDENCE_SCHEMA,
@@ -508,7 +524,7 @@ def build_native_execution_evidence(
             launch_error=launch_error,
         ),
     }
-    if current_diagnostics_admitted:
+    if slot_timing_admitted:
         evidence["slot_print_timing"] = diagnostics["slot_print_timing"]
     return evidence
 
@@ -629,7 +645,6 @@ def build_area4_evidence(
             "primary_by_execution": primary_by_execution,
         },
     )
-
 
 
 def _ttft_metric_record(
@@ -1025,6 +1040,7 @@ def _load_vllm_stream_evidence(
             )
         loaded[execution_ref] = (path, evidence)
     return loaded
+
 
 def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> list[str]:
     """Validate represented Area 4 evidence without changing legacy requirements."""
@@ -1644,9 +1660,7 @@ def _validate_vllm_area4_evidence(
                 )
             )
             if stream_evidence is None and req_claims_ttft:
-                errors.append(
-                    f"{label} TTFT claim is missing stream evidence"
-                )
+                errors.append(f"{label} TTFT claim is missing stream evidence")
             elif stream_evidence is not None:
                 expected_ttft = _expected_ttft_record(
                     stream_evidence,
@@ -1676,8 +1690,7 @@ def _validate_vllm_area4_evidence(
         represented_ttft = [
             record
             for record in records[1:]
-            if isinstance(record, dict)
-            and record.get("metric_id") == TTFT_METRIC_ID
+            if isinstance(record, dict) and record.get("metric_id") == TTFT_METRIC_ID
         ]
         if represented_ttft and expected_ttft is None:
             errors.append(

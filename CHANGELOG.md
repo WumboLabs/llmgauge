@@ -3,6 +3,26 @@
 ## Unreleased
 
 ### Added
+- Runtime-lineage manifest implemented (behavior change): the exact
+  `10449 / 0d9ceae1e` native-diagnostics gate is replaced by fail-closed
+  exact identity-pair admission against a frozen, packaged upstream
+  identity manifest (`src/llmgauge/data/llama_runtime_lineage.json`,
+  912 qualified identities, builds 9538..10449, generated offline by
+  `scripts/generate_llama_runtime_lineage.py` from the verified
+  `ggml-org/llama.cpp` clone bounded by the contract floors/ceiling).
+  Placement and slot-timing admission are now independent per-record
+  flags: builds 9538..10405 admit current `load_tensors:` placement
+  evidence only (slot timing stays unavailable even when matching lines
+  appear), builds 10406..10449 admit both. Observed commits are resolved
+  conservatively — canonical 9-character exact keys, longer SHAs matched
+  against stored full SHAs with unique resolution, shorter prefixes only
+  when uniquely resolvable — never blindly truncated, and the observed
+  build number must equal the resolved record's build number. The Area 4
+  validator recomputes lineage qualification from persisted provenance
+  plus the packaged manifest and rejects stored-flag divergence. Historical
+  artifacts, generic throughput behavior, and the trust model (self-reported
+  metadata, no binary attestation) are unchanged. See
+  `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
 - Qualification-policy decision (contract only, no behavior change): current
   llama-cli native diagnostics semantic qualification is now specified as
   per-source bounded commit ranges — placement `5343f4502..0d9ceae1e` (builds

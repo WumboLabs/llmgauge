@@ -129,7 +129,7 @@ def build_runtime_command_document(
         ),
         "effective_verbosity_note": (
             "verbosity 4 is an internal deterministic evidence-capture setting "
-            "for the exact qualified llama-cli runtime; it adds runtime logging "
+            "for a lineage-qualified llama-cli runtime; it adds runtime logging "
             "work and is not equivalent to historical runs without it"
             if config.native_diagnostics_capture
             else "runtime default verbosity"

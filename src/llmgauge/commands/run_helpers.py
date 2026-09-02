@@ -61,8 +61,8 @@ from llmgauge.core.multi_turn import (
     load_multi_turn_task,
 )
 from llmgauge.core.native_diagnostics import (
-    current_native_diagnostics_admitted,
     native_diagnostics_capture_state,
+    qualify_current_native_diagnostics,
 )
 from llmgauge.core.output_cleaning import clean_llama_output
 from llmgauge.core.output_paths import build_auto_output_dir
@@ -1952,9 +1952,11 @@ def execute_run(
     backend_provenance.update(discover_llama_runtime_identity(resolved["llama_cli"]))
     if backend_provenance.get("discovery_warning"):
         console.print(f"[yellow]{backend_provenance['discovery_warning']}[/yellow]")
-    current_diagnostics_admitted = current_native_diagnostics_admitted(
-        backend_provenance
-    )
+    lineage_qualification = qualify_current_native_diagnostics(backend_provenance)
+    # Placement admission drives verbosity-4 capture; timing lines may appear
+    # incidentally at that verbosity but are only parsed when the lineage
+    # record independently admits slot timing.
+    current_diagnostics_capture = lineage_qualification.placement_admitted
     config = LlamaCppRunConfig(
         llama_cli=resolved["llama_cli"],
         model_path=resolved["model_path"],
@@ -1977,7 +1979,7 @@ def execute_run(
         fit=resolved.get("fit"),
         reasoning_preserve=resolved.get("reasoning_preserve"),
         spec_type=resolved.get("spec_type"),
-        native_diagnostics_capture=current_diagnostics_admitted,
+        native_diagnostics_capture=current_diagnostics_capture,
     )
 
     timestamp = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -2057,7 +2059,8 @@ def execute_run(
             exit_status=run_result.exit_status,
             timed_out=getattr(run_result, "timed_out", False),
             launch_error=getattr(run_result, "launch_error", None),
-            current_diagnostics_admitted=current_diagnostics_admitted,
+            placement_admitted=lineage_qualification.placement_admitted,
+            slot_timing_admitted=lineage_qualification.slot_timing_admitted,
         )
         native_execution_path = (
             out / "native" / f"{prompt_id.replace('/', '__')}.execution.json"

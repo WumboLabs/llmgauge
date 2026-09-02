@@ -313,6 +313,18 @@ def parse_llama_version_output(stdout: str, stderr: str = "") -> dict[str, Any]:
         build_number_match = re.search(
             r"(?im)^\s*(?:llama\.cpp\s+)?version\s*:.*\bbuild\s+(\d+)\b", combined
         )
+    commit_value = commit_match.group(1) if commit_match else None
+    build_value = build_number_match.group(1) if build_number_match else None
+    if build_value is None and commit_value is None:
+        # Older llama-cli --version prints `version: 9672 (74ade5274)`:
+        # build number first, bare short commit in parentheses.
+        paren_match = re.search(
+            r"(?im)^\s*(?:llama\.cpp\s+)?version\s*:\s*(\d+)\s*\(([0-9a-f]{7,40})\)",
+            combined,
+        )
+        if paren_match is not None:
+            build_value = paren_match.group(1)
+            commit_value = paren_match.group(2)
     build_type_match = re.search(
         r"(?im)^\s*build\s+type\s*:\s*(\S(?:.*?\S)?)\s*$", combined
     )
@@ -326,8 +338,8 @@ def parse_llama_version_output(stdout: str, stderr: str = "") -> dict[str, Any]:
             if version_match
             else None
         ),
-        "commit": commit_match.group(1) if commit_match else None,
-        "build_number": build_number_match.group(1) if build_number_match else None,
+        "commit": commit_value,
+        "build_number": build_value,
         "build_type": (
             build_type_match.group(1)[:MAX_BUILD_METADATA_LENGTH]
             if build_type_match

@@ -117,7 +117,8 @@ def _write_run(
             exit_status=0,
             timed_out=False,
             launch_error=None,
-            current_diagnostics_admitted=native_admitted,
+            placement_admitted=native_admitted,
+            slot_timing_admitted=native_admitted,
         )
         native_path = "native/honesty-unknown-tool.execution.json"
         result["results"][0]["native_execution_evidence_path"] = native_path
