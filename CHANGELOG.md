@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- First-token channel validator hardening (vLLM streaming TTFT): the validator
+  now independently re-derives the first-token channel from the preserved raw
+  SSE payload rather than trusting stored labels. A consistent two-artifact
+  channel reclassification (stream + request) that contradicts the raw event
+  is now rejected. The shared canonical helper
+  `classify_first_generated_token_channel` is used by both the collector and
+  the validator. Cross-artifact agreement (stream ↔ request) remains enforced.
+  TTFT semantics, event-index trigger, and channel-neutral boundary are
+  unchanged. See `tests/test_vllm_streaming_area4.py` and
+  `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md`.
 - Runtime-lineage manifest implemented (behavior change): the exact
   `10449 / 0d9ceae1e` native-diagnostics gate is replaced by fail-closed
   exact identity-pair admission against a frozen, packaged upstream

@@ -50,6 +50,31 @@ VLLM_TTFT_BOUNDARY = "request_transmit_to_first_generated_token"
 FIRST_TOKEN_CHANNELS = frozenset({"reasoning", "content", "other_generated"})
 OBSERVATION_METHOD = "llmgauge.vllm_stream_evidence.v0"
 
+
+
+def classify_first_generated_token_channel(
+    reasoning: str | None,
+    content: str | None,
+) -> str:
+    """Classify the first generated token channel from validated delta fields.
+
+    Must match the collector's semantics: a non-empty delta string claims its
+    channel; a token-bearing event with no qualifying delta text is
+    ``other_generated``.
+
+    Args:
+        reasoning: The reasoning text from the delta, or ``None`` if absent.
+        content: The content text from the delta, or ``None`` if absent.
+
+    Returns:
+        One of ``"reasoning"``, ``"content"``, ``"other_generated"``.
+    """
+    if reasoning:
+        return "reasoning"
+    if content:
+        return "content"
+    return "other_generated"
+
 # Bounded untrusted server metadata (version endpoint + OpenAI-compatible fields).
 MAX_VLLM_VERSION_LENGTH = 64
 MAX_SYSTEM_FINGERPRINT_LENGTH = 256
@@ -1161,16 +1186,12 @@ def run_chat_completion_stream(
 
             # TTFT: first token-bearing event wins; later chunks never replace it.
             if token_ids and obs.first_token is None:
-                if reasoning:
-                    channel = "reasoning"
-                elif content:
-                    channel = "content"
-                else:
-                    channel = "other_generated"
                 obs.first_token = {
                     "event_index": event.index,
                     "elapsed_seconds": elapsed,
-                    "channel": channel,
+                    "channel": classify_first_generated_token_channel(
+                        reasoning, content
+                    ),
                     "token_ids_in_event": len(token_ids),
                 }
                 rec["ttft_trigger"] = True
