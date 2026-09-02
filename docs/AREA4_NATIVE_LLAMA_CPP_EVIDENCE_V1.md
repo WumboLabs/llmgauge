@@ -362,15 +362,14 @@ Slot timing (`slot print_timing:` request-final block):
     same grammar with the old denominator and must not be admitted;
   - last admitted commit `0d9ceae1e` (build 10449): same ceiling.
 
-Admission rule (to be encoded by a bounded follow-up implementation): the
-observed `build_number` parses as an integer inside the source's interval
-(placement `[9538, 10449]`, timing `[10406, 10449]`) and the observed
-`commit` metadata is present; the observed commit string is recorded
-verbatim as provenance. Missing, partial, unparseable, or out-of-interval
-metadata fails closed exactly as before. Build numbers are monotonic on
-upstream `master`: `cmake/build-info.cmake` derives the build number as
-`git rev-list --count HEAD`, so the integer interval corresponds exactly to
-the commit interval. Runtimes beyond `0d9ceae1e` require a new bounded
+Admission basis: the intervals above define which upstream commit identities
+are semantically qualified. They are source-history findings, not a runtime
+admission rule by themselves. The v2 draft rule — observed integer
+`build_number` inside the interval plus merely present `commit` metadata —
+is explicitly insufficient and is superseded by the runtime-lineage
+qualification amendment below: a fork or divergent checkout can report an
+in-range `git rev-list --count HEAD` build number while carrying different
+ancestry and semantics. Runtimes beyond `0d9ceae1e` require a new bounded
 re-qualification against post-ceiling history.
 
 Rejected alternatives:
@@ -378,8 +377,9 @@ Rejected alternatives:
 - Exact build + commit allowlist (v1 behavior): correct but unnecessarily
   narrow for placement, whose emitting region is provably byte-identical
   across 911 commits, and unnecessarily narrow for timing above the real
-  `decaf508b` boundary. Kept as fallback if interval encoding proves
-  untrustworthy.
+  `decaf508b` boundary. Superseded as permanent policy by the frozen
+  upstream identity manifest below, which is the same mechanism generalized
+  to every qualified identity.
 - Semantic capability check alone: rejected. The b9672-versus-b10449
   comparison proves identical observable grammar can hide a changed
   denominator; no runtime-observable evidence available to LLMGauge
@@ -393,7 +393,194 @@ Rejected alternatives:
 ### Implementation status
 
 The capture implementation still enforces the exact `10449 / 0d9ceae1e`
-gate. That is a strict subset of the accepted intervals and remains
+gate. That is a strict subset of the accepted identities and remains
 fail-closed: builds inside the intervals but not equal to the qualified
 pair continue to reject current-prefix evidence until a bounded follow-up
-milestone encodes the interval rule. This milestone changes no code.
+milestone encodes the frozen upstream identity manifest rule below. This
+milestone changes no code.
+
+## Runtime lineage qualification amendment (v2.1)
+
+This amendment closes the gap left by the v2 admission draft. The v2
+semantic commit ranges remain valid source-history findings; what they do
+not provide is runtime identity proof.
+
+### Why build-range plus commit-presence is insufficient
+
+`cmake/build-info.cmake` derives the reported build number from
+`git rev-list --count HEAD` and the reported commit from
+`git rev-parse --short HEAD`, both evaluated in whatever checkout performed
+the build. Neither value is tied to upstream ancestry: a fork or divergent
+clone can produce an integer count inside `[9538, 10449]` (for example by
+squashing, grafting, or simply diverging near an in-range commit) while its
+actual source semantics differ from the qualified upstream interval. The
+build number is therefore a display identifier, not an identity proof. The
+exact `10449 / 0d9ceae1e` gate is safe precisely because it pins the full
+observed identity pair, not a numeric interval.
+
+### Upstream interval inventory (verified against local clone)
+
+Verified read-only against `/home/cheez/Projects/local-llm/llama.cpp-sm120-upgrade`
+(origin `ggml-org/llama.cpp`, tip `0d9ceae1e`):
+
+- Placement interval `5343f4502..0d9ceae1e` inclusive: 912 commits, builds
+  9538..10449. Zero merge commits; `--first-parent` count equals full count,
+  so the interval is strictly linear. `rev-list --count` is therefore a
+  bijection from interval commits to the integers 9538..10449; counts do not
+  repeat or skip.
+- Timing interval `decaf508b..0d9ceae1e` inclusive: 44 commits, builds
+  10406..10449, zero merges, strictly linear, and a commit-for-commit subset
+  of the placement interval.
+- Reported commit form: `git rev-parse --short` with automatic abbreviation;
+  every commit in both intervals abbreviates to exactly 9 hex characters.
+  All 912 nine-character prefixes are pairwise distinct and collide with no
+  other reachable commit in the clone (14,677 reachable commits, zero
+  duplicate nine-character prefixes). Within this manifest, a 9-character
+  short SHA uniquely identifies one upstream commit; that uniqueness scope
+  is the manifest plus this clone's reachable history, not a global
+  cryptographic guarantee.
+- Official release tags cross-check the anchors: `b9538` -> `5343f4502`,
+  `b9672` -> `74ade5274` (count 9672).
+
+A candidate manifest generated from this history contains 912 records
+(placement floor through ceiling), of which 44 also carry timing admission.
+Serialized size: approximately 90 KB as JSONL with the four contract fields
+(short SHA, build number, two admission flags), approximately 142 KB with
+full SHAs included, and approximately 9 KB as a shorts-only text list. The
+artifact is small enough that compactness arguments do not force any weaker
+representation.
+
+### Trust model
+
+LLMGauge receives only what the executable self-reports through
+`--version` / provenance discovery: `version: X (build N, commit S)`. That
+metadata is unauthenticated. The manifest mechanism trusts the
+*self-reported pair* and checks it against a frozen set of known-upstream
+identities. It does not cryptographically prove binary contents — the
+current exact build+commit gate does not either, so the trust assumption is
+unchanged, not weakened. Out of scope by necessity: a binary that forges
+both build number and commit to a qualified pair. No local mechanism can
+detect that, and the v1 exact gate never could. What the mechanism must
+defend against — and does — is ordinary divergent/fork builds accidentally
+satisfying admission.
+
+### Policy
+
+`LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST`
+
+Runtime admission requires an exact match of the observed identity pair
+against a frozen allowlist of qualified upstream identities. The allowlist
+is packaged with LLMGauge as a generated data artifact (one record per
+qualified upstream commit); the manifest is the representation, the
+exact-pair allowlist lookup is the semantic. No interval arithmetic is
+performed on the observed build number at admission time.
+
+Required identity fields per record:
+
+- `commit`: 9-character lowercase short SHA as reported by
+  `git rev-parse --short` at that upstream commit;
+- `build_number`: integer `git rev-list --count` at that commit;
+- `placement_admitted`: boolean;
+- `slot_timing_admitted`: boolean.
+
+Matching semantics:
+
+1. Parse observed `build_number` (decimal integer string) and observed
+   `commit` (lowercase hex, 7–40 characters) from existing runtime
+   provenance. Missing, partial, or unparseable metadata fails closed.
+2. Look up the observed commit (normalized lowercase) in the frozen
+   allowlist. The allowlist is keyed by short SHA; the observed build
+   number must equal the record's `build_number` exactly. A commit absent
+   from the allowlist, or present with a differing build number, fails
+   closed. Requiring both fields to agree means a fork commit is admitted
+   only if its SHA is an upstream qualified SHA *and* its reported count
+   matches upstream's count for that same SHA — the same conjunction the
+   current exact gate applies to one pair, generalized over the qualified
+   set.
+3. If the pair matches, `placement_admitted` and `slot_timing_admitted`
+   come from the record independently. One identity can qualify placement
+   without timing (builds 9538..10405); no single
+   "current diagnostics admitted" boolean is assumed to cover both sources.
+
+The current implementation's single `current_diagnostics_admitted` boolean
+maps to "both flags true" until the capture layer is split; the follow-up
+implementation milestone owns that split.
+
+### Fork / divergence behavior
+
+1. Upstream commit in range, ordinary build: pair matches a record;
+   admitted per record flags.
+2. Upstream commit in range with uncommitted working-tree changes:
+   `rev-parse --short` and `rev-list --count` are unchanged by dirty trees,
+   so the pair still matches. This is an accepted residual: LLMGauge cannot
+   distinguish a dirty-tree build of a qualified commit from a clean one,
+   exactly as the current exact gate cannot (the qualified 10449 runtime
+   itself was built from a tree carrying only a local `AGENTS.md` edit).
+   Diagnostic-region edits under dirty trees remain possible; the strict
+   capture grammars and the Area 4 recomputation validator are the
+   downstream defense, unchanged.
+3. Fork whose HEAD SHA differs, count in range: SHA not in allowlist ->
+   rejected. This is the case the v2 draft would have wrongly admitted.
+4. Fork based on an admitted upstream commit plus extra commits: HEAD SHA
+   and count both differ -> rejected.
+5. Fork patching source without touching commit metadata: indistinguishable
+   from case 2 (same SHA, same count) -> admitted. Accepted residual,
+   identical to the current gate's exposure; mitigated only by grammar and
+   validator defenses.
+6. User rebuild of an admitted upstream commit with different
+   compiler/CUDA options: same SHA, same count -> admitted. Intended:
+   semantics of the diagnostic source are fixed by commit, not by
+   toolchain. Build compiler/target strings remain recorded provenance,
+   never admission inputs.
+7. Binary spoofing its version string to a qualified pair: outside the
+   trust model (see above); no local mechanism defends against it.
+
+### Rejected mechanisms
+
+- Build-range arithmetic plus commit-presence (v2 draft): admits foreign
+  commits with in-range counts (case 3). Rejected.
+- Commit-only allowlist without build-number agreement: keeps one field of
+  the current gate's conjunction; the build number is free to check and
+  removing it strictly weakens identity matching. Rejected.
+- Source-checkout ancestry proof (`git merge-base --is-ancestor`): LLMGauge
+  observes an executable, not the checkout that built it; commit metadata
+  in the binary does not prove a local repository corresponds to that
+  binary, and requiring a source checkout adds an operator dependency the
+  exact gate never had. Cannot establish binary identity -> rejected.
+- Upstream remote / GitHub ancestry lookup: violates local-first, offline
+  operation and makes evidence availability a runtime dependency on a
+  remote service -> rejected.
+- Binary hash allowlist: same commit built with different toolchains,
+  flags, or linked libraries produces different hashes (case 6 would be
+  wrongly rejected), while hashes prove nothing about source lineage for
+  unknown binaries. Too restrictive and orthogonal -> rejected.
+- Version/build metadata alone (candidate H): `build-info.cpp.in` embeds
+  `LLAMA_BUILD_NUMBER` and `LLAMA_COMMIT` as independent plain values with
+  no structural or cryptographic tie from the count to upstream ancestry.
+  "Both values are printed" is not "the pair belongs to upstream" ->
+  insufficient by itself; it is the *input* the allowlist checks.
+
+### Manifest authority and update workflow (contract for the next milestone)
+
+- Authoritative source: upstream `ggml-org/llama.cpp` `master` history,
+  enumerated only between semantically re-qualified floor commits and the
+  current ceiling.
+- Generation: a reviewed, offline procedure run against a verified
+  upstream clone (record `git rev-list --reverse <floor>~1..<ceiling>`,
+  per-commit `rev-parse --short` and `rev-list --count`); the generator
+  itself is admitted with the implementation milestone, not before.
+- Reproducibility: deterministic given the clone; the generated artifact
+  carries its own provenance (source repo, floor/ceiling commits,
+  generation date) and is reviewed as data in the same PR that updates it.
+- Packaging: included as package data so installed wheels carry the frozen
+  identities; validated by tests that recompute the qualified anchors.
+- Updates: extending the ceiling requires a new bounded semantic
+  re-qualification milestone first (same evidence standard as v2); the
+  lineage update then only appends reviewed identities. Admission never
+  extrapolates beyond the last reviewed record.
+
+### Implementation status (this amendment)
+
+Contract only. The runtime code still enforces the exact
+`10449 / 0d9ceae1e` gate — a one-record subset of the selected allowlist —
+so no admission broadening occurs in this milestone.

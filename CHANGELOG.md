@@ -4,14 +4,29 @@
 
 ### Added
 - Qualification-policy decision (contract only, no behavior change): current
-  llama-cli native diagnostics admission is now specified as per-source bounded
-  commit ranges — placement `5343f4502..0d9ceae1e` (builds 9538..10449, emitting
-  region byte-identical) and slot timing `decaf508b..0d9ceae1e` (builds
-  10406..10449, floor at the metrics refactor that changed the generation-rate
-  denominator) — proven from upstream source history and a two-build runtime
-  comparison. The implemented exact 10449/0d9ceae1e gate remains in force as a
-  strict subset until a follow-up encodes the intervals. See
-  `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
+  llama-cli native diagnostics semantic qualification is now specified as
+  per-source bounded commit ranges — placement `5343f4502..0d9ceae1e` (builds
+  9538..10449, emitting region byte-identical) and slot timing
+  `decaf508b..0d9ceae1e` (builds 10406..10449, floor at the metrics refactor
+  that changed the generation-rate denominator) — proven from upstream source
+  history and a two-build runtime comparison. These ranges are source-history
+  findings; a later amendment (below) establishes that runtime admission must
+  match exact frozen upstream identities, not integer build-range arithmetic.
+  The implemented exact 10449/0d9ceae1e gate remains in force as a strict
+  subset. See `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
+- Runtime-lineage qualification contract (contract only, no behavior change):
+  selected `LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST`. The
+  observed `build_number` plus `commit` pair must exactly match one frozen,
+  packaged upstream identity record (912 qualified placement identities,
+  builds 9538..10449, of which 44 also qualify slot timing), with independent
+  per-source admission flags; anything else fails closed. Numeric
+  build-interval checks alone were rejected because fork checkouts can report
+  in-range `git rev-list --count` values with different ancestry. Verified
+  upstream interval linearity, build-number bijection, and short-SHA
+  uniqueness against the local `ggml-org/llama.cpp` clone through
+  `0d9ceae1e`. No runtime code, manifest artifact, or admission change in this
+  milestone. See `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md` ("Runtime
+  lineage qualification amendment (v2.1)").
 - Current llama-cli native diagnostics capture (Area 4), admitted only for the
   exact qualified runtime (observed build 10449, commit 0d9ceae1e): the renamed
   `load_tensors:` offload line is parsed with its actual prefix preserved as
