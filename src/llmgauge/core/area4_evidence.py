@@ -14,7 +14,10 @@ from llmgauge.core.metrics import (
     placement_states,
 )
 from llmgauge.core.native_diagnostics import qualify_current_native_diagnostics
-from llmgauge.runners.vllm_external import streaming_ttft_version_admitted
+from llmgauge.runners.vllm_external import (
+    classify_first_generated_token_channel,
+    streaming_ttft_version_admitted,
+)
 
 VLLM_REQUEST_EVIDENCE_SCHEMA = "llmgauge.vllm_request_evidence.v0"
 VLLM_STREAM_EVIDENCE_SCHEMA = "llmgauge.vllm_stream_evidence.v0"
@@ -1353,6 +1356,43 @@ def validate_area4_evidence(result_dir: Path, data: Mapping[str, object]) -> lis
 FIRST_TOKEN_CHANNELS = frozenset({"reasoning", "content", "other_generated"})
 
 
+def _first_token_raw_delta_fields(
+    event: Mapping[str, Any],
+) -> tuple[str | None, str | None] | None:
+    """Extract delta reasoning/content from the preserved raw SSE payload.
+
+    Mirrors the collector's delta validation semantics.  Returns ``None``
+    when the raw payload cannot be parsed into the canonical delta shape
+    (fail closed: the channel cannot be independently derived).
+    """
+    raw = event.get("data")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    choice = choices[0]
+    if not isinstance(choice, dict):
+        return None
+    delta = choice.get("delta")
+    if not isinstance(delta, dict):
+        return None
+    reasoning = delta.get("reasoning")
+    content = delta.get("content")
+    if not (
+        (reasoning is None or isinstance(reasoning, str))
+        and (content is None or isinstance(content, str))
+    ):
+        return None
+    return reasoning, content
+
+
 def _expected_ttft_record(
     stream_evidence: Mapping[str, Any],
     stream_path: str | None,
@@ -1476,6 +1516,28 @@ def _expected_ttft_record(
             f"{label} stream evidence first_token elapsed differs from its event"
         )
         return None
+    # Independently re-derive the channel from the preserved raw SSE payload
+    # (the exact ``data`` received from the runtime) rather than trusting the
+    # stored label.  The raw payload is the authoritative event representation
+    # per the llmgauge.vllm_stream_evidence.v0 schema.
+    delta_fields = _first_token_raw_delta_fields(first_token_event)
+    if delta_fields is None:
+        errors.append(
+            f"{label} stream evidence first_token channel cannot be recomputed "
+            "from the preserved raw stream event"
+        )
+        return None
+    recomputed_channel = classify_first_generated_token_channel(
+        delta_fields[0], delta_fields[1]
+    )
+    if channel != recomputed_channel:
+        errors.append(
+            f"{label} stream evidence first_token channel claim {channel!r} "
+            "differs from the channel recomputed from the preserved raw stream "
+            f"event ({recomputed_channel!r})"
+        )
+        return None
+
     return {
         "metric_id": TTFT_METRIC_ID,
         "native_metric_id": "time_to_first_token_seconds",

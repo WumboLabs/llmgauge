@@ -27,6 +27,7 @@ from llmgauge.core.run_fingerprint import _prompt_evidence
 from llmgauge.runners.vllm_external import (
     OBSERVATION_METHOD,
     STREAM_TRANSPORT_MODE,
+    classify_first_generated_token_channel,
 )
 
 
@@ -67,14 +68,59 @@ def _stream_evidence(
     }
 
 
+def _chunk_payload(
+    *,
+    content: str | None = None,
+    reasoning: str | None = None,
+    role: str | None = None,
+    token_ids: list[int] | None = None,
+) -> str:
+    """Real-shaped vLLM ``chat.completion.chunk`` SSE payload (JSON string)."""
+    delta: dict[str, Any] = {}
+    if role is not None:
+        delta["role"] = role
+    if content is not None:
+        delta["content"] = content
+    if reasoning is not None:
+        delta["reasoning"] = reasoning
+    choice: dict[str, Any] = {
+        "index": 0,
+        "delta": delta,
+        "logprobs": None,
+        "finish_reason": None,
+    }
+    if token_ids is not None:
+        choice["token_ids"] = token_ids
+    return json.dumps(
+        {
+            "id": "chatcmpl-test",
+            "object": "chat.completion.chunk",
+            "created": 1788320535,
+            "model": "test-model",
+            "choices": [choice],
+        },
+        separators=(",", ":"),
+    )
+
+
 def _event(
-    index: int, elapsed: float, count: int, trigger: bool = False
+    index: int,
+    elapsed: float,
+    count: int,
+    trigger: bool = False,
+    data: str | None = None,
 ) -> dict[str, Any]:
+    if data is None:
+        data = (
+            _chunk_payload(role="assistant", content="")
+            if count == 0
+            else _chunk_payload(token_ids=[1] * count)
+        )
     return {
         "index": index,
         "elapsed_seconds": elapsed,
         "kind": "data",
-        "data": "{}",
+        "data": data,
         "token_ids_count": count,
         "ttft_trigger": trigger,
     }
@@ -84,13 +130,78 @@ def _token_stream_evidence() -> dict[str, Any]:
     return _stream_evidence(
         events=[
             _event(0, 0.01, 0),
-            _event(1, 0.284, 1, trigger=True),
-            _event(2, 1.1, 1),
+            _event(
+                1,
+                0.284,
+                1,
+                trigger=True,
+                data=_chunk_payload(content="Hi", token_ids=[15]),
+            ),
+            _event(
+                2,
+                1.1,
+                1,
+                data=_chunk_payload(content=" there", token_ids=[20]),
+            ),
         ],
         first_token={
             "event_index": 1,
             "elapsed_seconds": 0.284,
             "channel": "content",
+            "token_ids_in_event": 1,
+        },
+    )
+
+
+def _reasoning_stream_evidence() -> dict[str, Any]:
+    return _stream_evidence(
+        events=[
+            _event(0, 0.01, 0),
+            _event(
+                1,
+                0.3,
+                1,
+                trigger=True,
+                data=_chunk_payload(reasoning="Let me think", token_ids=[151669]),
+            ),
+            _event(
+                2,
+                0.9,
+                1,
+                data=_chunk_payload(content="42", token_ids=[19]),
+            ),
+        ],
+        first_token={
+            "event_index": 1,
+            "elapsed_seconds": 0.3,
+            "channel": "reasoning",
+            "token_ids_in_event": 1,
+        },
+    )
+
+
+def _other_generated_stream_evidence() -> dict[str, Any]:
+    return _stream_evidence(
+        events=[
+            _event(0, 0.01, 0),
+            _event(
+                1,
+                0.3,
+                1,
+                trigger=True,
+                data=_chunk_payload(token_ids=[151667]),
+            ),
+            _event(
+                2,
+                0.9,
+                1,
+                data=_chunk_payload(content="4", token_ids=[19]),
+            ),
+        ],
+        first_token={
+            "event_index": 1,
+            "elapsed_seconds": 0.3,
+            "channel": "other_generated",
             "token_ids_in_event": 1,
         },
     )
@@ -797,6 +908,306 @@ def test_validator_rejects_wrong_channel(tmp_path: Path) -> None:
     result_dir = _result_dir(tmp_path, result)
     errors = validate_result_dir(result_dir)
     assert any("channel" in err for err in errors)
+
+
+# ---------------------------------------------------------------------------
+# First-token channel derivation and recomputation
+# ---------------------------------------------------------------------------
+
+
+def test_classify_channel_content_non_empty() -> None:
+    assert classify_first_generated_token_channel(None, "Hello") == "content"
+    assert classify_first_generated_token_channel("", "Hello") == "content"
+
+
+def test_classify_channel_reasoning_non_empty() -> None:
+    assert classify_first_generated_token_channel("Let me think", None) == "reasoning"
+
+
+def test_classify_channel_other_generated_when_no_qualifying_text() -> None:
+    assert classify_first_generated_token_channel(None, None) == "other_generated"
+    assert classify_first_generated_token_channel("", "") == "other_generated"
+    assert classify_first_generated_token_channel(None, "") == "other_generated"
+
+
+def test_classify_channel_reasoning_precedence_over_content() -> None:
+    assert classify_first_generated_token_channel("think", "answer") == "reasoning"
+
+
+def test_validator_accepts_content_channel_from_raw_event(tmp_path: Path) -> None:
+    prompt = _prompt_entry("p1", _stream_request_evidence(), _token_stream_evidence())
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validator_accepts_reasoning_channel_from_raw_event(tmp_path: Path) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "reasoning"
+    prompt = _prompt_entry("p1", evidence, _reasoning_stream_evidence())
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validator_accepts_other_generated_marker_channel_from_raw_event(
+    tmp_path: Path,
+) -> None:
+    # Real Qwen3 reasoning-open-marker shape: token IDs, empty delta.
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    prompt = _prompt_entry("p1", evidence, _other_generated_stream_evidence())
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    assert validate_result_dir(result_dir) == []
+
+
+def test_validator_rejects_consistent_other_generated_to_content_reclassification(
+    tmp_path: Path,
+) -> None:
+    # Canonical first: empty-delta marker stored other_generated → PASS.
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _other_generated_stream_evidence()
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    assert validate_result_dir(result_dir) == []
+
+    # Exact mutation 3 recreation: BOTH stored channel labels → content,
+    # raw event payload unchanged.
+    mutated_evidence = dict(evidence)
+    mutated_evidence["first_token_channel"] = "content"
+    mutated_stream = json.loads(json.dumps(stream_ev))
+    mutated_stream["first_token"]["channel"] = "content"
+    mutated_prompt = _prompt_entry("p1", mutated_evidence, mutated_stream)
+    mutated_dir = _result_dir(tmp_path / "mutated", _vllm_result([mutated_prompt]))
+    errors = validate_result_dir(mutated_dir)
+    assert any(
+        "differs from the channel recomputed from the preserved raw stream event" in err
+        for err in errors
+    )
+
+
+def test_validator_rejects_reasoning_channel_reclassified_to_content(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "content"
+    stream_ev = _reasoning_stream_evidence()
+    stream_ev["first_token"]["channel"] = "content"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_reasoning_channel_reclassified_to_other_generated(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _reasoning_stream_evidence()
+    stream_ev["first_token"]["channel"] = "other_generated"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_content_channel_reclassified_to_reasoning(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["first_token_channel"] = "reasoning"
+    stream_ev = _token_stream_evidence()
+    stream_ev["first_token"]["channel"] = "reasoning"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_content_channel_reclassified_to_other_generated(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _token_stream_evidence()
+    stream_ev["first_token"]["channel"] = "other_generated"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_other_generated_channel_reclassified_to_reasoning(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "reasoning"
+    stream_ev = _other_generated_stream_evidence()
+    stream_ev["first_token"]["channel"] = "reasoning"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_stream_request_channel_contradiction(tmp_path: Path) -> None:
+    # raw=other_generated, stream=other_generated, request=content.
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "content"
+    prompt = _prompt_entry("p1", evidence, _other_generated_stream_evidence())
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "first_token_channel differs from stream evidence" in err for err in errors
+    )
+
+
+def test_validator_rejects_both_contradictions_at_once(tmp_path: Path) -> None:
+    # raw=other_generated, stream=content, request=other_generated.
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _other_generated_stream_evidence()
+    stream_ev["first_token"]["channel"] = "content"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert errors
+    assert any(
+        "recomputed from the preserved raw stream event" in err for err in errors
+    )
+
+
+def test_validator_rejects_unparseable_first_token_raw_event(tmp_path: Path) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _other_generated_stream_evidence()
+    stream_ev["events"][1]["data"] = "{not json"
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "cannot be recomputed from the preserved raw stream event" in err
+        for err in errors
+    )
+
+
+def test_validator_rejects_missing_first_token_raw_event_data(tmp_path: Path) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _other_generated_stream_evidence()
+    del stream_ev["events"][1]["data"]
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any(
+        "cannot be recomputed from the preserved raw stream event" in err
+        for err in errors
+    )
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        _chunk_payload(role="assistant", content=""),
+        json.dumps({"choices": [], "usage": {"prompt_tokens": 5}}),
+        _chunk_payload(),
+        "[DONE]",
+    ],
+    ids=["role-only", "usage-only", "finish-only", "done-marker"],
+)
+def test_validator_rejects_non_token_event_as_first_token(
+    tmp_path: Path, data: str
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    stream_ev = _stream_evidence(
+        events=[
+            _event(0, 0.01, 0),
+            _event(1, 0.3, 0, trigger=True, data=data),
+            _event(2, 0.9, 1, data=_chunk_payload(content="4", token_ids=[19])),
+        ],
+        first_token={
+            "event_index": 1,
+            "elapsed_seconds": 0.3,
+            "channel": "other_generated",
+            "token_ids_in_event": 0,
+        },
+    )
+    prompt = _prompt_entry("p1", evidence, stream_ev)
+    result_dir = _result_dir(tmp_path, _vllm_result([prompt]))
+    errors = validate_result_dir(result_dir)
+    assert any("no token evidence" in err for err in errors)
+
+
+def test_channel_recompute_does_not_alter_ttft_event_index_or_value(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    prompt = _prompt_entry("p1", evidence, _token_stream_evidence())
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    assert validate_result_dir(result_dir) == []
+    measurement = result["runtime_neutral_metrics"]["measurements"][0]
+    ttft = [r for r in measurement["metrics"] if r["metric_id"] == TTFT_METRIC_ID]
+    assert ttft[0]["value"] == 0.284
+    assert evidence["first_token_event_index"] == 1
+    assert (
+        result["results"][0]["_area4_vllm_stream_evidence"]["first_token"][
+            "event_index"
+        ]
+        == 1
+    )
+
+
+def test_reasoning_first_token_still_triggers_ttft(tmp_path: Path) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "reasoning"
+    prompt = _prompt_entry("p1", evidence, _reasoning_stream_evidence())
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    assert validate_result_dir(result_dir) == []
+    measurement = result["runtime_neutral_metrics"]["measurements"][0]
+    ttft = [r for r in measurement["metrics"] if r["metric_id"] == TTFT_METRIC_ID]
+    assert ttft[0]["availability"] == "available"
+    assert ttft[0]["channel"] == "reasoning"
+
+
+def test_empty_delta_other_generated_first_token_still_triggers_ttft(
+    tmp_path: Path,
+) -> None:
+    evidence = _stream_request_evidence()
+    evidence["time_to_first_token_seconds"] = 0.3
+    evidence["first_token_channel"] = "other_generated"
+    prompt = _prompt_entry("p1", evidence, _other_generated_stream_evidence())
+    result = _vllm_result([prompt])
+    result_dir = _result_dir(tmp_path, result)
+    assert validate_result_dir(result_dir) == []
+    measurement = result["runtime_neutral_metrics"]["measurements"][0]
+    ttft = [r for r in measurement["metrics"] if r["metric_id"] == TTFT_METRIC_ID]
+    assert ttft[0]["availability"] == "available"
+    assert ttft[0]["channel"] == "other_generated"
 
 
 def test_streaming_with_vram_coexists(tmp_path: Path) -> None:

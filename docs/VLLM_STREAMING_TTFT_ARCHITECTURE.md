@@ -519,6 +519,11 @@ milestone):
   `request_transmit_to_first_generated_token`, provenance
   `llmgauge_observed`, and contained evidence refs. The validator recomputes
   TTFT from preserved stream evidence.
+  The first-token channel is independently re-derived from the preserved raw
+  SSE event payload (rather than trusting the stored label) and compared
+  against the stored claim; a contradiction is rejected. The collector and
+  validator share the canonical ``classify_first_generated_token_channel``
+  helper. Cross-artifact stream↔request channel agreement remains enforced.
 - **Failure table** implemented per this document (see
   [Failure / timeout semantics](#failure--timeout-semantics)).
 - **Privacy**: stream evidence, token IDs, every TTFT projection, generated
