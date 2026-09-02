@@ -25,8 +25,9 @@ from llmgauge.core.metrics import (
 )
 from llmgauge.core.native_diagnostics import (
     NATIVE_DIAGNOSTICS_VERBOSITY,
-    current_native_diagnostics_admitted,
+    REASON_MATCHED,
     native_diagnostics_capture_state,
+    qualify_current_native_diagnostics,
 )
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.runners.llama_cpp import LlamaCppRunConfig, build_llama_command
@@ -85,7 +86,8 @@ def test_current_load_tensors_zero_is_cpu_only_with_source() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "",
         stderr="0.00.385.139 I load_tensors: offloaded 0/17 layers to GPU\n",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     placement = _placement(parsed)
     assert placement["observed"] == "cpu_only"
@@ -98,7 +100,8 @@ def test_current_load_tensors_partial_is_hybrid() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "",
         stderr="0.00.232.437 I load_tensors: offloaded 5/17 layers to GPU\n",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     assert _placement(parsed)["observed"] == "hybrid_accelerator_cpu"
     assert _placement(parsed)["source"] == "load_tensors"
@@ -108,7 +111,8 @@ def test_current_load_tensors_equal_layers_is_unknown() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "",
         stderr="0.00.232.437 I load_tensors: offloaded 17/17 layers to GPU\n",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     placement = _placement(parsed)
     assert placement["observed"] == "unknown"
@@ -119,7 +123,8 @@ def test_no_offload_line_is_unavailable() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "model output text\n",
         stderr="no diagnostic here\n",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     assert _placement(parsed)["observed"] == "unavailable"
     assert _placement(parsed)["source"] is None
@@ -132,7 +137,8 @@ def test_conflicting_current_offload_lines_fail_conservative() -> None:
             "0.00.123.456 I load_tensors: offloaded 5/17 layers to GPU\n"
             "0.00.124.456 I load_tensors: offloaded 9/17 layers to GPU\n"
         ),
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     placement = _placement(parsed)
     assert placement["observed"] == "unavailable"
@@ -143,7 +149,8 @@ def test_offload_timestamp_prefix_tolerated() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "",
         stderr="12.03.456.789 I load_tensors: offloaded 5/17 layers to GPU\n",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     assert _placement(parsed)["observed"] == "hybrid_accelerator_cpu"
 
@@ -152,7 +159,8 @@ def test_current_prefix_on_unqualified_runtime_not_admitted() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "",
         stderr="0.00.123.456 I load_tensors: offloaded 5/17 layers to GPU\n",
-        current_diagnostics_admitted=False,
+        placement_admitted=False,
+        slot_timing_admitted=False,
     )
     assert _placement(parsed)["observed"] == "unavailable"
 
@@ -162,7 +170,8 @@ def test_current_prefix_in_stdout_never_admitted() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "load_tensors: offloaded 5/17 layers to GPU\n",
         stderr="",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     assert _placement(parsed)["observed"] == "unavailable"
 
@@ -257,7 +266,8 @@ def test_slot_only_populated_when_admitted() -> None:
     parsed = parse_llama_cpp_diagnostics(
         SLOT_FINAL_BLOCK,
         stderr=SLOT_FINAL_BLOCK,
-        current_diagnostics_admitted=False,
+        placement_admitted=False,
+        slot_timing_admitted=False,
     )
     assert "slot_print_timing" not in parsed
 
@@ -268,7 +278,11 @@ def test_slot_only_populated_when_admitted() -> None:
 
 
 def test_qualified_runtime_admits_current_diagnostics() -> None:
-    assert current_native_diagnostics_admitted(QUALIFIED_PROVENANCE) is True
+    qualification = qualify_current_native_diagnostics(QUALIFIED_PROVENANCE)
+    assert qualification.matched is True
+    assert qualification.placement_admitted is True
+    assert qualification.slot_timing_admitted is True
+    assert qualification.reason == REASON_MATCHED
 
 
 @pytest.mark.parametrize(
@@ -283,7 +297,10 @@ def test_qualified_runtime_admits_current_diagnostics() -> None:
     ],
 )
 def test_unqualified_runtime_fails_closed(provenance: Any) -> None:
-    assert current_native_diagnostics_admitted(provenance) is False
+    qualification = qualify_current_native_diagnostics(provenance)
+    assert qualification.matched is False
+    assert qualification.placement_admitted is False
+    assert qualification.slot_timing_admitted is False
 
 
 def test_version_probe_extracts_qualified_build_and_commit() -> None:
@@ -293,13 +310,50 @@ def test_version_probe_extracts_qualified_build_and_commit() -> None:
     )
     assert parsed["build_number"] == "10449"
     assert parsed["commit"] == "0d9ceae1e"
-    assert current_native_diagnostics_admitted(parsed) is True
+    assert qualify_current_native_diagnostics(parsed).matched is True
+
+
+def test_version_probe_extracts_parenthesized_build_and_commit() -> None:
+    # Older llama-cli --version form: `version: 9672 (74ade5274)`.
+    parsed = parse_llama_version_output(
+        "version: 9672 (74ade5274)\nbuilt with GNU 16.1.1 for Linux x86_64\n"
+    )
+    assert parsed["build_number"] == "9672"
+    assert parsed["commit"] == "74ade5274"
+    qualification = qualify_current_native_diagnostics(parsed)
+    assert qualification.matched is True
+    assert qualification.placement_admitted is True
+    assert qualification.slot_timing_admitted is False
 
 
 def test_capture_state_records_effective_verbosity() -> None:
     state = native_diagnostics_capture_state(QUALIFIED_PROVENANCE)
-    assert state["current_diagnostics_admitted"] is True
+    assert state["placement_admitted"] is True
+    assert state["slot_timing_admitted"] is True
+    assert state["lineage_identity_matched"] is True
+    assert state["lineage_matched_commit"] == "0d9ceae1e"
+    assert state["lineage_observed_build"] == "10449"
+    assert state["lineage_policy"] == "upstream_identity_allowlist"
     assert state["effective_verbosity"] == NATIVE_DIAGNOSTICS_VERBOSITY == 4
+
+
+def test_capture_state_for_placement_only_identity() -> None:
+    state = native_diagnostics_capture_state(
+        {"build_number": "9672", "commit": "74ade5274"}
+    )
+    assert state["placement_admitted"] is True
+    assert state["slot_timing_admitted"] is False
+    assert state["effective_verbosity"] == 4
+
+
+def test_capture_state_for_unqualified_identity() -> None:
+    state = native_diagnostics_capture_state(
+        {"build_number": "9000", "commit": "deadbeef1"}
+    )
+    assert state["placement_admitted"] is False
+    assert state["slot_timing_admitted"] is False
+    assert state["effective_verbosity"] is None
+    assert state["lineage_identity_matched"] is False
 
 
 # --------------------------------------------------------------------------
@@ -387,6 +441,8 @@ def _evidence(
     stderr: str,
     admitted: bool,
     stdout: str = "answer",
+    placement_admitted: bool | None = None,
+    slot_timing_admitted: bool | None = None,
 ) -> dict[str, Any]:
     return build_native_execution_evidence(
         prompt_id="prompt",
@@ -396,7 +452,12 @@ def _evidence(
         exit_status=0,
         timed_out=False,
         launch_error=None,
-        current_diagnostics_admitted=admitted,
+        placement_admitted=(
+            admitted if placement_admitted is None else placement_admitted
+        ),
+        slot_timing_admitted=(
+            admitted if slot_timing_admitted is None else slot_timing_admitted
+        ),
     )
 
 
@@ -486,7 +547,9 @@ def _write(tmp_path: Path, result: dict) -> None:
 
 
 def test_slot_evidence_validates_when_consistent(tmp_path: Path) -> None:
-    stderr = "0.00.123.456 I load_tensors: offloaded 5/17 layers to GPU\n" + SLOT_FINAL_BLOCK
+    stderr = (
+        "0.00.123.456 I load_tensors: offloaded 5/17 layers to GPU\n" + SLOT_FINAL_BLOCK
+    )
     evidence = _evidence(stderr=stderr, admitted=True)
     assert evidence["slot_print_timing"]["availability"] == "available"
     assert evidence["llama_cpp_placement"]["source"] == "load_tensors"
@@ -555,7 +618,7 @@ def test_validator_rejects_slot_timing_on_unqualified_runtime(
     }
     _write(tmp_path, result)
     errors = validate_result_dir(tmp_path)
-    assert any("unqualified runtime" in error for error in errors)
+    assert any("does not admit slot timing" in error for error in errors)
 
 
 def test_validator_rejects_total_time_from_slot(tmp_path: Path) -> None:
@@ -600,7 +663,9 @@ def test_validator_rejects_current_placement_source_on_unqualified(
     }
     _write(tmp_path, result)
     errors = validate_result_dir(tmp_path)
-    assert any("current-prefix on an unqualified runtime" in error for error in errors)
+    assert any(
+        "current-prefix on a lineage-unqualified runtime" in error for error in errors
+    )
 
 
 # --------------------------------------------------------------------------
@@ -674,7 +739,8 @@ def test_compact_trailer_populates_generic_metrics_not_native() -> None:
     parsed = parse_llama_cpp_diagnostics(
         "[ Prompt: 368.9 t/s | Generation: 93.0 t/s ]",
         stderr="[ Prompt: 368.9 t/s | Generation: 93.0 t/s ]",
-        current_diagnostics_admitted=True,
+        placement_admitted=True,
+        slot_timing_admitted=True,
     )
     assert parsed["llama_cpp_timing"]["source"] is None
     assert parsed["slot_print_timing"]["availability"] == "unavailable"

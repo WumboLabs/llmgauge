@@ -36,6 +36,7 @@ from llmgauge.core.run_fingerprint import (
     verify_run_fingerprint,
 )
 from llmgauge.core.sampling_profiles import validate_runtime_profile
+from llmgauge.core.native_diagnostics import native_diagnostics_capture_state
 from llmgauge.core.suite import ScoringRole, SuiteDefinitionError, load_normalized_suite
 from llmgauge.core.suite_paths import resolve_suite_path
 from llmgauge.runners.vllm_external import (
@@ -296,6 +297,36 @@ def _validate_optional_llama_runtime_metadata(runtime: dict[str, Any]) -> list[s
     kv_offload = runtime.get("kv_offload")
     if kv_offload is not None and kv_offload != "requested_on":
         errors.append("runtime.kv_offload must be requested_on when present")
+    return errors
+
+
+def _validate_native_diagnostics_capture_state(runtime: dict[str, Any]) -> list[str]:
+    """Recompute persisted lineage capture state from packaged manifest data.
+
+    Only the lineage-shaped blob (``lineage_policy`` present) is recomputed;
+    pre-lineage ``current_diagnostics_admitted`` blobs are historical
+    records and are never reinterpreted.
+    """
+    capture = runtime.get("native_diagnostics_capture")
+    if not isinstance(capture, dict) or "lineage_policy" not in capture:
+        return []
+    recomputed = native_diagnostics_capture_state(runtime.get("backend_provenance"))
+    errors: list[str] = []
+    for field in (
+        "lineage_policy",
+        "lineage_identity_matched",
+        "lineage_matched_commit",
+        "lineage_observed_build",
+        "placement_admitted",
+        "slot_timing_admitted",
+        "effective_verbosity",
+        "reason",
+    ):
+        if capture.get(field) != recomputed.get(field):
+            errors.append(
+                f"runtime.native_diagnostics_capture.{field} disagrees with "
+                "recomputed lineage qualification"
+            )
     return errors
 
 
@@ -1528,6 +1559,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
         errors.extend(validate_runtime_profile(runtime.get("profile"), runtime))
     if isinstance(runtime, dict) and runtime.get("backend") == "llama.cpp":
         errors.extend(_validate_optional_llama_runtime_metadata(runtime))
+        errors.extend(_validate_native_diagnostics_capture_state(runtime))
     if isinstance(runtime, dict) and runtime.get("runtime_command_captured"):
         command_path_value = runtime.get("runtime_command_path")
         if not isinstance(command_path_value, str) or not command_path_value:

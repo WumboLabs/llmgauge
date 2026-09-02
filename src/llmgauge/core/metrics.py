@@ -193,7 +193,8 @@ def parse_llama_cpp_diagnostics(
     text: str,
     *,
     stderr: str | None = None,
-    current_diagnostics_admitted: bool = False,
+    placement_admitted: bool = False,
+    slot_timing_admitted: bool = False,
 ) -> dict[str, Any]:
     """Parse llama.cpp-owned diagnostic lines only.
 
@@ -202,12 +203,14 @@ def parse_llama_cpp_diagnostics(
     does not prove ``full_accelerator``.
 
     Historical ``llm_load_tensors:`` / ``llama_perf`` behavior is unchanged.
-    The current ``load_tensors:`` placement prefix and the request-final
-    ``slot print_timing:`` block are admitted only when
-    ``current_diagnostics_admitted`` proves the exact qualified llama-cli
-    runtime, and are parsed from ``stderr`` only (never stdout) so model
-    output cannot forge current-prefix evidence. When ``stderr`` is omitted,
-    ``text`` is used for the current scan as well.
+    The current ``load_tensors:`` placement prefix is admitted only when
+    ``placement_admitted`` proves a lineage-qualified runtime, and the
+    request-final ``slot print_timing:`` block only when
+    ``slot_timing_admitted`` proves a timing-qualified lineage identity; the
+    two flags are independent (placement-only identities exist). Both are
+    parsed from ``stderr`` only (never stdout) so model output cannot forge
+    current-prefix evidence. When ``stderr`` is omitted, ``text`` is used for
+    the current scan as well.
     """
     load_times: list[float] = []
     prompt_times: list[float] = []
@@ -279,7 +282,7 @@ def parse_llama_cpp_diagnostics(
                 offloads.append((offloaded, total, HISTORICAL_PLACEMENT_SOURCE))
                 offload_lines.append(line)
 
-    if current_diagnostics_admitted:
+    if placement_admitted:
         current_text = text if stderr is None else stderr
         for raw_line in current_text.splitlines():
             line = raw_line.strip()
@@ -341,7 +344,7 @@ def parse_llama_cpp_diagnostics(
             "raw_lines": offload_lines,
         },
     }
-    if current_diagnostics_admitted:
+    if slot_timing_admitted:
         parsed["slot_print_timing"] = parse_slot_print_timing(
             text if stderr is None else stderr
         )

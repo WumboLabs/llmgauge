@@ -88,8 +88,9 @@ def build_llama_command(
         config.flash_attn,
     ]
     if config.native_diagnostics_capture:
-        # Deterministic evidence-capture verbosity for the exact qualified
-        # llama-cli runtime (slot print_timing needs >=3, load_tensors >=4).
+        # Deterministic evidence-capture verbosity for lineage-qualified
+        # llama-cli runtimes (load_tensors placement needs >=4; slot
+        # print_timing needs >=3 and is covered by the same setting).
         command.extend(["--verbosity", str(NATIVE_DIAGNOSTICS_VERBOSITY)])
 
     if config.cache_type_k is not None:

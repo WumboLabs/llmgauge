@@ -282,7 +282,8 @@ preserve command/runtime provenance, and keep private paths out of public
 artifacts. No logging policy is enabled by this contract.
 
 Implementation status (capture milestone): the capture milestone admitted by
-this addendum is implemented. For the exact qualified runtime only, LLMGauge
+this addendum is implemented. For a lineage-qualified runtime (initially the
+exact 10449 pair, now any manifest identity with placement admitted), LLMGauge
 invokes `llama-cli` with `--verbosity 4` (the narrowest deterministic control
 covering both sources), records the effective verbosity in
 `runtime-command.json` and result runtime provenance, parses current-prefix
@@ -392,12 +393,12 @@ Rejected alternatives:
 
 ### Implementation status
 
-The capture implementation still enforces the exact `10449 / 0d9ceae1e`
-gate. That is a strict subset of the accepted identities and remains
-fail-closed: builds inside the intervals but not equal to the qualified
-pair continue to reject current-prefix evidence until a bounded follow-up
-milestone encodes the frozen upstream identity manifest rule below. This
-milestone changes no code.
+The exact `10449 / 0d9ceae1e` gate was the interim restriction while the
+identity mechanism was undecided. It has been replaced by the frozen
+upstream identity manifest rule below (see the v2.1 amendment
+implementation status), which generalizes the same exact-pair conjunction
+over every qualified identity. Builds inside the intervals but outside the
+frozen manifest identities continue to reject current-prefix evidence.
 
 ## Runtime lineage qualification amendment (v2.1)
 
@@ -502,9 +503,11 @@ Matching semantics:
    without timing (builds 9538..10405); no single
    "current diagnostics admitted" boolean is assumed to cover both sources.
 
-The current implementation's single `current_diagnostics_admitted` boolean
-maps to "both flags true" until the capture layer is split; the follow-up
-implementation milestone owns that split.
+The capture layer now consumes the independent flags: placement admission
+drives verbosity-4 capture and current-prefix placement parsing, and slot
+timing admission separately gates the `slot_print_timing` source; a
+placement-only identity never emits trusted slot timing even when matching
+lines appear.
 
 ### Fork / divergence behavior
 
@@ -581,6 +584,16 @@ implementation milestone owns that split.
 
 ### Implementation status (this amendment)
 
-Contract only. The runtime code still enforces the exact
-`10449 / 0d9ceae1e` gate — a one-record subset of the selected allowlist —
-so no admission broadening occurs in this milestone.
+Implemented by `feat/llama-runtime-lineage-manifest`. The frozen 912-record
+manifest is packaged at `src/llmgauge/data/llama_runtime_lineage.json`
+(generated offline by `scripts/generate_llama_runtime_lineage.py` from the
+verified upstream clone, bounded by the contract floors/ceiling). Runtime
+qualification resolves the observed build+commit pair against that manifest
+with conservative commit-abbreviation matching (canonical 9-character exact
+key; longer observed SHAs matched against full SHAs with unique resolution;
+shorter prefixes admitted only when uniquely resolvable; observed commits
+are resolved, never blindly truncated) and requires exact build-number
+agreement with the resolved record. Placement and slot-timing admission are
+independent per-record flags. The Area 4 validator recomputes qualification
+from persisted provenance plus the packaged manifest and never trusts
+stored admission flags or reason strings.
