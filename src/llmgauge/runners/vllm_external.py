@@ -37,11 +37,13 @@ DEFAULT_MAX_STREAM_EVENT_BYTES = 1_000_000
 DEFAULT_MAX_STREAM_EVENTS = 2_000_000
 MAX_TOKEN_IDS_PER_EVENT = 4096
 MAX_TOKEN_IDS_TOTAL = 1_000_000
-# `return_token_ids` is a vLLM extension absent upstream in v0.14.0 and
-# present since v0.15.1 (accepted primary-source evidence). V1 admits only
-# the exact qualified runtime whose detailed SSE token/event semantics were
-# inspected end-to-end: vLLM 0.27.1. Field availability is not protocol
-# qualification; older, newer, suffixed, and unknown versions fail closed.
+# `return_token_ids` is a vLLM extension added upstream by PR #22587 and
+# present in releases since v0.10.2 (re-verified against upstream tags; the
+# earlier "absent in 0.14.0 / present since 0.15.1" lineage claim was
+# incorrect). V1 admits only the exact qualified runtime whose detailed SSE
+# token/event semantics were inspected end-to-end: vLLM 0.27.1. Field
+# availability is not protocol qualification; older, newer, suffixed, and
+# unknown versions fail closed.
 QUALIFIED_STREAMING_VLLM_VERSION = (0, 27, 1)
 VLLM_TTFT_METRIC_ID = "llmgauge.metric.v1.time_to_first_token"
 VLLM_TTFT_BOUNDARY = "request_transmit_to_first_generated_token"
@@ -135,13 +137,14 @@ def ordered_unique_fingerprints(values: list[str]) -> list[str]:
 def streaming_ttft_version_admitted(vllm_version: str) -> tuple[bool, str]:
     """Admit the `return_token_ids` streaming observation method for a version.
 
-    V1 is deliberately conservative: the extension is absent upstream in
-    vLLM 0.14.0 and present since 0.15.1 (accepted primary-source evidence).
-    Detailed SSE token/event semantics were inspected end-to-end only against
-    the exact qualified runtime vLLM 0.27.1, so V1 admits exactly that
-    version. Field availability since 0.15.1 is not protocol qualification:
-    older, newer, suffixed, and unknown or unparseable versions fail closed
-    rather than guess token-ID streaming semantics.
+    V1 is deliberately conservative: the extension was added upstream by PR
+    #22587 and is present in releases since v0.10.2 (re-verified against
+    upstream tags). Detailed SSE token/event semantics were inspected
+    end-to-end only against the exact qualified runtime vLLM 0.27.1, so V1
+    admits exactly that version. Field availability since 0.10.2 is not
+    protocol qualification: older, newer, suffixed, and unknown or
+    unparseable versions fail closed rather than guess token-ID streaming
+    semantics.
     """
     version = parse_bounded_server_string(vllm_version, max_length=MAX_VLLM_VERSION_LENGTH)
     if version is None:

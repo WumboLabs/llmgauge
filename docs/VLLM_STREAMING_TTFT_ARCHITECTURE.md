@@ -93,14 +93,21 @@ All source findings are from the operator's installed vLLM environment:
     (`RequestOutputKind.DELTA`, delta text/token_ids)
   - `outputs.py` (`CompletionOutput`, `RequestOutput.add` merge semantics)
 
-Version lineage: `return_token_ids` was verified absent in upstream v0.14.0 and
-present in v0.15.1 (raw GitHub protocol source), and is present in installed
-0.27.1. The operator's `vllm-admission-evidence/requirements.freeze.txt` pins
-`vllm==0.27.1`. Field availability observed since 0.15.1 is not protocol
-qualification for every `>= 0.15.1` runtime: the V1 implementation admits the
-exact qualified vLLM 0.27.1 only, because detailed SSE token/event semantics
-were inspected end-to-end against that runtime. Future versions require a
-separately reviewed qualification before admission.
+Version lineage (re-verified 2026-09-01 against upstream tags):
+`return_token_ids` was added by upstream PR #22587 (merged 2025-08-19) and is
+present in `vllm/entrypoints/openai/protocol.py` since release **v0.10.2** —
+the earliest release containing the merge. It is absent from v0.10.1.1 and
+earlier. The earlier "absent in v0.14.0, present since v0.15.1" statement was
+incorrect: v0.14.0 already had the field, and v0.15.1 is where the OpenAI
+protocol moved into `chat_completion/protocol.py`, not where the field was
+introduced. The field is present in installed 0.27.1. The operator's
+`vllm-admission-evidence/requirements.freeze.txt` pins `vllm==0.27.1`. Field
+availability observed since 0.10.2 is not protocol qualification for every
+`>= 0.10.2` runtime: the V1 implementation admits the exact qualified vLLM
+0.27.1 only, because detailed SSE token/event semantics were inspected
+end-to-end against that runtime. Future versions require a separately reviewed
+qualification before admission. See
+[Version qualification review (2026-09-01)](#version-qualification-review-2026-09-01).
 
 ### `/v1/chat/completions` with `stream=true`
 
@@ -412,7 +419,7 @@ Evidence for each required element:
 
 1. **Primary-source proof of token boundary** — `return_token_ids=true`
    yields `choices[0].token_ids` (raw generated token IDs) per chunk in
-   installed vLLM 0.27.1 source; present since v0.15.x. ✓
+   installed vLLM 0.27.1 source; present since v0.10.2. ✓
 2. **First token distinguishable from role/metadata/empty events** — first
    chunk is role-only with no `token_ids`; chunked-prefill empty chunks are
    suppressed; the first chunk with non-empty `token_ids` is the first
@@ -498,7 +505,7 @@ milestone):
 - **Version qualification**: V1 admits exactly the qualified vLLM 0.27.1
   runtime, because the detailed SSE token/event semantics were inspected
   end-to-end only against that version. `return_token_ids` field availability
-  since 0.15.1 (accepted primary-source evidence) is historical evidence, not
+  since 0.10.2 (re-verified upstream-tag evidence) is historical evidence, not
   protocol qualification: older, newer, suffixed, and unknown versions fail
   cleanly with one unsupported-capability result; no automatic second
   non-streaming request. Future versions require a separately reviewed
@@ -536,6 +543,52 @@ finish-only, prompt-token-ID, empty-delta, `[DONE]`, HTTP-header, and
 text-without-proven-token-identity events never count. This milestone does
 not redefine TTFT as user-visible-final-answer latency; a distinct future
 first-final-answer-token metric is separate.
+
+## Version qualification review (2026-09-01)
+
+Contract-only review of whether the exact-0.27.1 streaming-TTFT gate should
+broaden. Outcome: **`VLLM_STREAMING_TTFT_QUALIFICATION = EXACT_VERSION_ONLY`
+(0.27.1) is reaffirmed**; no runtime admission code changed.
+
+Evidence base:
+
+- Only one local vLLM installation exists (`vllm-env`, 0.27.1, wheel-cache
+  unpack of the same version). No second runnable version; no install or
+  download was made for this review, so no cross-version real-runtime proof
+  exists or is claimed.
+- Real 0.27.1 stream evidence (operator-local, untracked) reconfirms the
+  invariants: role-only first event without `token_ids`, first token-bearing
+  event triggers TTFT, per-token `token_ids`, usage-only chunk, finish chunk,
+  `[DONE]`, `version_qualification.rule = observed_version_exact_0.27.1`.
+- Upstream source history (read-only tags): `return_token_ids` present since
+  v0.10.2 (#22587). Chat-path token-ID semantics demonstrably changed after
+  introduction: streaming tool parsers could drop tokens from `token_ids`
+  until v0.13.0 (#29074), and v0.26.0 added `hide_stream_metadata` suppression
+  that removes per-chunk `token_ids` when `include_reasoning=false` (LLMGauge
+  keeps the default `include_reasoning=true`). A separate
+  first-event `prompt_token_ids` leak fix (#27561, v0.11.1) affected only the
+  completions endpoint, not chat. None of the older releases was runtime-proven
+  here, so no version below 0.27.1 is admitted.
+- v0.28.0 source inspection: the `return_token_ids` request field, stream-choice
+  `token_ids` serialization, `hide_stream_metadata`/`include_token_ids`
+  emission logic, and `/version` route are equivalent in the relevant
+  regions, and 0.28.0 adds only additive usage details
+  (`completion_tokens_details`). This is source similarity, not end-to-end
+  semantic qualification; 0.28.0 remains unqualified.
+
+Rejected alternatives: finite allowlist (no version besides 0.27.1 has
+end-to-end inspected semantics), bounded range (semantics demonstrably changed
+within 0.10.2..0.27.1; unknown above 0.28.0), and semantic capability
+detection (a runtime "does `token_ids` exist?" probe cannot distinguish
+generated-token IDs from prompt/aggregate IDs or detect meaning drift that
+preserves the field grammar; it also cannot fail closed on non-vLLM
+OpenAI-compatible servers).
+
+Suffix policy (explicit): `0.27.1rcN`, `0.27.1.devN`, `0.27.1.postN`, and
+`0.27.1+local` are rejected as `observed_version_unparseable` by the canonical
+`X.Y.Z` fullmatch; they are never normalized to 0.27.1. Admission requires the
+exact canonical version string. A suffixed build would need separate proof and
+an explicit contract change before admission.
 
 ## Related documents
 
