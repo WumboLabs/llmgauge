@@ -8,20 +8,20 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 
 ## Current release line
 
-- Current stable tag: `v0.77` (release candidate, pending the human
-  merge/tag/publication gate)
+- Current stable tag: `v0.77` (published)
 - Current package version: `0.77.0`
 - Current stable release line: `v0.77.0`
 - Current release state: `v0.77` is the Area 4 runtime-evidence
-  stabilization release: opt-in vLLM streaming TTFT evidence
+  stabilization release (published to production PyPI as `llmgauge`
+  0.77.0): opt-in vLLM streaming TTFT evidence
   (`--vllm-streaming-evidence`), vLLM request-wall-time and request-window
   peak-VRAM evidence, native llama.cpp timing and placement evidence, and
-  public-export privacy/integrity hardening. v0.76 remains the multi-turn
-  transcript comparison and safe public derivative release (published to
-  production PyPI as `llmgauge` 0.76.0), and v0.75 remains the
-  reasoning/sampling profile release (published to production PyPI as
-  `llmgauge` 0.75.0). Production publication of v0.77 happens only through
-  the human annotated-tag/approval gate.
+  public-export privacy/integrity hardening. `main` continues past v0.77
+  with post-v0.77 Area 4 qualification and evidence-integrity work (see
+  the Area 4 slice list below). v0.76 remains the multi-turn transcript
+  comparison and safe public derivative release (published to production
+  PyPI as `llmgauge` 0.76.0), and v0.75 remains the reasoning/sampling
+  profile release (published to production PyPI as `llmgauge` 0.75.0).
 
 ## What LLMGauge is
 
@@ -51,7 +51,8 @@ LLMGauge currently provides:
 
 - local-first CLI runs with preserved raw/cleaned outputs and logs
 - default `llama.cpp` / GGUF runtime plus optional external local vLLM adapter
-  (`backend=vllm`; operator-managed, loopback-only, sequential, non-streaming)
+  (`backend=vllm`; operator-managed, loopback-only, sequential; non-streaming
+  by default, with an opt-in streaming SSE evidence mode)
 - artifact validation (`validate-result`, ladder/batch/fit-ladder validators)
 - manual scoring templates and `score --check` / `score --scores` workflow
 - auto-draft scoring as review-required triage only
@@ -209,13 +210,16 @@ preserved in the changelog. Durable claim boundaries live in
 The bounded vLLM evidence track includes opt-in streaming TTFT evidence and its
 public-projection privacy boundary. Single-run public derivatives omit all
 known TTFT aliases/refs, private stream/token and reasoning evidence, and local
-endpoint identity while retaining admitted coarse transport disclosure. The
-next product gate is v0.77 stabilization / release-readiness review, not
-another Area 4 feature. Prefill/decode throughput, model-load time,
-steady-state VRAM, warm/cold lifecycle evidence, and observed execution
-placement remain deferred; Area 4 overall is not marked complete. After stable
-v0.77 publication, the planned WumboJets normal-published-package multi-model
-validation remains a separate outside-development-environment campaign.
+endpoint identity while retaining admitted coarse transport disclosure. v0.77
+is published; post-v0.77 `main` reaffirmed the exact-version-only streaming
+TTFT qualification (vLLM 0.27.1), validated the reasoning-first TTFT path on
+real vLLM 0.27.1 evidence (Qwen3-0.6B), and hardened the Area 4 validator to
+recompute the first-token channel from preserved raw stream evidence.
+Prefill/decode throughput, model-load time, steady-state VRAM, warm/cold
+lifecycle evidence, and observed execution placement remain deferred; Area 4
+overall is not marked complete. The planned WumboJets
+normal-published-package multi-model validation remains a separate
+outside-development-environment campaign.
 
 ## Fit Ladder terminal-path validation
 
@@ -712,15 +716,17 @@ The fast track covers these required capability areas:
 
 The completed prerequisite sequence is Coding Core, native multi-turn
 transcripts, Agent Harness import, Agent Session Review, the Area 4
-first native llama.cpp slice, the external-benchmark interoperability
-contract, the external-benchmark importer foundation, and Bundle 1
-qualification/reporting. The selected next development order is:
+native llama.cpp slices (request-wall time, peak VRAM, backend timing and
+placement, current-diagnostics capture, runtime lineage qualification and
+manifest), the external-benchmark interoperability contract, the
+external-benchmark importer foundation, Bundle 1 and Bundle 2
+qualification/reporting, Generic Core v1, and the reasoning/sampling
+profile first slice. The leading admitted next development milestone is:
 
 1. D. LocalMaxxing quality-benchmark export, dry-run, and
    `--confirm-public` submit, only after an approved matching suite path
-   exists;
-2. E. Generic Core v1 completion; and
-3. F. reasoning and sampling profile work.
+   exists (the approved `LM_EVAL_HARNESS` suite path is not yet admitted;
+   see the expanded-evaluation track).
 
 The remaining multimodal and non-autoregressive areas remain later fast-track
 work. External-benchmark milestones preserve official benchmark authority and
@@ -814,6 +820,23 @@ The architecture is now implemented as opt-in streaming evidence mode:
 private per-request stream evidence (`llmgauge.vllm_stream_evidence.v0`,
 `request/<prompt>.stream.json`), and emits the neutral TTFT metric with
 validator recomputation. The non-streaming default is unchanged.
+
+Post-v0.77 Area 4 continuation on `main`: runtime lineage qualification
+selected `LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST` and a
+frozen, packaged upstream identity manifest
+(`src/llmgauge/data/llama_runtime_lineage.json`, 912 placement identities,
+builds 9538..10449, of which 44 also admit slot timing) replaced the exact
+10449/`0d9ceae1e` native-diagnostics gate with fail-closed exact
+identity-pair admission and independent per-source flags. The vLLM
+streaming-TTFT qualification was reaffirmed as exact vLLM 0.27.1 only
+(`VLLM_STREAMING_TTFT_QUALIFICATION = EXACT_VERSION_ONLY`). Real vLLM
+0.27.1 reasoning-first TTFT evidence (Qwen3-0.6B) validated the
+reasoning-token contract on a real reasoning channel, and the Area 4
+validator now independently recomputes the first-token channel from the
+preserved raw stream payload, rejecting consistent two-artifact
+reclassification. Native neutral TTFT (llama-cli), model-load time,
+prefill/decode throughput, steady-state VRAM, and cross-runtime
+equivalence remain deferred under the accepted contracts.
 
 ### External benchmark importer foundation
 
@@ -1050,10 +1073,9 @@ judgment claim exists; transcript text publication remains excluded.
 Production PyPI publication occurred when the human pushed annotated tag
 `v0.76` and approved the `pypi` environment deployment.
 
-### `v0.77` — Area 4 runtime-evidence stabilization (release candidate)
+### `v0.77` — Area 4 runtime-evidence stabilization (published)
 
-**Completed in the prepared release candidate, subject to the final human
-merge/tag/publication gate:**
+**Completed and published to production PyPI as `llmgauge` 0.77.0:**
 
 - opt-in vLLM streaming evidence mode (`--vllm-streaming-evidence`) using
   the qualified vLLM token-ID SSE transport (`return_token_ids=true`),
@@ -1077,10 +1099,11 @@ merge/tag/publication gate:**
   API-route prose and transport disclosure remain;
 - unchanged canonical schemas and historical fingerprints.
 
-Production PyPI publication of v0.77 occurs only when the human pushes
-annotated tag `v0.77` and approves the `pypi` environment deployment.
-
-These gates assign no release dates.
+Production PyPI publication of v0.77 occurred when the human pushed
+annotated tag `v0.77` and approved the `pypi` environment deployment.
+Post-v0.77 Area 4 qualification and evidence-integrity work continues on
+`main` (see the Area 4 slice list above); no v0.78 release preparation
+has begun.
 
 ## Parallel product tracks
 
