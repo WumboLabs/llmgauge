@@ -72,6 +72,21 @@
   current-prefix claims on unqualified runtimes, and slot timing claims outside
   `--parallel 1` are rejected. Historical results without `raw_lines` remain
   valid.
+- vLLM streaming-TTFT version qualification review (contract only, no
+  behavior change): `VLLM_STREAMING_TTFT_QUALIFICATION = EXACT_VERSION_ONLY`
+  (vLLM 0.27.1) is reaffirmed after an invariant-by-invariant review; no other
+  version is admitted. Finite allowlist, bounded range, and semantic-capability
+  qualification were evaluated and rejected (no second runnable local version;
+  token-ID event semantics demonstrably changed between v0.10.2 and v0.27.1 —
+  streaming tool-parser token drops in `token_ids` fixed in v0.13.0,
+  reasoning-hide `token_ids` suppression added in v0.26.0; v0.28.0 is
+  source-similar but not end-to-end-qualified). Corrected the historical lineage claim: the shipped
+  v0.77 notes say `return_token_ids` is "present since 0.15.1"; upstream tags
+  show it was added by PR #22587 and is present since **v0.10.2** (v0.15.1 is
+  only the module-path move). Suffix policy made explicit: `rc`/`dev`/`post`/
+  `+local` variants of 0.27.1 are rejected as unparseable and never normalized.
+  See `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md` ("Version qualification
+  review (2026-09-01)").
 
 ## v0.77.0 - 2026-08-30
 
