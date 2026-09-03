@@ -41,6 +41,7 @@ from llmgauge.core.guided_setup import (
     validate_model_path_for_setup,
 )
 from llmgauge.core.model_profiles_store import add_model_profile
+from llmgauge.core.schemas import effective_source_kind
 from llmgauge.core.suite_paths import resolve_suites_dir
 
 
@@ -939,17 +940,31 @@ def smoke(
                 profile = resolve_model_profile(profiles, model_profile)
                 add_row("Selected model profile", "ok", model_profile)
                 model_path = profile.get("path")
+                # M1 source-shape awareness: a checkpoint_directory profile
+                # must not be rejected with the GGUF-shaped "not a file"
+                # error. Other kinds keep their existing smoke semantics.
+                required_is_dir = (
+                    effective_source_kind(profile) == "checkpoint_directory"
+                )
                 if model_path is None:
                     add_row("Model file", "fail", f"Profile has no path: {model_profile}")
                 else:
                     resolved_model_path = Path(model_path)
-                    if resolved_model_path.exists() and resolved_model_path.is_file():
+                    if resolved_model_path.exists() and (
+                        resolved_model_path.is_dir()
+                        if required_is_dir
+                        else resolved_model_path.is_file()
+                    ):
                         add_row("Model file", "ok", str(resolved_model_path))
                     elif resolved_model_path.exists():
                         add_row(
                             "Model file",
                             "fail",
-                            f"Path is not a file: {resolved_model_path}",
+                            (
+                                f"Path is not a directory: {resolved_model_path}"
+                                if required_is_dir
+                                else f"Path is not a file: {resolved_model_path}"
+                            ),
                         )
                     else:
                         if is_placeholder_path(resolved_model_path):

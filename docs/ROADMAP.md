@@ -1196,9 +1196,14 @@ preserved honestly rather than collapsed into a fake generic OpenAI backend.
 The accepted program is seven bounded milestones (model-representation and
 profile contract, directory-model provenance, vLLM identity, vLLM managed
 lifecycle, vLLM workflow parity, shared transport plus SGLang external
-adapter, SGLang lifecycle/parity with cross-runtime identity hardening). The
-selected next implementation milestone is the runtime-neutral model
-representation and profile contract.
+adapter, SGLang lifecycle/parity with cross-runtime identity hardening).
+Milestone M1 (runtime-neutral model representation and profile contract) is
+implemented: profiles carry an optional `source_kind` discriminator
+(`gguf_file` / `checkpoint_directory` / `served_model_reference`) with legacy
+GGUF and bounded external-vLLM profiles unchanged; representation does not
+yet mean execution, and unsupported source-kind/backend combinations fail
+closed before any runner. The selected next implementation milestone is M2,
+directory-model provenance and fingerprint eligibility.
 
 Later runtime possibilities (Ollama, TensorRT-LLM, NVIDIA NIM) remain
 admissible through the same first-class acceptance contract, with no promised

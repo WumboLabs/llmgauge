@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Runtime-neutral model source-kind profiles (M1, representation only): model
+  profiles may now carry an optional `source_kind` discriminator with exactly
+  three admitted values — `gguf_file`, `checkpoint_directory`, and
+  `served_model_reference` — implementing the model-representation layer of
+  the accepted first-class multi-runtime architecture contract. Profiles with
+  an explicit discriminator enforce the source-shape contract (local paths
+  for file/directory kinds; served-model identifier without a local path for
+  served references); unknown kinds fail closed. `llmgauge model add` and
+  `model update` accept `--source-kind` and `--served-model`, and
+  `model list` shows effective Source Kind and truthful Source Status
+  (`configured` for served references; never a claim of server observation).
+  Legacy profiles remain valid and serialize unchanged: no `source_kind` is
+  injected, the model-profiles document stays `llmgauge.model_profiles.v0`,
+  and existing GGUF and bounded external-vLLM behavior is untouched.
+  Checkpoint-directory and served-reference profiles are representable but
+  not executable: run resolution fails closed before any runner when the
+  selected backend cannot execute the source kind (`llama.cpp` requires
+  `gguf_file`; `vllm` does not yet admit `checkpoint_directory`). No
+  directory provenance, hashing, run-fingerprint, result-schema, runner, or
+  SGLang runtime behavior is included; native checkpoint execution remains
+  deferred to later milestones.
+
 ## v0.78.0 - 2026-09-02
 
 LLMGauge v0.78 is the Area 4 evidence-integrity and qualification hardening

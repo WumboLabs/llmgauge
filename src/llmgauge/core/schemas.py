@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+MODEL_SOURCE_KINDS: tuple[str, ...] = (
+    "gguf_file",
+    "checkpoint_directory",
+    "served_model_reference",
+)
 
 
 class ModelProfileEntry(BaseModel):
@@ -37,6 +45,9 @@ class ModelProfileEntry(BaseModel):
     request_timeout: float | None = None
     max_response_bytes: int | None = None
     vllm_streaming_evidence: bool | None = None
+    # Additive runtime-neutral model source discriminator (M1). Declared last
+    # so legacy profile serialization keeps its baseline field order.
+    source_kind: str | None = None
 
     @field_validator("path")
     @classmethod
@@ -54,6 +65,43 @@ class ModelProfileEntry(BaseModel):
         if normalized not in {"llama.cpp", "vllm"}:
             raise ValueError("backend must be one of: llama.cpp, vllm")
         return normalized
+
+    @field_validator("source_kind")
+    @classmethod
+    def validate_source_kind(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if normalized not in MODEL_SOURCE_KINDS:
+            raise ValueError(
+                "source_kind must be one of: " + ", ".join(sorted(MODEL_SOURCE_KINDS))
+            )
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_source_shape(self) -> "ModelProfileEntry":
+        # Cross-field source-shape rules apply only to profiles carrying an
+        # explicit source_kind; legacy profiles keep their existing semantics.
+        if self.source_kind is None:
+            return self
+        if self.source_kind in {"gguf_file", "checkpoint_directory"}:
+            if self.path is None or not self.path.strip():
+                raise ValueError(
+                    f"source_kind {self.source_kind!r} requires a non-empty local path"
+                )
+        if self.source_kind == "served_model_reference":
+            if self.served_model is None or not str(self.served_model).strip():
+                raise ValueError(
+                    "source_kind 'served_model_reference' requires a "
+                    "non-empty served_model"
+                )
+            if self.path is not None and self.path.strip():
+                raise ValueError(
+                    "source_kind 'served_model_reference' does not accept a "
+                    "local path in this contract; binding a served reference "
+                    "to a local checkpoint is deferred"
+                )
+        return self
 
 
 class ModelProfilesDocument(BaseModel):
@@ -138,6 +186,30 @@ class LlmgaugeConfigDocument(BaseModel):
     defaults: DefaultsConfig | None = None
 
 
+def effective_source_kind(profile: Mapping[str, Any]) -> str:
+    """Resolve one canonical model source kind for a profile mapping.
+
+    Explicit ``source_kind`` values win. Profiles without a discriminator keep
+    their contractual legacy meaning: a ``backend: vllm`` profile is the
+    bounded served-model shape, and every other legacy profile is a GGUF file.
+    Legacy inference is never derived from filesystem path shape.
+    """
+    explicit = profile.get("source_kind")
+    if isinstance(explicit, str) and explicit.strip():
+        kind = explicit.strip().lower()
+        if kind not in MODEL_SOURCE_KINDS:
+            raise ValueError(
+                f"Unknown model source kind: {explicit!r}; expected one of: "
+                + ", ".join(MODEL_SOURCE_KINDS)
+            )
+        return kind
+
+    backend = profile.get("backend")
+    if isinstance(backend, str) and backend.strip().lower() == "vllm":
+        return "served_model_reference"
+    return "gguf_file"
+
+
 def validate_model_profiles_document(data: dict[str, Any]) -> ModelProfilesDocument:
     return ModelProfilesDocument.model_validate(data)
 
@@ -178,9 +250,26 @@ def model_profiles_document_to_dict(document: ModelProfilesDocument) -> dict[str
     return payload
 
 
-def resolve_profile_path_status(raw_path: str | None) -> str:
+def resolve_profile_source_status(profile: Mapping[str, Any]) -> str:
+    """Truthful per-source-kind availability status for profile listings.
+
+    A served-model reference is conservatively ``configured``: M1 never probes
+    a server, so no status may imply observed availability or validation.
+    """
+    kind = effective_source_kind(profile)
+    if kind == "served_model_reference":
+        return "configured"
+
+    raw_path = profile.get("path")
     if not isinstance(raw_path, str) or not raw_path:
         return "missing-path"
 
     model_path = Path(raw_path)
+    if kind == "checkpoint_directory":
+        if not model_path.exists():
+            return "missing-directory"
+        if not model_path.is_dir():
+            return "not-a-directory"
+        return "ok"
+
     return "ok" if model_path.exists() else "missing-file"
