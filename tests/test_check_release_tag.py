@@ -57,16 +57,16 @@ def test_malformed_tags_map_to_nothing(tag: str) -> None:
     assert expected_version_for_tag(tag) is None
 
 
-@pytest.mark.parametrize("tag", ["v0.77", "v0.77.0"])
+@pytest.mark.parametrize("tag", ["v0.78", "v0.78.0"])
 def test_current_release_tags_pass_against_pyproject(tag: str) -> None:
-    assert current_pyproject_version() == "0.77.0"
+    assert current_pyproject_version() == "0.78.0"
     ok, message = validate_release_tag(tag, PYPROJECT)
     assert ok
     assert tag in message
 
 
 @pytest.mark.parametrize(
-    "tag", ["0.77", "release-v0.77", "vgarbage", "v0.76", "v0.76.1", "v0.77.1"]
+    "tag", ["0.78", "release-v0.78", "vgarbage", "v0.77", "v0.77.1", "v0.78.1"]
 )
 def test_rejected_tags_fail_closed_against_pyproject(tag: str) -> None:
     ok, message = validate_release_tag(tag, PYPROJECT)
@@ -76,7 +76,7 @@ def test_rejected_tags_fail_closed_against_pyproject(tag: str) -> None:
 
 def test_validator_cli_passes_for_current_tag() -> None:
     result = subprocess.run(
-        ["python3", "scripts/check_release_tag.py", "v0.77"],
+        ["python3", "scripts/check_release_tag.py", "v0.78"],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,

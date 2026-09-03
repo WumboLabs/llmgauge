@@ -53,11 +53,13 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.77
+Current stable tag: v0.77 (published)
 
-Current package version: 0.77.0
+Current package version: 0.78.0 (release prepared; publication pending the
+human annotated-tag/PyPI gate)
 
-Current release line: v0.77.0.
+Current release line: v0.77.0 (current stable/published line; v0.78.0
+prepared, pending publication).
 
 Install from PyPI:
 
