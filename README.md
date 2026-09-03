@@ -24,7 +24,7 @@ It can:
 
 - run built-in or custom prompt suites against local `llama.cpp` / GGUF models by default
 - run the built-in `generic-core-v1` general-purpose suite (`smoke` and `core` profiles) with deterministic evidence checks, manual review, and side-by-side hybrid scoring
-- optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming; no remote, auth, concurrency, or lifecycle management; runtime-native metrics are not equivalent to llama.cpp)
+- optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming by default, with opt-in streaming SSE evidence; no remote, auth, concurrency, or lifecycle management; runtime-native metrics are not equivalent to llama.cpp)
 - preview run plans before launching a model
 - preserve raw prompts, raw outputs, cleaned review outputs, and stderr logs
 - capture runtime metadata such as context size, batch settings, flash-attention mode, and runtime methodology labels
@@ -53,13 +53,11 @@ Scores are review metadata, not universal truth. Comparison reports are evidence
 
 ## Current status
 
-Current stable tag: v0.77 (published)
+Current stable tag: v0.78 (published)
 
-Current package version: 0.78.0 (release prepared; publication pending the
-human annotated-tag/PyPI gate)
+Current package version: 0.78.0
 
-Current release line: v0.77.0 (current stable/published line; v0.78.0
-prepared, pending publication).
+Current release line: v0.78.0
 
 Install from PyPI:
 
@@ -76,12 +74,12 @@ Upgrade and uninstall:
 
 Alternatives: `pipx install llmgauge` for another isolated CLI install, or
 `pip install llmgauge` to install into an existing Python environment. A
-pinned version is available with `uv tool install "llmgauge==0.77.0"`.
+pinned version is available with `uv tool install "llmgauge==0.78.0"`.
 
 Pinned Git source installation remains available as an explicit
 pinned-source/development/fallback method:
 
-    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.77
+    uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.78
 
 Contributors and unreleased development should use a source checkout with
 `uv sync` and `uv run llmgauge ...`. Editable installation is a development
