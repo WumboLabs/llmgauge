@@ -103,14 +103,14 @@ uv tool install llmgauge
 llmgauge --version
 ```
 
-This validates the current production release (package/CLI version `0.77.0`
-for v0.77). Use `uv tool upgrade llmgauge` after a new release, or
+This validates the current production release (package/CLI version `0.78.0`
+for v0.78). Use `uv tool upgrade llmgauge` after a new release, or
 `uv tool install --force` only when intentionally retesting.
 
 ## Installed CLI from a Git tag (pinned source / fallback)
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.77
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.78
 llmgauge --version
 ```
 

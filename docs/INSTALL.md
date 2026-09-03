@@ -7,7 +7,7 @@ LLMGauge install paths depend on audience:
 2. alternative isolated CLI install: `pipx install llmgauge`
 3. environment-level Python installation: `pip install llmgauge`
 4. pinned Git source / development / fallback: tagged GitHub install
-   (`uv tool install git+...@v0.77`)
+   (`uv tool install git+...@v0.78`)
 5. contributors and unreleased development: source checkout with
    `uv run llmgauge ...`; editable local install is a development convenience
 
@@ -146,7 +146,7 @@ uv tool uninstall llmgauge
 A pinned production package can be installed explicitly:
 
 ```bash
-uv tool install "llmgauge==0.77.0"
+uv tool install "llmgauge==0.78.0"
 ```
 
 ### Alternative: pipx
@@ -170,7 +170,7 @@ python3 -m pip install llmgauge
 This places `llmgauge` alongside that environment's other packages instead of
 an isolated tool environment.
 
-The current release reports package/CLI version `0.77.0`.
+The current release reports package/CLI version `0.78.0`.
 
 ## Installed CLI from GitHub (pinned source / development / fallback)
 
@@ -179,7 +179,7 @@ source — useful before a PyPI release exists, when pinning exact source, or
 when testing a tag without publishing:
 
 ```bash
-uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.77
+uv tool install git+https://github.com/WumboLabs/llmgauge.git@v0.78
 ```
 
 Then run:
@@ -195,7 +195,7 @@ llmgauge smoke
 Reinstall a tagged version:
 
 ```bash
-uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.77
+uv tool install --force git+https://github.com/WumboLabs/llmgauge.git@v0.78
 ```
 
 Remove the installed command when you no longer need it:
