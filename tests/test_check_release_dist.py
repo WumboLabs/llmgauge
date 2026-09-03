@@ -6,7 +6,7 @@ from pathlib import Path
 
 from scripts.check_release_dist import validate_dist_dir
 
-VERSION = "0.77.0"
+VERSION = "0.78.0"
 
 
 def _write(dist: Path, name: str) -> None:

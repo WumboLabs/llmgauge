@@ -9,7 +9,7 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
 ## Current release line
 
 - Current stable tag: `v0.77` (published)
-- Current package version: `0.77.0`
+- Current package version: `0.78.0`
 - Current stable release line: `v0.77.0`
 - Current release state: `v0.77` is the Area 4 runtime-evidence
   stabilization release (published to production PyPI as `llmgauge`
@@ -18,10 +18,15 @@ LLMGauge is part of the WumboLabs workflow: **Real Hardware. Real Testing. No Hy
   peak-VRAM evidence, native llama.cpp timing and placement evidence, and
   public-export privacy/integrity hardening. `main` continues past v0.77
   with post-v0.77 Area 4 qualification and evidence-integrity work (see
-  the Area 4 slice list below). v0.76 remains the multi-turn transcript
-  comparison and safe public derivative release (published to production
-  PyPI as `llmgauge` 0.76.0), and v0.75 remains the reasoning/sampling
-  profile release (published to production PyPI as `llmgauge` 0.75.0).
+  the Area 4 slice list below). v0.78.0 release preparation is complete
+  (package metadata, changelog, roadmap, and lockfile updated) but the
+  release is not yet published; the v0.78 annotated-tag/PyPI gate remains
+  a separate human step, and v0.77 stays the current stable/published
+  release until that gate executes. v0.76 remains the multi-turn
+  transcript comparison and safe public derivative release (published to
+  production PyPI as `llmgauge` 0.76.0), and v0.75 remains the
+  reasoning/sampling profile release (published to production PyPI as
+  `llmgauge` 0.75.0).
 
 ## What LLMGauge is
 
@@ -1101,9 +1106,38 @@ Production PyPI publication occurred when the human pushed annotated tag
 
 Production PyPI publication of v0.77 occurred when the human pushed
 annotated tag `v0.77` and approved the `pypi` environment deployment.
-Post-v0.77 Area 4 qualification and evidence-integrity work continues on
-`main` (see the Area 4 slice list above); no v0.78 release preparation
-has begun.
+Post-v0.77 Area 4 qualification and evidence-integrity work was consolidated
+into the prepared v0.78.0 release candidate below; publication remains
+pending the human annotated-tag/PyPI gate.
+
+### `v0.78` — Area 4 evidence-integrity and qualification hardening (release prepared)
+
+**Completed in the prepared release candidate, subject to the final human
+merge/tag/publication gate:**
+
+- frozen upstream llama.cpp runtime-lineage manifest
+  (`LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST`): fail-closed
+  exact build+commit identity admission against the packaged
+  `src/llmgauge/data/llama_runtime_lineage.json` (912 qualified placement
+  identities, builds 9538..10449; 44 also qualify slot timing, builds
+  10406..10449), replacing the exact `10449 / 0d9ceae1e` gate;
+- qualified current llama.cpp native-diagnostics capture: the renamed
+  `load_tensors:` placement line and the request-final `slot_print_timing:`
+  block with deterministic `--verbosity 4` capture and conservative
+  placement classification (N=0 `cpu_only`, 0<N<M
+  `hybrid_accelerator_cpu`, N=M `unknown`; no full-accelerator claim);
+- source-aware Area 4 validation: native timing/placement projections and
+  slot timing recomputed from preserved diagnostic lines, with lineage
+  qualification recomputed from persisted provenance plus the manifest;
+- vLLM streaming TTFT validator hardening: the first-token channel is
+  recomputed from the preserved raw SSE payload instead of trusting stored
+  labels; exact-0.27.1 `EXACT_VERSION_ONLY` qualification reaffirmed
+  (no 0.28.0 or range support);
+- unchanged canonical result schemas, historical fingerprints, and
+  previously valid v0.77 results; no new material dependencies.
+
+Production PyPI publication of v0.78 occurs only when the human pushes
+annotated tag `v0.78` and approves the `pypi` environment deployment.
 
 ## Parallel product tracks
 

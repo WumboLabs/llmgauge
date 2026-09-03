@@ -55,8 +55,8 @@ Accepted mapping, enforced fail-closed by `scripts/check_release_tag.py`:
     vX.Y.Z     <-> X.Y.Z
     vX.Y[.Z]S  <-> X.Y[.Z]S   (prerelease suffix S: aN, bN, rcN)
 
-Examples against package version `0.77.0`: `v0.77` passes, `v0.77.0`
-passes, `v0.77.1` fails, `v0.75` fails, `0.77` and other arbitrary strings
+Examples against package version `0.78.0`: `v0.78` passes, `v0.78.0`
+passes, `v0.78.1` fails, `v0.77` fails, `0.78` and other arbitrary strings
 fail. Production tag-push builds additionally require the tag to be
 annotated and to resolve to the exact checked-out commit.
 
@@ -99,8 +99,8 @@ remaining flow is deliberate and human-gated:
    the human stages and commits the release-prep changes.
 2. Merge to `main` and run full post-merge validation.
 3. Push `main` to the remote.
-4. Create the annotated release tag, e.g. `git tag -a v0.77 -m "LLMGauge v0.77.0"`.
-5. Push the tag: `git push origin v0.77`. This triggers the Release workflow.
+4. Create the annotated release tag, e.g. `git tag -a v0.78 -m "LLMGauge v0.78.0"`.
+5. Push the tag: `git push origin v0.78`. This triggers the Release workflow.
    (Historical first execution used `v0.74`/`LLMGauge v0.74.0`.)
 6. The workflow validates tag/version/exact-commit identity, runs tests,
    builds once with `uv build --no-create-gitignore`, validates the exact

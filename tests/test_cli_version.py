@@ -30,5 +30,5 @@ def test_pyproject_version_matches_runtime_version() -> None:
     assert metadata["project"]["version"] == __version__
 
 
-def test_release_version_is_currently_pinned_to_0_77_0() -> None:
-    assert __version__ == "0.77.0"
+def test_release_version_is_currently_pinned_to_0_78_0() -> None:
+    assert __version__ == "0.78.0"

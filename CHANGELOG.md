@@ -1,18 +1,16 @@
 # Changelog
 
-## Unreleased
+## v0.78.0 - 2026-09-02
+
+LLMGauge v0.78 is the Area 4 evidence-integrity and qualification hardening
+release: it ships qualified current llama.cpp native-diagnostics capture
+admitted by a frozen upstream runtime-lineage manifest, and hardens the vLLM
+streaming TTFT validator to recompute the first-token channel from preserved
+raw stream evidence. Canonical result schemas and historical fingerprints are
+unchanged; previously valid v0.77 results remain valid.
 
 ### Added
-- First-token channel validator hardening (vLLM streaming TTFT): the validator
-  now independently re-derives the first-token channel from the preserved raw
-  SSE payload rather than trusting stored labels. A consistent two-artifact
-  channel reclassification (stream + request) that contradicts the raw event
-  is now rejected. The shared canonical helper
-  `classify_first_generated_token_channel` is used by both the collector and
-  the validator. Cross-artifact agreement (stream ↔ request) remains enforced.
-  TTFT semantics, event-index trigger, and channel-neutral boundary are
-  unchanged. See `tests/test_vllm_streaming_area4.py` and
-  `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md`.
+
 - Runtime-lineage manifest implemented (behavior change): the exact
   `10449 / 0d9ceae1e` native-diagnostics gate is replaced by fail-closed
   exact identity-pair admission against a frozen, packaged upstream
@@ -33,42 +31,22 @@
   artifacts, generic throughput behavior, and the trust model (self-reported
   metadata, no binary attestation) are unchanged. See
   `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
-- Qualification-policy decision (contract only, no behavior change): current
-  llama-cli native diagnostics semantic qualification is now specified as
-  per-source bounded commit ranges — placement `5343f4502..0d9ceae1e` (builds
-  9538..10449, emitting region byte-identical) and slot timing
-  `decaf508b..0d9ceae1e` (builds 10406..10449, floor at the metrics refactor
-  that changed the generation-rate denominator) — proven from upstream source
-  history and a two-build runtime comparison. These ranges are source-history
-  findings; a later amendment (below) establishes that runtime admission must
-  match exact frozen upstream identities, not integer build-range arithmetic.
-  The implemented exact 10449/0d9ceae1e gate remains in force as a strict
-  subset. See `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
-- Runtime-lineage qualification contract (contract only, no behavior change):
-  selected `LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST`. The
-  observed `build_number` plus `commit` pair must exactly match one frozen,
-  packaged upstream identity record (912 qualified placement identities,
-  builds 9538..10449, of which 44 also qualify slot timing), with independent
-  per-source admission flags; anything else fails closed. Numeric
-  build-interval checks alone were rejected because fork checkouts can report
-  in-range `git rev-list --count` values with different ancestry. Verified
-  upstream interval linearity, build-number bijection, and short-SHA
-  uniqueness against the local `ggml-org/llama.cpp` clone through
-  `0d9ceae1e`. No runtime code, manifest artifact, or admission change in this
-  milestone. See `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md` ("Runtime
-  lineage qualification amendment (v2.1)").
-- Current llama-cli native diagnostics capture (Area 4), admitted only for the
-  exact qualified runtime (observed build 10449, commit 0d9ceae1e): the renamed
-  `load_tensors:` offload line is parsed with its actual prefix preserved as
-  placement source identity (`load_tensors` versus historical
-  `llm_load_tensors`), and the request-final `slot print_timing:` block is
-  captured as a distinct `slot_print_timing` backend-native timing source.
-  Slot timing admits only the prompt/eval field pairs, keeps
-  `load_time_seconds`, `total_time_seconds`, and `graphs_reused` unavailable,
-  preserves the source `n_gen` count alongside the `n_gen - 1` decode-step
-  rate denominator, and requires `--parallel 1` single-turn eligibility.
+- Current llama-cli native diagnostics capture (Area 4), admitted only for
+  runtimes whose exact build+commit identity matches the frozen upstream
+  lineage manifest above: the renamed `load_tensors:` offload line is
+  parsed with its actual prefix preserved as placement source identity
+  (`load_tensors` versus historical `llm_load_tensors`), and the
+  request-final `slot print_timing:` block is captured as a distinct
+  `slot_print_timing` backend-native timing source. Slot timing admits only
+  the prompt/eval field pairs, keeps `load_time_seconds`,
+  `total_time_seconds`, and `graphs_reused` unavailable, preserves the
+  source `n_gen` count alongside the `n_gen - 1` decode-step rate
+  denominator, and requires `--parallel 1` single-turn eligibility.
   Progress (`print_timings_pp`/`print_timings_tg`) lines, ambiguous final
-  blocks, and unqualified runtimes fail closed to unavailable.
+  blocks, and unqualified runtimes fail closed to unavailable. Placement
+  classification remains conservative — N=0 layers offloaded is `cpu_only`,
+  0<N<M is `hybrid_accelerator_cpu`, N=M is `unknown` — and full-accelerator
+  residency is never claimed; requested `-ngl` is not treated as observation.
 - Deterministic evidence-capture verbosity: qualified native runs invoke
   `llama-cli --verbosity 4`; the effective verbosity and capture policy are
   recorded in `runtime-command.json` and result runtime provenance. Successful
@@ -82,6 +60,39 @@
   current-prefix claims on unqualified runtimes, and slot timing claims outside
   `--parallel 1` are rejected. Historical results without `raw_lines` remain
   valid.
+
+### Fixed
+
+- First-token channel validator hardening (vLLM streaming TTFT): the validator
+  now independently re-derives the first-token channel from the preserved raw
+  SSE payload rather than trusting stored labels. A consistent two-artifact
+  channel reclassification (stream + request) that contradicts the raw event
+  is now rejected. The shared canonical helper
+  `classify_first_generated_token_channel` is used by both the collector and
+  the validator. Cross-artifact agreement (stream ↔ request) remains enforced.
+  TTFT semantics, event-index trigger, and channel-neutral boundary are
+  unchanged. See `tests/test_vllm_streaming_area4.py` and
+  `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md`.
+
+### Documentation
+
+- Native-diagnostics qualification policy (contract only, no behavior change
+  beyond the manifest above): runtime lineage qualification is
+  `LLAMA_RUNTIME_LINEAGE_POLICY = UPSTREAM_IDENTITY_ALLOWLIST`. The observed
+  `build_number` plus `commit` pair must exactly match one frozen, packaged
+  upstream identity record (912 qualified placement identities, builds
+  9538..10449, of which 44 also qualify slot timing), with independent
+  per-source admission flags; anything else fails closed. Numeric
+  build-interval checks alone were rejected because fork checkouts can report
+  in-range `git rev-list --count` values with different ancestry. Earlier
+  per-source bounded commit ranges — placement `5343f4502..0d9ceae1e`
+  (builds 9538..10449) and slot timing `decaf508b..0d9ceae1e` (builds
+  10406..10449) — were established from upstream source history and a
+  two-build runtime comparison as source-history findings; runtime admission
+  now matches exact frozen upstream identities, not integer build-range
+  arithmetic. Verified upstream interval linearity, build-number bijection,
+  and short-SHA uniqueness against the local `ggml-org/llama.cpp` clone
+  through `0d9ceae1e`. See `docs/AREA4_NATIVE_LLAMA_CPP_EVIDENCE_V1.md`.
 - vLLM streaming-TTFT version qualification review (contract only, no
   behavior change): `VLLM_STREAMING_TTFT_QUALIFICATION = EXACT_VERSION_ONLY`
   (vLLM 0.27.1) is reaffirmed after an invariant-by-invariant review; no other
@@ -90,13 +101,24 @@
   token-ID event semantics demonstrably changed between v0.10.2 and v0.27.1 —
   streaming tool-parser token drops in `token_ids` fixed in v0.13.0,
   reasoning-hide `token_ids` suppression added in v0.26.0; v0.28.0 is
-  source-similar but not end-to-end-qualified). Corrected the historical lineage claim: the shipped
-  v0.77 notes say `return_token_ids` is "present since 0.15.1"; upstream tags
-  show it was added by PR #22587 and is present since **v0.10.2** (v0.15.1 is
-  only the module-path move). Suffix policy made explicit: `rc`/`dev`/`post`/
-  `+local` variants of 0.27.1 are rejected as unparseable and never normalized.
-  See `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md` ("Version qualification
-  review (2026-09-01)").
+  source-similar but not end-to-end-qualified). Corrected the historical
+  lineage claim: the shipped v0.77 notes say `return_token_ids` is "present
+  since 0.15.1"; upstream tags show it was added by PR #22587 and is present
+  since **v0.10.2** (v0.15.1 is only the module-path move). Suffix policy made
+  explicit: `rc`/`dev`/`post`/`+local` variants of 0.27.1 are rejected as
+  unparseable and never normalized. See
+  `docs/VLLM_STREAMING_TTFT_ARCHITECTURE.md` ("Version qualification review
+  (2026-09-01)").
+
+Streaming TTFT remains opt-in and qualified for exactly vLLM 0.27.1, and
+reasoning tokens count as generated-token TTFT events while canonical final
+content excludes reasoning-stream content. Existing non-streaming vLLM
+requests are unchanged in default, request body, response path, evidence, and
+wall-time semantics. Historical vLLM results without TTFT or stream evidence
+remain valid. llama.cpp TTFT remains unavailable under its current CLI
+transport. Neutral llama-cli TTFT, model-load, prefill/decode, steady-state
+VRAM, vLLM execution placement, and warm/cold lifecycle evidence remain
+deferred. No new material dependencies.
 
 ## v0.77.0 - 2026-08-30
 
