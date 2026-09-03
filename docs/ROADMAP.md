@@ -140,6 +140,13 @@ loopback-only, text-only backend using the Python standard library. LLMGauge
 does not install, start, supervise, or otherwise own the vLLM server lifecycle;
 `llama.cpp`/GGUF remains the default runtime.
 
+This bounded external-server integration is the current state, not the target:
+the accepted
+[first-class multi-runtime architecture contract](FIRST_CLASS_RUNTIME_ARCHITECTURE.md)
+defines the program that matures vLLM (and later SGLang) to first-class
+runtime and native directory-checkpoint support, including managed-local
+server lifecycle.
+
 ### Implemented capability
 
 - External local vLLM adapter with sequential requests to an operator-managed
@@ -1172,18 +1179,37 @@ Generic Core delivery, and one another.
 
 ### Runtime interoperability
 
-1. vLLM completion and product audit.
-2. Shared OpenAI-compatible HTTP transport contract.
-3. SGLang adapter.
-4. Ollama adapter.
-5. TensorRT-LLM or NVIDIA NIM later.
-6. Heterogeneous platform provenance.
+The strategic target is **first-class multi-runtime model evaluation**, defined
+by the accepted
+[first-class multi-runtime architecture contract](FIRST_CLASS_RUNTIME_ARCHITECTURE.md).
+Runtime interoperability no longer means only "audit vLLM, add a generic HTTP
+transport, then SGLang/Ollama adapters": the principal runtime families are
+
+- `llama.cpp` / GGUF (first-class runtime and representation, default),
+- vLLM / native Hugging Face-Transformers-style directory checkpoints
+  (first-class runtime and representation target), and
+- SGLang / native Hugging Face-Transformers-style directory checkpoints
+  (first-class runtime and representation target),
+
+each with runtime-specific lifecycle, evidence, and capability disclosure
+preserved honestly rather than collapsed into a fake generic OpenAI backend.
+The accepted program is seven bounded milestones (model-representation and
+profile contract, directory-model provenance, vLLM identity, vLLM managed
+lifecycle, vLLM workflow parity, shared transport plus SGLang external
+adapter, SGLang lifecycle/parity with cross-runtime identity hardening). The
+selected next implementation milestone is the runtime-neutral model
+representation and profile contract.
+
+Later runtime possibilities (Ollama, TensorRT-LLM, NVIDIA NIM) remain
+admissible through the same first-class acceptance contract, with no promised
+version or date. Heterogeneous platform provenance remains a later track.
 
 `llama.cpp` remains the default runtime. The current vLLM adapter remains a
-bounded, operator-managed local integration. DGX Spark is a hardware/platform
-provenance target, not a backend; support should use whichever separately
-admitted runtime actually runs on that platform. Runtime work enters the
-fast-track order only through its separately accepted contracts.
+bounded, operator-managed local integration until its first-class milestones
+land. DGX Spark is a hardware/platform provenance target, not a backend;
+support should use whichever separately admitted runtime actually runs on that
+platform. Runtime work enters the fast-track order only through its separately
+accepted contracts.
 
 ## Expanded evaluation track
 
