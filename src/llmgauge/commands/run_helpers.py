@@ -31,6 +31,7 @@ from llmgauge.core.config import (
     load_model_profiles,
     resolve_model_profile,
 )
+from llmgauge.core.schemas import effective_source_kind
 from llmgauge.core.sampling_profiles import (
     SamplingProfileError,
     profile_runtime_settings,
@@ -561,6 +562,33 @@ def resolve_run_options(
         )
     )
 
+    # Runtime-neutral model source contract (M1): representation is separate
+    # from execution capability. Resolve one canonical effective source kind
+    # and fail closed before any runner side effect when the selected backend
+    # cannot execute that source shape yet.
+    try:
+        resolved_source_kind = effective_source_kind(profile)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if resolved_backend == "llama.cpp" and resolved_source_kind != "gguf_file":
+        raise typer.BadParameter(
+            f"backend llama.cpp does not support model source kind "
+            f"{resolved_source_kind!r}; llama.cpp execution requires "
+            "gguf_file. The profile contract represents "
+            f"{resolved_source_kind} profiles, but native execution for them "
+            "is not implemented for this backend."
+        )
+
+    if resolved_backend == "vllm" and resolved_source_kind == "checkpoint_directory":
+        raise typer.BadParameter(
+            "backend vllm does not support model source kind "
+            "'checkpoint_directory' in this slice; the profile contract "
+            "represents local checkpoint directories, but vLLM first-class "
+            "model identity is not implemented yet. Use the bounded "
+            "external-server mode with served_model only."
+        )
+
     resolved_model_id = coalesce(model_id, model_profile, profile.get("label"))
     if resolved_model_id is None:
         raise typer.BadParameter("Provide --model-id or --model-profile")
@@ -912,6 +940,7 @@ def resolve_run_options(
             "runtime_label": resolved_runtime_label,
             "reasoning_mode": resolved_reasoning_mode,
             "model_source": resolved_model_source,
+            "model_source_kind": resolved_source_kind,
             "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
         }
 
@@ -985,6 +1014,7 @@ def resolve_run_options(
         "reasoning_preserve": resolved_reasoning_preserve,
         "spec_type": resolved_spec_type,
         "model_source": resolved_model_source,
+        "model_source_kind": resolved_source_kind,
         "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
     }
 

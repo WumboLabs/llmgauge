@@ -578,6 +578,7 @@ mergeable; none may weaken §12's protected semantics.
 
 ### M1 — Runtime-neutral model representation and profile contract (implementation)
 
+- **Status:** Implemented (post-v0.78 on `main`).
 - **Goal:** source-kind discrimination (`gguf_file` | `checkpoint_directory` |
   `served_model_reference`) implemented in model-profile validation,
   resolution, and CLI surface — no execution behavior change.
@@ -703,6 +704,10 @@ backward-compatible by construction (legacy GGUF profiles unchanged), and it is
 independently provable with schema and CLI tests. No other prerequisite was
 found more fundamental: the transport, lifecycle, and evidence designs already
 have accepted contracts; the model-identity generalization does not.
+
+> Update (2026-09-03): M1 is implemented on `main` (post-v0.78). The selected
+> next milestone is now M2 — directory-model provenance collection and
+> fingerprint eligibility (§13 M2).
 
 ## 15. Consequences
 

@@ -420,3 +420,177 @@ def test_vllm_resolve_without_path_ok(tmp_path: Path) -> None:
     assert resolved["backend"] == "vllm"
     assert resolved["model_path"] is None
     assert resolved["served_model"] == "test-model"
+
+
+# ---------------------------------------------------------------------------
+# M1 runtime-neutral source resolution and execution capability gates
+# ---------------------------------------------------------------------------
+
+
+def _write_gate_profiles(tmp_path: Path) -> tuple[Path, Path, Path]:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "schema_version: llmgauge.config.v0\nruntime:\n  llama_cli: /bin/true\n",
+        encoding="utf-8",
+    )
+    gguf = tmp_path / "model.gguf"
+    gguf.write_text("x", encoding="utf-8")
+    checkpoint = tmp_path / "Qwen-Native"
+    checkpoint.mkdir()
+    profiles = tmp_path / "profiles.yaml"
+    profiles.write_text(
+        "schema_version: llmgauge.model_profiles.v0\n"
+        "models:\n"
+        "  legacy_gguf:\n"
+        "    label: Legacy GGUF\n"
+        "    path: " + str(gguf) + "\n"
+        "  explicit_gguf:\n"
+        "    label: Explicit GGUF\n"
+        "    source_kind: gguf_file\n"
+        "    path: " + str(gguf) + "\n"
+        "  native_ckpt:\n"
+        "    label: Native Ckpt\n"
+        "    source_kind: checkpoint_directory\n"
+        "    path: " + str(checkpoint) + "\n"
+        "  served_ref:\n"
+        "    label: Served Ref\n"
+        "    source_kind: served_model_reference\n"
+        "    served_model: test-model\n"
+        "    vllm_endpoint: http://127.0.0.1:8000/v1\n",
+        encoding="utf-8",
+    )
+    return cfg, profiles, checkpoint
+
+
+def _resolve_gate(tmp_path: Path, profile_name: str, **overrides: Any) -> dict:
+    cfg, profiles, _ = _write_gate_profiles(tmp_path)
+    kwargs: dict[str, Any] = {
+        "model_id": None,
+        "model_profile": profile_name,
+        "config_path": cfg,
+        "model_profiles_path": profiles,
+        "model_path": None,
+        "llama_cli": None,
+        "ctx": None,
+        "max_tokens": None,
+        "temp": None,
+        "top_p": None,
+        "batch": None,
+        "ubatch": None,
+        "gpu_layers": None,
+    }
+    kwargs.update(overrides)
+    return run_helpers.resolve_run_options(**kwargs)
+
+
+def test_gate_legacy_gguf_llama_resolves(tmp_path: Path) -> None:
+    resolved = _resolve_gate(tmp_path, "legacy_gguf")
+    assert resolved["backend"] == "llama.cpp"
+    assert resolved["model_source_kind"] == "gguf_file"
+
+
+def test_gate_explicit_gguf_llama_resolves(tmp_path: Path) -> None:
+    resolved = _resolve_gate(tmp_path, "explicit_gguf")
+    assert resolved["backend"] == "llama.cpp"
+    assert resolved["model_source_kind"] == "gguf_file"
+
+
+def test_gate_checkpoint_directory_rejected_for_llama_before_runner(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("runner must not be invoked")
+
+    monkeypatch.setattr(run_helpers, "run_llama_cpp", fail_if_called)
+    with pytest.raises(typer.BadParameter) as exc:
+        _resolve_gate(tmp_path, "native_ckpt")
+    message = str(exc.value)
+    assert "does not support model source kind" in message
+    assert "checkpoint_directory" in message
+    assert "requires gguf_file" in message
+    # Distinct from a misleading filesystem error.
+    assert "does not exist" not in message
+    assert "not a file" not in message
+
+
+def test_gate_checkpoint_directory_rejected_for_vllm_before_execution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def fail_if_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("vLLM execution must not be reached")
+
+    monkeypatch.setattr(run_helpers, "check_readiness_and_model", fail_if_called)
+    with pytest.raises(typer.BadParameter) as exc:
+        _resolve_gate(
+            tmp_path,
+            "native_ckpt",
+            backend="vllm",
+            vllm_endpoint="http://127.0.0.1:8000/v1",
+            served_model="ignored",
+        )
+    message = str(exc.value)
+    assert "does not support model source kind" in message
+    assert "checkpoint_directory" in message
+    assert "not implemented" in message
+
+
+def test_gate_served_reference_vllm_keeps_bounded_path(tmp_path: Path) -> None:
+    resolved = _resolve_gate(
+        tmp_path,
+        "served_ref",
+        backend="vllm",
+    )
+    assert resolved["backend"] == "vllm"
+    assert resolved["model_source_kind"] == "served_model_reference"
+    assert resolved["served_model"] == "test-model"
+    assert resolved["model_path"] is None
+
+
+def test_gate_served_reference_rejected_for_llama(tmp_path: Path) -> None:
+    with pytest.raises(typer.BadParameter) as exc:
+        _resolve_gate(tmp_path, "served_ref")
+    assert "does not support model source kind" in str(exc.value)
+
+
+def test_gate_unknown_explicit_source_kind_rejected(tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("schema_version: llmgauge.config.v0\n", encoding="utf-8")
+    profiles = tmp_path / "profiles.yaml"
+    profiles.write_text(
+        "schema_version: llmgauge.model_profiles.v0\n"
+        "models:\n"
+        "  bad:\n"
+        "    label: Bad\n"
+        "    path: /models/x\n"
+        "    source_kind: huggingface\n",
+        encoding="utf-8",
+    )
+    # Rejected at profile-document load, before any resolution.
+    with pytest.raises(ValueError, match="source_kind must be one of"):
+        run_helpers.resolve_run_options(
+            model_id=None,
+            model_profile="bad",
+            config_path=cfg,
+            model_profiles_path=profiles,
+            model_path=None,
+            llama_cli=None,
+            ctx=None,
+            max_tokens=None,
+            temp=None,
+            top_p=None,
+            batch=None,
+            ubatch=None,
+            gpu_layers=None,
+        )
+
+
+def test_gate_checkpoint_directory_does_not_fall_through_to_llama_cli(
+    tmp_path: Path,
+) -> None:
+    # The critical regression guard: a checkpoint_directory profile with a
+    # real existing path must never resolve into a llama.cpp plan.
+    with pytest.raises(typer.BadParameter):
+        resolved = _resolve_gate(tmp_path, "native_ckpt")
+        raise AssertionError(
+            f"unexpected llama.cpp resolution: {resolved['model_path']}"
+        )

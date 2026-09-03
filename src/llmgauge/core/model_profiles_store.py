@@ -61,7 +61,7 @@ def add_model_profile(
     path: Path,
     *,
     profile_name: str,
-    model_path: Path,
+    model_path: Path | None = None,
     label: str | None = None,
     family: str | None = None,
     role: str | None = None,
@@ -71,7 +71,15 @@ def add_model_profile(
     temperature: float | None = None,
     notes: str | None = None,
     overwrite: bool = False,
+    source_kind: str | None = None,
+    served_model: str | None = None,
 ) -> tuple[ModelProfilesDocument, bool]:
+    """Add or replace a model profile.
+
+    Legacy callers pass only ``model_path``; the stored profile then remains a
+    discriminator-free GGUF profile. Passing an explicit ``source_kind``
+    serializes that discriminator and enforces the source-shape contract.
+    """
     if not profile_name.strip():
         raise ValueError("Model profile name must not be empty")
 
@@ -79,6 +87,9 @@ def add_model_profile(
         raise ValueError(
             f"Model profile name '{profile_name}' is reserved; choose a different name"
         )
+
+    if source_kind is None and model_path is None:
+        raise ValueError("Provide model_path or an explicit source_kind")
 
     document = ensure_model_profiles_file(path)
     created = profile_name not in document.models
@@ -94,11 +105,13 @@ def add_model_profile(
         family=family,
         role=role,
         quant=quant,
-        path=str(model_path),
+        path=str(model_path) if model_path is not None else None,
         ctx_size=ctx_size,
         max_tokens=max_tokens,
         temperature=temperature,
         notes=notes,
+        source_kind=source_kind,
+        served_model=served_model,
     )
     document.models[profile_name] = entry
     save_model_profiles_document(path, document)
@@ -131,7 +144,15 @@ def update_model_profile(
     max_tokens: int | None = None,
     temperature: float | None = None,
     notes: str | None = None,
+    source_kind: str | None = None,
+    served_model: str | None = None,
 ) -> ModelProfilesDocument:
+    """Update fields on an existing profile; ``None`` means unchanged.
+
+    Updating ``source_kind`` on a discriminator-free legacy profile pins the
+    effective kind explicitly; the resulting profile must satisfy the
+    source-shape contract, otherwise validation fails closed.
+    """
     document = load_model_profiles_document(path)
 
     if profile_name not in document.models:
@@ -159,7 +180,21 @@ def update_model_profile(
         current["temperature"] = temperature
     if notes is not None:
         current["notes"] = notes
+    if source_kind is not None:
+        current["source_kind"] = source_kind
+    if served_model is not None:
+        current["served_model"] = served_model
 
-    document.models[profile_name] = ModelProfileEntry.model_validate(current)
+    try:
+        entry = ModelProfileEntry.model_validate(current)
+    except Exception as exc:
+        raise ValueError(
+            format_validation_error(
+                exc,
+                label=(f"Update would make model profile '{profile_name}' invalid"),
+            )
+        ) from exc
+
+    document.models[profile_name] = entry
     save_model_profiles_document(path, document)
     return document
