@@ -649,6 +649,8 @@ mergeable; none may weaken §12's protected semantics.
 
 ### M3 — vLLM first-class model identity
 
+- **Status:** Implemented (post-v0.78 on `main`; model-identity portion of
+  the acceptance contract only — lifecycle remains M4, workflow parity M5).
 - **Goal:** vLLM profiles bind `checkpoint_directory` (local provenance) and
   `served_model_reference` (requested/observed identity with binding
   provenance class); quantization three-way disclosure; tokenizer/template
@@ -773,6 +775,19 @@ have accepted contracts; the model-identity generalization does not.
 > model identity**; the first EXL implementation milestone is M8
 > (manifest v1 + `model_format`), queued after the vLLM block per §13's
 > update note.
+
+> Update (2026-09-03): M3 — vLLM first-class model identity (§13 M3) is
+> implemented on `main` (post-v0.78): `checkpoint_directory` + vLLM is
+> admitted only with available, fingerprint-eligible M2 provenance collected
+> before any HTTP; the served-model name stays an explicit separate fact and
+> a readiness mismatch fails closed before generation; results persist the
+> M2 checkpoint identity (tokenizer/template/declared quantization), an
+> `operator_declared` binding record with an explicit evidence ceiling, and
+> the selected sampling-profile identity; server-backed checkpoint identity
+> is fingerprinted by the new frozen `llmgauge.run_fingerprint.v7` payload
+> (v6's direct-process executable-SHA requirement cannot honestly represent
+> an external server). The selected next milestone is M4 — vLLM
+> managed-local lifecycle (§13 M4).
 
 ## 15. Consequences
 

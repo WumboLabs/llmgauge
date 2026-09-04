@@ -31,6 +31,8 @@ from llmgauge.core.config import (
     load_model_profiles,
     resolve_model_profile,
 )
+from llmgauge.core.checkpoint_binding import build_checkpoint_binding_record
+from llmgauge.core.checkpoint_provenance import collect_checkpoint_provenance
 from llmgauge.core.schemas import effective_source_kind
 from llmgauge.core.sampling_profiles import (
     SamplingProfileError,
@@ -580,14 +582,67 @@ def resolve_run_options(
             "is not implemented for this backend."
         )
 
+    # M3: checkpoint_directory + vLLM is admitted, but only as a strong
+    # local-identity mode. The run explicitly requests cryptographic local
+    # model identity, so M2 provenance must be collected from the local
+    # checkpoint (offline, before any HTTP/runtime side effect) and must be
+    # both `available` and fingerprint-eligible. Weaker external-server
+    # identity remains available through the separate served_model_reference
+    # source kind; a checkpoint_directory run is never silently downgraded.
+    checkpoint_provenance: dict[str, Any] | None = None
     if resolved_backend == "vllm" and resolved_source_kind == "checkpoint_directory":
-        raise typer.BadParameter(
-            "backend vllm does not support model source kind "
-            "'checkpoint_directory' in this slice; the profile contract "
-            "represents local checkpoint directories, but vLLM first-class "
-            "model identity is not implemented yet. Use the bounded "
-            "external-server mode with served_model only."
+        profile_path = profile.get("path")
+        if model_path is not None:
+            raise typer.BadParameter(
+                "backend=vllm with a checkpoint_directory profile does not "
+                "accept --model-path; the checkpoint root comes from the "
+                "profile path. Direct --model-path remains an invalid legacy "
+                "vLLM combination."
+            )
+        if not isinstance(profile_path, str) or not profile_path.strip():
+            raise typer.BadParameter(
+                "backend=vllm with source_kind checkpoint_directory requires a "
+                "profile path naming the local checkpoint directory"
+            )
+        explicit_served_model = coalesce(
+            served_model,
+            profile.get("served_model"),
+            get_config_value(config_data, "runtime.served_model"),
         )
+        if explicit_served_model is None or not str(explicit_served_model).strip():
+            raise typer.BadParameter(
+                "backend=vllm with source_kind checkpoint_directory requires an "
+                "explicit served_model (--served-model or profile served_model); "
+                "the served name is never inferred from the checkpoint path, "
+                "directory basename, label, or model id"
+            )
+        checkpoint_root = Path(profile_path)
+        if not checkpoint_root.is_dir():
+            raise typer.BadParameter(
+                f"Checkpoint directory does not exist: {checkpoint_root}"
+            )
+        checkpoint_provenance = collect_checkpoint_provenance(
+            checkpoint_root,
+            source_type=resolve_model_source(model_profile=model_profile),
+        )
+        if (
+            checkpoint_provenance.get("status") != "available"
+            or checkpoint_provenance.get("fingerprint_eligible") is not True
+        ):
+            detail = (
+                checkpoint_provenance.get("fingerprint_ineligible_reason")
+                or checkpoint_provenance.get("reason")
+                or "; ".join(checkpoint_provenance.get("warnings") or [])
+                or "provenance is not fingerprint eligible"
+            )
+            raise typer.BadParameter(
+                f"backend=vllm with source_kind checkpoint_directory requires "
+                f"available, fingerprint-eligible local checkpoint provenance; "
+                f"this checkpoint is {checkpoint_provenance.get('status')} "
+                f"({detail}). Fix the checkpoint identity, or use "
+                f"source_kind served_model_reference when weaker external-server "
+                f"served-model identity is acceptable."
+            )
 
     resolved_model_id = coalesce(model_id, model_profile, profile.get("label"))
     if resolved_model_id is None:
@@ -834,19 +889,26 @@ def resolve_run_options(
         except VllmTransportError as exc:
             raise typer.BadParameter(f"Invalid vLLM endpoint ({exc.detail})") from exc
 
-        resolved_served_model = coalesce(
-            served_model,
-            profile.get("served_model"),
-            get_config_value(config_data, "runtime.served_model"),
-            profile.get("label"),
-            model_id,
-            model_profile,
-        )
-        if resolved_served_model is None or not str(resolved_served_model).strip():
-            raise typer.BadParameter(
-                "Provide --served-model or set profile served_model for backend=vllm"
+        if resolved_source_kind == "checkpoint_directory":
+            # M3: the served name is an explicit, separate fact from the local
+            # checkpoint path. It is never inferred from label, model id,
+            # profile name, or directory basename.
+            resolved_served_model = str(explicit_served_model).strip()
+        else:
+            resolved_served_model = coalesce(
+                served_model,
+                profile.get("served_model"),
+                get_config_value(config_data, "runtime.served_model"),
+                profile.get("label"),
+                model_id,
+                model_profile,
             )
-        resolved_served_model = str(resolved_served_model).strip()
+            if resolved_served_model is None or not str(resolved_served_model).strip():
+                raise typer.BadParameter(
+                    "Provide --served-model or set profile served_model for "
+                    "backend=vllm"
+                )
+            resolved_served_model = str(resolved_served_model).strip()
 
         resolved_connect_timeout = float(
             coalesce(
@@ -899,18 +961,20 @@ def resolve_run_options(
             field_name="vllm_streaming_evidence",
         )
 
-        # Directory/GGUF provenance is deferred for vLLM. Reject local paths so
-        # collect_model_provenance is never applied to a served checkpoint.
-        profile_path = profile.get("path")
-        if model_path is not None or (
-            isinstance(profile_path, str) and profile_path.strip()
-        ):
-            raise typer.BadParameter(
-                "backend=vllm does not accept --model-path or profile path in "
-                "this slice; directory-model and GGUF provenance for served "
-                "checkpoints is deferred. Identify the model with "
-                "--served-model / profile served_model only."
-            )
+        # served_model_reference keeps the historical boundary: no local path
+        # may enter GGUF/directory provenance for a served-only run. The
+        # checkpoint_directory shape was validated and hashed above.
+        if resolved_source_kind != "checkpoint_directory":
+            profile_path = profile.get("path")
+            if model_path is not None or (
+                isinstance(profile_path, str) and profile_path.strip()
+            ):
+                raise typer.BadParameter(
+                    "backend=vllm does not accept --model-path or profile path in "
+                    "this slice; directory-model and GGUF provenance for served "
+                    "checkpoints is deferred. Identify the model with "
+                    "--served-model / profile served_model only."
+                )
 
         return {
             "backend": "vllm",
@@ -941,6 +1005,7 @@ def resolve_run_options(
             "reasoning_mode": resolved_reasoning_mode,
             "model_source": resolved_model_source,
             "model_source_kind": resolved_source_kind,
+            "checkpoint_provenance": checkpoint_provenance,
             "vram_min_headroom_warn_mib": resolved_vram_min_headroom_warn_mib,
         }
 
@@ -1107,10 +1172,26 @@ def print_run_preflight(
         table.add_row("Connect timeout s", str(resolved["connect_timeout"]))
         table.add_row("Request timeout s", str(resolved["request_timeout"]))
         table.add_row("Max response bytes", str(resolved["max_response_bytes"]))
-        table.add_row(
-            "Model path",
-            "not used (served-model identity only; local provenance deferred)",
-        )
+        checkpoint_prov = resolved.get("checkpoint_provenance")
+        if isinstance(checkpoint_prov, dict):
+            table.add_row(
+                "Model path",
+                (
+                    "checkpoint_directory profile path (local provenance "
+                    f"status={checkpoint_prov.get('status')}, public "
+                    f"fingerprint={checkpoint_prov.get('public_fingerprint')})"
+                ),
+            )
+            table.add_row(
+                "Checkpoint binding",
+                "operator_declared (server listing confirms the served name "
+                "only; it does not attest the local checkpoint bytes)",
+            )
+        else:
+            table.add_row(
+                "Model path",
+                "not used (served-model identity only; local provenance deferred)",
+            )
     else:
         table.add_row("Model path", str(resolved["model_path"]))
         table.add_row("llama-cli", str(resolved["llama_cli"]))
@@ -1652,20 +1733,38 @@ def execute_multi_turn_run(
                         "endpoint_identity": request_result.endpoint_identity,
                     },
                 )
-        model_provenance = {
-            "source_type": resolved["model_source"],
-            "filename": None,
-            "file_size_bytes": None,
-            "sha256": None,
-            "public_fingerprint": None,
-            "status": "unavailable",
-            "warning": (
-                "Directory-model and GGUF provenance are unavailable for backend=vllm; "
-                "identity is the requested/observed served-model name only"
-            ),
-            "served_model": resolved["served_model"],
-            "provenance_kind": "served_model_only",
-        }
+        checkpoint_provenance = resolved.get("checkpoint_provenance")
+        checkpoint_binding: dict[str, Any] | None = None
+        observed_vllm_version = runtime_evidence.get("vllm_version") or "unknown"
+        if isinstance(checkpoint_provenance, dict):
+            # M3: a checkpoint-bound multi-turn run carries the same local
+            # identity and operator-declared binding as a single-turn run; it
+            # is never downgraded to served-model-only identity.
+            model_provenance = checkpoint_provenance
+            checkpoint_binding = build_checkpoint_binding_record(
+                requested_served_model=str(resolved["served_model"]),
+                observed_served_model=readiness.observed_model,
+                checkpoint_public_fingerprint=checkpoint_provenance.get(
+                    "public_fingerprint"
+                ),
+                observed_vllm_version=observed_vllm_version,
+            )
+        else:
+            model_provenance = {
+                "source_type": resolved["model_source"],
+                "filename": None,
+                "file_size_bytes": None,
+                "sha256": None,
+                "public_fingerprint": None,
+                "status": "unavailable",
+                "warning": (
+                    "Directory-model and GGUF provenance are unavailable for "
+                    "backend=vllm; identity is the requested/observed "
+                    "served-model name only"
+                ),
+                "served_model": resolved["served_model"],
+                "provenance_kind": "served_model_only",
+            }
         backend_provenance = {
             "backend_name": "vllm",
             "lifecycle_ownership": "external_operator",
@@ -1677,6 +1776,23 @@ def execute_multi_turn_run(
             if readiness.success
             else (readiness.failure_detail or readiness.failure_class),
         }
+        if checkpoint_binding is not None:
+            # Server-backed fingerprint eligibility requires the observed
+            # server version; recorded only for the M3 identity mode so
+            # historical served-only multi-turn shapes stay unchanged.
+            backend_provenance["vllm_version"] = observed_vllm_version
+            backend_provenance["vllm_version_source"] = runtime_evidence.get(
+                "vllm_version_source"
+            )
+            backend_provenance["server_state"] = (
+                runtime_evidence.get("server_state") or "unknown"
+            )
+            backend_provenance["discovery_status"] = (
+                "partial" if observed_vllm_version != "unknown" else "unavailable"
+            )
+            backend_provenance["observed_system_fingerprints"] = list(
+                runtime_evidence.get("observed_system_fingerprints") or []
+            )
         runtime: dict[str, Any] = {
             "backend": "vllm",
             "lifecycle_ownership": "external_operator",
@@ -1709,6 +1825,14 @@ def execute_multi_turn_run(
             "streaming": False,
             "authentication": "none",
         }
+        mt_profile_evidence = runtime_profile_evidence(
+            resolved.get("sampling_profile"),
+            resolved.get("sampling_profile_overrides", []),
+        )
+        if mt_profile_evidence is not None:
+            runtime["profile"] = mt_profile_evidence
+        if checkpoint_binding is not None:
+            runtime["checkpoint_binding"] = checkpoint_binding
         metrics = (
             build_vllm_metrics(selected_runtime_result)
             if isinstance(selected_runtime_result, VllmRequestResult)
@@ -2696,22 +2820,38 @@ def execute_vllm_run(
     observed_vllm_version = runtime_evidence.get("vllm_version") or "unknown"
     observed_server_state = runtime_evidence.get("server_state") or "unknown"
 
-    # Never feed a local path into GGUF provenance for vLLM; directory-model
-    # provenance remains deferred and must not misrepresent the served model.
-    model_provenance = {
-        "source_type": resolved["model_source"],
-        "filename": None,
-        "file_size_bytes": None,
-        "sha256": None,
-        "public_fingerprint": None,
-        "status": "unavailable",
-        "warning": (
-            "Directory-model and GGUF provenance are deferred for backend=vllm; "
-            "identity is the requested/observed served-model name only"
-        ),
-        "served_model": resolved["served_model"],
-        "provenance_kind": "served_model_only",
-    }
+    checkpoint_provenance = resolved.get("checkpoint_provenance")
+    checkpoint_binding: dict[str, Any] | None = None
+    if isinstance(checkpoint_provenance, dict):
+        # M3: the local checkpoint identity comes from the M2 provenance
+        # contract, collected before any HTTP request. The served-model name
+        # remains a separate, explicitly-configured server-side fact.
+        model_provenance = checkpoint_provenance
+        checkpoint_binding = build_checkpoint_binding_record(
+            requested_served_model=str(resolved["served_model"]),
+            observed_served_model=readiness.observed_model,
+            checkpoint_public_fingerprint=checkpoint_provenance.get(
+                "public_fingerprint"
+            ),
+            observed_vllm_version=observed_vllm_version,
+        )
+    else:
+        # Never feed a local path into GGUF provenance for a served-only run;
+        # served_model_reference keeps its historical identity shape.
+        model_provenance = {
+            "source_type": resolved["model_source"],
+            "filename": None,
+            "file_size_bytes": None,
+            "sha256": None,
+            "public_fingerprint": None,
+            "status": "unavailable",
+            "warning": (
+                "Directory-model and GGUF provenance are deferred for backend=vllm; "
+                "identity is the requested/observed served-model name only"
+            ),
+            "served_model": resolved["served_model"],
+            "provenance_kind": "served_model_only",
+        }
 
     discovery_warning: str | None
     if readiness.success and observed_vllm_version != "unknown":
@@ -2832,6 +2972,17 @@ def execute_vllm_run(
             "failure_labels": {},
         },
     }
+
+    # Additive M3/identity keys only when represented, so historical
+    # served_model_reference result shapes stay byte-identical.
+    vllm_profile_evidence = runtime_profile_evidence(
+        resolved.get("sampling_profile"),
+        resolved.get("sampling_profile_overrides", []),
+    )
+    if vllm_profile_evidence is not None:
+        result["runtime"]["profile"] = vllm_profile_evidence
+    if checkpoint_binding is not None:
+        result["runtime"]["checkpoint_binding"] = checkpoint_binding
 
     runtime_neutral_metrics, failure_taxonomy = build_vllm_area4_evidence(
         prompt_results=prompt_results,

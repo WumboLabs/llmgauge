@@ -162,6 +162,13 @@ managed-local server lifecycle.
   equivalence, and evidence references. Prefill/decode throughput,
   model-load time, steady-state VRAM, and execution placement remain
   unavailable or deferred.
+- Checkpoint-bound vLLM model identity (M3): a `checkpoint_directory` vLLM
+  profile executes only with available, fingerprint-eligible M2 provenance
+  collected before any HTTP; the served-model name is explicit and never
+  inferred; readiness mismatch fails closed before generation; results carry
+  the checkpoint identity, an `operator_declared` binding record (a server
+  listing never attests checkpoint bytes), and persisted sampling-profile
+  identity; eligible runs fingerprint under `llmgauge.run_fingerprint.v7`.
 - Area 4 runtime-neutral TTFT for streaming evidence mode:
   `llmgauge.metric.v1.time_to_first_token` measured from the same request
   start boundary to the first backend-generated token ID exposed in an
@@ -1219,8 +1226,19 @@ separate cache, tokenizer/chat-template identity, checkpoint-declared
 quantization evidence, additive `model.provenance` validation/report/export
 handling, and the new `llmgauge.run_fingerprint.v6` payload for manifest
 identity — with every existing GGUF fingerprint version and behavior frozen.
-Directory provenance is still not executable through any runtime. The
-selected next implementation milestone is M3, vLLM first-class model identity.
+Milestone M3 (vLLM first-class model identity) is implemented: a
+`checkpoint_directory` profile bound to `backend: vllm` executes only with
+available, fingerprint-eligible M2 provenance collected before any HTTP, an
+explicit served-model name that is never inferred from the checkpoint path,
+and fail-closed readiness mismatch; results persist the checkpoint identity,
+an `operator_declared` binding record with its evidence ceiling, and the
+selected sampling-profile identity, and server-backed checkpoint identity is
+fingerprinted by the new `llmgauge.run_fingerprint.v7` payload (v6's
+direct-process executable-SHA requirement cannot honestly represent an
+external server). This completes the model-identity portion of the
+first-class acceptance contract for vLLM only; lifecycle and workflow parity
+remain open. The selected next implementation milestone is M4, vLLM
+managed-local lifecycle.
 
 EXL support is a real product target with two distinct lanes: **EXL3 /
 ExLlamaV3 is the strategic current path** (principal runtime family, full

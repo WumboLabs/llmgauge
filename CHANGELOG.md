@@ -20,10 +20,10 @@
   Checkpoint-directory and served-reference profiles are representable but
   not executable: run resolution fails closed before any runner when the
   selected backend cannot execute the source kind (`llama.cpp` requires
-  `gguf_file`; `vllm` does not yet admit `checkpoint_directory`). No
-  directory provenance, hashing, run-fingerprint, result-schema, runner, or
-  SGLang runtime behavior is included; native checkpoint execution remains
-  deferred to later milestones.
+  `gguf_file`; `vllm` did not yet admit `checkpoint_directory` at M1 — M3
+  below does). No directory provenance, hashing, run-fingerprint,
+  result-schema, runner, or SGLang runtime behavior was included; native
+  checkpoint execution remained deferred to later milestones.
 
 - Checkpoint-directory model provenance and fingerprint eligibility (M2,
   identity machinery only): local Hugging Face / Transformers-style
@@ -50,10 +50,46 @@
   `llmgauge.run_fingerprint.v6` payload; ineligible identity fails closed
   with a precise reason. All existing GGUF hashing, hash-cache semantics,
   provenance shapes, and v0-v5 run-fingerprint payload bytes are unchanged
-  and regression-pinned. This is representation and identity only: no
-  runtime executes a checkpoint directory yet — `checkpoint_directory`
-  remains rejected before llama.cpp and before vLLM execution, and SGLang
-  remains unsupported.
+  and regression-pinned. This is representation and identity only: at the
+  M2 milestone no runtime executed a checkpoint directory yet (vLLM
+  checkpoint binding arrived with M3 below; llama.cpp still requires
+  `gguf_file`, and SGLang remains unsupported).
+
+- vLLM first-class model identity (M3, model identity only): a vLLM run can
+  now be explicitly bound to a local `checkpoint_directory` whose
+  cryptographic identity comes from the M2 provenance contract. Admission is
+  fail-closed and strong: `checkpoint_directory` + `backend: vllm` executes
+  only when local provenance is `available` and fingerprint-eligible,
+  collected offline before readiness and any HTTP request; the served-model
+  name remains an explicit separate fact that is never inferred from the
+  checkpoint path, basename, label, or model id; direct `--model-path` with
+  vLLM stays rejected; and a served-model readiness mismatch fails before
+  generation without ever selecting a fallback model. Results persist the M2
+  checkpoint identity (manifest fingerprint, tokenizer and chat-template
+  identity, checkpoint-declared quantization) plus an additive
+  `runtime.checkpoint_binding` record (`llmgauge.vllm_checkpoint_binding.v0`)
+  whose relation class is `operator_declared`: a server listing confirms the
+  served name only and never attests the local checkpoint bytes, and
+  validators reject stronger classes for external-server results. Effective
+  runtime chat template stays `unobserved` and effective runtime
+  quantization `unavailable`; the profile `quant` label is never upgraded.
+  Selected sampling profiles now persist canonical identity in
+  `runtime.profile` for vLLM runs (metadata only; request semantics and the
+  rejected top-k/min-p/seed boundary are unchanged). Server-backed
+  checkpoint-bound runs become fingerprintable through the new frozen
+  `llmgauge.run_fingerprint.v7` payload, which identifies the preserved
+  evidence package (checkpoint identity, binding record, server-reported
+  `/version` — required, never invented — and sampling-profile identity)
+  without claiming any server-binary attestation; the frozen v6 payload's
+  direct-process executable-SHA requirement is why a new version was needed.
+  Reports separate local-checkpoint / server / binding identity, comparisons
+  no longer treat matching served names over differing checkpoint
+  fingerprints as like-for-like, and public export projects only the bounded
+  binding disclosure while withholding paths, endpoint identity, and full
+  hashes. `served_model_reference` vLLM, legacy vLLM profiles, GGUF/llama.cpp
+  behavior, `llmgauge.result.v0`, `llmgauge.model_profiles.v0`, and the frozen
+  v0-v6 fingerprint payloads are unchanged. vLLM is not fully first-class:
+  managed lifecycle (M4) and workflow parity (M5) remain open.
 
 ## v0.78.0 - 2026-09-02
 

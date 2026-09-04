@@ -1746,6 +1746,179 @@ def _validate_directory_model_provenance(
     return errors
 
 
+def _validate_checkpoint_binding(data: dict[str, Any]) -> list[str]:
+    """Validate the additive M3 checkpoint<->served-model binding record.
+
+    Historical vLLM results without a binding record are unaffected. When a
+    record is present it must be coherent with the model provenance and the
+    backend provenance, and an external-operator result may never claim a
+    stronger binding class than ``operator_declared``.
+    """
+
+    from llmgauge.core.checkpoint_binding import (
+        BINDING_EVIDENCE_CEILING,
+        BINDING_PROVENANCE_CLASSES,
+        BINDING_STATUS_BOUND,
+        BINDING_STATUS_UNBOUND,
+        CHECKPOINT_BINDING_SCHEMA_VERSION,
+        EXTERNAL_ADMISSIBLE_BINDING_CLASSES,
+    )
+
+    runtime = data.get("runtime")
+    if not isinstance(runtime, dict):
+        return []
+    binding = runtime.get("checkpoint_binding")
+    model = data.get("model")
+    model_provenance = model.get("provenance") if isinstance(model, dict) else None
+    has_checkpoint_provenance = isinstance(model_provenance, dict) and (
+        model_provenance.get("provenance_kind") == "checkpoint_directory_manifest"
+    )
+
+    if binding is None:
+        errors: list[str] = []
+        if has_checkpoint_provenance and runtime.get("backend") == "vllm":
+            errors.append(
+                "runtime.checkpoint_binding is required for a vLLM result with "
+                "checkpoint-directory model provenance"
+            )
+        return errors
+
+    errors = []
+    label = "runtime.checkpoint_binding"
+    if not isinstance(binding, dict):
+        return [f"{label} must be an object"]
+    if runtime.get("backend") != "vllm":
+        errors.append(f"{label} is only valid for backend=vllm")
+    if not has_checkpoint_provenance:
+        errors.append(
+            f"{label} requires checkpoint-directory model provenance; a "
+            "served_model_reference result must not claim a local checkpoint "
+            "binding"
+        )
+    if binding.get("schema_version") != CHECKPOINT_BINDING_SCHEMA_VERSION:
+        errors.append(
+            f"{label}.schema_version must be {CHECKPOINT_BINDING_SCHEMA_VERSION}"
+        )
+
+    status = binding.get("status")
+    if status not in {BINDING_STATUS_BOUND, BINDING_STATUS_UNBOUND}:
+        errors.append(f"{label}.status must be bound or unbound")
+
+    provenance_class = binding.get("binding_provenance_class")
+    if provenance_class not in BINDING_PROVENANCE_CLASSES:
+        errors.append(
+            f"{label}.binding_provenance_class must be one of "
+            f"{', '.join(sorted(BINDING_PROVENANCE_CLASSES))}"
+        )
+    elif runtime.get("lifecycle_ownership") == "external_operator" and (
+        provenance_class not in EXTERNAL_ADMISSIBLE_BINDING_CLASSES
+    ):
+        errors.append(
+            f"{label}.binding_provenance_class must be operator_declared for an "
+            "external-operator server; a stronger class requires managed "
+            "lifecycle evidence that this result does not carry"
+        )
+
+    requested = binding.get("requested_served_model")
+    observed = binding.get("observed_served_model")
+    if not isinstance(requested, str) or not requested:
+        errors.append(f"{label}.requested_served_model must be a non-empty string")
+    if observed is not None and not isinstance(observed, str):
+        errors.append(f"{label}.observed_served_model must be a string or null")
+    if status == BINDING_STATUS_BOUND and observed != requested:
+        errors.append(
+            f"{label} with status bound must record an observed served model "
+            "equal to the requested served model"
+        )
+    if status == BINDING_STATUS_UNBOUND and observed == requested:
+        errors.append(
+            f"{label} with status unbound must not record a matching observed "
+            "served model"
+        )
+
+    runtime_requested = runtime.get("requested_served_model")
+    if isinstance(runtime_requested, str) and requested != runtime_requested:
+        errors.append(
+            f"{label}.requested_served_model disagrees with "
+            "runtime.requested_served_model"
+        )
+    runtime_observed = runtime.get("observed_served_model")
+    if observed != runtime_observed:
+        errors.append(
+            f"{label}.observed_served_model disagrees with "
+            "runtime.observed_served_model"
+        )
+
+    fingerprint = binding.get("checkpoint_public_fingerprint")
+    if not isinstance(fingerprint, str) or not (
+        fingerprint.startswith("sha256:")
+        and len(fingerprint) == len("sha256:") + 16
+        and all(ch in "0123456789abcdef" for ch in fingerprint.removeprefix("sha256:"))
+    ):
+        errors.append(
+            f"{label}.checkpoint_public_fingerprint must be sha256:<16 hex "
+            "characters (the shortened display fingerprint only)"
+        )
+    elif isinstance(model_provenance, dict):
+        if fingerprint != model_provenance.get("public_fingerprint"):
+            errors.append(
+                f"{label}.checkpoint_public_fingerprint does not match "
+                "model.provenance.public_fingerprint"
+            )
+    if binding.get("checkpoint_identity_source") != "llmgauge_local_file_observation":
+        errors.append(
+            f"{label}.checkpoint_identity_source must be "
+            "llmgauge_local_file_observation"
+        )
+    if binding.get("served_model_observation_source") != ("server_/v1/models_listing"):
+        errors.append(
+            f"{label}.served_model_observation_source must be server_/v1/models_listing"
+        )
+    if binding.get("evidence_ceiling") != BINDING_EVIDENCE_CEILING:
+        errors.append(f"{label}.evidence_ceiling does not match the admitted text")
+    if binding.get("effective_runtime_chat_template") != "unobserved":
+        errors.append(
+            f"{label}.effective_runtime_chat_template must be unobserved for an "
+            "external server; the server's effective template is not observable"
+        )
+    if binding.get("effective_runtime_quantization") != "unavailable":
+        errors.append(
+            f"{label}.effective_runtime_quantization must be unavailable for an "
+            "external server; effective quantization is not observed here"
+        )
+
+    eligible = binding.get("fingerprint_eligible")
+    if not isinstance(eligible, bool):
+        errors.append(f"{label}.fingerprint_eligible must be a boolean")
+    else:
+        backend_provenance = runtime.get("backend_provenance")
+        version = (
+            backend_provenance.get("vllm_version")
+            if isinstance(backend_provenance, dict)
+            else None
+        )
+        version_observed = (
+            isinstance(version, str) and bool(version) and version != "unknown"
+        )
+        if eligible and not (status == BINDING_STATUS_BOUND and version_observed):
+            errors.append(
+                f"{label} must not claim fingerprint eligibility without a bound "
+                "served model and an observed server version"
+            )
+        if not eligible:
+            reason = binding.get("fingerprint_ineligible_reason")
+            if not isinstance(reason, str) or not reason:
+                errors.append(
+                    f"{label}.fingerprint_ineligible_reason must explain an "
+                    "ineligible binding"
+                )
+
+    for forbidden in ("checkpoint_path", "path", "manifest", "manifest_sha256"):
+        if forbidden in binding:
+            errors.append(f"{label} must not record {forbidden}")
+    return errors
+
+
 def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
@@ -1842,6 +2015,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
             == "checkpoint_directory_manifest"
         ):
             errors.extend(_validate_directory_model_provenance(model_provenance))
+    errors.extend(_validate_checkpoint_binding(data))
 
     runtime = data.get("runtime", {})
     if isinstance(runtime, dict):

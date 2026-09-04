@@ -108,6 +108,20 @@ checkpoint root, cache identities, and symlink blob targets are never
 persisted in the private record either, so they cannot leak through the
 derivative.
 
+For an M3 checkpoint-bound vLLM run, the same content-default-deny rule
+applies to the binding record: the private `runtime.checkpoint_binding`
+object is removed from the derivative and a bounded `binding` sub-object is
+projected inside `model.checkpoint_identity`, carrying only the binding
+status, the `operator_declared` provenance class, the requested and observed
+served-model names, the shortened `sha256:`+16 checkpoint fingerprint, the
+fixed evidence-ceiling statement, and the unobserved/effective-runtime
+boundary labels. The local endpoint identity, the absolute checkpoint root,
+full hashes, the private manifest, and ineligibility reason strings are
+never projected. Public consumers may therefore state that the operator
+declared a checkpoint-to-server association and that the server listing
+confirms only the served name; they may not state that the server verified
+the checkpoint bytes.
+
 When available, the export manifest includes `source_run_fingerprint`, the
 fingerprint of the canonical private source evidence. It helps reviewers cite
 which private run the export came from, but it does not verify or authenticate

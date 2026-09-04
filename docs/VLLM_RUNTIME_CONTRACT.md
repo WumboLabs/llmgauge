@@ -266,6 +266,76 @@ interpret the evaluated input. Full local hashes and manifest entries remain
 private evidence. Public export retains only approved shortened fingerprints
 and separately approved, sanitized model identifiers or filenames.
 
+## Checkpoint-bound vLLM model identity (M3)
+
+Implemented on `main` (post-v0.78). A vLLM run may now be explicitly bound to
+a local `checkpoint_directory` whose cryptographic identity comes from the
+accepted directory-model provenance contract above (M2). This section defines
+the additional semantics of that binding; it does not weaken any existing
+external-server evidence rule.
+
+Admission rules:
+
+- `source_kind: checkpoint_directory` with `backend: vllm` is admitted only
+  when local provenance collection returns `status: available` **and**
+  `fingerprint_eligible: true`. `partial` or `unavailable` identity fails
+  closed before readiness, before any HTTP request, with an actionable
+  explanation. A checkpoint-directory run is never silently downgraded to
+  weak served-model identity; operators who accept weaker external identity
+  use `served_model_reference` instead.
+- The served-model name remains an explicit, separate fact. It is never
+  inferred from the checkpoint path, directory basename, repository id,
+  label, or model id. Direct `--model-path` with `--backend vllm` remains an
+  invalid legacy combination; the checkpoint root comes only from an
+  explicit `checkpoint_directory` profile path.
+- Readiness remains authoritative: if the requested served model is not
+  listed by the server, the run fails before generation with
+  `served_model_mismatch`. LLMGauge never selects a fallback model from
+  `/v1/models`.
+
+Binding evidence (`runtime.checkpoint_binding`,
+`llmgauge.vllm_checkpoint_binding.v0`): an external server does not prove
+which local checkpoint bytes it loaded, so the relationship between the
+LLMGauge-observed local checkpoint identity and the server-listed served
+model is recorded with provenance class `operator_declared` — the operator
+configured the checkpoint path and served name as one profile/run. The
+record stores the requested and observed served names, the checkpoint
+public display fingerprint (a linkage, never the private manifest), the
+local-observation source of the checkpoint identity, and an explicit
+evidence-ceiling statement. Stronger classes (`llmgauge_observed`) belong to
+the future managed lifecycle and are rejected by the validator for
+external-operator results; `server_reported` is not admitted for the
+checkpoint association at all, because a model listing attests only the
+server's own served identity.
+
+Identity boundaries preserved in results and reports:
+
+- Tokenizer and chat-template identity are checkpoint facts observed from
+  hashed local files. The effective server-side rendering template is
+  `unobserved`; LLMGauge must not claim the server used the local template.
+- Checkpoint-declared quantization comes from hashed local metadata.
+  Effective runtime quantization remains `unavailable` for external vLLM:
+  no accepted observation surface proves it. The profile `quant` field stays
+  an operator/descriptive label and is never upgraded to verified
+  quantization.
+- When a valid sampling profile is selected for a vLLM run, its canonical
+  profile identity is persisted in `runtime.profile` exactly as for
+  llama.cpp results. This is evidence persistence only: the admitted vLLM
+  request settings (temperature/top-p; top-k/min-p/seed rejected) and
+  request-body semantics are unchanged.
+
+Run fingerprint: an external-server checkpoint-bound run cannot use the
+frozen v6 payload, whose backend identity inherits the direct-process
+executable SHA-256 requirement that no operator-managed server can honestly
+satisfy. Such runs use the new `llmgauge.run_fingerprint.v7` payload, which
+identifies the preserved evaluation evidence — checkpoint manifest identity,
+operator-declared binding record, server-reported `/version` (required;
+without it the fingerprint is unavailable with a precise reason while the
+result stays valid), sampling-profile identity where selected, and request
+artifact hashes — and never attests the server binary. The local endpoint
+identity and the absolute checkpoint root are never payload inputs.
+`served_model_reference` results gain no fingerprint from this milestone.
+
 ## vLLM backend provenance
 
 Requested configuration and observed implementation are separate fields with
