@@ -266,10 +266,11 @@ established now.
 Placement: `model_format` belongs in the checkpoint-provenance record
 (alongside `checkpoint_quantization`) and in the fingerprint model identity
 for directory provenance, because it is a property of the checkpoint bytes,
-not of the runtime. It is a new *optional* field for existing v6 payloads —
-but changing v6 payload content is frozen-version territory, so its
+not of the runtime. It is a new *optional* field for existing v6/v7 payloads
+— but changing frozen payload content is frozen-version territory, so its
 introduction rides the same future milestone that adopts manifest v1 and a
-`run_fingerprint.v7` (see §16).
+new run-fingerprint payload version (the next unallocated version; M3 has
+since consumed v7 for the server-backed checkpoint identity — see §16).
 
 ## 8. EXL2/EXL3 detection contract (fail-closed)
 
@@ -540,10 +541,10 @@ Revised ordered program:
 | M1 | runtime-neutral model representation/profile contract | done |
 | M2 | directory-model provenance + fingerprint eligibility (v0) | done |
 | M2.5 | EXL/ExLlama qualification (this document) | done |
-| M3 | vLLM first-class model identity | next |
+| M3 | vLLM first-class model identity | done (consumed run-fingerprint v7) |
 | M4 | vLLM managed-local lifecycle | planned |
 | M5 | vLLM workflow parity | planned |
-| M8 | EXL manifest v1 + `model_format` identity (provenance extension, detection, fingerprint v7) | inserted before M6 |
+| M8 | EXL manifest v1 + `model_format` identity (provenance extension, detection, next unallocated fingerprint version) | inserted before M6 |
 | M9 | ExLlamaV3 external-server adapter (TabbyAPI transport, identity, evidence) | inserted before M7 |
 | M10 | ExLlamaV3 managed lifecycle + workflow parity | planned |
 | M11 | EXL2/ExLlamaV2 compatibility lane (pinned TabbyAPI `exl2-checkpoint`) | planned after M10 |

@@ -355,6 +355,52 @@ def _runtime_setting_groups(results: list[dict[str, Any]]) -> list[list[Any]]:
     ]
 
 
+def _checkpoint_identity_values(results: list[dict[str, Any]]) -> list[str]:
+    """Public checkpoint fingerprints of directory-bound runs in the set.
+
+    Only runs carrying M2 checkpoint-directory provenance contribute. Two
+    distinct fingerprints mean the compared runs evaluated different local
+    checkpoint bytes even when served-model display names match.
+    """
+
+    def extract(result: dict[str, Any]) -> str | None:
+        provenance = result.get("model", {}).get("provenance")
+        if (
+            isinstance(provenance, dict)
+            and provenance.get("provenance_kind") == "checkpoint_directory_manifest"
+        ):
+            fingerprint = provenance.get("public_fingerprint")
+            return fingerprint if isinstance(fingerprint, str) and fingerprint else None
+        return None
+
+    return _unique_nonempty_values(results, extract)
+
+
+def _checkpoint_identity_disclosures(results: list[dict[str, Any]]) -> list[str]:
+    """Per-run checkpoint/binding disclosure strings (empty when none bound)."""
+
+    disclosures: list[str] = []
+    for result in results:
+        provenance = result.get("model", {}).get("provenance")
+        if (
+            not isinstance(provenance, dict)
+            or provenance.get("provenance_kind") != "checkpoint_directory_manifest"
+        ):
+            continue
+        binding = result.get("runtime", {}).get("checkpoint_binding")
+        binding_class = (
+            binding.get("binding_provenance_class")
+            if isinstance(binding, dict)
+            else "unrecorded"
+        )
+        served = result.get("model", {}).get("served_model")
+        disclosures.append(
+            f"{provenance.get('public_fingerprint') or 'unavailable'} "
+            f"(served: {served or 'unknown'}, binding: {binding_class})"
+        )
+    return disclosures
+
+
 def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     suite_ids = _unique_nonempty_values(
         results, lambda result: result.get("suite", {}).get("suite_id")
@@ -460,12 +506,18 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(len(values) > 1 for values in _runtime_setting_groups(results))
+    # M3: distinct local checkpoint identities are never like-for-like, even
+    # when a served-model display name matches. Runs without checkpoint
+    # provenance (GGUF, served_model_reference) contribute nothing here, so
+    # historical comparison behavior is unchanged.
+    mixed_checkpoint_identity = len(_checkpoint_identity_values(results)) > 1
 
     like_for_like = (
         not mixed_suite
         and not mixed_suite_versions
         and not mixed_runtime
         and not prompt_sets_differ
+        and not mixed_checkpoint_identity
     )
 
     lines = [
@@ -537,6 +589,20 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
         "- Publishing unreviewed automatic-rule drafts as final human judgment.",
         "",
     ]
+    checkpoint_disclosures = _checkpoint_identity_disclosures(results)
+    if checkpoint_disclosures:
+        # Additive disclosure only when a directory-bound run participates:
+        # llama-only and served-only comparison output stays byte-stable.
+        lines.insert(
+            next(
+                index
+                for index, line in enumerate(lines)
+                if line.startswith("- Model IDs:")
+            )
+            + 1,
+            "- Checkpoint identities (public fingerprint / served name / "
+            f"binding class): {', '.join(checkpoint_disclosures)}",
+        )
     if vendor_aligned_present:
         lines.insert(
             next(
@@ -565,6 +631,12 @@ def _build_comparison_scope(results: list[dict[str, Any]]) -> list[str]:
             )
         if mixed_runtime:
             caveats.append("Runtime settings differ across runs.")
+        if mixed_checkpoint_identity:
+            caveats.append(
+                "Directory-bound runs carry different local checkpoint manifest "
+                "fingerprints: matching served-model display names do not "
+                "establish the same checkpoint bytes."
+            )
         if prompt_sets_differ:
             caveats.append("Prompt sets differ across runs.")
         if caveats:
@@ -637,6 +709,7 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     mixed_suite_versions = len(suite_versions) > 1
     mixed_model = len(model_ids) > 1
     mixed_runtime = any(len(values) > 1 for values in _runtime_setting_groups(results))
+    mixed_checkpoint_identity = len(_checkpoint_identity_values(results)) > 1
 
     lines = [
         "## Publish Readiness Notes",
@@ -666,6 +739,8 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
         f"- Mixed suite versions: {'yes' if mixed_suite_versions else 'no'}",
         f"- Mixed model IDs: {'yes' if mixed_model else 'no'}",
         f"- Mixed runtime settings: {'yes' if mixed_runtime else 'no'}",
+        "- Mixed directory-bound checkpoint identities: "
+        f"{'yes' if mixed_checkpoint_identity else 'no'}",
         "",
         "### Claim boundaries",
         "",
@@ -713,6 +788,13 @@ def _build_publish_readiness_notes(results: list[dict[str, Any]]) -> list[str]:
     if mixed_runtime:
         limited_claims.append(
             "Runtime settings differ across runs, so speed and VRAM comparisons are not like-for-like."
+        )
+    if mixed_checkpoint_identity:
+        limited_claims.append(
+            "Directory-bound runs in this comparison carry different local "
+            "checkpoint manifest fingerprints; matching served-model display "
+            "names do not establish the same checkpoint bytes, and quality "
+            "claims across them are not same-model claims."
         )
     if reasoning_mode_unknown_or_mixed:
         limited_claims.append(

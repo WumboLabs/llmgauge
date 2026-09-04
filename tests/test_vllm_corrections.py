@@ -513,9 +513,14 @@ def test_gate_checkpoint_directory_rejected_for_llama_before_runner(
     assert "not a file" not in message
 
 
-def test_gate_checkpoint_directory_rejected_for_vllm_before_execution(
+def test_gate_checkpoint_directory_vllm_requires_eligible_provenance_before_http(
     tmp_path: Path, monkeypatch
 ) -> None:
+    # M3 changes exactly this capability: checkpoint_directory + vLLM is no
+    # longer a blanket rejection. It is admitted only when the local
+    # checkpoint yields available, fingerprint-eligible M2 provenance. The
+    # gate fixture checkpoint is an empty directory, so provenance is
+    # unavailable and the run must still fail closed before any HTTP call.
     def fail_if_called(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("vLLM execution must not be reached")
 
@@ -526,12 +531,13 @@ def test_gate_checkpoint_directory_rejected_for_vllm_before_execution(
             "native_ckpt",
             backend="vllm",
             vllm_endpoint="http://127.0.0.1:8000/v1",
-            served_model="ignored",
+            served_model="explicit-served-name",
         )
     message = str(exc.value)
-    assert "does not support model source kind" in message
     assert "checkpoint_directory" in message
-    assert "not implemented" in message
+    assert "fingerprint-eligible" in message
+    assert "unavailable" in message
+    assert "served_model_reference" in message
 
 
 def test_gate_served_reference_vllm_keeps_bounded_path(tmp_path: Path) -> None:

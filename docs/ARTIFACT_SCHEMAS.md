@@ -1151,6 +1151,70 @@ directory basename, or the shortened public fingerprint. Existing v0-v5
 payloads are frozen: GGUF and served-model results keep their existing
 versions, payload bytes, and verification behavior unchanged.
 
+Results whose model provenance is an admitted `checkpoint_directory_manifest`
+record bound to an external vLLM server run (M3) use
+`llmgauge.run_fingerprint.v7` and a v7 payload. v7 keeps the v6 model-identity
+boundary (recomputed manifest fingerprint, tokenizer and chat-template
+identity, declared/effective quantization, ordered manifest entries) but
+replaces the direct-process backend identity with a server-backed identity:
+backend `vllm`, runtime provenance kind `external_server`, the observed
+server-reported `/version` string and its source, the API-readiness state,
+the ordered-unique opaque `system_fingerprint` summary, and the
+checkpoint-to-served-model binding record. v7 never claims server-binary
+attestation: an operator-managed server has no LLMGauge-observed executable
+SHA-256, none is invented, and the checkpoint hash is never reused as
+runtime identity. A non-empty observed `/version` is required for v7
+construction; without it the run fingerprint is unavailable with a precise
+reason while the result itself remains valid under the external-server
+evidence ceiling. The local endpoint host/IP/port and the absolute
+checkpoint root are never payload inputs. v7 is emitted only for
+checkpoint-directory provenance with a server binding record: GGUF results,
+direct-process checkpoint results (v6), and `served_model_reference` vLLM
+results (no fingerprint) keep their existing selection unchanged. Existing
+v0-v6 payloads are frozen: their bytes and verification behavior are
+unchanged and regression-pinned.
+
+## Schema: llmgauge.vllm_checkpoint_binding.v0
+
+Optional additive `runtime.checkpoint_binding` object for a vLLM run bound to
+a local checkpoint directory (M3). Its presence alongside
+`checkpoint_directory_manifest` model provenance selects the v7 run
+fingerprint. Top-level expected keys:
+
+    schema_version
+    status
+    binding_provenance_class
+    lifecycle_ownership
+    requested_served_model
+    observed_served_model
+    served_model_observation_source
+    checkpoint_public_fingerprint
+    checkpoint_identity_source
+    evidence_ceiling
+    effective_runtime_chat_template
+    effective_runtime_quantization
+    fingerprint_eligible
+    fingerprint_ineligible_reason (present only when ineligible)
+
+Semantics: `status` is `bound` when the requested served model was observed
+in the server listing and `unbound` otherwise. `binding_provenance_class` is
+`operator_declared` for external-server results; the vocabulary also names
+`server_reported` and `llmgauge_observed`, but validators reject any class
+other than `operator_declared` while `lifecycle_ownership` is
+`external_operator`, because a server listing attests only the server's own
+served identity, never the local checkpoint bytes behind it.
+`checkpoint_public_fingerprint` is the shortened `sha256:`+16 display
+fingerprint linking to `model.provenance`; the full manifest, full hashes,
+and the absolute checkpoint root are never recorded here (validators reject
+path-shaped fields). `effective_runtime_chat_template` is `unobserved` and
+`effective_runtime_quantization` is `unavailable`: the external server's
+actual rendering template and loaded quantization are not observable from
+the client side under this contract. `fingerprint_eligible` is true only
+when the binding is `bound` and a non-`unknown` server `/version` was
+observed; ineligible records carry a precise
+`fingerprint_ineligible_reason`. Historical vLLM results without this object
+remain valid; `llmgauge.result.v0` is not bumped.
+
 ## Context ladder directory
 
 A context ladder directory contains:

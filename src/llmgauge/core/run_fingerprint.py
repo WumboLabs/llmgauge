@@ -21,6 +21,8 @@ RUN_FINGERPRINT_SCHEMA_VERSION_V5 = "llmgauge.run_fingerprint.v5"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V5 = "llmgauge.run_fingerprint_payload.v5"
 RUN_FINGERPRINT_SCHEMA_VERSION_V6 = "llmgauge.run_fingerprint.v6"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V6 = "llmgauge.run_fingerprint_payload.v6"
+RUN_FINGERPRINT_SCHEMA_VERSION_V7 = "llmgauge.run_fingerprint.v7"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V7 = "llmgauge.run_fingerprint_payload.v7"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -293,7 +295,10 @@ def _model_identity(
     *,
     payload_version: str = RUN_FINGERPRINT_PAYLOAD_VERSION,
 ) -> dict[str, Any]:
-    if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V6:
+    if payload_version in {
+        RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+        RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+    }:
         return _directory_model_identity(model)
     provenance = model.get("provenance")
     if not isinstance(provenance, Mapping):
@@ -347,6 +352,108 @@ def _backend_identity(runtime: Mapping[str, Any]) -> dict[str, Any]:
                 "discovery_status",
             ],
         ),
+    }
+
+
+def _server_backend_identity(
+    runtime: Mapping[str, Any],
+    model: Mapping[str, Any],
+) -> dict[str, Any]:
+    """v7 backend identity for an external-server-backed vLLM run.
+
+    An operator-managed vLLM server has no LLMGauge-observed executable
+    SHA-256, so v7 never claims server-binary attestation. It identifies the
+    preserved evaluation evidence: backend id, external lifecycle class, the
+    observed server-reported ``/version`` string (required, never inferred),
+    the opaque per-request ``system_fingerprint`` summary (optional evidence,
+    never the sole runtime identity), and the checkpoint<->served-model
+    binding record. The local endpoint identity and the absolute checkpoint
+    root are never payload inputs.
+    """
+
+    from llmgauge.core.checkpoint_binding import (
+        BINDING_CLASS_OPERATOR_DECLARED,
+        CHECKPOINT_BINDING_SCHEMA_VERSION,
+    )
+
+    if runtime.get("backend") != "vllm":
+        raise FingerprintUnavailable(
+            "server-backed fingerprint identity requires backend=vllm"
+        )
+    provenance = runtime.get("backend_provenance")
+    if not isinstance(provenance, Mapping):
+        raise FingerprintUnavailable("backend provenance is unavailable")
+    if provenance.get("lifecycle_ownership") != "external_operator":
+        raise FingerprintUnavailable(
+            "v7 represents the external-operator server lifecycle only; "
+            "managed-lifecycle identity belongs to a later contract"
+        )
+    version = provenance.get("vllm_version")
+    if not isinstance(version, str) or not version or version == "unknown":
+        raise FingerprintUnavailable(
+            "observed vLLM server version is unavailable; a server-backed run "
+            "fingerprint requires a non-empty server /version observation"
+        )
+    if provenance.get("vllm_version_source") != "server_/version":
+        raise FingerprintUnavailable(
+            "vLLM server version must be sourced from the server /version "
+            "endpoint for fingerprint eligibility"
+        )
+
+    binding = runtime.get("checkpoint_binding")
+    if not isinstance(binding, Mapping):
+        raise FingerprintUnavailable("checkpoint binding record is unavailable")
+    if binding.get("schema_version") != CHECKPOINT_BINDING_SCHEMA_VERSION:
+        raise FingerprintUnavailable(
+            "checkpoint binding record is not the admitted v0 binding schema"
+        )
+    if binding.get("binding_provenance_class") != BINDING_CLASS_OPERATOR_DECLARED:
+        raise FingerprintUnavailable(
+            "external-server checkpoint binding must be operator_declared"
+        )
+    requested = binding.get("requested_served_model")
+    observed = binding.get("observed_served_model")
+    if not isinstance(requested, str) or not requested:
+        raise FingerprintUnavailable("binding requested served model is unavailable")
+    if observed != requested:
+        raise FingerprintUnavailable(
+            "binding observed served model does not match the requested name"
+        )
+    if requested != provenance.get("requested_served_model"):
+        raise FingerprintUnavailable(
+            "binding requested served model disagrees with backend provenance"
+        )
+    model_provenance = model.get("provenance")
+    if not isinstance(model_provenance, Mapping):
+        raise FingerprintUnavailable("model provenance is unavailable")
+    if binding.get("checkpoint_public_fingerprint") != model_provenance.get(
+        "public_fingerprint"
+    ):
+        raise FingerprintUnavailable(
+            "binding checkpoint public fingerprint does not match model provenance"
+        )
+
+    return {
+        "backend": runtime.get("backend"),
+        "runtime_provenance_kind": "external_server",
+        "provenance": _selected_mapping(
+            provenance,
+            [
+                "backend_name",
+                "lifecycle_ownership",
+                "requested_served_model",
+                "observed_served_model",
+                "vllm_version",
+                "vllm_version_source",
+                "server_state",
+                "status",
+                "discovery_status",
+            ],
+        ),
+        "observed_system_fingerprints": list(
+            provenance.get("observed_system_fingerprints") or []
+        ),
+        "checkpoint_binding": dict(binding),
     }
 
 
@@ -548,12 +655,35 @@ def _checkpoint_directory_identity_is_represented(result: Mapping[str, Any]) -> 
     )
 
 
+def _server_backed_checkpoint_identity_is_represented(
+    result: Mapping[str, Any],
+) -> bool:
+    """True when a checkpoint-directory result carries a vLLM server binding.
+
+    This is the M3 selection key: checkpoint-directory model provenance bound
+    to an external vLLM server run. It never matches served_model_reference
+    results (they carry no checkpoint provenance) and never matches direct
+    process runs (they carry no server binding record).
+    """
+
+    if not _checkpoint_directory_identity_is_represented(result):
+        return False
+    runtime = result.get("runtime")
+    return (
+        isinstance(runtime, Mapping)
+        and runtime.get("backend") == "vllm"
+        and isinstance(runtime.get("checkpoint_binding"), Mapping)
+    )
+
+
 def _profile_evidence_is_represented(result: Mapping[str, Any]) -> bool:
     runtime = result.get("runtime")
     return isinstance(runtime, Mapping) and runtime.get("profile") is not None
 
 
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _server_backed_checkpoint_identity_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V7, RUN_FINGERPRINT_PAYLOAD_VERSION_V7
     if _checkpoint_directory_identity_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V6, RUN_FINGERPRINT_PAYLOAD_VERSION_V6
     if _profile_evidence_is_represented(result):
@@ -587,6 +717,7 @@ def build_run_fingerprint_payload(
             RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
         }
         and _area4_is_represented(result)
     )
@@ -707,7 +838,11 @@ def build_run_fingerprint_payload(
         "result_schema_version": result.get("schema_version"),
         "llmgauge_version": result.get("llmgauge_version"),
         "model": _model_identity(model, payload_version=payload_version),
-        "backend": _backend_identity(runtime),
+        "backend": (
+            _server_backend_identity(runtime, model)
+            if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V7
+            else _backend_identity(runtime)
+        ),
         "runtime_settings": _runtime_settings(
             runtime,
             include_extended_settings=payload_version
@@ -716,12 +851,14 @@ def build_run_fingerprint_payload(
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
             },
             include_control_settings=payload_version
             in {
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
             },
         ),
         "suite": suite_identity,
@@ -740,7 +877,10 @@ def build_run_fingerprint_payload(
         if not isinstance(profile, Mapping):
             raise FingerprintUnavailable("runtime.profile is unavailable")
         payload["runtime_profile"] = dict(profile)
-    elif payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V6:
+    elif payload_version in {
+        RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+        RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+    }:
         profile = runtime.get("profile")
         if isinstance(profile, Mapping):
             payload["runtime_profile"] = dict(profile)
@@ -834,6 +974,7 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V7,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
@@ -842,8 +983,9 @@ def verify_run_fingerprint(
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}, "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}, or "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V6}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V6}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V7}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -854,7 +996,13 @@ def verify_run_fingerprint(
 
     if errors:
         return errors
-    if (
+    if _server_backed_checkpoint_identity_is_represented(result):
+        if schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V7:
+            return [
+                "server-backed checkpoint-directory provenance requires a v7 "
+                "run_fingerprint when represented"
+            ]
+    elif (
         _checkpoint_directory_identity_is_represented(result)
         and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V6
     ):
@@ -908,12 +1056,15 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V7,
     }:
         errors.append(
-            "Area 4 evidence requires a v1, v3, v4, v5, or v6 run_fingerprint "
-            "when represented"
+            "Area 4 evidence requires a v1, v3, v4, v5, v6, or v7 "
+            "run_fingerprint when represented"
         )
-    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V6:
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V7:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V7
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V6:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V6
     elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V5:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V5

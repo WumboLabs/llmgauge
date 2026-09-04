@@ -462,13 +462,44 @@ def _project_public_checkpoint_identity(data: Any, categories: set[str]) -> Any:
             "status": quantization.get("status"),
             "method": quantization.get("method"),
         },
-        "effective_quantization_status": "unavailable",
+        "effective_quantization_status": (
+            provenance.get("effective_quantization", {}).get("status")
+            if isinstance(provenance.get("effective_quantization"), dict)
+            else "unavailable"
+        ),
     }
     warnings = provenance.get("warnings")
     if isinstance(warnings, list):
         projection["warnings"] = [
             warning for warning in warnings if isinstance(warning, str)
         ]
+    runtime = data.get("runtime")
+    binding = runtime.get("checkpoint_binding") if isinstance(runtime, dict) else None
+    if isinstance(binding, dict):
+        # M3: the public derivative keeps only the bounded binding facts:
+        # status, the operator-declared class, requested/observed served
+        # names, the shortened checkpoint fingerprint linkage, and the
+        # evidence-ceiling statement. Private reason strings and any path-
+        # shaped field are withheld by construction (explicit field list).
+        categories.add("checkpoint_binding_projected")
+        projection["binding"] = {
+            "schema_version": binding.get("schema_version"),
+            "status": binding.get("status"),
+            "binding_provenance_class": binding.get("binding_provenance_class"),
+            "requested_served_model": binding.get("requested_served_model"),
+            "observed_served_model": binding.get("observed_served_model"),
+            "checkpoint_public_fingerprint": binding.get(
+                "checkpoint_public_fingerprint"
+            ),
+            "evidence_ceiling": binding.get("evidence_ceiling"),
+            "effective_runtime_chat_template": binding.get(
+                "effective_runtime_chat_template"
+            ),
+            "effective_runtime_quantization": binding.get(
+                "effective_runtime_quantization"
+            ),
+        }
+        runtime.pop("checkpoint_binding", None)
     model.pop("provenance", None)
     model["checkpoint_identity"] = projection
     return data

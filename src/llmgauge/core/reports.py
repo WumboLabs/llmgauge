@@ -401,6 +401,17 @@ def _checkpoint_provenance_report_lines(result: dict[str, Any]) -> list[str]:
     repository_id = provenance.get("repository_id")
     revision = provenance.get("revision")
 
+    runtime = result.get("runtime")
+    binding = (
+        runtime.get("checkpoint_binding") if isinstance(runtime, Mapping) else None
+    )
+    effective_quantization_line = (
+        "- Effective runtime quantization: unavailable (no defensible runtime "
+        "observation)"
+        if isinstance(binding, Mapping)
+        else "- Effective runtime quantization: unavailable (no runtime "
+        "observation in this milestone)"
+    )
     lines = [
         "### Checkpoint Directory Provenance",
         "",
@@ -422,7 +433,7 @@ def _checkpoint_provenance_report_lines(result: dict[str, Any]) -> list[str]:
         ),
         f"- Checkpoint-declared quantization: {quantization.get('status') or 'unknown'}"
         + (f" ({quantization.get('method')})" if quantization.get("method") else ""),
-        "- Effective runtime quantization: unavailable (no runtime observation in this milestone)",
+        effective_quantization_line,
         f"- Run-fingerprint eligibility: {'eligible' if provenance.get('fingerprint_eligible') else 'ineligible'}",
     ]
     if provenance.get("architecture"):
@@ -439,6 +450,36 @@ def _checkpoint_provenance_report_lines(result: dict[str, Any]) -> list[str]:
         "- Boundary: the shortened fingerprint is a display identifier; full "
         "manifest hashes and the local checkpoint root remain private evidence."
     )
+    if isinstance(binding, Mapping):
+        lines.extend(
+            [
+                "",
+                "#### Server Identity and Checkpoint Binding",
+                "",
+                f"- Runtime backend: {runtime.get('backend') or 'unknown'} "
+                f"(lifecycle: {binding.get('lifecycle_ownership') or 'unknown'})",
+                f"- Observed vLLM version (server /version): "
+                f"{runtime.get('vllm_version') or 'unknown'}",
+                f"- Requested served model: {binding.get('requested_served_model') or 'unknown'}",
+                f"- Observed served model (server listing): "
+                f"{binding.get('observed_served_model') or 'not observed'}",
+                f"- Binding status: {binding.get('status') or 'unknown'}",
+                f"- Binding provenance class: "
+                f"{binding.get('binding_provenance_class') or 'unknown'}",
+                "- Local checkpoint identity: LLMGauge-observed from local files "
+                "(the server does not report it).",
+                f"- Binding caveat: {binding.get('evidence_ceiling')}",
+                "- Effective runtime chat template: unobserved (the server may "
+                "render with a template LLMGauge cannot see; the checkpoint "
+                "template identity above is a local-file fact, not proof of "
+                "what the server used).",
+                f"- Server-backed run-fingerprint eligibility: "
+                f"{'eligible' if binding.get('fingerprint_eligible') else 'ineligible'}",
+            ]
+        )
+        reason = binding.get("fingerprint_ineligible_reason")
+        if isinstance(reason, str) and reason:
+            lines.append(f"- Fingerprint ineligibility reason: {reason}")
     lines.append("")
     return lines
 
