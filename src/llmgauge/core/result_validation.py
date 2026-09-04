@@ -1464,6 +1464,288 @@ def _validate_optional_generic_core(
     return errors
 
 
+def _is_sha256_hex(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _is_normalized_relative_path(value: Any) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith("/") or "\\" in value or "\x00" in value:
+        return False
+    parts = value.split("/")
+    return all(part not in {"", ".", ".."} for part in parts)
+
+
+def _validate_directory_model_provenance(
+    provenance: dict[str, Any],
+) -> list[str]:
+    """Validate additive checkpoint-directory provenance from persisted evidence.
+
+    Recomputes the canonical manifest fingerprint, public fingerprint, and
+    tokenizer fingerprint from the preserved private manifest entries. This
+    never requires the original local checkpoint directory to remain present.
+    """
+
+    from llmgauge.core.checkpoint_provenance import (
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        CHECKPOINT_PROVENANCE_KIND,
+        checkpoint_manifest_fingerprint,
+        checkpoint_tokenizer_identity_fingerprint,
+    )
+    from llmgauge.core.identity import public_model_fingerprint
+
+    errors: list[str] = []
+    label = "model.provenance (checkpoint directory)"
+    status = provenance.get("status")
+    if status not in {"available", "partial", "unavailable"}:
+        errors.append(f"{label}.status must be available, partial, or unavailable")
+    if provenance.get("provenance_kind") != CHECKPOINT_PROVENANCE_KIND:
+        errors.append(f"{label}.provenance_kind must be {CHECKPOINT_PROVENANCE_KIND}")
+    if provenance.get("manifest_schema") != CHECKPOINT_MANIFEST_SCHEMA_VERSION:
+        errors.append(
+            f"{label}.manifest_schema must be {CHECKPOINT_MANIFEST_SCHEMA_VERSION}"
+        )
+    eligible = provenance.get("fingerprint_eligible")
+    if not isinstance(eligible, bool):
+        errors.append(f"{label}.fingerprint_eligible must be a boolean")
+
+    manifest = provenance.get("manifest")
+    if status == "unavailable":
+        if manifest is not None:
+            errors.append(f"{label}.manifest must be null when unavailable")
+        if provenance.get("manifest_sha256") is not None:
+            errors.append(f"{label}.manifest_sha256 must be null when unavailable")
+        if provenance.get("public_fingerprint") is not None:
+            errors.append(f"{label}.public_fingerprint must be null when unavailable")
+        if eligible is True:
+            errors.append(f"{label} must not be fingerprint eligible when unavailable")
+        reason = provenance.get("fingerprint_ineligible_reason")
+        if not isinstance(reason, str) or not reason:
+            errors.append(
+                f"{label}.fingerprint_ineligible_reason must explain an unavailable "
+                "record"
+            )
+        return errors
+
+    if not isinstance(manifest, list) or not manifest:
+        errors.append(f"{label}.manifest must be a non-empty list of entries")
+        return errors
+
+    entries: list[dict[str, Any]] = []
+    seen_paths: set[str] = set()
+    for index, entry in enumerate(manifest):
+        entry_label = f"{label}.manifest[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{entry_label} must be an object")
+            continue
+        if set(entry) != {"path", "size", "sha256"}:
+            errors.append(f"{entry_label} must contain exactly path, size, and sha256")
+            continue
+        path = entry.get("path")
+        size = entry.get("size")
+        sha256 = entry.get("sha256")
+        if not _is_normalized_relative_path(path):
+            errors.append(
+                f"{entry_label}.path must be a normalized relative path: {path!r}"
+            )
+            continue
+        if path in seen_paths:
+            errors.append(f"{entry_label}.path duplicates an earlier entry: {path}")
+            continue
+        seen_paths.add(path)
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            errors.append(f"{entry_label}.size must be a non-negative integer")
+            continue
+        if not _is_sha256_hex(sha256):
+            errors.append(f"{entry_label}.sha256 must be 64 lowercase hex characters")
+            continue
+        entries.append({"path": path, "size": size, "sha256": sha256})
+
+    entry_paths = [entry["path"] for entry in entries]
+    if entry_paths != sorted(entry_paths):
+        errors.append(f"{label}.manifest entries must be sorted by path")
+
+    recomputed = checkpoint_manifest_fingerprint(entries) if entries else None
+    manifest_sha256 = provenance.get("manifest_sha256")
+    if not _is_sha256_hex(manifest_sha256):
+        errors.append(f"{label}.manifest_sha256 must be 64 lowercase hex characters")
+    elif recomputed is not None and manifest_sha256 != recomputed:
+        errors.append(
+            f"{label}.manifest_sha256 does not match the recomputed canonical "
+            "manifest fingerprint"
+        )
+    public_fingerprint = provenance.get("public_fingerprint")
+    if not isinstance(public_fingerprint, str) or not (
+        public_fingerprint.startswith("sha256:")
+        and len(public_fingerprint) == len("sha256:") + 16
+    ):
+        errors.append(f"{label}.public_fingerprint must be sha256:<16 hex characters>")
+    elif recomputed is not None and public_fingerprint != public_model_fingerprint(
+        recomputed
+    ):
+        errors.append(
+            f"{label}.public_fingerprint does not match the recomputed manifest "
+            "fingerprint"
+        )
+
+    entry_count = provenance.get("entry_count")
+    if entry_count != len(manifest):
+        errors.append(
+            f"{label}.entry_count must match the manifest length ({len(manifest)})"
+        )
+    weight_file_count = provenance.get("weight_file_count")
+    if (
+        not isinstance(weight_file_count, int)
+        or isinstance(weight_file_count, bool)
+        or weight_file_count < 1
+        or weight_file_count > len(manifest)
+    ):
+        errors.append(
+            f"{label}.weight_file_count must be between 1 and the manifest length"
+        )
+
+    tokenizer_identity = provenance.get("tokenizer_identity")
+    if not isinstance(tokenizer_identity, dict):
+        errors.append(f"{label}.tokenizer_identity must be an object")
+    else:
+        tokenizer_status = tokenizer_identity.get("status")
+        if tokenizer_status not in {"available", "unavailable"}:
+            errors.append(
+                f"{label}.tokenizer_identity.status must be available or unavailable"
+            )
+        files = tokenizer_identity.get("files")
+        if not isinstance(files, list) or any(
+            not isinstance(name, str) or name not in seen_paths for name in files
+        ):
+            errors.append(
+                f"{label}.tokenizer_identity.files must list manifest entry paths"
+            )
+        elif tokenizer_status == "available":
+            if not files:
+                errors.append(
+                    f"{label}.tokenizer_identity requires at least one file "
+                    "when available"
+                )
+            else:
+                by_path = {entry["path"]: entry for entry in entries}
+                selected = [by_path[name] for name in files if name in by_path]
+                recomputed_tokenizer = (
+                    checkpoint_tokenizer_identity_fingerprint(selected)
+                    if len(selected) == len(files)
+                    else None
+                )
+                tokenizer_sha256 = tokenizer_identity.get("sha256")
+                if not _is_sha256_hex(tokenizer_sha256):
+                    errors.append(
+                        f"{label}.tokenizer_identity.sha256 must be 64 lowercase "
+                        "hex characters"
+                    )
+                elif (
+                    recomputed_tokenizer is not None
+                    and tokenizer_sha256 != recomputed_tokenizer
+                ):
+                    errors.append(
+                        f"{label}.tokenizer_identity.sha256 does not match the "
+                        "recomputed tokenizer fingerprint"
+                    )
+                tokenizer_public = tokenizer_identity.get("public_fingerprint")
+                if recomputed_tokenizer is not None and tokenizer_public != (
+                    public_model_fingerprint(str(tokenizer_sha256))
+                    if _is_sha256_hex(tokenizer_sha256)
+                    else None
+                ):
+                    errors.append(
+                        f"{label}.tokenizer_identity.public_fingerprint does not "
+                        "match its SHA-256"
+                    )
+
+    template_identity = provenance.get("chat_template_identity")
+    if not isinstance(template_identity, dict):
+        errors.append(f"{label}.chat_template_identity must be an object")
+    else:
+        template_status = template_identity.get("status")
+        if template_status not in {"available", "partial", "unavailable"}:
+            errors.append(
+                f"{label}.chat_template_identity.status must be available, "
+                "partial, or unavailable"
+            )
+        if not isinstance(template_identity.get("selection_method"), str):
+            errors.append(
+                f"{label}.chat_template_identity.selection_method must be a string"
+            )
+        template_sha256 = template_identity.get("sha256")
+        if template_status == "available":
+            if not _is_sha256_hex(template_sha256):
+                errors.append(
+                    f"{label}.chat_template_identity.sha256 must be 64 lowercase "
+                    "hex characters when available"
+                )
+            elif template_identity.get("public_fingerprint") != (
+                public_model_fingerprint(template_sha256)
+            ):
+                errors.append(
+                    f"{label}.chat_template_identity.public_fingerprint does not "
+                    "match its SHA-256"
+                )
+        elif template_sha256 is not None:
+            errors.append(
+                f"{label}.chat_template_identity.sha256 must be null unless available"
+            )
+
+    quantization = provenance.get("checkpoint_quantization")
+    if not isinstance(quantization, dict):
+        errors.append(f"{label}.checkpoint_quantization must be an object")
+    else:
+        quant_status = quantization.get("status")
+        if quant_status not in {"absent", "declared", "conflict", "unknown"}:
+            errors.append(
+                f"{label}.checkpoint_quantization.status must be absent, declared, "
+                "conflict, or unknown"
+            )
+        method = quantization.get("method")
+        if method is not None and not isinstance(method, str):
+            errors.append(f"{label}.checkpoint_quantization.method must be a string")
+        sources = quantization.get("sources")
+        if not isinstance(sources, list):
+            errors.append(f"{label}.checkpoint_quantization.sources must be a list")
+        else:
+            for source_index, source in enumerate(sources):
+                if (
+                    not isinstance(source, dict)
+                    or not isinstance(source.get("file"), str)
+                    or not isinstance(source.get("field"), str)
+                    or not isinstance(source.get("value"), str)
+                ):
+                    errors.append(
+                        f"{label}.checkpoint_quantization.sources[{source_index}] "
+                        "must record file, field, and value"
+                    )
+
+    warnings = provenance.get("warnings")
+    if not isinstance(warnings, list) or any(
+        not isinstance(warning, str) for warning in warnings
+    ):
+        errors.append(f"{label}.warnings must be a list of strings")
+
+    if status == "available" and eligible is not True:
+        errors.append(f"{label} with available status must be fingerprint eligible")
+    if status == "partial" and eligible is not False:
+        errors.append(f"{label} with partial status must not be fingerprint eligible")
+    if eligible is False:
+        reason = provenance.get("fingerprint_ineligible_reason")
+        if not isinstance(reason, str) or not reason:
+            errors.append(
+                f"{label}.fingerprint_ineligible_reason must explain an "
+                "ineligible record"
+            )
+    return errors
+
+
 def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
@@ -1553,6 +1835,13 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
         model_path = model.get("model_path")
         if model_path != "redacted":
             errors.append("model.model_path must be redacted")
+        model_provenance = model.get("provenance")
+        if (
+            isinstance(model_provenance, dict)
+            and model_provenance.get("provenance_kind")
+            == "checkpoint_directory_manifest"
+        ):
+            errors.extend(_validate_directory_model_provenance(model_provenance))
 
     runtime = data.get("runtime", {})
     if isinstance(runtime, dict):

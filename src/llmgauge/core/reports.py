@@ -375,6 +375,74 @@ def _result_min_vram_headroom_mib(result: dict[str, Any]) -> int | None:
     return min(values) if values else None
 
 
+def _checkpoint_provenance_report_lines(result: dict[str, Any]) -> list[str]:
+    """Render bounded checkpoint-directory identity without private manifest dumps."""
+
+    from llmgauge.core.checkpoint_provenance import CHECKPOINT_PROVENANCE_KIND
+
+    model = result.get("model")
+    provenance = model.get("provenance") if isinstance(model, Mapping) else None
+    if (
+        not isinstance(provenance, Mapping)
+        or provenance.get("provenance_kind") != CHECKPOINT_PROVENANCE_KIND
+    ):
+        return []
+
+    tokenizer_identity = provenance.get("tokenizer_identity")
+    tokenizer_identity = (
+        tokenizer_identity if isinstance(tokenizer_identity, Mapping) else {}
+    )
+    template_identity = provenance.get("chat_template_identity")
+    template_identity = (
+        template_identity if isinstance(template_identity, Mapping) else {}
+    )
+    quantization = provenance.get("checkpoint_quantization")
+    quantization = quantization if isinstance(quantization, Mapping) else {}
+    repository_id = provenance.get("repository_id")
+    revision = provenance.get("revision")
+
+    lines = [
+        "### Checkpoint Directory Provenance",
+        "",
+        "- Model source kind: checkpoint_directory",
+        f"- Provenance status: {provenance.get('status') or 'unknown'}",
+        f"- Checkpoint fingerprint (public): `{provenance.get('public_fingerprint') or 'unavailable'}`",
+        f"- Manifest entries: {provenance.get('entry_count') if provenance.get('entry_count') is not None else 'unavailable'}",
+        f"- Tokenizer identity: {tokenizer_identity.get('status') or 'unknown'}"
+        + (
+            f" (`{tokenizer_identity.get('public_fingerprint')}`)"
+            if tokenizer_identity.get("public_fingerprint")
+            else ""
+        ),
+        f"- Chat-template identity: {template_identity.get('status') or 'unknown'}"
+        + (
+            f" (`{template_identity.get('public_fingerprint')}`)"
+            if template_identity.get("public_fingerprint")
+            else ""
+        ),
+        f"- Checkpoint-declared quantization: {quantization.get('status') or 'unknown'}"
+        + (f" ({quantization.get('method')})" if quantization.get("method") else ""),
+        "- Effective runtime quantization: unavailable (no runtime observation in this milestone)",
+        f"- Run-fingerprint eligibility: {'eligible' if provenance.get('fingerprint_eligible') else 'ineligible'}",
+    ]
+    if provenance.get("architecture"):
+        lines.append(
+            f"- Checkpoint-declared architecture: {provenance['architecture']}"
+        )
+    if isinstance(repository_id, str) and repository_id:
+        lines.append(f"- Declared repository id (descriptive): {repository_id}")
+    if isinstance(revision, str) and revision:
+        lines.append(f"- Locally observed immutable revision (descriptive): {revision}")
+    for warning in provenance.get("warnings") or []:
+        lines.append(f"- Warning: {warning}")
+    lines.append(
+        "- Boundary: the shortened fingerprint is a display identifier; full "
+        "manifest hashes and the local checkpoint root remain private evidence."
+    )
+    lines.append("")
+    return lines
+
+
 def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
     run = result["run"]
     model = result["model"]
@@ -427,7 +495,7 @@ def _build_evidence_summary(result: dict[str, Any]) -> list[str]:
         "- Inspect raw and cleaned outputs in **Prompt Artifact Audit** before publication.",
         "",
     ]
-
+    lines.extend(_checkpoint_provenance_report_lines(result))
     return lines
 
 

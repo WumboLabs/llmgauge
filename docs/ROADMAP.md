@@ -1202,8 +1202,15 @@ implemented: profiles carry an optional `source_kind` discriminator
 (`gguf_file` / `checkpoint_directory` / `served_model_reference`) with legacy
 GGUF and bounded external-vLLM profiles unchanged; representation does not
 yet mean execution, and unsupported source-kind/backend combinations fail
-closed before any runner. The selected next implementation milestone is M2,
-directory-model provenance and fingerprint eligibility.
+closed before any runner. Milestone M2 (directory-model provenance collection
+and fingerprint eligibility) is implemented: checkpoint directories now have
+bounded local identity — a versioned canonical manifest, an identity-validated
+separate cache, tokenizer/chat-template identity, checkpoint-declared
+quantization evidence, additive `model.provenance` validation/report/export
+handling, and the new `llmgauge.run_fingerprint.v6` payload for manifest
+identity — with every existing GGUF fingerprint version and behavior frozen.
+Directory provenance is still not executable through any runtime. The
+selected next implementation milestone is M3, vLLM first-class model identity.
 
 Later runtime possibilities (Ollama, TensorRT-LLM, NVIDIA NIM) remain
 admissible through the same first-class acceptance contract, with no promised

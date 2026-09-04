@@ -19,6 +19,8 @@ RUN_FINGERPRINT_SCHEMA_VERSION_V4 = "llmgauge.run_fingerprint.v4"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V4 = "llmgauge.run_fingerprint_payload.v4"
 RUN_FINGERPRINT_SCHEMA_VERSION_V5 = "llmgauge.run_fingerprint.v5"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V5 = "llmgauge.run_fingerprint_payload.v5"
+RUN_FINGERPRINT_SCHEMA_VERSION_V6 = "llmgauge.run_fingerprint.v6"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V6 = "llmgauge.run_fingerprint_payload.v6"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -132,7 +134,167 @@ def _selected_mapping(source: Mapping[str, Any], keys: list[str]) -> dict[str, A
     return {key: source.get(key) for key in keys}
 
 
-def _model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
+def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
+    provenance = model.get("provenance")
+    if not isinstance(provenance, Mapping):
+        raise FingerprintUnavailable("model provenance is unavailable")
+
+    from llmgauge.core.checkpoint_provenance import (
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        CHECKPOINT_PROVENANCE_KIND,
+        checkpoint_manifest_fingerprint,
+        checkpoint_tokenizer_identity_fingerprint,
+    )
+    from llmgauge.core.identity import public_model_fingerprint
+
+    if provenance.get("provenance_kind") != CHECKPOINT_PROVENANCE_KIND:
+        raise FingerprintUnavailable(
+            "model provenance is not an admitted checkpoint-directory manifest"
+        )
+    if provenance.get("manifest_schema") != CHECKPOINT_MANIFEST_SCHEMA_VERSION:
+        raise FingerprintUnavailable(
+            "checkpoint manifest schema is not the admitted v0 manifest"
+        )
+    if provenance.get("fingerprint_eligible") is not True:
+        reason = provenance.get("fingerprint_ineligible_reason")
+        detail = reason if isinstance(reason, str) and reason else "no reason recorded"
+        raise FingerprintUnavailable(
+            f"checkpoint directory provenance is not fingerprint eligible: {detail}"
+        )
+    manifest = provenance.get("manifest")
+    if (
+        not isinstance(manifest, list)
+        or not manifest
+        or any(
+            not isinstance(entry, Mapping)
+            or not isinstance(entry.get("path"), str)
+            or not entry.get("path")
+            or not isinstance(entry.get("size"), int)
+            or isinstance(entry.get("size"), bool)
+            or not _sha256_is_available(entry.get("sha256"))
+            for entry in manifest
+        )
+    ):
+        raise FingerprintUnavailable("checkpoint manifest entries are unavailable")
+    entries = [
+        {
+            "path": entry["path"],
+            "size": entry["size"],
+            "sha256": entry["sha256"],
+        }
+        for entry in manifest
+    ]
+    recomputed_manifest_sha256 = checkpoint_manifest_fingerprint(entries)
+    if not _sha256_is_available(provenance.get("manifest_sha256")):
+        raise FingerprintUnavailable("checkpoint manifest SHA-256 is unavailable")
+    if provenance["manifest_sha256"] != recomputed_manifest_sha256:
+        raise FingerprintUnavailable(
+            "checkpoint manifest SHA-256 does not match the persisted manifest entries"
+        )
+    if provenance.get("public_fingerprint") != public_model_fingerprint(
+        recomputed_manifest_sha256
+    ):
+        raise FingerprintUnavailable(
+            "checkpoint public fingerprint does not match the manifest SHA-256"
+        )
+    tokenizer_identity = provenance.get("tokenizer_identity")
+    if not isinstance(tokenizer_identity, Mapping):
+        raise FingerprintUnavailable("checkpoint tokenizer identity is unavailable")
+    if tokenizer_identity.get("status") == "available":
+        tokenizer_files = tokenizer_identity.get("files")
+        by_path = {entry["path"]: entry for entry in entries}
+        if (
+            not isinstance(tokenizer_files, list)
+            or not tokenizer_files
+            or any(
+                not isinstance(name, str) or name not in by_path
+                for name in tokenizer_files
+            )
+        ):
+            raise FingerprintUnavailable(
+                "checkpoint tokenizer identity files are not manifest entries"
+            )
+        tokenizer_entries = [by_path[str(name)] for name in tokenizer_files]
+        recomputed_tokenizer_sha256 = checkpoint_tokenizer_identity_fingerprint(
+            tokenizer_entries
+        )
+        if tokenizer_identity.get("sha256") != recomputed_tokenizer_sha256:
+            raise FingerprintUnavailable(
+                "checkpoint tokenizer SHA-256 does not match the persisted entries"
+            )
+        if tokenizer_identity.get("public_fingerprint") != public_model_fingerprint(
+            recomputed_tokenizer_sha256
+        ):
+            raise FingerprintUnavailable(
+                "checkpoint tokenizer public fingerprint does not match its SHA-256"
+            )
+    chat_template_identity = provenance.get("chat_template_identity")
+    if not isinstance(chat_template_identity, Mapping):
+        raise FingerprintUnavailable("checkpoint chat-template identity is unavailable")
+    if chat_template_identity.get("status") == "available":
+        if not _sha256_is_available(chat_template_identity.get("sha256")):
+            raise FingerprintUnavailable(
+                "checkpoint chat-template SHA-256 is unavailable"
+            )
+        if chat_template_identity.get("public_fingerprint") != public_model_fingerprint(
+            str(chat_template_identity["sha256"])
+        ):
+            raise FingerprintUnavailable(
+                "checkpoint chat-template public fingerprint does not match its SHA-256"
+            )
+
+    return {
+        "model_id": model.get("model_id"),
+        "model_source": model.get("model_source"),
+        "model_profile": model.get("model_profile"),
+        "label": model.get("label"),
+        "family": model.get("family"),
+        "role": model.get("role"),
+        "quant": model.get("quant"),
+        "provenance": {
+            "source_type": provenance.get("source_type"),
+            "provenance_kind": provenance.get("provenance_kind"),
+            "status": provenance.get("status"),
+            "manifest_schema": provenance.get("manifest_schema"),
+            "manifest_sha256": recomputed_manifest_sha256,
+            "public_fingerprint": provenance.get("public_fingerprint"),
+            "entry_count": provenance.get("entry_count"),
+            "weight_file_count": provenance.get("weight_file_count"),
+            "architecture": provenance.get("architecture"),
+            "model_type": provenance.get("model_type"),
+            "repository_id": provenance.get("repository_id"),
+            "revision": provenance.get("revision"),
+            "repository_id_source": provenance.get("repository_id_source"),
+            "fingerprint_eligible": provenance.get("fingerprint_eligible"),
+            "tokenizer_identity": {
+                "status": tokenizer_identity.get("status"),
+                "files": tokenizer_identity.get("files"),
+                "sha256": tokenizer_identity.get("sha256"),
+                "public_fingerprint": tokenizer_identity.get("public_fingerprint"),
+            },
+            "chat_template_identity": {
+                "status": chat_template_identity.get("status"),
+                "source": chat_template_identity.get("source"),
+                "selection_method": chat_template_identity.get("selection_method"),
+                "encoding": chat_template_identity.get("encoding"),
+                "sha256": chat_template_identity.get("sha256"),
+                "public_fingerprint": chat_template_identity.get("public_fingerprint"),
+            },
+            "checkpoint_quantization": provenance.get("checkpoint_quantization"),
+            "effective_quantization": provenance.get("effective_quantization"),
+            "warnings": provenance.get("warnings"),
+        },
+        "manifest_entries": entries,
+    }
+
+
+def _model_identity(
+    model: Mapping[str, Any],
+    *,
+    payload_version: str = RUN_FINGERPRINT_PAYLOAD_VERSION,
+) -> dict[str, Any]:
+    if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V6:
+        return _directory_model_identity(model)
     provenance = model.get("provenance")
     if not isinstance(provenance, Mapping):
         raise FingerprintUnavailable("model provenance is unavailable")
@@ -373,12 +535,27 @@ def _control_runtime_evidence_is_represented(result: Mapping[str, Any]) -> bool:
     )
 
 
+def _checkpoint_directory_identity_is_represented(result: Mapping[str, Any]) -> bool:
+    from llmgauge.core.checkpoint_provenance import CHECKPOINT_PROVENANCE_KIND
+
+    model = result.get("model")
+    if not isinstance(model, Mapping):
+        return False
+    provenance = model.get("provenance")
+    return (
+        isinstance(provenance, Mapping)
+        and provenance.get("provenance_kind") == CHECKPOINT_PROVENANCE_KIND
+    )
+
+
 def _profile_evidence_is_represented(result: Mapping[str, Any]) -> bool:
     runtime = result.get("runtime")
     return isinstance(runtime, Mapping) and runtime.get("profile") is not None
 
 
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _checkpoint_directory_identity_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V6, RUN_FINGERPRINT_PAYLOAD_VERSION_V6
     if _profile_evidence_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V5, RUN_FINGERPRINT_PAYLOAD_VERSION_V5
     if _control_runtime_evidence_is_represented(result):
@@ -409,6 +586,7 @@ def build_run_fingerprint_payload(
             RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
         }
         and _area4_is_represented(result)
     )
@@ -528,7 +706,7 @@ def build_run_fingerprint_payload(
         "schema_version": payload_version,
         "result_schema_version": result.get("schema_version"),
         "llmgauge_version": result.get("llmgauge_version"),
-        "model": _model_identity(model),
+        "model": _model_identity(model, payload_version=payload_version),
         "backend": _backend_identity(runtime),
         "runtime_settings": _runtime_settings(
             runtime,
@@ -537,11 +715,13 @@ def build_run_fingerprint_payload(
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V3,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
             },
             include_control_settings=payload_version
             in {
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V4,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
             },
         ),
         "suite": suite_identity,
@@ -560,6 +740,10 @@ def build_run_fingerprint_payload(
         if not isinstance(profile, Mapping):
             raise FingerprintUnavailable("runtime.profile is unavailable")
         payload["runtime_profile"] = dict(profile)
+    elif payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V6:
+        profile = runtime.get("profile")
+        if isinstance(profile, Mapping):
+            payload["runtime_profile"] = dict(profile)
     if include_area4:
         runtime_neutral_metrics = result.get("runtime_neutral_metrics")
         failure_taxonomy = result.get("failure_taxonomy")
@@ -649,6 +833,7 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
@@ -656,8 +841,9 @@ def verify_run_fingerprint(
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V1}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V2}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}, or "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V6}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -669,7 +855,16 @@ def verify_run_fingerprint(
     if errors:
         return errors
     if (
+        _checkpoint_directory_identity_is_represented(result)
+        and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    ):
+        return [
+            "checkpoint-directory provenance requires a v6 run_fingerprint "
+            "when represented"
+        ]
+    if (
         _profile_evidence_is_represented(result)
+        and not _checkpoint_directory_identity_is_represented(result)
         and schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V5
     ):
         return ["runtime.profile requires a v5 run_fingerprint when represented"]
@@ -677,20 +872,22 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     }:
         errors.append(
-            "llama.cpp control evidence requires a v3, v4, or v5 run_fingerprint "
-            "when represented"
+            "llama.cpp control evidence requires a v3, v4, v5, or v6 "
+            "run_fingerprint when represented"
         )
         return errors
     if _extended_runtime_evidence_is_represented(result) and schema_version not in {
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     }:
         errors.append(
-            "extended runtime evidence requires a v3, v4, or v5 run_fingerprint "
-            "when represented"
+            "extended runtime evidence requires a v3, v4, v5, or v6 "
+            "run_fingerprint when represented"
         )
         return errors
     if _external_benchmark_is_represented(result) and schema_version not in {
@@ -698,9 +895,10 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     }:
         errors.append(
-            "external benchmark evidence requires a v2, v3, v4, or v5 "
+            "external benchmark evidence requires a v2, v3, v4, v5, or v6 "
             "run_fingerprint when represented"
         )
         return errors
@@ -709,12 +907,15 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V3,
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     }:
         errors.append(
-            "Area 4 evidence requires a v1, v3, v4, or v5 run_fingerprint when represented"
+            "Area 4 evidence requires a v1, v3, v4, v5, or v6 run_fingerprint "
+            "when represented"
         )
-
-    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V5:
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V6:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V6
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V5:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V5
     elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V4:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V4
