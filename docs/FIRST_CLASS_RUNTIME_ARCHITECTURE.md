@@ -197,7 +197,15 @@ A model representation is a discriminated source kind, not a path shape:
 | `served_model_reference` | Model admitted by an operator-managed server, identified by served-model name | Requested/observed served identity + optional binding to a local source (§4.3) |
 
 `gguf_file` remains first-class and unchanged. `checkpoint_directory` is the
-new first-class representation for vLLM/SGLang native evaluation.
+new first-class representation for vLLM/SGLang native evaluation and for
+EXL2/EXL3 checkpoints (accepted by the
+[EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §18; no new source
+kinds are admitted for EXL). Because directory checkpoints share one source
+shape across materially different encodings (BF16 HF, EXL2, EXL3, AWQ, GPTQ),
+directory identity additionally carries a separate `model_format`
+discriminator, observation-derived and fail-closed to `unknown`
+(EXL qualification §7–§8); format identity is distinct from source kind and
+from runtime.
 `served_model_reference` remains valid but is an attestation-grade identity,
 not a cryptographic one, unless bound to a local source.
 
@@ -240,6 +248,16 @@ created:
   hash;
 - full hashes and manifest entries remain private evidence; public export
   carries only approved shortened fingerprints and sanitized identifiers.
+
+The EXL qualification audit ([EXL_RUNTIME_QUALIFICATION.md](EXL_RUNTIME_QUALIFICATION.md)
+§6) verdicts this v0 selection rule `COMPLETE` for EXL2 and `PARTIAL` for
+sharded EXL3 checkpoints: a root-level `ngram_embedding.safetensors` that the
+runtime consumes by directory glob is excluded when an index is present. The
+accepted remedy is a future versioned
+`llmgauge.checkpoint_directory_manifest.v1` whose weight-file selection is
+the union of index-referenced shards and root-level `*.safetensors`
+(non-recursive). v0 remains frozen; previously valid results stay valid under
+v0 rules; no silent allowlist expansion is admitted.
 
 The existing single-file cache/identity machinery (`core/identity.py`
 `hash_file` with path/size/mtime/inode validation) is a `gguf_file` mechanism.
@@ -489,6 +507,25 @@ any native observation method.
 observed.** Load-time, placement, and steady-state VRAM boundaries for SGLang
 follow the same admit-only-on-proof rule as Area 4.
 
+## 9A. ExLlama runtime family (accepted M2.5 qualification)
+
+The [EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) accepts
+**ExLlamaV3 / EXL3 as a fourth principal first-class runtime family**
+(§11, §16 of that document): `checkpoint_directory` models with
+`model_format` `exl3` or `hf_transformers`, served through TabbyAPI (the
+official ExLlamaV3 server) as either a LLMGauge-managed local subprocess
+(§5.2) or an operator-managed external server (§5.3 ceiling). Direct
+library import into LLMGauge's environment is rejected for the same
+dependency-isolation reasons as vLLM. **ExLlamaV2 / EXL2 is a compatibility
+lane**: full first-class representation identity with pinned legacy
+execution through the preserved TabbyAPI `exl2-checkpoint` branch, excluded
+from parity obligations with recorded reason. ExLlamaV2 and ExLlamaV3 are
+distinct backend ids sharing one adapter family; TabbyAPI is a server
+implementation, never a backend id. Native evidence namespaces
+(`exllama_v2.*`, `exllama_v3.*`) follow §7.2; no cross-runtime metric
+equivalence is introduced (§10 applies unchanged, including the
+conversion-lineage tier disposition).
+
 ## 10. Cross-runtime evaluation identity
 
 Comparing the same model family across GGUF/llama.cpp, safetensors/vLLM, and
@@ -695,6 +732,15 @@ two adapters prove what is genuinely common (M6); SGLang consumes the proven
 pattern; cross-runtime identity hardening lands last when all three families
 have real artifacts to disclose.
 
+> Update (2026-09-03): the M2.5 EXL qualification
+> ([EXL_RUNTIME_QUALIFICATION.md](EXL_RUNTIME_QUALIFICATION.md) §16) revises
+> this program: M2.5 (qualification) is complete; M8 (checkpoint-manifest
+> v1 + `model_format` identity), M9 (ExLlamaV3 external adapter via
+> TabbyAPI), M10 (ExLlamaV3 managed lifecycle/parity), and M11 (EXL2/
+> ExLlamaV2 pinned compatibility lane) are inserted after the vLLM block and
+> before the SGLang block; M6/M7 keep their content but M7's cross-runtime
+> hardening now covers four principal families. M1–M5 above are unchanged.
+
 ## 14. Selected next milestone
 
 **M1 — Runtime-neutral model representation and profile contract** (§13 M1).
@@ -720,14 +766,25 @@ have accepted contracts; the model-identity generalization does not.
 > consumes directory provenance yet. The selected next milestone is now
 > M3 — vLLM first-class model identity (§13 M3).
 
+> Update (2026-09-03): M2.5 — EXL2/EXL3 representation and ExLlama runtime
+> qualification is accepted on `main`
+> ([EXL_RUNTIME_QUALIFICATION.md](EXL_RUNTIME_QUALIFICATION.md)). The
+> selected next implementation milestone remains **M3 — vLLM first-class
+> model identity**; the first EXL implementation milestone is M8
+> (manifest v1 + `model_format`), queued after the vLLM block per §13's
+> update note.
+
 ## 15. Consequences
 
 - The product framing shifts from "GGUF through llama.cpp, plus a bounded vLLM
-  adapter" to three first-class runtime families with honest, namespaced
-  differences.
+  adapter" to four first-class runtime families (llama.cpp, vLLM, SGLang,
+  ExLlamaV3) plus the EXL2/ExLlamaV2 compatibility lane, with honest,
+  namespaced differences.
 - Model identity becomes a runtime-independent concept; the same checkpoint
   under vLLM and SGLang is one model evaluated twice, not two unrelated
-  identities.
+  identities. Directory checkpoints additionally carry a `model_format`
+  discriminator so EXL3, BF16, AWQ, and GPTQ directories sharing a source
+  shape are never conflated (§4.1).
 - Managed server lifecycle becomes in-scope product behavior for
   server-backed runtimes while external-server mode keeps its supported,
   labeled evidence ceiling.

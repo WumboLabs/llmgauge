@@ -148,6 +148,12 @@ Current non-goals / deliberate project boundaries:
 - [Initial vLLM runtime integration contract](VLLM_RUNTIME_CONTRACT.md) —
   externally managed, loopback-only, text-only OpenAI-compatible server
   integration.
+- [EXL2/EXL3 representation and ExLlama runtime qualification](EXL_RUNTIME_QUALIFICATION.md)
+  — accepted M2.5 contract: EXL2/EXL3 are `checkpoint_directory` models with a
+  separate `model_format` identity, fail-closed detection, the frozen-manifest
+  v1 extension decision, ExLlamaV3 as a principal first-class runtime family,
+  the EXL2/ExLlamaV2 compatibility lane, and TabbyAPI's server-role lifecycle
+  disposition. Qualification only; no runtime is implemented.
 - [vLLM HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) —
   standard-library HTTP transport for the initial client; no third-party HTTP
   dependency.

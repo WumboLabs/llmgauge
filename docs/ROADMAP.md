@@ -143,9 +143,9 @@ does not install, start, supervise, or otherwise own the vLLM server lifecycle;
 This bounded external-server integration is the current state, not the target:
 the accepted
 [first-class multi-runtime architecture contract](FIRST_CLASS_RUNTIME_ARCHITECTURE.md)
-defines the program that matures vLLM (and later SGLang) to first-class
-runtime and native directory-checkpoint support, including managed-local
-server lifecycle.
+defines the program that matures vLLM, ExLlamaV3 (and later SGLang) to
+first-class runtime and native directory-checkpoint support, including
+managed-local server lifecycle.
 
 ### Implemented capability
 
@@ -1187,16 +1187,26 @@ transport, then SGLang/Ollama adapters": the principal runtime families are
 
 - `llama.cpp` / GGUF (first-class runtime and representation, default),
 - vLLM / native Hugging Face-Transformers-style directory checkpoints
-  (first-class runtime and representation target), and
-- SGLang / native Hugging Face-Transformers-style directory checkpoints
   (first-class runtime and representation target),
+- SGLang / native Hugging Face-Transformers-style directory checkpoints
+  (first-class runtime and representation target), and
+- ExLlamaV3 / EXL3 (plus supported native FP16/BF16 directory checkpoints),
+  served through the official TabbyAPI OpenAI-compatible server (accepted
+  fourth first-class runtime family per the
+  [EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md)),
 
 each with runtime-specific lifecycle, evidence, and capability disclosure
 preserved honestly rather than collapsed into a fake generic OpenAI backend.
-The accepted program is seven bounded milestones (model-representation and
-profile contract, directory-model provenance, vLLM identity, vLLM managed
-lifecycle, vLLM workflow parity, shared transport plus SGLang external
-adapter, SGLang lifecycle/parity with cross-runtime identity hardening).
+The accepted program is eleven bounded implementation milestones plus the
+completed M2.5 qualification: model-representation and profile contract (M1),
+directory-model provenance (M2), EXL/ExLlama runtime qualification (M2.5),
+vLLM identity (M3), vLLM managed lifecycle (M4), vLLM workflow parity (M5),
+EXL checkpoint-manifest v1 plus
+`model_format` identity (M8), ExLlamaV3 external adapter (M9), ExLlamaV3
+managed lifecycle/parity (M10), EXL2/ExLlamaV2 pinned compatibility lane
+(M11), shared transport plus SGLang external adapter (M6), and SGLang
+lifecycle/parity with cross-runtime identity hardening across all four
+families (M7).
 Milestone M1 (runtime-neutral model representation and profile contract) is
 implemented: profiles carry an optional `source_kind` discriminator
 (`gguf_file` / `checkpoint_directory` / `served_model_reference`) with legacy
@@ -1211,6 +1221,19 @@ handling, and the new `llmgauge.run_fingerprint.v6` payload for manifest
 identity — with every existing GGUF fingerprint version and behavior frozen.
 Directory provenance is still not executable through any runtime. The
 selected next implementation milestone is M3, vLLM first-class model identity.
+
+EXL support is a real product target with two distinct lanes: **EXL3 /
+ExLlamaV3 is the strategic current path** (principal runtime family, full
+first-class obligations), while **EXL2 / ExLlamaV2 is a compatibility lane**
+(upstream ExLlamaV2 is archived and TabbyAPI `main` no longer serves it; the
+preserved TabbyAPI `exl2-checkpoint` branch pins the legacy execution path).
+EXL2 checkpoints still receive full first-class representation identity —
+`model_format` detection, provenance, validation, reporting, export — and
+remain supported models, not deprecated artifacts. The frozen
+`checkpoint_directory_manifest.v0` is `COMPLETE` for EXL2 and `PARTIAL` for
+sharded EXL3 (out-of-index `ngram_embedding.safetensors`); the accepted fix
+is the versioned manifest v1 union rule in M8, never a silent v0 allowlist
+expansion. No EXL release date or version number is promised.
 
 Later runtime possibilities (Ollama, TensorRT-LLM, NVIDIA NIM) remain
 admissible through the same first-class acceptance contract, with no promised
