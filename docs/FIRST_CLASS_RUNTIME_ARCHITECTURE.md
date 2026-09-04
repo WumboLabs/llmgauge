@@ -595,6 +595,7 @@ mergeable; none may weaken §12's protected semantics.
 
 ### M2 — Directory-model provenance collection and fingerprint eligibility
 
+- **Status:** Implemented (post-v0.78 on `main`).
 - **Goal:** implement §4.2 provenance collection (manifest, tokenizer,
   template, quantization-declared), its cache strategy, additive
   `model.provenance` fields, validator coverage, report/export handling, and
@@ -706,8 +707,18 @@ found more fundamental: the transport, lifecycle, and evidence designs already
 have accepted contracts; the model-identity generalization does not.
 
 > Update (2026-09-03): M1 is implemented on `main` (post-v0.78). The selected
-> next milestone is now M2 — directory-model provenance collection and
+> next milestone was M2 — directory-model provenance collection and
 > fingerprint eligibility (§13 M2).
+
+> Update (2026-09-03): M2 — directory-model provenance collection and
+> fingerprint eligibility (§13 M2) is implemented on `main` (post-v0.78):
+> bounded local checkpoint-directory identity, the versioned canonical
+> manifest, the separate identity-validated directory cache, tokenizer and
+> chat-template identity, checkpoint-declared quantization evidence, additive
+> `model.provenance` validation/report/export handling, and the frozen
+> `llmgauge.run_fingerprint.v6` payload for manifest identity. No runtime
+> consumes directory provenance yet. The selected next milestone is now
+> M3 — vLLM first-class model identity (§13 M3).
 
 ## 15. Consequences
 

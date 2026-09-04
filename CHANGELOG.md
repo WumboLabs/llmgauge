@@ -25,6 +25,36 @@
   SGLang runtime behavior is included; native checkpoint execution remains
   deferred to later milestones.
 
+- Checkpoint-directory model provenance and fingerprint eligibility (M2,
+  identity machinery only): local Hugging Face / Transformers-style
+  checkpoint directories now have a defensible bounded identity. LLMGauge
+  collects a non-recursive canonical manifest (required `config.json`;
+  optional `generation_config.json`; `model.safetensors.index.json` plus
+  exactly its `weight_map` shards, or deterministic root-level
+  `*.safetensors`; allowlisted quantization sidecars; allowlisted tokenizer
+  files; the selected standalone or unambiguously embedded chat template),
+  hashes every selected file with SHA-256 under an identity-validated
+  separate directory cache (`llmgauge.checkpoint_hash_cache.v0`, which also
+  understands HF-style symlink-backed snapshots), and records tokenizer
+  identity, chat-template identity, checkpoint-declared quantization
+  (explicit hashed metadata only; effective runtime quantization remains
+  unknown), and conservative local repository/revision metadata — never the
+  absolute checkpoint root. The canonical manifest fingerprint
+  (`llmgauge.checkpoint_directory_manifest.v0`) is additive optional
+  `model.provenance` evidence: validators recompute it (plus the public
+  `sha256:`+16 display fingerprint and the tokenizer fingerprint) from
+  preserved evidence without the original directory, reports render bounded
+  identity lines, and public export replaces the private block with a
+  sanitized `model.checkpoint_identity` projection. Eligible directory
+  identity is the first consumer of the new frozen
+  `llmgauge.run_fingerprint.v6` payload; ineligible identity fails closed
+  with a precise reason. All existing GGUF hashing, hash-cache semantics,
+  provenance shapes, and v0-v5 run-fingerprint payload bytes are unchanged
+  and regression-pinned. This is representation and identity only: no
+  runtime executes a checkpoint directory yet — `checkpoint_directory`
+  remains rejected before llama.cpp and before vLLM execution, and SGLang
+  remains unsupported.
+
 ## v0.78.0 - 2026-09-02
 
 LLMGauge v0.78 is the Area 4 evidence-integrity and qualification hardening

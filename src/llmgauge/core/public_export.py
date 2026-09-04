@@ -394,6 +394,86 @@ def _remove_full_hashes(value: Any, categories: set[str]) -> Any:
     return value
 
 
+def _project_public_checkpoint_identity(data: Any, categories: set[str]) -> Any:
+    """Replace private checkpoint-directory provenance with a public projection.
+
+    Directory provenance is content-default-deny for public export: the whole
+    private ``model.provenance`` block (ordered manifest entries, full
+    per-file SHA-256 values, the full manifest fingerprint, and any reason
+    strings that may quote local filenames) is removed and replaced by a
+    bounded ``model.checkpoint_identity`` projection carrying only shortened
+    fingerprints, statuses, and sanitized descriptive identifiers. The
+    private source directory is never mutated.
+    """
+
+    if not isinstance(data, dict):
+        return data
+    model = data.get("model")
+    if not isinstance(model, dict):
+        return data
+    provenance = model.get("provenance")
+    if (
+        not isinstance(provenance, dict)
+        or provenance.get("provenance_kind") != "checkpoint_directory_manifest"
+    ):
+        return data
+
+    categories.add("private_checkpoint_manifest_omitted")
+
+    def _short_fingerprint(value: Any) -> str | None:
+        return value if isinstance(value, str) and value.startswith("sha256:") else None
+
+    tokenizer_identity = provenance.get("tokenizer_identity")
+    tokenizer_identity = (
+        tokenizer_identity if isinstance(tokenizer_identity, dict) else {}
+    )
+    template_identity = provenance.get("chat_template_identity")
+    template_identity = template_identity if isinstance(template_identity, dict) else {}
+    quantization = provenance.get("checkpoint_quantization")
+    quantization = quantization if isinstance(quantization, dict) else {}
+
+    projection: dict[str, Any] = {
+        "source_type": provenance.get("source_type"),
+        "provenance_kind": provenance.get("provenance_kind"),
+        "status": provenance.get("status"),
+        "public_fingerprint": _short_fingerprint(provenance.get("public_fingerprint")),
+        "entry_count": provenance.get("entry_count"),
+        "weight_file_count": provenance.get("weight_file_count"),
+        "architecture": provenance.get("architecture"),
+        "model_type": provenance.get("model_type"),
+        "repository_id": provenance.get("repository_id"),
+        "revision": provenance.get("revision"),
+        "repository_id_source": provenance.get("repository_id_source"),
+        "fingerprint_eligible": provenance.get("fingerprint_eligible"),
+        "tokenizer_identity": {
+            "status": tokenizer_identity.get("status"),
+            "public_fingerprint": _short_fingerprint(
+                tokenizer_identity.get("public_fingerprint")
+            ),
+        },
+        "chat_template_identity": {
+            "status": template_identity.get("status"),
+            "selection_method": template_identity.get("selection_method"),
+            "public_fingerprint": _short_fingerprint(
+                template_identity.get("public_fingerprint")
+            ),
+        },
+        "checkpoint_quantization": {
+            "status": quantization.get("status"),
+            "method": quantization.get("method"),
+        },
+        "effective_quantization_status": "unavailable",
+    }
+    warnings = provenance.get("warnings")
+    if isinstance(warnings, list):
+        projection["warnings"] = [
+            warning for warning in warnings if isinstance(warning, str)
+        ]
+    model.pop("provenance", None)
+    model["checkpoint_identity"] = projection
+    return data
+
+
 def _sanitize_command_argv(value: Any, categories: set[str]) -> Any:
     if not isinstance(value, list):
         return value
@@ -566,6 +646,7 @@ def _sanitize_result_json(
     endpoint_values: tuple[str, ...],
 ) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
+    data = _project_public_checkpoint_identity(data, categories)
     sanitized = _sanitize_public_ttft(data, categories)
     sanitized = _sanitize_structured(
         sanitized,
@@ -809,9 +890,21 @@ def _scan_public_structured(
     if isinstance(value, Mapping):
         if value.get("metric_id") == _TTFT_METRIC_ID:
             errors.append(f"public export TTFT metric projection remains at {location}")
+        if value.get("provenance_kind") == "checkpoint_directory_manifest":
+            for private_key in ("manifest", "manifest_sha256"):
+                if private_key in value:
+                    errors.append(
+                        "public export private checkpoint manifest evidence "
+                        f"remains at {location}.{private_key}"
+                    )
         for child_key, child_value in value.items():
             normalized_key = child_key if isinstance(child_key, str) else str(child_key)
             child_location = f"{location}.{normalized_key}"
+            if normalized_key == "manifest_sha256":
+                errors.append(
+                    "public export private checkpoint manifest hash remains at "
+                    f"{child_location}"
+                )
             if normalized_key.startswith(_PRIVATE_EMBEDDED_EVIDENCE_PREFIX):
                 errors.append(
                     "public export embedded private evidence remains at "

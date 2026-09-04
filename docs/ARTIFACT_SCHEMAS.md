@@ -432,6 +432,87 @@ Current `model.provenance` fields:
 `file_size_bytes`, and `public_fingerprint` are null and `warning` explains
 the collection failure. The current slice does not parse GGUF metadata.
 
+#### Checkpoint-directory provenance (additive, M2)
+
+Results may additionally carry a `checkpoint_directory_manifest` shaped
+`model.provenance` object for a local Hugging Face / Transformers-style
+checkpoint directory. This is the accepted bounded directory identity
+contract
+([first-class architecture §4.2](FIRST_CLASS_RUNTIME_ARCHITECTURE.md),
+[vLLM runtime contract](VLLM_RUNTIME_CONTRACT.md)); no runtime consumes it
+yet. Historical results and GGUF-shaped provenance are unchanged, and
+`llmgauge.result.v0` is not bumped.
+
+Fields:
+
+    source_type
+    provenance_kind: checkpoint_directory_manifest
+    status: available | partial | unavailable
+    reason
+    warnings
+    manifest_schema: llmgauge.checkpoint_directory_manifest.v0
+    manifest: ordered [{path, size, sha256}] entries (private evidence)
+    manifest_sha256 (private full fingerprint)
+    public_fingerprint: sha256:<16 lowercase hex>
+    entry_count
+    weight_file_count
+    architecture
+    model_type
+    repository_id
+    revision
+    repository_id_source
+    tokenizer_identity: {status, files, sha256, public_fingerprint}
+    chat_template_identity: {status, source, selection_method, encoding,
+        sha256, public_fingerprint}
+    checkpoint_quantization: {status, method, sources}
+    effective_quantization: {status, reason}
+    fingerprint_eligible
+    fingerprint_ineligible_reason
+
+Semantics:
+
+- Manifest entries are normalized model-root-relative paths with byte size
+  and full SHA-256, unique and lexicographically ordered. The canonical
+  manifest fingerprint is the SHA-256 of deterministic UTF-8 canonical JSON
+  over the versioned manifest schema identifier plus the ordered entries.
+  The public display form is `sha256:` plus the first 16 lowercase hex
+  characters; it is a display identifier, not the full local fingerprint.
+- The absolute checkpoint root, cache identities, and symlink target paths
+  are never persisted in the record. `repository_id`/`revision` are
+  descriptive local-only metadata derived conservatively from a recognized
+  HF cache snapshot layout (`hf_cache_snapshot_layout`) or null; they are
+  never network-resolved and never guessed from names.
+- `checkpoint_quantization` is checkpoint-declared evidence only, extracted
+  from explicit hashed metadata (`config.json`
+  `quantization_config.quant_method` and admitted quantization sidecars),
+  with `status` `absent` / `declared` / `conflict` and source-labelled
+  `sources` entries. `effective_quantization` is always `unavailable` in
+  M2: no runtime observation exists. Requested quantization remains a
+  separate profile/runtime concept.
+- `status` is `unavailable` when no trustworthy canonical identity exists
+  (missing/invalid root or `config.json`, no admitted weights, malformed or
+  unsafe index selection, unreadable selected file, selected file changed
+  during collection); `partial` when a canonical manifest exists but a
+  first-class identity dimension is incomplete or ambiguous (tokenizer
+  unavailable, template ambiguous, quantization declarations disagree, or an
+  explicit `config.json` `auto_map` dependency on custom code outside the
+  admitted allowlist); otherwise `available`. A model without a
+  quantization declaration is not partial for that reason.
+- `fingerprint_eligible` is the explicit run-fingerprint gate: true only
+  when `status` is `available`. Ineligible records carry a precise
+  `fingerprint_ineligible_reason` and must not produce a run fingerprint.
+- Validators recompute the canonical manifest fingerprint, the public
+  fingerprint, and the tokenizer fingerprint from the persisted manifest
+  entries and reject divergence. Portable validation never requires the
+  original checkpoint directory. Chat-template exact-string identity and
+  descriptive metadata are validated structurally and for coherence; they
+  are not independently recomputable from result evidence alone.
+- Public export replaces the entire private `model.provenance` block with a
+  bounded `model.checkpoint_identity` projection (statuses, shortened
+  fingerprints, sanitized descriptive identifiers, bounded declared-
+  quantization label); manifest entries, full hashes, and any local paths
+  are withheld.
+
 ### runtime
 
 Expected fields:
@@ -1054,6 +1135,21 @@ and request states. Historical v3 artifacts without the controls remain
 byte-verifiable. Controlled v3 artifacts produced during the additive control
 rollout also remain verifiable; newly generated controlled runs use v4.
 Existing v0, v1, v2, and v3 payloads are not reinterpreted or rewritten.
+
+Results whose model provenance is an admitted `checkpoint_directory_manifest`
+record use `llmgauge.run_fingerprint.v6` and a v6 payload. The v6 model
+identity is the cryptographic checkpoint manifest fingerprint recomputed from
+the persisted ordered manifest entries (path, size, full SHA-256), plus the
+versioned manifest schema identifier, tokenizer identity, chat-template
+identity, checkpoint-declared quantization evidence, eligibility state, and
+descriptive model fields; it also carries the v5 superset runtime-settings and
+Area 4/transcript boundaries when represented. The absolute checkpoint root,
+cache identities, and symlink targets are never payload inputs. v6 is emitted
+only for fingerprint-eligible directory provenance; ineligible records fail
+closed with a precise reason and never fabricate identity from a model name,
+directory basename, or the shortened public fingerprint. Existing v0-v5
+payloads are frozen: GGUF and served-model results keep their existing
+versions, payload bytes, and verification behavior unchanged.
 
 ## Context ladder directory
 

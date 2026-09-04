@@ -96,6 +96,18 @@ detectable. Exact LLMGauge API route prose such as `/version` remains readable,
 while filesystem paths remain redacted. Unknown files are omitted and recorded
 in the export manifest.
 
+Checkpoint-directory model provenance is content-default-deny for public
+export. The private `model.provenance` block — the ordered manifest entries,
+every full per-file SHA-256, the full manifest fingerprint, and any reason
+strings that may quote local filenames — is removed and replaced by a bounded
+`model.checkpoint_identity` projection carrying only statuses, the shortened
+`sha256:`+16 checkpoint/tokenizer/template fingerprints, sanitized
+descriptive identifiers (repository id, immutable revision), the bounded
+checkpoint-declared quantization label, and path-free warnings. The absolute
+checkpoint root, cache identities, and symlink blob targets are never
+persisted in the private record either, so they cannot leak through the
+derivative.
+
 When available, the export manifest includes `source_run_fingerprint`, the
 fingerprint of the canonical private source evidence. It helps reviewers cite
 which private run the export came from, but it does not verify or authenticate

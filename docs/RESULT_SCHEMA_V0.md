@@ -247,6 +247,19 @@ should be atomic. Concurrent writers may race safely by recomputing and
 replacing the cache. Explicit future rehash support should bypass the cache and
 refresh the entry.
 
+Checkpoint-directory hashing (M2) uses a separate versioned cache,
+`llmgauge.checkpoint_hash_cache.v0`, stored under
+`$XDG_CACHE_HOME/llmgauge/checkpoint-hash-cache-v0.json` (or
+`~/.cache/llmgauge/checkpoint-hash-cache-v0.json`). The single-file GGUF
+cache format is never stretched to directory semantics. Cache keys are the
+selected logical file paths; entries additionally record the symlink's raw
+link target and final-target identity so that both link retargeting and
+target content changes invalidate reuse. Cache data is private local
+acceleration state, never portable evidence: manifest identity persists only
+normalized relative paths, sizes, and full SHA-256 values. A cache write
+failure never invalidates a successfully computed hash, and a corrupt cache
+falls back to fresh collection.
+
 ### Prompt and suite identity
 
 Prompt identity should hash one canonical evaluation-relevant prompt definition,
