@@ -1237,8 +1237,13 @@ fingerprinted by the new `llmgauge.run_fingerprint.v7` payload (v6's
 direct-process executable-SHA requirement cannot honestly represent an
 external server). This completes the model-identity portion of the
 first-class acceptance contract for vLLM only; lifecycle and workflow parity
-remain open. The selected next implementation milestone is M4, vLLM
-managed-local lifecycle.
+remain open. The selected next implementation milestone is **M8 — EXL
+checkpoint-manifest v1 plus `model_format` identity** (see the
+[EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17): it is
+provenance-only, format-neutral, consumes only the implemented M2, and is the
+prerequisite for the whole ExLlama line. **M4 — vLLM managed-local lifecycle
+— remains the next vLLM-block milestone** with its accepted obligations
+unchanged, queued immediately after M8.
 
 EXL support is a real product target with two distinct lanes: **EXL3 /
 ExLlamaV3 is the strategic current path** (principal runtime family, full
@@ -1252,6 +1257,21 @@ remain supported models, not deprecated artifacts. The frozen
 sharded EXL3 (out-of-index `ngram_embedding.safetensors`); the accepted fix
 is the versioned manifest v1 union rule in M8, never a silent v0 allowlist
 expansion. No EXL release date or version number is promised.
+
+A future capability is recorded on this track, not yet an accepted milestone:
+**context-integrity and silent-truncation detection** for server-backed
+runtimes. It spans four axes that must not be collapsed: **input-context
+admission and preservation** (did the served request carry every intended
+input token), **output-generation-limit adherence**, **finish-reason and
+termination-state correctness**, and long-context reasoning quality.
+Today a server-backed result carries only the transport's opaque
+`finish_reason` string. Observed operator-side ExLlamaV3 server wrappers
+evidence the second and third axes only: they ignored modern
+max-completion-token fields (silently running at a default limit) and emitted
+runtime-native stop reasons that consumers reject as provider errors. Neither
+demonstrates silent input-context truncation, and a successful long-context
+request does not establish that every intended input token was preserved. The
+capability must earn its own qualification before any implementation.
 
 Later runtime possibilities (Ollama, TensorRT-LLM, NVIDIA NIM) remain
 admissible through the same first-class acceptance contract, with no promised

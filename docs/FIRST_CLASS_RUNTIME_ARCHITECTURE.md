@@ -743,6 +743,26 @@ have real artifacts to disclose.
 > before the SGLang block; M6/M7 keep their content but M7's cross-runtime
 > hardening now covers four principal families. M1–M5 above are unchanged.
 
+> Update (2026-10-25): the program order is rebased on current EXL3 evidence.
+> M8 (checkpoint-manifest v1 + `model_format` identity) is selected ahead of
+> the vLLM lifecycle block: it is provenance-only, format-neutral, consumes
+> only the implemented M2, and is the prerequisite for M9–M11. M1–M5 content
+> and every accepted vLLM obligation are unchanged; M4/M5 are queued
+> immediately after M8. One future capability is recorded here without a
+> milestone number — **context-integrity and silent-truncation detection** for
+> server-backed runtimes, spanning four axes that must not be collapsed:
+> input-context admission and preservation; output-generation-limit adherence;
+> finish-reason / termination-state correctness; and long-context reasoning or
+> retrieval quality, an evaluation question rather than an integrity one.
+> Observed operator-side ExLlamaV3 server wrappers evidence only the second
+> and third axes: they silently ignored modern max-completion-token fields and
+> leaked runtime-native stop reasons. Neither is evidence of silent
+> input-context truncation, and a successful long-context request does not
+> prove every intended input token survived. Today a server-backed result
+> carries only the transport's opaque `finish_reason` string. This capability
+> is a roadmap record only: it must earn its own qualification before any
+> implementation, and it is not an accepted contract in this document.
+
 ## 14. Selected next milestone
 
 **M1 — Runtime-neutral model representation and profile contract** (§13 M1).
@@ -788,6 +808,16 @@ have accepted contracts; the model-identity generalization does not.
 > (v6's direct-process executable-SHA requirement cannot honestly represent
 > an external server). The selected next milestone is M4 — vLLM
 > managed-local lifecycle (§13 M4).
+
+> Update (2026-10-25): the selected next implementation milestone is now
+> **M8 — EXL checkpoint-manifest v1 + `model_format` identity** (§13 M8). It
+> is provenance-only and format-neutral, depends solely on the implemented
+> M2, and unblocks M9–M11 plus any glob-loading runtime. M4 (vLLM managed-
+> local lifecycle) stays the next vLLM-block milestone with its accepted
+> obligations intact, queued after M8. M9 is not selectable now: no admitted
+> TabbyAPI server exists locally, and the operator's current ExLlamaV3
+> serving path is a custom `launch.py` server, so no M9 transport may be
+> inferred from it.
 
 ## 15. Consequences
 
