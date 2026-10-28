@@ -51,6 +51,22 @@ Unreleased changes. These documents define product behavior; this file alone
 defines agent workflow. If canonical sources conflict, follow the fail-closed
 policy instead of choosing silently.
 
+## Execution hosts and shared workspace
+
+Normal development and agent execution run on WumboJetsII, the canonical
+development and compute host. WumboMobile is the human interactive
+workstation; `~/Projects` is shared over NFS at the same path, so there are
+no independent per-host clones to synchronize. The canonical LLMGauge
+checkout is `~/Projects/ai/llmgauge`; canonical project paths take precedence
+over historical locations.
+
+Agents read the applicable live global, ancestor, and project instruction
+files before substantive work. Preserve unrelated running work and user work
+in shared checkouts, and coordinate shared resources rather than terminating
+or modifying them. Do not create, close, rename, or otherwise modify Tern
+sessions, tabs, windows, or workspaces without explicit human approval. Do
+not assume unrestricted sudo and do not work around permission boundaries.
+
 ## Governing workflow
 
 > One milestone, one branch, one agent, one report, one human Git gate.
@@ -75,7 +91,10 @@ the same repository and remove it after its branch is merged.
 Once a milestone is admitted, the agent owns the complete bounded in-scope
 delta: implementation, affected tests and documentation, required validation,
 final-diff review, and report. Ordinary unfinished in-scope work is not a
-blocker. Continue working until the milestone is complete or a genuine blocker
+blocker. Routine implementation failures, review corrections, retests, and
+documentation fixes stay inside the same authorized assignment and never
+require a new handoff. Continue working until the milestone is complete or a
+genuine scope, authorization, safety, evidence, or human-decision blocker
 requires a human decision.
 
 Keep architecture or contract definition, meaningful dependency admission,
@@ -93,36 +112,58 @@ The agent may:
 - edit only the accepted milestone scope;
 - run non-destructive validation and inspect generated artifacts;
 - correct findings from its complete final-diff review;
+- for an admitted milestone, stage only task-owned changes and make ordinary
+  unsigned local commits, including corrective follow-up commits;
 - write the required untracked review report.
 
-The human exclusively controls:
+Before any staging or commit, inspect the current branch and worktree state,
+existing staged and unstaged changes, relevant hooks and filters, commit
+signing behavior, shared Git metadata, and unrelated human changes. Stage only
+files owned by the task; never include unrelated changes, bypass mandatory
+hooks, or enable commit signing without explicit human authorization.
 
-- staging and unstaging;
-- commits and commit amendment;
-- merges and branch deletion;
+A local commit is working state, not acceptance: it never implies human
+approval of a milestone. The human exclusively controls:
+
+- merges, rebases, and branch deletion;
 - pushes and remote configuration;
 - tags and releases;
-- destructive Git actions and history changes.
+- signing and publication;
+- destructive resets, cleans, history rewriting, and other destructive Git
+  actions;
+- material architecture and meaningful dependency decisions;
+- the scientific, evidence-integrity, public-export privacy, and release
+  verification boundaries defined elsewhere in this file.
 
-Agents must leave tracked changes unstaged and uncommitted. They must not merge,
-push, tag, release, delete branches, rewrite history, or stage files unless the
-user explicitly overrides the relevant boundary for one task. Passing checks
-does not authorize a Git gate.
+Passing checks does not authorize a human gate.
 
 Do not use destructive Git operations such as `git reset --hard`, forced branch
 updates, history rewriting, aggressive cleanup, or unreviewed branch deletion.
 Do not pull, fetch, switch, or create branches blindly when local changes may be
-present. Preserve unrelated and untracked user work.
+present. Preserve unrelated and untracked user work. Correct an owned defect
+with a follow-up commit, never a history rewrite.
 
 Pull requests are optional and only used when explicitly requested. CI may not
 exist; missing checks are not passing checks. The normal owner path is local
-review, human staging and commit, a human `--no-ff` merge, post-merge validation,
-and explicit release work later.
+review, task-owned agent commits on the milestone branch, a human `--no-ff`
+merge, post-merge validation, and explicit release work later.
 
 ## Compact handoffs
 
-Repository handoffs must be compact and contain only the information needed to
-execute the bounded milestone:
+Substantive repository handoffs follow the WumboLabs routing contract: a
+`ROUTING BEFORE` block, the standalone agent prompt, and a matching
+`ROUTING AFTER` block. The routing blocks sit outside the copy-pasteable agent
+prompt and describe the same launch with the same six fields: Session
+(`Continue current` is the default for unfinished authorized work; `Start new`
+only for genuinely distinct work or when fresh context, isolation, or recovery
+is warranted), OMP mode (`Default`, or `Workflowz` only when the work
+decomposes into many independent investigation or review items), execution
+host, exact launch directory, canonical project directory, and ZCode session
+title. Routing text never authorizes creating, renaming, or closing Tern
+sessions or resources. Small conversational requests need no routing ceremony.
+
+The standalone prompt must be compact, independently executable, and contain
+only the information needed to execute the bounded milestone:
 
 - **Repository** — repository path or identity.
 - **Expected baseline** — branch, commit, synchronization, and expected tree
@@ -135,8 +176,11 @@ execute the bounded milestone:
 - **Special validation** — checks beyond this file's defaults.
 - **Report path** — one exact absolute path, canonically the ignored
   `tmp/<milestone-name>/REPORT.md`.
-- **Git boundary** — the exact instruction: `Do not stage, commit, merge, or
-  push. Leave all changes unstaged and uncommitted.`
+- **Git boundary** — the exact instruction for the task. Default:
+  `Task-owned staging and ordinary unsigned local commits are permitted; do
+  not merge, rebase, push, tag, sign, delete branches, or rewrite history.`
+  A stricter per-task boundary (for example, leaving all changes uncommitted)
+  is stated explicitly when the human requires it.
 
 Mention subagents only when they are materially relevant; otherwise the default
 policy in this file applies.
@@ -528,6 +572,12 @@ milestone must end with the required untracked report at
 unless requested. About 150 lines is the normal ceiling unless evidence
 requires more.
 
+Reports are historical evidence of the work performed. They must distinguish
+implemented changes, actual validation, technical limitations, human
+acceptance status, remaining human gates, and separately discovered backlog
+items. Do not relocate previously accepted reports, and do not create
+duplicate reports for one milestone.
+
 Real evaluation or campaign evidence that a handoff or this file keeps outside
 the repository belongs in its external campaign workspace
 (`<project-parent>/<project>-<campaign-name>/`), with `REPORT.md` at that
@@ -591,9 +641,41 @@ manual scores from objective truth, and current capability from roadmap work.
 Keep examples local-first, copy/paste safe, and free of private paths. Do not add
 documentation frameworks or broad cleanup outside the milestone.
 
+## Living documentation
+
+Follow the WumboLabs living-documentation standard
+(`~/Projects/system-work/cross-host/workspace-organization/docs/AGENT-WORKSPACE-POLICY.md`
+§E). During an authorized assignment, meaningful changes to operation,
+structure, configuration, decisions, procedures, recovery, or limitations
+update the appropriate existing documentation as part of the same assignment.
+Prefer updating existing project notes over creating duplicates; when nothing
+meaningful changed or an existing reference is already accurate, record a
+short explicit no-update reason instead of a courtesy note.
+
+Authority stays separated: source code is authoritative for implementation;
+project contracts are authoritative for technical semantics; project reports
+are authoritative for historical task evidence; scientific artifacts are
+authoritative for experimental evidence; the WumboLabs Obsidian vault
+(canonical on WumboMobile at `~/Documents/HiveMindVault`, reached from other
+hosts through existing authorized access) is the maintained human-readable
+reference. Do not present unmerged or pending policy changes as already
+active. If a vault update must await human integration or vault access is
+unavailable, record the exact pending page, the required change, and the
+gate as documentation PENDING. Do not create new credentials, mounts, sync
+services, or documentation machinery for this purpose.
+
 ## Compact LLMGauge handoff example
 
 ```text
+ROUTING BEFORE
+Session:             Continue current
+OMP mode:            Default
+Host:                WumboJetsII
+Launch directory:    ~/Projects/ai/llmgauge
+Canonical project:   ~/Projects/ai/llmgauge
+Why:                 Direct continuation of an authorized docs milestone.
+ZCode session title: llmgauge-clarify-score-review
+
 Repository: /path/to/llmgauge
 Expected baseline: main @ <commit>; clean; main and origin/main synchronized
 Create or continue: docs/clarify-score-review
@@ -602,7 +684,17 @@ Canonical sources: AGENTS.md; docs/PUBLIC_REPORTING.md; docs/SCORING_RUBRICS.md
 Required delta: Align current scoring language and add one Unreleased entry.
 Milestone-specific non-goals: No CLI, schema, or scoring behavior changes.
 Report path: /path/to/llmgauge/tmp/clarify-score-review/REPORT.md
-Git boundary: Do not stage, commit, merge, or push. Leave all changes unstaged and uncommitted.
+Git boundary: Task-owned staging and ordinary unsigned local commits are
+permitted; do not merge, rebase, push, tag, or delete branches.
+
+ROUTING AFTER
+Session:             Continue current
+OMP mode:            Default
+Host:                WumboJetsII
+Launch directory:    ~/Projects/ai/llmgauge
+Canonical project:   ~/Projects/ai/llmgauge
+Why:                 Docs alignment committed on the milestone branch.
+ZCode session title: llmgauge-clarify-score-review
 ```
 
 ## Completion rule
@@ -621,5 +713,6 @@ Stop only when either:
 2. a genuine fail-closed blocker prevents safe continuation and is documented
    with evidence and the exact required human decision.
 
-Proceed to the human Git gate only in the first case. Recommend a commit message
-if useful; never stage or commit it.
+Proceed to the human integration gate only in the first case. The agent's
+task-owned commits remain on the milestone branch; the human reviews, merges,
+and controls all integration.
