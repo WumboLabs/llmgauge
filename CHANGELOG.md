@@ -91,6 +91,40 @@
   v0-v6 fingerprint payloads are unchanged. vLLM is not fully first-class:
   managed lifecycle (M4) and workflow parity (M5) remain open.
 
+- Checkpoint manifest v1 and model-format identity (M8): checkpoint
+  provenance collections now emit `llmgauge.checkpoint_directory_manifest.v1`,
+  whose weight-file selection is the format-neutral union of index
+  `weight_map` shards and every root-level `*.safetensors` file
+  (non-recursive, deduplicated, sorted). Root-level safetensors that exist
+  alongside an index — for example EXL3 `ngram_embedding.safetensors` —
+  enter the cryptographic identity, closing qualification finding E2; the
+  union is byte-identity, not an inference-material view, so root-level
+  conversion artifacts such as `cal_trace.safetensors` are intentionally
+  included and changing their bytes can change the v1 fingerprint even when
+  inference weights are unchanged; the schema identifier is bound into the
+  canonical manifest fingerprint, so v0
+  and v1 records over identical bytes hash differently and v0 records remain
+  verifiable unchanged. v1 records additionally observe `model_format`
+  (`exl2` / `exl3` / `hf_transformers` / `unknown`) from the hashed
+  `config.json` quantization declaration corroborated by bounded safetensors
+  header tensor signatures (`.q_weight`, `.trellis`), with structured
+  `model_format_evidence`; every conflict, missing corroboration, or
+  unqualified declaration fails closed to `unknown` with a warning, and
+  names, sizes, and publication receipts are never evidence. A bounded
+  declared-quantization extension (`bits`, `head_bits`, `codebook`,
+  `out_scales`, capped `tensor_storage`, sidecar-derived `effective_bpw`,
+  format-labelled `bits_semantics`) records explicit hashed metadata only.
+  New checkpoint-directory runs fingerprint as `llmgauge.run_fingerprint.v8`
+  (v1 manifest binding plus model-format identity; server-backed vLLM runs
+  keep the v7 server identity inside v8); selection is by persisted
+  evidence, v0-manifest results keep their frozen v6/v7 verification, and
+  v0-v7 payload bytes are regression-pinned. Single-run reports disclose
+  the detected format, public export projects `model_format` and
+  `model_format_version` only, and result validation recomputes the v1
+  manifest and enforces the new field contracts. EXL2/EXL3 runtime
+  execution remains unqualified and unimplemented: M8 is identity and
+  evidence only.
+
 ## v0.78.0 - 2026-09-02
 
 LLMGauge v0.78 is the Area 4 evidence-integrity and qualification hardening

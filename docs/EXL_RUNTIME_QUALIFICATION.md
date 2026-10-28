@@ -230,6 +230,25 @@ for new collections. No format-specific allowlist expansion is admitted:
 the union rule is format-neutral and closes E2 for every safetensors runtime
 that globs (which includes both ExLlama loaders).
 
+> **Implementation clarification (2026-10-28, M8).** The table's
+> "must be excluded" verdict for conversion-only files describes **v0**
+> semantics and remains correct as history: v0 selection never admits
+> `cal_trace.*` or any other non-indexed root file, and v0 records are
+> verified under v0 rules unchanged. The implemented v1 union is
+> deliberately broader than the inference-material view: every root-level
+> `*.safetensors` file enters v1 identity, so a root-level conversion
+> artifact such as `cal_trace.safetensors` (finding E4's "correctly
+> excluded" file) **is included in v1**. This is accepted policy, not a
+> defect: v1 represents conservative checkpoint-byte identity, not the
+> minimal set of files required for inference. Consequences: a change to a
+> selected conversion artifact can change the v1 manifest fingerprint even
+> when inference weights are byte-identical; v1 inclusion never proves
+> inference-time consumption; conversion artifacts that are not
+> root-level safetensors (`job.json`, `measurement.json`, `out_tensor/`,
+> `output_temp_*`) remain outside the manifest under the applicable
+> selection rules. No filename- or format-specific exclusion is admitted
+> against the union rule.
+
 ## 7. Model-format identity decision
 
 `source_kind = checkpoint_directory` is necessary but **not sufficient**: a
@@ -590,6 +609,13 @@ depend on it.
 > **M8 — EXL checkpoint-manifest v1 + `model_format` identity**. M4 (vLLM
 > managed-local lifecycle) remains the next vLLM-block milestone with its
 > accepted obligations intact, queued after M8.
+
+> Update (2026-10-28): M8 is implemented on the working branch
+> `feat/exl-manifest-v1-model-format` (manifest v1 union selection,
+> `model_format` observation with fail-closed conflicts, bounded
+> declared-quantization extension, `llmgauge.run_fingerprint.v8`, validator,
+> report, compare, and public-export integration). It awaits human review
+> and merge; until merged, `main` still collects v0 manifests.
 
 ## 18. Explicit answers
 

@@ -32,6 +32,10 @@ from llmgauge.core.identity import (
 )
 
 CHECKPOINT_MANIFEST_SCHEMA_VERSION = "llmgauge.checkpoint_directory_manifest.v0"
+#: M8 union-selection schema: index-referenced shards plus every root-level
+#: ``*.safetensors`` (docs/EXL_RUNTIME_QUALIFICATION.md §6). New collections
+#: select v1; v0 remains valid for previously persisted artifacts.
+CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1 = "llmgauge.checkpoint_directory_manifest.v1"
 CHECKPOINT_TOKENIZER_IDENTITY_VERSION = "llmgauge.checkpoint_tokenizer_identity.v0"
 CHECKPOINT_HASH_CACHE_VERSION = "llmgauge.checkpoint_hash_cache.v0"
 CHECKPOINT_PROVENANCE_KIND = "checkpoint_directory_manifest"
@@ -43,6 +47,21 @@ MAX_PARSED_METADATA_BYTES = 8 * 1024 * 1024
 #: Hard bound on the canonical manifest size, guarding against accidental
 #: recursive selection.
 MAX_MANIFEST_ENTRIES = 4096
+
+#: Hard bound on the declared safetensors header size inspected for
+#: model-format tensor signatures. Larger or malformed headers fail closed to
+#: no evidence; the file itself remains manifest material.
+MAX_SAFETENSORS_HEADER_BYTES = 8 * 1024 * 1024
+
+#: Admitted ``model_format`` tokens (docs/EXL_RUNTIME_QUALIFICATION.md §7).
+#: Later formats (``awq``, ``gptq``, ``compressed_tensors``, ...) enter
+#: additively when their own qualification lands.
+MODEL_FORMATS: frozenset[str] = frozenset(
+    {"exl2", "exl3", "hf_transformers", "unknown"}
+)
+
+#: Bounded cap for the persisted per-module tensor-storage map.
+MAX_TENSOR_STORAGE_ENTRIES = 512
 
 CONFIG_FILENAME = "config.json"
 GENERATION_CONFIG_FILENAME = "generation_config.json"
@@ -100,11 +119,17 @@ def checkpoint_hash_cache_path() -> Path:
 
 def checkpoint_manifest_payload(
     entries: list[Mapping[str, Any]],
+    *,
+    schema_version: str = CHECKPOINT_MANIFEST_SCHEMA_VERSION,
 ) -> dict[str, Any]:
-    """Build the canonical fingerprint payload for ordered manifest entries."""
+    """Build the canonical fingerprint payload for ordered manifest entries.
+
+    The payload binds the manifest schema version, so identical entry sets
+    under v0 and v1 selection rules produce distinct fingerprints.
+    """
 
     return {
-        "schema_version": CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "entries": [
             {
                 "path": entry["path"],
@@ -116,10 +141,16 @@ def checkpoint_manifest_payload(
     }
 
 
-def checkpoint_manifest_fingerprint(entries: list[Mapping[str, Any]]) -> str:
+def checkpoint_manifest_fingerprint(
+    entries: list[Mapping[str, Any]],
+    *,
+    schema_version: str = CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+) -> str:
     """Return the full SHA-256 over the canonical manifest payload."""
 
-    return canonical_sha256(checkpoint_manifest_payload(entries))
+    return canonical_sha256(
+        checkpoint_manifest_payload(entries, schema_version=schema_version)
+    )
 
 
 def checkpoint_tokenizer_identity_payload(
@@ -369,65 +400,74 @@ def _optional_present(names: set[str], allowlist: tuple[str, ...]) -> list[str]:
     return sorted(name for name in allowlist if name in names)
 
 
-def _select_weight_paths(
+def _index_shard_paths(root: Path, index_bytes: bytes) -> set[str]:
+    """Return the validated unique shard paths referenced by an index."""
+
+    try:
+        index = json.loads(index_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise CheckpointProvenanceUnavailable(
+            "weights index is not valid JSON"
+        ) from None
+    if not isinstance(index, dict):
+        raise CheckpointProvenanceUnavailable("weights index is not a JSON object")
+    weight_map = index.get("weight_map")
+    if not isinstance(weight_map, dict) or not weight_map:
+        raise CheckpointProvenanceUnavailable(
+            "weights index has no non-empty weight_map object"
+        )
+    shards: set[str] = set()
+    for tensor_name, raw_path in weight_map.items():
+        if not isinstance(tensor_name, str) or not tensor_name:
+            raise CheckpointProvenanceUnavailable(
+                "weights index has a malformed tensor key"
+            )
+        relative = normalize_selected_relative_path(
+            raw_path,
+            label=f"weights index path for {tensor_name!r}",
+        )
+        # Reject missing/broken/directory/non-regular shards fail-closed.
+        _identity_snapshot(root / relative)
+        shards.add(relative)
+    if not shards:
+        raise CheckpointProvenanceUnavailable("weights index references no shard files")
+    return shards
+
+
+def _select_weight_paths_v1(
     root: Path,
     names: set[str],
     index_bytes: bytes | None,
 ) -> tuple[list[str], int]:
-    """Return the selected weight relative paths and the shard count.
+    """Return the v1 union weight paths and the weight-file count.
 
-    With an index: exactly the unique paths referenced by its ``weight_map``
-    (the index file itself is selected separately). Without an index:
-    deterministically sorted root-level ``*.safetensors`` files. At least one
-    weight file is required.
+    M8 selection (docs/EXL_RUNTIME_QUALIFICATION.md §6): the union of the
+    unique paths referenced by an index ``weight_map`` (when an index is
+    present) and every root-level ``*.safetensors`` file. The glob is
+    non-recursive; duplicates are deduplicated; the result is sorted. This
+    closes finding E2: root-level safetensors that exist alongside an index
+    (for example EXL3 ``ngram_embedding.safetensors``) enter identity. The
+    rule is format-neutral: no conversion-artifact name exclusions are
+    applied, so a published ``cal_trace.safetensors`` is manifest material
+    under v1 exactly as the runtime globs it. At least one weight file is
+    required.
     """
 
+    shards: set[str] = set()
     if index_bytes is not None:
-        try:
-            index = json.loads(index_bytes.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            raise CheckpointProvenanceUnavailable(
-                "weights index is not valid JSON"
-            ) from None
-        if not isinstance(index, dict):
-            raise CheckpointProvenanceUnavailable("weights index is not a JSON object")
-        weight_map = index.get("weight_map")
-        if not isinstance(weight_map, dict) or not weight_map:
-            raise CheckpointProvenanceUnavailable(
-                "weights index has no non-empty weight_map object"
-            )
-        shards: set[str] = set()
-        for tensor_name, raw_path in weight_map.items():
-            if not isinstance(tensor_name, str) or not tensor_name:
-                raise CheckpointProvenanceUnavailable(
-                    "weights index has a malformed tensor key"
-                )
-            relative = normalize_selected_relative_path(
-                raw_path,
-                label=f"weights index path for {tensor_name!r}",
-            )
-            # Reject missing/broken/directory/non-regular shards fail-closed.
-            _identity_snapshot(root / relative)
-            shards.add(relative)
-        if not shards:
-            raise CheckpointProvenanceUnavailable(
-                "weights index references no shard files"
-            )
-        return sorted(shards), len(shards)
-
-    selected: list[str] = []
+        shards |= _index_shard_paths(root, index_bytes)
     for name in sorted(names):
         if not name.endswith(SAFETENSORS_SUFFIX):
             continue
         # A directory named *.safetensors is not an admitted weight file;
         # broken links and non-regular files fail honestly in the snapshot.
         _identity_snapshot(root / name)
-        selected.append(name)
-    if not selected:
+        shards.add(name)
+    if not shards:
         raise CheckpointProvenanceUnavailable(
             "no admitted root-level safetensors weight files were found"
         )
-    return selected, len(selected)
+    return sorted(shards), len(shards)
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +578,299 @@ def _extract_declared_quantization(
             "sources": sources,
         }
     return {"status": "declared", "method": values[0], "sources": sources}
+
+
+# ---------------------------------------------------------------------------
+# Model-format detection (M8; docs/EXL_RUNTIME_QUALIFICATION.md §8)
+# ---------------------------------------------------------------------------
+
+
+def _safetensors_tensor_keys(path: Path) -> set[str] | None:
+    """Return tensor key names from one bounded safetensors header read.
+
+    Reads only the 8-byte little-endian header length plus the declared
+    header (capped at ``MAX_SAFETENSORS_HEADER_BYTES``). Returns ``None``
+    when the file is not a readable, plausibly framed safetensors container;
+    header inspection is metadata only and never fails collection.
+    """
+
+    try:
+        with path.open("rb") as handle:
+            prefix = handle.read(8)
+            if len(prefix) < 8:
+                return None
+            header_length = int.from_bytes(prefix, "little")
+            if header_length == 0 or header_length > MAX_SAFETENSORS_HEADER_BYTES:
+                return None
+            header = handle.read(header_length)
+            if len(header) < header_length:
+                return None
+            parsed = json.loads(header.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return {
+        key
+        for key, value in parsed.items()
+        if key != "__metadata__" and isinstance(value, dict)
+    }
+
+
+def _scalar_string(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _scalar_number(value: Any) -> int | float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    return None
+
+
+def _detect_model_format(
+    root: Path,
+    names: set[str],
+    config: Mapping[str, Any],
+    quantization_status: str,
+) -> dict[str, Any]:
+    """Observe ``model_format`` from hashed-config declaration plus tensor
+    signature corroboration. Fail closed to ``unknown``; never guess, never
+    use names, sizes, or publication receipts as evidence.
+    """
+
+    warnings: list[str] = []
+    quant_config = config.get("quantization_config")
+    declared = (
+        _quant_method_from(quant_config) if isinstance(quant_config, dict) else None
+    )
+    format_version = (
+        _scalar_string(quant_config.get("version"))
+        if isinstance(quant_config, dict)
+        else None
+    )
+
+    signatures: set[str] = set()
+    signature_files = 0
+    plain_weight_files = 0
+    header_failures = 0
+    for name in sorted(n for n in names if n.endswith(SAFETENSORS_SUFFIX)):
+        keys = _safetensors_tensor_keys(root / name)
+        if keys is None:
+            header_failures += 1
+            continue
+        file_signatures: set[str] = set()
+        if any(key.endswith(".q_weight") for key in keys):
+            file_signatures.add("q_weight")
+        if any(key.endswith(".trellis") for key in keys):
+            file_signatures.add("trellis")
+        if file_signatures:
+            signatures |= file_signatures
+            signature_files += 1
+        elif any(key.endswith(".weight") for key in keys):
+            plain_weight_files += 1
+
+    evidence = {
+        "tensor_signatures": sorted(signatures),
+        "signature_file_count": signature_files,
+        "plain_weight_file_count": plain_weight_files,
+        "header_parse_failure_count": header_failures,
+    }
+
+    def _unknown(warning: str | None) -> dict[str, Any]:
+        if warning:
+            warnings.append(warning)
+        return {
+            "model_format": "unknown",
+            "model_format_version": format_version,
+            "model_format_evidence": evidence,
+            "warnings": warnings,
+        }
+
+    if quantization_status == "conflict":
+        return _unknown(
+            "checkpoint quantization declarations conflict; model format is "
+            "not asserted"
+        )
+    if {"q_weight", "trellis"} <= signatures:
+        return _unknown(
+            "conflict: root safetensors headers carry both EXL2 (.q_weight) "
+            "and EXL3 (.trellis) tensor signatures"
+        )
+    if declared == "exl2":
+        if signatures == {"q_weight"}:
+            return {
+                "model_format": "exl2",
+                "model_format_version": format_version,
+                "model_format_evidence": evidence,
+                "warnings": warnings,
+            }
+        if not signatures:
+            return _unknown(
+                "config.json declares quant_method exl2 but no root "
+                "safetensors header carries a .q_weight tensor signature"
+            )
+        return _unknown(
+            "conflict: config.json declares quant_method exl2 while root "
+            "safetensors headers carry a contradicting tensor signature"
+        )
+    if declared == "exl3":
+        if signatures == {"trellis"}:
+            return {
+                "model_format": "exl3",
+                "model_format_version": format_version,
+                "model_format_evidence": evidence,
+                "warnings": warnings,
+            }
+        if not signatures:
+            return _unknown(
+                "config.json declares quant_method exl3 but no root "
+                "safetensors header carries a .trellis tensor signature"
+            )
+        return _unknown(
+            "conflict: config.json declares quant_method exl3 while root "
+            "safetensors headers carry a contradicting tensor signature"
+        )
+    if declared is not None:
+        if signatures:
+            return _unknown(
+                "conflict: root safetensors headers carry an EXL tensor "
+                f"signature while config.json declares quant_method {declared}"
+            )
+        return _unknown(
+            f"declared quant_method {declared} has no admitted format qualification yet"
+        )
+    if signatures:
+        return _unknown(
+            "root safetensors headers carry an EXL tensor signature while "
+            "config.json declares no quantization method"
+        )
+    if plain_weight_files > 0 and header_failures == 0:
+        return {
+            "model_format": "hf_transformers",
+            "model_format_version": format_version,
+            "model_format_evidence": evidence,
+            "warnings": warnings,
+        }
+    return _unknown(None)
+
+
+def _extract_quantization_extension(
+    parsed: Mapping[str, bytes | None],
+    manifest_paths: set[str],
+    model_format: str,
+) -> dict[str, Any]:
+    """Bounded checkpoint-declared quantization detail (M8, §9).
+
+    Reads only explicit hashed metadata fields: ``config.json``
+    ``quantization_config`` scalars and the admitted quantization sidecars.
+    The per-module tensor-storage map is capped; ``effective_bpw`` is derived
+    only from the sidecar map and is labelled, never inferred from names.
+    """
+
+    extension: dict[str, Any] = {
+        "bits": None,
+        "head_bits": None,
+        "codebook": None,
+        "out_scales": None,
+        "tensor_storage": None,
+        "effective_bpw": {"status": "unknown", "value": None, "basis": None},
+    }
+
+    config = _parse_json_object(
+        parsed.get(CONFIG_FILENAME), filename=CONFIG_FILENAME, required=False
+    )
+    config_quant = config.get("quantization_config") if config else None
+    if isinstance(config_quant, dict):
+        extension["bits"] = _scalar_number(config_quant.get("bits"))
+        extension["head_bits"] = _scalar_number(config_quant.get("head_bits"))
+        extension["codebook"] = _scalar_string(config_quant.get("codebook"))
+        out_scales = config_quant.get("out_scales")
+        if isinstance(out_scales, bool):
+            extension["out_scales"] = out_scales
+
+    storage_source: Mapping[str, Any] | None = None
+    for sidecar in QUANTIZATION_SIDECAR_FILENAMES:
+        if sidecar not in manifest_paths:
+            continue
+        data = _parse_json_object(parsed.get(sidecar), filename=sidecar, required=False)
+        if not isinstance(data, dict):
+            continue
+        container = data.get("quantization_config")
+        source = container if isinstance(container, dict) else data
+        if extension["bits"] is None:
+            extension["bits"] = _scalar_number(source.get("bits"))
+        if extension["head_bits"] is None:
+            extension["head_bits"] = _scalar_number(source.get("head_bits"))
+        if extension["codebook"] is None:
+            extension["codebook"] = _scalar_string(source.get("codebook"))
+        if extension["out_scales"] is None:
+            out_scales = source.get("out_scales")
+            if isinstance(out_scales, bool):
+                extension["out_scales"] = out_scales
+        if isinstance(source.get("tensor_storage"), list):
+            storage_source = source
+            break
+
+    if storage_source is not None:
+        entries: list[dict[str, Any]] = []
+        bits_values: list[float] = []
+        total_bytes = 0.0
+        total_weights = 0.0
+        complete = True
+        for item in storage_source["tensor_storage"]:
+            if not isinstance(item, dict):
+                complete = False
+                continue
+            bits = _scalar_number(item.get("bits_per_weight"))
+            if bits is None:
+                complete = False
+                continue
+            bits_values.append(float(bits))
+            entry: dict[str, Any] = {"bits_per_weight": bits}
+            name = _scalar_string(item.get("name"))
+            if name is not None:
+                entry["name"] = name
+            n_bytes = _scalar_number(item.get("n_bytes"))
+            weights = None
+            for key in ("weights", "n_weights", "n_elems", "num_weights"):
+                weights = _scalar_number(item.get(key))
+                if weights is not None:
+                    break
+            if n_bytes is not None and weights is not None:
+                entry["n_bytes"] = n_bytes
+                entry["weights"] = weights
+                total_bytes += float(n_bytes)
+                total_weights += float(weights)
+            else:
+                complete = False
+            entries.append(entry)
+        storage: dict[str, Any] = {
+            "count": len(entries),
+            "min_bits_per_weight": min(bits_values) if bits_values else None,
+            "max_bits_per_weight": max(bits_values) if bits_values else None,
+            "entries": entries[:MAX_TENSOR_STORAGE_ENTRIES],
+            "entries_truncated": len(entries) > MAX_TENSOR_STORAGE_ENTRIES,
+        }
+        extension["tensor_storage"] = storage
+        if complete and bits_values and total_weights > 0:
+            extension["effective_bpw"] = {
+                "status": "derived",
+                "value": round(8.0 * total_bytes / total_weights, 6),
+                "basis": "tensor_storage_sidecar",
+            }
+
+    if model_format == "exl2" and extension["bits"] is not None:
+        extension["bits_semantics"] = "declared_target_average"
+    elif model_format == "exl3" and extension["bits"] is not None:
+        extension["bits_semantics"] = "declared_final_average"
+    else:
+        extension["bits_semantics"] = None
+
+    return extension
 
 
 def _single_template_string(container: Mapping[str, Any]) -> str | None:
@@ -717,7 +1050,7 @@ def _unavailable_record(source_type: str, reason: str) -> dict[str, Any]:
         "status": "unavailable",
         "reason": reason,
         "warnings": [reason],
-        "manifest_schema": CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        "manifest_schema": CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
         "manifest": None,
         "manifest_sha256": None,
         "public_fingerprint": None,
@@ -725,6 +1058,9 @@ def _unavailable_record(source_type: str, reason: str) -> dict[str, Any]:
         "weight_file_count": None,
         "architecture": None,
         "model_type": None,
+        "model_format": "unknown",
+        "model_format_version": None,
+        "model_format_evidence": None,
         "repository_id": None,
         "revision": None,
         "repository_id_source": "unknown",
@@ -741,7 +1077,18 @@ def _unavailable_record(source_type: str, reason: str) -> dict[str, Any]:
             encoding=None,
             sha256=None,
         ),
-        "checkpoint_quantization": {"status": "unknown", "method": None, "sources": []},
+        "checkpoint_quantization": {
+            "status": "unknown",
+            "method": None,
+            "sources": [],
+            "bits": None,
+            "head_bits": None,
+            "codebook": None,
+            "out_scales": None,
+            "tensor_storage": None,
+            "effective_bpw": {"status": "unknown", "value": None, "basis": None},
+            "bits_semantics": None,
+        },
         "effective_quantization": {
             "status": "unavailable",
             "reason": "M2 has no runtime observation; effective quantization is unknown",
@@ -820,7 +1167,7 @@ def _collect_checkpoint_provenance(
         parsed_metadata[WEIGHTS_INDEX_FILENAME] = index_bytes
         selection.append(WEIGHTS_INDEX_FILENAME)
 
-    weight_paths, weight_count = _select_weight_paths(
+    weight_paths, weight_count = _select_weight_paths_v1(
         logical_root, names, index_bytes if index_present else None
     )
     selection.extend(weight_paths)
@@ -891,7 +1238,7 @@ def _collect_checkpoint_provenance(
             raise CheckpointProvenanceUnavailable(
                 "weights index changed during collection"
             )
-        revalidated_weights, revalidated_count = _select_weight_paths(
+        revalidated_weights, revalidated_count = _select_weight_paths_v1(
             logical_root, post_names, recheck_bytes
         )
         if revalidated_weights != weight_paths or revalidated_count != weight_count:
@@ -952,6 +1299,16 @@ def _collect_checkpoint_provenance(
     if quantization["status"] == "conflict":
         warnings.append("checkpoint quantization declarations disagree")
 
+    format_info = _detect_model_format(
+        logical_root, names, config, quantization["status"]
+    )
+    warnings.extend(format_info["warnings"])
+    quantization.update(
+        _extract_quantization_extension(
+            parsed_metadata, manifest_paths, format_info["model_format"]
+        )
+    )
+
     # An explicit auto_map declaration means the checkpoint depends on
     # custom modeling/tokenizer code outside the admitted canonical allowlist.
     # The manifest stays canonical (never ad hoc expanded), but identity is
@@ -969,7 +1326,9 @@ def _collect_checkpoint_provenance(
         logical_root
     )
 
-    manifest_sha256 = checkpoint_manifest_fingerprint(entries)
+    manifest_sha256 = checkpoint_manifest_fingerprint(
+        entries, schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
     public_fingerprint = public_model_fingerprint(manifest_sha256)
 
     partial = (
@@ -1004,7 +1363,7 @@ def _collect_checkpoint_provenance(
         "status": status,
         "reason": None,
         "warnings": warnings,
-        "manifest_schema": CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        "manifest_schema": CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
         "manifest": entries,
         "manifest_sha256": manifest_sha256,
         "public_fingerprint": public_fingerprint,
@@ -1012,6 +1371,9 @@ def _collect_checkpoint_provenance(
         "weight_file_count": weight_count,
         "architecture": architecture,
         "model_type": model_type,
+        "model_format": format_info["model_format"],
+        "model_format_version": format_info["model_format_version"],
+        "model_format_evidence": format_info["model_format_evidence"],
         "repository_id": repository_id,
         "revision": revision,
         "repository_id_source": repository_source,

@@ -1493,7 +1493,9 @@ def _validate_directory_model_provenance(
 
     from llmgauge.core.checkpoint_provenance import (
         CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
         CHECKPOINT_PROVENANCE_KIND,
+        MODEL_FORMATS,
         checkpoint_manifest_fingerprint,
         checkpoint_tokenizer_identity_fingerprint,
     )
@@ -1506,9 +1508,13 @@ def _validate_directory_model_provenance(
         errors.append(f"{label}.status must be available, partial, or unavailable")
     if provenance.get("provenance_kind") != CHECKPOINT_PROVENANCE_KIND:
         errors.append(f"{label}.provenance_kind must be {CHECKPOINT_PROVENANCE_KIND}")
-    if provenance.get("manifest_schema") != CHECKPOINT_MANIFEST_SCHEMA_VERSION:
+    if provenance.get("manifest_schema") not in {
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
+    }:
         errors.append(
-            f"{label}.manifest_schema must be {CHECKPOINT_MANIFEST_SCHEMA_VERSION}"
+            f"{label}.manifest_schema must be {CHECKPOINT_MANIFEST_SCHEMA_VERSION} "
+            f"or {CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1}"
         )
     eligible = provenance.get("fingerprint_eligible")
     if not isinstance(eligible, bool):
@@ -1570,7 +1576,13 @@ def _validate_directory_model_provenance(
     if entry_paths != sorted(entry_paths):
         errors.append(f"{label}.manifest entries must be sorted by path")
 
-    recomputed = checkpoint_manifest_fingerprint(entries) if entries else None
+    recomputed = (
+        checkpoint_manifest_fingerprint(
+            entries, schema_version=str(provenance.get("manifest_schema"))
+        )
+        if entries
+        else None
+    )
     manifest_sha256 = provenance.get("manifest_sha256")
     if not _is_sha256_hex(manifest_sha256):
         errors.append(f"{label}.manifest_sha256 must be 64 lowercase hex characters")
@@ -1725,6 +1737,132 @@ def _validate_directory_model_provenance(
                         f"{label}.checkpoint_quantization.sources[{source_index}] "
                         "must record file, field, and value"
                     )
+
+    if provenance.get("manifest_schema") == CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1:
+        # M8: v1 records carry model_format identity and the quantization
+        # extension; v0 records are validated by the rules above only.
+        if provenance.get("model_format") not in MODEL_FORMATS:
+            errors.append(
+                f"{label}.model_format must be one of "
+                + ", ".join(sorted(MODEL_FORMATS))
+            )
+        model_format_version = provenance.get("model_format_version")
+        if model_format_version is not None and not isinstance(
+            model_format_version, str
+        ):
+            errors.append(f"{label}.model_format_version must be null or a string")
+        format_evidence = provenance.get("model_format_evidence")
+        if not isinstance(format_evidence, dict):
+            errors.append(f"{label}.model_format_evidence must be an object")
+        else:
+            signatures = format_evidence.get("tensor_signatures")
+            if not isinstance(signatures, list) or not set(signatures) <= {
+                "q_weight",
+                "trellis",
+            }:
+                errors.append(
+                    f"{label}.model_format_evidence.tensor_signatures is invalid"
+                )
+            for key in (
+                "signature_file_count",
+                "plain_weight_file_count",
+                "header_parse_failure_count",
+            ):
+                value = format_evidence.get(key)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    errors.append(
+                        f"{label}.model_format_evidence.{key} must be a "
+                        "non-negative integer"
+                    )
+        if isinstance(quantization, dict):
+            for key in ("bits", "head_bits"):
+                value = quantization.get(key)
+                if value is not None and (
+                    isinstance(value, bool) or not isinstance(value, (int, float))
+                ):
+                    errors.append(
+                        f"{label}.checkpoint_quantization.{key} must be null or a "
+                        "number"
+                    )
+            codebook = quantization.get("codebook")
+            if codebook is not None and not isinstance(codebook, str):
+                errors.append(
+                    f"{label}.checkpoint_quantization.codebook must be null or a string"
+                )
+            out_scales = quantization.get("out_scales")
+            if out_scales is not None and not isinstance(out_scales, bool):
+                errors.append(
+                    f"{label}.checkpoint_quantization.out_scales must be null or "
+                    "a boolean"
+                )
+            bits_semantics = quantization.get("bits_semantics")
+            if bits_semantics is not None and bits_semantics not in {
+                "declared_target_average",
+                "declared_final_average",
+            }:
+                errors.append(
+                    f"{label}.checkpoint_quantization.bits_semantics is invalid"
+                )
+            tensor_storage = quantization.get("tensor_storage")
+            if tensor_storage is not None:
+                if not isinstance(tensor_storage, dict):
+                    errors.append(
+                        f"{label}.checkpoint_quantization.tensor_storage must be "
+                        "null or an object"
+                    )
+                else:
+                    storage_count = tensor_storage.get("count")
+                    if (
+                        isinstance(storage_count, bool)
+                        or not isinstance(storage_count, int)
+                        or storage_count < 0
+                    ):
+                        errors.append(
+                            f"{label}.checkpoint_quantization.tensor_storage.count "
+                            "must be a non-negative integer"
+                        )
+                    for key in ("min_bits_per_weight", "max_bits_per_weight"):
+                        value = tensor_storage.get(key)
+                        if value is not None and (
+                            isinstance(value, bool)
+                            or not isinstance(value, (int, float))
+                        ):
+                            errors.append(
+                                f"{label}.checkpoint_quantization.tensor_storage."
+                                f"{key} must be null or a number"
+                            )
+                    storage_entries = tensor_storage.get("entries")
+                    if (
+                        not isinstance(storage_entries, list)
+                        or len(storage_entries) > 512
+                    ):
+                        errors.append(
+                            f"{label}.checkpoint_quantization.tensor_storage."
+                            "entries must be a bounded list"
+                        )
+                    if not isinstance(tensor_storage.get("entries_truncated"), bool):
+                        errors.append(
+                            f"{label}.checkpoint_quantization.tensor_storage."
+                            "entries_truncated must be a boolean"
+                        )
+            effective_bpw = quantization.get("effective_bpw")
+            if not isinstance(effective_bpw, dict) or effective_bpw.get(
+                "status"
+            ) not in {
+                "derived",
+                "unknown",
+            }:
+                errors.append(
+                    f"{label}.checkpoint_quantization.effective_bpw.status is invalid"
+                )
+            elif effective_bpw.get("value") is not None and (
+                isinstance(effective_bpw["value"], bool)
+                or not isinstance(effective_bpw["value"], (int, float))
+            ):
+                errors.append(
+                    f"{label}.checkpoint_quantization.effective_bpw.value must be "
+                    "null or a number"
+                )
 
     warnings = provenance.get("warnings")
     if not isinstance(warnings, list) or any(

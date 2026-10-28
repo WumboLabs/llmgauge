@@ -450,7 +450,8 @@ Fields:
     status: available | partial | unavailable
     reason
     warnings
-    manifest_schema: llmgauge.checkpoint_directory_manifest.v0
+    manifest_schema: llmgauge.checkpoint_directory_manifest.v0 |
+        llmgauge.checkpoint_directory_manifest.v1
     manifest: ordered [{path, size, sha256}] entries (private evidence)
     manifest_sha256 (private full fingerprint)
     public_fingerprint: sha256:<16 lowercase hex>
@@ -469,6 +470,17 @@ Fields:
     fingerprint_eligible
     fingerprint_ineligible_reason
 
+M8 adds the v1 manifest schema and, for v1 records only, the observed model
+format and bounded declared-quantization detail:
+
+    model_format: exl2 | exl3 | hf_transformers | unknown
+    model_format_version: string | null
+    model_format_evidence: {tensor_signatures, signature_file_count,
+        plain_weight_file_count, header_parse_failure_count}
+    checkpoint_quantization (v1 extension): {status, method, sources,
+        bits, head_bits, codebook, out_scales, bits_semantics,
+        tensor_storage, effective_bpw}
+
 Semantics:
 
 - Manifest entries are normalized model-root-relative paths with byte size
@@ -477,6 +489,41 @@ Semantics:
   over the versioned manifest schema identifier plus the ordered entries.
   The public display form is `sha256:` plus the first 16 lowercase hex
   characters; it is a display identifier, not the full local fingerprint.
+- `manifest_schema` selects the weight-file selection rule and is bound into
+  the canonical manifest fingerprint, so v0 and v1 records over identical
+  bytes produce different manifest hashes. v0 (historical, still verifiable)
+  admits only the unique paths referenced by an index `weight_map` when an
+  index is present. v1 (current collections) admits the union of those index
+  paths and every root-level `*.safetensors` file (non-recursive glob,
+  deduplicated, sorted), closing the qualification finding that root-level
+  safetensors such as EXL3 `ngram_embedding.safetensors` sat outside the
+  identity ([EXL runtime qualification §6](EXL_RUNTIME_QUALIFICATION.md)).
+  The union is deliberately byte-identity, not an inference-material view:
+  a root-level conversion artifact such as `cal_trace.safetensors` is
+  included in v1, so changing its bytes can change the v1 manifest
+  fingerprint even when inference weights are unchanged, and inclusion
+  never claims inference-time consumption.
+- For v1 records, `model_format` is observed, never inferred from names,
+  sizes, or publication receipts: the hashed `config.json`
+  `quantization_config.quant_method` declaration must be corroborated by
+  `.q_weight` (EXL2) or `.trellis` (EXL3) tensor signatures read from
+  bounded safetensors headers (header length plus at most 8 MiB). Missing
+  corroboration, contradicting signatures, both EXL signatures at once, an
+  EXL signature with no declaration, or an unqualified declared method all
+  fail closed to `unknown` with a warning. `model_format_evidence` records
+  the observed signature set, signature/plain-weight file counts, and
+  header-parse failure counts. `hf_transformers` requires plain `.weight`
+  tensors, a declaration-free config, and zero header parse failures.
+- The v1 `checkpoint_quantization` extension records bounded
+  checkpoint-declared detail only (explicit hashed `config.json`
+  `quantization_config` scalars and admitted quantization sidecars):
+  `bits`, `head_bits`, `codebook`, `out_scales`, a capped per-module
+  `tensor_storage` map (at most 512 entries, `entries_truncated` flagged),
+  and `effective_bpw` derived arithmetically from the sidecar map only
+  (`status` `derived` with an explicit `basis`, otherwise `unknown`).
+  `bits_semantics` labels the declared `bits` meaning per format
+  (`declared_target_average` for EXL2, `declared_final_average` for EXL3,
+  otherwise null); it is declared metadata, not runtime observation.
 - The absolute checkpoint root, cache identities, and symlink target paths
   are never persisted in the record. `repository_id`/`revision` are
   descriptive local-only metadata derived conservatively from a recognized
@@ -510,7 +557,8 @@ Semantics:
 - Public export replaces the entire private `model.provenance` block with a
   bounded `model.checkpoint_identity` projection (statuses, shortened
   fingerprints, sanitized descriptive identifiers, bounded declared-
-  quantization label); manifest entries, full hashes, and any local paths
+  quantization label, and the observed `model_format`/`model_format_version`
+  for v1 records); manifest entries, full hashes, and any local paths
   are withheld.
 
 ### runtime
@@ -1137,7 +1185,8 @@ rollout also remain verifiable; newly generated controlled runs use v4.
 Existing v0, v1, v2, and v3 payloads are not reinterpreted or rewritten.
 
 Results whose model provenance is an admitted `checkpoint_directory_manifest`
-record use `llmgauge.run_fingerprint.v6` and a v6 payload. The v6 model
+record with the v0 manifest schema use `llmgauge.run_fingerprint.v6` and a v6
+payload. The v6 model
 identity is the cryptographic checkpoint manifest fingerprint recomputed from
 the persisted ordered manifest entries (path, size, full SHA-256), plus the
 versioned manifest schema identifier, tokenizer identity, chat-template
@@ -1152,7 +1201,7 @@ payloads are frozen: GGUF and served-model results keep their existing
 versions, payload bytes, and verification behavior unchanged.
 
 Results whose model provenance is an admitted `checkpoint_directory_manifest`
-record bound to an external vLLM server run (M3) use
+record with the v0 manifest schema bound to an external vLLM server run (M3) use
 `llmgauge.run_fingerprint.v7` and a v7 payload. v7 keeps the v6 model-identity
 boundary (recomputed manifest fingerprint, tokenizer and chat-template
 identity, declared/effective quantization, ordered manifest entries) but
@@ -1174,12 +1223,27 @@ results (no fingerprint) keep their existing selection unchanged. Existing
 v0-v6 payloads are frozen: their bytes and verification behavior are
 unchanged and regression-pinned.
 
+Results whose checkpoint provenance carries the M8 v1 union manifest schema
+(`llmgauge.checkpoint_directory_manifest.v1`) use
+`llmgauge.run_fingerprint.v8` and a v8 payload. v8 keeps the v6/v7
+model-identity boundary and additionally binds the v1 manifest schema
+identifier, the observed `model_format`, `model_format_version`, and
+`model_format_evidence`, and the extended checkpoint-declared quantization
+detail into the model identity. Server-backed vLLM runs keep the v7
+server-backed backend identity inside v8; direct-process runs keep the
+direct backend identity. Selection is by persisted evidence only: a
+v1-manifest record selects v8 and cannot claim v6/v7, while a v0-manifest
+record keeps its existing v6/v7 selection and cannot claim v8. Existing
+v0-v7 payloads are frozen: their bytes and verification behavior are
+unchanged and regression-pinned.
+
 ## Schema: llmgauge.vllm_checkpoint_binding.v0
 
 Optional additive `runtime.checkpoint_binding` object for a vLLM run bound to
 a local checkpoint directory (M3). Its presence alongside
 `checkpoint_directory_manifest` model provenance selects the v7 run
-fingerprint. Top-level expected keys:
+fingerprint (v8 when the provenance carries the v1 manifest schema).
+Top-level expected keys:
 
     schema_version
     status
