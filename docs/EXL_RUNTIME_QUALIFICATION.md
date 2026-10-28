@@ -542,9 +542,9 @@ Revised ordered program:
 | M2 | directory-model provenance + fingerprint eligibility (v0) | done |
 | M2.5 | EXL/ExLlama qualification (this document) | done |
 | M3 | vLLM first-class model identity | done (consumed run-fingerprint v7) |
-| M4 | vLLM managed-local lifecycle | planned |
+| M4 | vLLM managed-local lifecycle | planned; queued after M8 (2026-10-25 rebase) |
 | M5 | vLLM workflow parity | planned |
-| M8 | EXL manifest v1 + `model_format` identity (provenance extension, detection, next unallocated fingerprint version) | inserted before M6 |
+| M8 | EXL manifest v1 + `model_format` identity (provenance extension, detection, next unallocated fingerprint version) | **selected next** (2026-10-25 rebase) |
 | M9 | ExLlamaV3 external-server adapter (TabbyAPI transport, identity, evidence) | inserted before M7 |
 | M10 | ExLlamaV3 managed lifecycle + workflow parity | planned |
 | M11 | EXL2/ExLlamaV2 compatibility lane (pinned TabbyAPI `exl2-checkpoint`) | planned after M10 |
@@ -564,6 +564,16 @@ exactly the evidence the §6 admission rule requires; M6 then performs the
 behavior-preserving shared-transport extraction once three server adapters
 (vLLM, ExLlamaV3, SGLang-to-be) have proven what is genuinely common.
 
+> Update (2026-10-25): the selection is rebased on current local EXL3
+> evidence. M8 is now the selected next implementation milestone: it is
+> provenance-only, format-neutral, depends solely on the implemented M2, and
+> is the prerequisite for M9–M11. M4/M5 keep their accepted content and vLLM
+> obligations unchanged and are queued immediately after M8; the reordering
+> weakens or defers nothing in the vLLM block. M9 stays gated on an admitted
+> TabbyAPI server (§13): the operator's current ExLlamaV3 serving path is a
+> custom `launch.py` server, not TabbyAPI, and no local TabbyAPI deployment
+> exists, so no M9 transport may be inferred from that endpoint.
+
 ## 17. Selected next implementation milestone
 
 **M3 — vLLM first-class model identity** (unchanged selection, reconfirmed
@@ -574,6 +584,12 @@ and nothing in this qualification blocks it. M8 (manifest v1 +
 `model_format`) is the first EXL implementation milestone and enters the
 queue immediately after the vLLM block, not before M3, because M3 does not
 depend on it.
+
+> Update (2026-10-25): the selection above is historical — M3 is implemented
+> on `main` (post-v0.78). The selected next implementation milestone is now
+> **M8 — EXL checkpoint-manifest v1 + `model_format` identity**. M4 (vLLM
+> managed-local lifecycle) remains the next vLLM-block milestone with its
+> accepted obligations intact, queued after M8.
 
 ## 18. Explicit answers
 
@@ -600,4 +616,4 @@ depend on it.
 13. EXL2/ExLlamaV2 retains a compatibility lane with full representation
     identity and pinned legacy execution (§10).
 14. EXL work enters after the vLLM block, before SGLang resequencing
-    (§16); next milestone stays M3 (§17).
+    (§16); the selected next milestone is M8 (§17).
