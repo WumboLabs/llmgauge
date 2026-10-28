@@ -441,6 +441,8 @@ def _project_public_checkpoint_identity(data: Any, categories: set[str]) -> Any:
         "weight_file_count": provenance.get("weight_file_count"),
         "architecture": provenance.get("architecture"),
         "model_type": provenance.get("model_type"),
+        "model_format": provenance.get("model_format"),
+        "model_format_version": provenance.get("model_format_version"),
         "repository_id": provenance.get("repository_id"),
         "revision": provenance.get("revision"),
         "repository_id_source": provenance.get("repository_id_source"),

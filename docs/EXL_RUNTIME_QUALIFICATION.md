@@ -591,6 +591,13 @@ depend on it.
 > managed-local lifecycle) remains the next vLLM-block milestone with its
 > accepted obligations intact, queued after M8.
 
+> Update (2026-10-28): M8 is implemented on the working branch
+> `feat/exl-manifest-v1-model-format` (manifest v1 union selection,
+> `model_format` observation with fail-closed conflicts, bounded
+> declared-quantization extension, `llmgauge.run_fingerprint.v8`, validator,
+> report, compare, and public-export integration). It awaits human review
+> and merge; until merged, `main` still collects v0 manifests.
+
 ## 18. Explicit answers
 
 1. EXL2 and EXL3 are both `checkpoint_directory` source-kind models. ✔

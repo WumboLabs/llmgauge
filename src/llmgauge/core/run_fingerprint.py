@@ -23,6 +23,8 @@ RUN_FINGERPRINT_SCHEMA_VERSION_V6 = "llmgauge.run_fingerprint.v6"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V6 = "llmgauge.run_fingerprint_payload.v6"
 RUN_FINGERPRINT_SCHEMA_VERSION_V7 = "llmgauge.run_fingerprint.v7"
 RUN_FINGERPRINT_PAYLOAD_VERSION_V7 = "llmgauge.run_fingerprint_payload.v7"
+RUN_FINGERPRINT_SCHEMA_VERSION_V8 = "llmgauge.run_fingerprint.v8"
+RUN_FINGERPRINT_PAYLOAD_VERSION_V8 = "llmgauge.run_fingerprint_payload.v8"
 RUN_FINGERPRINT_FIELD = "run_fingerprint"
 
 _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -136,13 +138,17 @@ def _selected_mapping(source: Mapping[str, Any], keys: list[str]) -> dict[str, A
     return {key: source.get(key) for key in keys}
 
 
-def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
+def _directory_model_identity(
+    model: Mapping[str, Any],
+    *,
+    manifest_schema: str,
+) -> dict[str, Any]:
     provenance = model.get("provenance")
     if not isinstance(provenance, Mapping):
         raise FingerprintUnavailable("model provenance is unavailable")
 
     from llmgauge.core.checkpoint_provenance import (
-        CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
         CHECKPOINT_PROVENANCE_KIND,
         checkpoint_manifest_fingerprint,
         checkpoint_tokenizer_identity_fingerprint,
@@ -153,9 +159,10 @@ def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
         raise FingerprintUnavailable(
             "model provenance is not an admitted checkpoint-directory manifest"
         )
-    if provenance.get("manifest_schema") != CHECKPOINT_MANIFEST_SCHEMA_VERSION:
+    if provenance.get("manifest_schema") != manifest_schema:
         raise FingerprintUnavailable(
-            "checkpoint manifest schema is not the admitted v0 manifest"
+            "checkpoint manifest schema is not the admitted manifest for this "
+            f"fingerprint payload: expected {manifest_schema}"
         )
     if provenance.get("fingerprint_eligible") is not True:
         reason = provenance.get("fingerprint_ineligible_reason")
@@ -186,7 +193,9 @@ def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
         }
         for entry in manifest
     ]
-    recomputed_manifest_sha256 = checkpoint_manifest_fingerprint(entries)
+    recomputed_manifest_sha256 = checkpoint_manifest_fingerprint(
+        entries, schema_version=manifest_schema
+    )
     if not _sha256_is_available(provenance.get("manifest_sha256")):
         raise FingerprintUnavailable("checkpoint manifest SHA-256 is unavailable")
     if provenance["manifest_sha256"] != recomputed_manifest_sha256:
@@ -245,7 +254,7 @@ def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
                 "checkpoint chat-template public fingerprint does not match its SHA-256"
             )
 
-    return {
+    identity = {
         "model_id": model.get("model_id"),
         "model_source": model.get("model_source"),
         "model_profile": model.get("model_profile"),
@@ -288,6 +297,17 @@ def _directory_model_identity(model: Mapping[str, Any]) -> dict[str, Any]:
         },
         "manifest_entries": entries,
     }
+    if manifest_schema == CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1:
+        # M8: model_format identity rides the v1-manifest (v8) payload only;
+        # frozen v6/v7 payload content is byte-unchanged.
+        identity["provenance"]["model_format"] = provenance.get("model_format")
+        identity["provenance"]["model_format_version"] = provenance.get(
+            "model_format_version"
+        )
+        identity["provenance"]["model_format_evidence"] = provenance.get(
+            "model_format_evidence"
+        )
+    return identity
 
 
 def _model_identity(
@@ -295,11 +315,25 @@ def _model_identity(
     *,
     payload_version: str = RUN_FINGERPRINT_PAYLOAD_VERSION,
 ) -> dict[str, Any]:
+    if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V8:
+        from llmgauge.core.checkpoint_provenance import (
+            CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
+        )
+
+        return _directory_model_identity(
+            model, manifest_schema=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+        )
     if payload_version in {
         RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
         RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
     }:
-        return _directory_model_identity(model)
+        from llmgauge.core.checkpoint_provenance import (
+            CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+        )
+
+        return _directory_model_identity(
+            model, manifest_schema=CHECKPOINT_MANIFEST_SCHEMA_VERSION
+        )
     provenance = model.get("provenance")
     if not isinstance(provenance, Mapping):
         raise FingerprintUnavailable("model provenance is unavailable")
@@ -359,10 +393,10 @@ def _server_backend_identity(
     runtime: Mapping[str, Any],
     model: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """v7 backend identity for an external-server-backed vLLM run.
+    """v7/v8 backend identity for an external-server-backed vLLM run.
 
     An operator-managed vLLM server has no LLMGauge-observed executable
-    SHA-256, so v7 never claims server-binary attestation. It identifies the
+    SHA-256, so v7/v8 never claim server-binary attestation. It identifies the
     preserved evaluation evidence: backend id, external lifecycle class, the
     observed server-reported ``/version`` string (required, never inferred),
     the opaque per-request ``system_fingerprint`` summary (optional evidence,
@@ -681,7 +715,31 @@ def _profile_evidence_is_represented(result: Mapping[str, Any]) -> bool:
     return isinstance(runtime, Mapping) and runtime.get("profile") is not None
 
 
+def _checkpoint_manifest_v1_is_represented(result: Mapping[str, Any]) -> bool:
+    """True when checkpoint provenance carries the M8 v1 union manifest.
+
+    This is the M8 selection key: every new checkpoint-directory collection
+    (direct or server-backed) fingerprints as v8. v0-manifest provenance
+    remains verifiable only as v6/v7.
+    """
+
+    from llmgauge.core.checkpoint_provenance import (
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
+    )
+
+    model = result.get("model")
+    if not isinstance(model, Mapping):
+        return False
+    provenance = model.get("provenance")
+    return (
+        isinstance(provenance, Mapping)
+        and provenance.get("manifest_schema") == CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
+
+
 def _fingerprint_versions(result: Mapping[str, Any]) -> tuple[str, str]:
+    if _checkpoint_manifest_v1_is_represented(result):
+        return RUN_FINGERPRINT_SCHEMA_VERSION_V8, RUN_FINGERPRINT_PAYLOAD_VERSION_V8
     if _server_backed_checkpoint_identity_is_represented(result):
         return RUN_FINGERPRINT_SCHEMA_VERSION_V7, RUN_FINGERPRINT_PAYLOAD_VERSION_V7
     if _checkpoint_directory_identity_is_represented(result):
@@ -718,6 +776,7 @@ def build_run_fingerprint_payload(
             RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
             RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+            RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
         }
         and _area4_is_represented(result)
     )
@@ -841,6 +900,10 @@ def build_run_fingerprint_payload(
         "backend": (
             _server_backend_identity(runtime, model)
             if payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V7
+            or (
+                payload_version == RUN_FINGERPRINT_PAYLOAD_VERSION_V8
+                and runtime.get("backend") == "vllm"
+            )
             else _backend_identity(runtime)
         ),
         "runtime_settings": _runtime_settings(
@@ -852,6 +915,7 @@ def build_run_fingerprint_payload(
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
             },
             include_control_settings=payload_version
             in {
@@ -859,6 +923,7 @@ def build_run_fingerprint_payload(
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V5,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
                 RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+                RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
             },
         ),
         "suite": suite_identity,
@@ -880,6 +945,7 @@ def build_run_fingerprint_payload(
     elif payload_version in {
         RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
         RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+        RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
     }:
         profile = runtime.get("profile")
         if isinstance(profile, Mapping):
@@ -975,6 +1041,7 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
         RUN_FINGERPRINT_SCHEMA_VERSION_V7,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     }:
         errors.append(
             "run_fingerprint.schema_version must be "
@@ -984,8 +1051,9 @@ def verify_run_fingerprint(
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V3}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V4}, "
             f"{RUN_FINGERPRINT_SCHEMA_VERSION_V5}, "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V6}, or "
-            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V7}"
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V6}, "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V7}, or "
+            f"{RUN_FINGERPRINT_SCHEMA_VERSION_V8}"
         )
     if fingerprint.get("algorithm") != "sha256":
         errors.append("run_fingerprint.algorithm must be sha256")
@@ -996,7 +1064,13 @@ def verify_run_fingerprint(
 
     if errors:
         return errors
-    if _server_backed_checkpoint_identity_is_represented(result):
+    if _checkpoint_manifest_v1_is_represented(result):
+        if schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V8:
+            return [
+                "v1 checkpoint-directory manifest requires a v8 "
+                "run_fingerprint when represented"
+            ]
+    elif _server_backed_checkpoint_identity_is_represented(result):
         if schema_version != RUN_FINGERPRINT_SCHEMA_VERSION_V7:
             return [
                 "server-backed checkpoint-directory provenance requires a v7 "
@@ -1021,9 +1095,10 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     }:
         errors.append(
-            "llama.cpp control evidence requires a v3, v4, v5, or v6 "
+            "llama.cpp control evidence requires a v3, v4, v5, v6, or v8 "
             "run_fingerprint when represented"
         )
         return errors
@@ -1032,9 +1107,10 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V4,
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     }:
         errors.append(
-            "extended runtime evidence requires a v3, v4, v5, or v6 "
+            "extended runtime evidence requires a v3, v4, v5, v6, or v8 "
             "run_fingerprint when represented"
         )
         return errors
@@ -1057,12 +1133,15 @@ def verify_run_fingerprint(
         RUN_FINGERPRINT_SCHEMA_VERSION_V5,
         RUN_FINGERPRINT_SCHEMA_VERSION_V6,
         RUN_FINGERPRINT_SCHEMA_VERSION_V7,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     }:
         errors.append(
-            "Area 4 evidence requires a v1, v3, v4, v5, v6, or v7 "
+            "Area 4 evidence requires a v1, v3, v4, v5, v6, v7, or v8 "
             "run_fingerprint when represented"
         )
-    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V7:
+    if schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V8:
+        payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V8
+    elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V7:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V7
     elif schema_version == RUN_FINGERPRINT_SCHEMA_VERSION_V6:
         payload_version = RUN_FINGERPRINT_PAYLOAD_VERSION_V6

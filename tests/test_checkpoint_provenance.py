@@ -10,7 +10,7 @@ import pytest
 
 import llmgauge.core.checkpoint_provenance as checkpoint_module
 from llmgauge.core.checkpoint_provenance import (
-    CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+    CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
     CHECKPOINT_PROVENANCE_KIND,
     checkpoint_manifest_fingerprint,
     checkpoint_tokenizer_identity_fingerprint,
@@ -52,6 +52,21 @@ def _write_checkpoint(
     return root
 
 
+def _safetensors_bytes(tensor_names: list[str]) -> bytes:
+    """Build a plausibly framed safetensors container with the given keys.
+
+    Only the bounded header (8-byte little-endian length + JSON) matters for
+    format detection; the tensor data section is a minimal filler.
+    """
+
+    header: dict[str, Any] = {
+        name: {"dtype": "F32", "shape": [1], "data_offsets": [0, 4]}
+        for name in tensor_names
+    }
+    encoded = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    return len(encoded).to_bytes(8, "little") + encoded + b"\x00\x00\x00\x00"
+
+
 def _collect(root: Path, cache: Path) -> dict[str, Any]:
     return collect_checkpoint_provenance(
         root, source_type="model_profile", cache_path=cache
@@ -71,7 +86,7 @@ def test_minimal_non_indexed_checkpoint_is_available(tmp_path: Path) -> None:
 
     assert record["status"] == "available"
     assert record["provenance_kind"] == CHECKPOINT_PROVENANCE_KIND
-    assert record["manifest_schema"] == CHECKPOINT_MANIFEST_SCHEMA_VERSION
+    assert record["manifest_schema"] == CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
     assert _paths(record) == [
         "config.json",
         "model.safetensors",
@@ -80,9 +95,16 @@ def test_minimal_non_indexed_checkpoint_is_available(tmp_path: Path) -> None:
     ]
     assert record["fingerprint_eligible"] is True
     assert record["weight_file_count"] == 1
+    # The fixture weight file is not a plausibly framed safetensors container;
+    # format detection fails closed to unknown without warning noise.
+    assert record["model_format"] == "unknown"
+    assert record["model_format_evidence"]["header_parse_failure_count"] == 1
+    assert record["warnings"] == []
 
 
-def test_indexed_checkpoint_selects_only_referenced_shards(tmp_path: Path) -> None:
+def test_indexed_checkpoint_selects_union_of_index_and_root_shards(
+    tmp_path: Path,
+) -> None:
     root = _write_checkpoint(
         tmp_path / "ckpt",
         weights={
@@ -103,14 +125,16 @@ def test_indexed_checkpoint_selects_only_referenced_shards(tmp_path: Path) -> No
     record = _collect(root, tmp_path / "cache.json")
 
     assert record["status"] == "partial"  # no tokenizer/template
-    assert "model-00003-unrelated.safetensors" not in _paths(record)
+    # M8 v1 union rule: index-referenced shards plus every root-level
+    # ``*.safetensors``; previously excluded root shards enter the manifest.
     assert _paths(record) == [
         "config.json",
         "model-00001-of-00002.safetensors",
         "model-00002-of-00002.safetensors",
+        "model-00003-unrelated.safetensors",
         "model.safetensors.index.json",
     ]
-    assert record["weight_file_count"] == 2
+    assert record["weight_file_count"] == 3
 
 
 def test_entries_are_sorted_unique_and_carry_path_size_sha(tmp_path: Path) -> None:
@@ -254,10 +278,25 @@ def test_manifest_fingerprint_recomputes_from_entries(tmp_path: Path) -> None:
     record = _collect(root, tmp_path / "cache.json")
 
     assert record["manifest_sha256"] == checkpoint_manifest_fingerprint(
-        record["manifest"]
+        record["manifest"], schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
     )
     assert record["public_fingerprint"] == "sha256:" + record["manifest_sha256"][:16]
     assert len(record["manifest_sha256"]) == 64
+
+
+def test_manifest_payload_binds_schema_version(tmp_path: Path) -> None:
+    root = _write_checkpoint(tmp_path / "ckpt")
+    record = _collect(root, tmp_path / "cache.json")
+    entries = record["manifest"]
+
+    v0 = checkpoint_manifest_fingerprint(entries)
+    v1 = checkpoint_manifest_fingerprint(
+        entries, schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
+    # The payload carries its schema version, so identical entries cannot be
+    # claimed under both schemas with one digest.
+    assert v0 != v1
+    assert record["manifest_sha256"] == v1
 
 
 def test_weight_change_changes_fingerprint(tmp_path: Path) -> None:
@@ -475,11 +514,304 @@ def test_effective_quantization_is_always_unavailable(tmp_path) -> None:
     assert record["effective_quantization"]["status"] == "unavailable"
 
 
-def test_dtype_alone_never_declares_quantization(tmp_path) -> None:
+def test_dtype_alone_never_declares_quantization(tmp_path: None) -> None:
     config = json.dumps({"torch_dtype": "fp8", "model_type": "tiny"}).encode("utf-8")
     root = _write_checkpoint(tmp_path / "ckpt", config=config)
     record = _collect(root, tmp_path / "cache.json")
     assert record["checkpoint_quantization"]["status"] == "absent"
+
+
+# --- M8: model_format detection and quantization extension -------------------
+
+
+def test_v1_union_includes_index_shards_and_root_safetensors(
+    tmp_path: Path,
+) -> None:
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        weights={
+            "model-00001-of-00002.safetensors": _safetensors_bytes(
+                ["model.layers.0.mlp_gate.up.weight"]
+            ),
+            "model-00002-of-00002.safetensors": _safetensors_bytes(
+                ["model.layers.1.mlp_gate.up.weight"]
+            ),
+            "ngram_embedding.safetensors": _safetensors_bytes(
+                ["token_embeddings.ngram_embedding.weight"]
+            ),
+            "cal_trace.safetensors": _safetensors_bytes(["calibration.trace.weight"]),
+        },
+        index={
+            "metadata": {"total_size": 2},
+            "weight_map": {
+                "model.layers.0.mlp_gate.up.weight": "model-00001-of-00002.safetensors",
+                "model.layers.1.mlp_gate.up.weight": "model-00002-of-00002.safetensors",
+            },
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["manifest_schema"] == CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    assert record["status"] == "available"
+    assert _paths(record) == [
+        "cal_trace.safetensors",
+        "config.json",
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors",
+        "model.safetensors.index.json",
+        "ngram_embedding.safetensors",
+        "tokenizer.json",
+        "tokenizer_config.json",
+    ]
+    assert record["weight_file_count"] == 4
+    # Plain .weight tensors, no declared quantization, no header failures:
+    # hf_transformers is detected only negatively.
+    assert record["model_format"] == "hf_transformers"
+    assert record["model_format_evidence"]["plain_weight_file_count"] == 4
+    assert record["model_format_evidence"]["tensor_signatures"] == []
+    assert record["checkpoint_quantization"]["status"] == "absent"
+    assert record["checkpoint_quantization"]["bits_semantics"] is None
+
+
+def test_exl2_detected_from_declaration_and_q_weight_signature(
+    tmp_path: Path,
+) -> None:
+    config = json.dumps(
+        {
+            "model_type": "exl2-tiny",
+            "quantization_config": {
+                "quant_method": "exl2",
+                "bits": 4.0,
+                "head_bits": 1.0,
+                "codebook": "codebook_ngram",
+                "version": "0.30.0",
+            },
+        }
+    ).encode("utf-8")
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=config,
+        weights={
+            "model.safetensors": _safetensors_bytes(
+                [
+                    "layers.0.input_layernorm.q_weight",
+                    "layers.0.mlp_gate.down.q_weight",
+                ]
+            ),
+            "ngram_embedding.safetensors": _safetensors_bytes(
+                ["token_embeddings.ngram_embedding.q_weight"]
+            ),
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "exl2"
+    assert record["model_format_version"] == "0.30.0"
+    assert record["model_format_evidence"]["tensor_signatures"] == ["q_weight"]
+    assert record["model_format_evidence"]["signature_file_count"] == 2
+    assert record["model_format_evidence"]["header_parse_failure_count"] == 0
+    quantization = record["checkpoint_quantization"]
+    assert quantization["status"] == "declared"
+    assert quantization["method"] == "exl2"
+    assert quantization["bits"] == 4.0
+    assert quantization["head_bits"] == 1.0
+    assert quantization["codebook"] == "codebook_ngram"
+    assert quantization["bits_semantics"] == "declared_target_average"
+    assert quantization["effective_bpw"]["status"] == "unknown"
+    assert record["status"] == "available"
+    assert record["fingerprint_eligible"] is True
+
+
+def test_exl3_detected_with_tensor_storage_and_derived_bpw(tmp_path: Path) -> None:
+    config = json.dumps(
+        {
+            "model_type": "exl3-tiny",
+            "quantization_config": {"quant_method": "exl3", "bits": 3.5},
+        }
+    ).encode("utf-8")
+    sidecar = json.dumps(
+        {
+            "quantization_config": {
+                "quant_method": "exl3",
+                "tensor_storage": [
+                    {
+                        "name": "layers.0.mlp_gate.up",
+                        "bits_per_weight": 3.0,
+                        "n_bytes": 300,
+                        "weights": 800,
+                    },
+                    {
+                        "name": "layers.1.mlp_gate.up",
+                        "bits_per_weight": 4.0,
+                        "n_bytes": 400,
+                        "weights": 800,
+                    },
+                ],
+            }
+        }
+    ).encode("utf-8")
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=config,
+        weights={
+            "model.safetensors": _safetensors_bytes(
+                [
+                    "layers.0.mlp_gate.up.trellis",
+                    "layers.0.mlp_gate.up.sv",
+                    "layers.0.mlp_gate.up.svh",
+                ]
+            ),
+        },
+        extra={"quantization_config.json": sidecar},
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "exl3"
+    assert record["model_format_evidence"]["tensor_signatures"] == ["trellis"]
+    quantization = record["checkpoint_quantization"]
+    assert quantization["method"] == "exl3"
+    assert quantization["bits"] == 3.5
+    assert quantization["bits_semantics"] == "declared_final_average"
+    storage = quantization["tensor_storage"]
+    assert storage["count"] == 2
+    assert storage["min_bits_per_weight"] == 3.0
+    assert storage["max_bits_per_weight"] == 4.0
+    assert storage["entries_truncated"] is False
+    assert [entry["name"] for entry in storage["entries"]] == [
+        "layers.0.mlp_gate.up",
+        "layers.1.mlp_gate.up",
+    ]
+    # 8 * (300 + 400) / (800 + 800) = 3.5
+    assert quantization["effective_bpw"] == {
+        "status": "derived",
+        "value": 3.5,
+        "basis": "tensor_storage_sidecar",
+    }
+
+
+def test_tensor_storage_entries_are_capped_and_flagged(tmp_path: Path) -> None:
+    config = json.dumps(
+        {"quantization_config": {"quant_method": "exl3", "bits": 3.5}}
+    ).encode("utf-8")
+    sidecar = json.dumps(
+        {
+            "tensor_storage": [
+                {
+                    "name": f"layers.{i}.q",
+                    "bits_per_weight": 3.0,
+                    "n_bytes": 30,
+                    "weights": 80,
+                }
+                for i in range(513)
+            ]
+        }
+    ).encode("utf-8")
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=config,
+        weights={
+            "model.safetensors": _safetensors_bytes(["layers.0.q.trellis"]),
+        },
+        extra={"quantization_config.json": sidecar},
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    storage = record["checkpoint_quantization"]["tensor_storage"]
+    assert storage["count"] == 513
+    assert len(storage["entries"]) == 512
+    assert storage["entries_truncated"] is True
+
+
+def test_exl2_declaration_without_signature_fails_closed(tmp_path: Path) -> None:
+    config = json.dumps(
+        {"quantization_config": {"quant_method": "exl2", "bits": 4.0}}
+    ).encode("utf-8")
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=config,
+        weights={"model.safetensors": _safetensors_bytes(["layers.0.weight"])},
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "unknown"
+    assert any(
+        "exl2" in warning and "q_weight" in warning for warning in record["warnings"]
+    )
+    # Format ambiguity is descriptive: it never changes manifest eligibility.
+    assert record["status"] == "available"
+    assert record["fingerprint_eligible"] is True
+
+
+def test_conflicting_tensor_signatures_fail_closed(tmp_path: Path) -> None:
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=json.dumps(
+            {"quantization_config": {"quant_method": "exl3", "bits": 3.5}}
+        ).encode("utf-8"),
+        weights={
+            "model.safetensors": _safetensors_bytes(["layers.0.q.trellis"]),
+            "extra.safetensors": _safetensors_bytes(["layers.1.q.q_weight"]),
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "unknown"
+    assert record["model_format_evidence"]["tensor_signatures"] == [
+        "q_weight",
+        "trellis",
+    ]
+    assert any("conflict" in warning for warning in record["warnings"])
+
+
+def test_exl_signature_without_declaration_fails_closed(tmp_path: Path) -> None:
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        weights={
+            "model.safetensors": _safetensors_bytes(["layers.0.q.trellis"]),
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "unknown"
+    assert any(
+        "declares no quantization method" in warning for warning in record["warnings"]
+    )
+
+
+def test_unqualified_declared_method_is_unknown(tmp_path: Path) -> None:
+    config = json.dumps(
+        {"quantization_config": {"quant_method": "awq", "bits": 4}}
+    ).encode("utf-8")
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        config=config,
+        weights={"model.safetensors": _safetensors_bytes(["layers.0.weight"])},
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "unknown"
+    assert any(
+        "no admitted format qualification" in warning for warning in record["warnings"]
+    )
+    assert record["checkpoint_quantization"]["method"] == "awq"
+    assert record["checkpoint_quantization"]["bits_semantics"] is None
+
+
+def test_oversized_safetensors_header_is_not_read(tmp_path: Path) -> None:
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        weights={
+            "model.safetensors": (1024 * 1024 * 1024).to_bytes(8, "little")
+            + b'{"layers.0.q_weight": {}}',
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+
+    assert record["model_format"] == "unknown"
+    assert record["model_format_evidence"]["header_parse_failure_count"] == 1
+    assert record["model_format_evidence"]["tensor_signatures"] == []
+    # Header inspection is metadata only; the manifest identity is unaffected.
+    assert record["status"] == "available"
 
 
 # --- cache behavior ---------------------------------------------------------

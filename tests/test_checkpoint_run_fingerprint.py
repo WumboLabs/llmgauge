@@ -1,4 +1,4 @@
-"""M2 run-fingerprint v6, validator recomputation, export, and report tests."""
+"""M2/M8 run-fingerprint v6/v8, validator recomputation, export, and report tests."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from test_run_fingerprint import _write_fingerprintable_run
 from llmgauge.core.artifacts import write_json
 from llmgauge.core.checkpoint_provenance import (
     CHECKPOINT_MANIFEST_SCHEMA_VERSION,
+    CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
     CHECKPOINT_PROVENANCE_KIND,
     checkpoint_manifest_fingerprint,
     checkpoint_tokenizer_identity_fingerprint,
@@ -25,11 +26,13 @@ from llmgauge.core.run_fingerprint import (
     RUN_FINGERPRINT_FIELD,
     RUN_FINGERPRINT_PAYLOAD_VERSION,
     RUN_FINGERPRINT_PAYLOAD_VERSION_V6,
+    RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
     RUN_FINGERPRINT_SCHEMA_VERSION,
     RUN_FINGERPRINT_SCHEMA_VERSION_V3,
     RUN_FINGERPRINT_SCHEMA_VERSION_V4,
     RUN_FINGERPRINT_SCHEMA_VERSION_V5,
     RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+    RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     FingerprintUnavailable,
     attach_run_fingerprint,
     build_run_fingerprint_metadata,
@@ -161,10 +164,13 @@ def test_existing_gguf_fingerprints_are_byte_frozen(tmp_path: Path) -> None:
     assert v5["value"] == FROZEN_V5_VALUE
 
 
-def test_gguf_results_do_not_start_emitting_v6(tmp_path: Path) -> None:
+def test_gguf_results_do_not_start_emitting_v6_or_v8(tmp_path: Path) -> None:
     result_dir, result = _write_fingerprintable_run(tmp_path)
     fingerprint = build_run_fingerprint_metadata(result_dir, result)
-    assert fingerprint["schema_version"] != RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    assert fingerprint["schema_version"] not in {
+        RUN_FINGERPRINT_SCHEMA_VERSION_V6,
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8,
+    }
     assert (
         verify_run_fingerprint(
             result_dir, {**result, RUN_FINGERPRINT_FIELD: fingerprint}
@@ -173,26 +179,32 @@ def test_gguf_results_do_not_start_emitting_v6(tmp_path: Path) -> None:
     )
 
 
-def test_eligible_directory_result_produces_v6_fingerprint(tmp_path: Path) -> None:
+def test_eligible_directory_result_produces_v8_fingerprint(tmp_path: Path) -> None:
     provenance = _directory_provenance(tmp_path)
     assert provenance["fingerprint_eligible"] is True
     result_dir, result = _write_directory_run(tmp_path, provenance)
 
     fingerprint = build_run_fingerprint_metadata(result_dir, result)
-    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V8
     assert fingerprint["algorithm"] == "sha256"
     assert fingerprint["value"].startswith("sha256:")
     assert len(fingerprint["value"]) == len("sha256:") + 64
 
     payload = build_run_fingerprint_payload(result_dir, result)
-    assert payload["schema_version"] == RUN_FINGERPRINT_PAYLOAD_VERSION_V6
+    assert payload["schema_version"] == RUN_FINGERPRINT_PAYLOAD_VERSION_V8
     model_identity = payload["model"]
     assert (
         model_identity["provenance"]["manifest_sha256"]
         == (provenance["manifest_sha256"])
     )
     assert model_identity["provenance"]["manifest_schema"] == (
-        CHECKPOINT_MANIFEST_SCHEMA_VERSION
+        CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
+    # M8: the v8 payload carries the observed model format identity.
+    assert model_identity["provenance"]["model_format"] == provenance["model_format"]
+    assert (
+        model_identity["provenance"]["model_format_evidence"]
+        == provenance["model_format_evidence"]
     )
     assert model_identity["manifest_entries"] == provenance["manifest"]
     # The cryptographic identity is the manifest, not the local directory path.
@@ -206,12 +218,12 @@ def test_eligible_directory_result_produces_v6_fingerprint(tmp_path: Path) -> No
     )
 
 
-def test_v6_verifies_from_persisted_evidence_without_checkpoint(tmp_path) -> None:
+def test_v8_verifies_from_persisted_evidence_without_checkpoint(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     result_dir, result = _write_directory_run(tmp_path, provenance)
     attach_run_fingerprint(result_dir, result)
     assert result[RUN_FINGERPRINT_FIELD]["schema_version"] == (
-        RUN_FINGERPRINT_SCHEMA_VERSION_V6
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8
     )
     _persist(result_dir, result)
     # Delete the original checkpoint directory: validation must still pass
@@ -226,7 +238,7 @@ def test_v6_verifies_from_persisted_evidence_without_checkpoint(tmp_path) -> Non
     assert validate_result_dir(result_dir) == []
 
 
-def test_v6_manifest_mutation_is_detected(tmp_path) -> None:
+def test_v8_manifest_mutation_is_detected(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     result_dir, result = _write_directory_run(tmp_path, provenance)
     attach_run_fingerprint(result_dir, result)
@@ -276,7 +288,7 @@ def test_fingerprint_never_fabricated_from_names(tmp_path) -> None:
     assert attach_run_fingerprint(result_dir, result) is None
 
 
-def test_v6_requires_admitted_manifest_schema(tmp_path) -> None:
+def test_v8_requires_admitted_manifest_schema(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     provenance["manifest_schema"] = "llmgauge.checkpoint_directory_manifest.v99"
     result_dir, result = _write_directory_run(tmp_path, provenance)
@@ -285,7 +297,7 @@ def test_v6_requires_admitted_manifest_schema(tmp_path) -> None:
     assert "manifest schema" in str(exc.value)
 
 
-def test_v6_rejects_manifest_hash_incoherence(tmp_path) -> None:
+def test_v8_rejects_manifest_hash_incoherence(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     # Stored manifest hash no longer matches the persisted entries.
     provenance["manifest"][1]["size"] += 1
@@ -295,7 +307,7 @@ def test_v6_rejects_manifest_hash_incoherence(tmp_path) -> None:
     assert "does not match" in str(exc.value)
 
 
-def test_v6_rejects_tokenizer_hash_incoherence(tmp_path) -> None:
+def test_v8_rejects_tokenizer_hash_incoherence(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     provenance["tokenizer_identity"]["sha256"] = "9" * 64
     result_dir, result = _write_directory_run(tmp_path, provenance)
@@ -304,7 +316,7 @@ def test_v6_rejects_tokenizer_hash_incoherence(tmp_path) -> None:
     assert "tokenizer" in str(exc.value)
 
 
-def test_v6_rejects_template_public_fingerprint_incoherence(tmp_path) -> None:
+def test_v8_rejects_template_public_fingerprint_incoherence(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     provenance["chat_template_identity"]["public_fingerprint"] = (
         "sha256:ffffffffffffffff"
@@ -315,7 +327,7 @@ def test_v6_rejects_template_public_fingerprint_incoherence(tmp_path) -> None:
     assert "chat-template" in str(exc.value)
 
 
-def test_v6_identity_is_independent_of_descriptive_fields(tmp_path) -> None:
+def test_v8_identity_is_independent_of_descriptive_fields(tmp_path) -> None:
     provenance = _directory_provenance(tmp_path)
     result_dir, result = _write_directory_run(tmp_path, provenance)
     baseline = run_fingerprint_value(result_dir, result)
@@ -333,6 +345,92 @@ def test_v6_identity_is_independent_of_descriptive_fields(tmp_path) -> None:
     )
 
 
+# --- M8: legacy v0-manifest (v6) compatibility --------------------------------
+
+
+def _legacy_v0_provenance(provenance: dict[str, Any]) -> dict[str, Any]:
+    """Convert a live v1 record to a handcrafted v0 record.
+
+    Same entries, v0 payload binding, v0 quantization shape, and no
+    model_format fields: exactly what pre-M8 collections persisted.
+    """
+
+    legacy = copy.deepcopy(provenance)
+    legacy["manifest_schema"] = CHECKPOINT_MANIFEST_SCHEMA_VERSION
+    legacy["manifest_sha256"] = checkpoint_manifest_fingerprint(legacy["manifest"])
+    legacy["public_fingerprint"] = public_model_fingerprint(legacy["manifest_sha256"])
+    for key in ("model_format", "model_format_version", "model_format_evidence"):
+        legacy.pop(key, None)
+    quantization = legacy["checkpoint_quantization"]
+    for key in (
+        "bits",
+        "head_bits",
+        "codebook",
+        "out_scales",
+        "tensor_storage",
+        "effective_bpw",
+        "bits_semantics",
+    ):
+        quantization.pop(key, None)
+    return legacy
+
+
+def test_legacy_v0_manifest_still_fingerprints_as_v6(tmp_path) -> None:
+    legacy = _legacy_v0_provenance(_directory_provenance(tmp_path))
+    result_dir, result = _write_directory_run(tmp_path, legacy)
+
+    fingerprint = build_run_fingerprint_metadata(result_dir, result)
+    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    payload = build_run_fingerprint_payload(result_dir, result)
+    assert payload["schema_version"] == RUN_FINGERPRINT_PAYLOAD_VERSION_V6
+    # Frozen v6 payload content: no model_format fields ride the v0 payload.
+    assert "model_format" not in payload["model"]["provenance"]
+    assert (
+        payload["model"]["provenance"]["manifest_sha256"] == legacy["manifest_sha256"]
+    )
+
+    attach_run_fingerprint(result_dir, result)
+    _persist(result_dir, result)
+    assert verify_run_fingerprint(result_dir, result) == []
+    assert validate_result_dir(result_dir) == []
+
+
+def test_v0_manifest_cannot_claim_v8(tmp_path) -> None:
+    legacy = _legacy_v0_provenance(_directory_provenance(tmp_path))
+    result_dir, result = _write_directory_run(tmp_path, legacy)
+    attach_run_fingerprint(result_dir, result)
+    result[RUN_FINGERPRINT_FIELD]["schema_version"] = RUN_FINGERPRINT_SCHEMA_VERSION_V8
+    errors = verify_run_fingerprint(result_dir, result)
+    assert any("v6" in error for error in errors), errors
+
+
+def test_v1_manifest_cannot_claim_v6(tmp_path) -> None:
+    provenance = _directory_provenance(tmp_path)
+    result_dir, result = _write_directory_run(tmp_path, provenance)
+    attach_run_fingerprint(result_dir, result)
+    assert result[RUN_FINGERPRINT_FIELD]["schema_version"] == (
+        RUN_FINGERPRINT_SCHEMA_VERSION_V8
+    )
+    result[RUN_FINGERPRINT_FIELD]["schema_version"] = RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    errors = verify_run_fingerprint(result_dir, result)
+    assert any("v8" in error for error in errors), errors
+
+
+def test_v0_and_v1_manifests_produce_different_fingerprints(tmp_path) -> None:
+    live = _directory_provenance(tmp_path)
+    legacy = _legacy_v0_provenance(live)
+
+    live_dir, live_result = _write_directory_run(tmp_path, live, run_name="live")
+    legacy_dir, legacy_result = _write_directory_run(
+        tmp_path, legacy, run_name="legacy"
+    )
+    # Identical entry bytes, different schema binding: the payload binds the
+    # manifest schema, so the run fingerprints must differ.
+    assert run_fingerprint_value(live_dir, live_result) != run_fingerprint_value(
+        legacy_dir, legacy_result
+    )
+
+
 # --- validator recomputation -------------------------------------------------
 
 
@@ -345,7 +443,9 @@ def test_validator_recomputes_manifest_public_and_tokenizer(tmp_path) -> None:
 
     # Independent recomputation from the persisted manifest entries.
     entries = provenance["manifest"]
-    assert provenance["manifest_sha256"] == checkpoint_manifest_fingerprint(entries)
+    assert provenance["manifest_sha256"] == checkpoint_manifest_fingerprint(
+        entries, schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
     assert provenance["public_fingerprint"] == public_model_fingerprint(
         provenance["manifest_sha256"]
     )
@@ -420,8 +520,10 @@ def test_validator_recomputes_manifest_public_and_tokenizer(tmp_path) -> None:
             "entry_count must match",
         ),
         (
-            lambda p: p.__setitem__("fingerprint_eligible", False)
-            or p.__setitem__("fingerprint_ineligible_reason", "manual mutation"),
+            lambda p: (
+                p.__setitem__("fingerprint_eligible", False)
+                or p.__setitem__("fingerprint_ineligible_reason", "manual mutation")
+            ),
             "available status must be fingerprint eligible",
         ),
         (
@@ -429,11 +531,15 @@ def test_validator_recomputes_manifest_public_and_tokenizer(tmp_path) -> None:
             "chat_template_identity.status",
         ),
         (
-            lambda p: p["checkpoint_quantization"].__setitem__("status", "definitely-awq"),
+            lambda p: p["checkpoint_quantization"].__setitem__(
+                "status", "definitely-awq"
+            ),
             "checkpoint_quantization.status",
         ),
         (
-            lambda p: p["checkpoint_quantization"].__setitem__("sources", "config.json"),
+            lambda p: p["checkpoint_quantization"].__setitem__(
+                "sources", "config.json"
+            ),
             "sources must be a list",
         ),
     ],
@@ -453,7 +559,9 @@ def test_validator_rejects_mutated_directory_evidence(
 
 def test_validator_accepts_partial_directory_provenance(tmp_path) -> None:
     root = _write_checkpoint(tmp_path / "ckpt")
-    (root / "tokenizer_config.json").write_bytes(b'{"chat_template": {"a": "x", "b": "y"}}')
+    (root / "tokenizer_config.json").write_bytes(
+        b'{"chat_template": {"a": "x", "b": "y"}}'
+    )
     provenance = collect_checkpoint_provenance(
         root, source_type="model_profile", cache_path=tmp_path / "cache.json"
     )
@@ -502,11 +610,13 @@ def test_public_export_strips_private_checkpoint_evidence(tmp_path) -> None:
     assert "checkpoint_identity" in exported["model"]
     identity = exported["model"]["checkpoint_identity"]
     assert identity["public_fingerprint"] == provenance["public_fingerprint"]
-    assert identity["tokenizer_identity"]["public_fingerprint"] == (
-        provenance["tokenizer_identity"]["public_fingerprint"]
+    assert (
+        identity["tokenizer_identity"]["public_fingerprint"]
+        == (provenance["tokenizer_identity"]["public_fingerprint"])
     )
-    assert identity["chat_template_identity"]["public_fingerprint"] == (
-        provenance["chat_template_identity"]["public_fingerprint"]
+    assert (
+        identity["chat_template_identity"]["public_fingerprint"]
+        == (provenance["chat_template_identity"]["public_fingerprint"])
     )
     assert identity["status"] == provenance["status"]
     assert identity["effective_quantization_status"] == "unavailable"
@@ -535,8 +645,9 @@ def test_public_export_strips_private_checkpoint_evidence(tmp_path) -> None:
     source = json.loads(
         (result_dir / "llmgauge-result.json").read_text(encoding="utf-8")
     )
-    assert source["model"]["provenance"]["manifest_sha256"] == (
-        provenance["manifest_sha256"]
+    assert (
+        source["model"]["provenance"]["manifest_sha256"]
+        == (provenance["manifest_sha256"])
     )
 
 

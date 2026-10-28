@@ -440,6 +440,12 @@ def _checkpoint_provenance_report_lines(result: dict[str, Any]) -> list[str]:
         lines.append(
             f"- Checkpoint-declared architecture: {provenance['architecture']}"
         )
+    if provenance.get("model_format"):
+        model_format_version = provenance.get("model_format_version")
+        lines.append(
+            f"- Detected model format: {provenance['model_format']}"
+            + (f" (version {model_format_version})" if model_format_version else "")
+        )
     if isinstance(repository_id, str) and repository_id:
         lines.append(f"- Declared repository id (descriptive): {repository_id}")
     if isinstance(revision, str) and revision:
@@ -759,9 +765,7 @@ def _build_vllm_area4_timing_placement(
                     [
                         f"- TTFT: {ttft['value']} s ({ttft.get('availability')})",
                         f"  - TTFT provenance: {ttft.get('provenance')}",
-                        (
-                            "  - TTFT boundary: request \u2192 first generated token"
-                        ),
+                        ("  - TTFT boundary: request \u2192 first generated token"),
                         (
                             f"  - First token channel: {ttft.get('channel') or 'unknown'}"
                         ),

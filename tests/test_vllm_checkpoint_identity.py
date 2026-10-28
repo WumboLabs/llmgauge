@@ -5,7 +5,7 @@ Synthetic tests only. Every server here is a deterministic loopback fixture
 M3 acceptance matrix: checkpoint_directory + vLLM admission gated on eligible
 M2 provenance before any HTTP, served-model binding with operator_declared
 provenance, tokenizer/template/quantization identity persistence, sampling-
-profile persistence, the new server-backed v7 run fingerprint, validator
+profile persistence, the server-backed v7/v8 run fingerprint, validator
 mutation rejection, report/compare disclosure, and public-export privacy.
 """
 
@@ -41,9 +41,10 @@ from llmgauge.core.public_export import export_public_run
 from llmgauge.core.result_validation import validate_result_dir
 from llmgauge.core.run_fingerprint import (
     RUN_FINGERPRINT_FIELD,
-    RUN_FINGERPRINT_PAYLOAD_VERSION_V7,
+    RUN_FINGERPRINT_PAYLOAD_VERSION_V8,
     RUN_FINGERPRINT_SCHEMA_VERSION_V6,
     RUN_FINGERPRINT_SCHEMA_VERSION_V7,
+    RUN_FINGERPRINT_SCHEMA_VERSION_V8,
     FingerprintUnavailable,
     attach_run_fingerprint,
     build_run_fingerprint_metadata,
@@ -664,17 +665,21 @@ def test_external_result_cannot_claim_llmgauge_observed_binding(
 # ---------------------------------------------------------------------------
 
 
-def test_bound_run_emits_v7_and_verifies(tmp_path, server, no_vram_sampler) -> None:
+def test_bound_run_emits_v8_and_verifies(tmp_path, server, no_vram_sampler) -> None:
     out = _bound_run(tmp_path, server)
     result = json.loads((out / "llmgauge-result.json").read_text(encoding="utf-8"))
     fingerprint = result[RUN_FINGERPRINT_FIELD]
-    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V7
+    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V8
     assert verify_run_fingerprint(out, result) == []
     payload = build_run_fingerprint_payload(out, result)
-    assert payload["schema_version"] == RUN_FINGERPRINT_PAYLOAD_VERSION_V7
+    assert payload["schema_version"] == RUN_FINGERPRINT_PAYLOAD_VERSION_V8
     assert payload["backend"]["runtime_provenance_kind"] == "external_server"
     assert payload["backend"]["provenance"]["vllm_version"] == "0.27.1"
     assert payload["backend"]["checkpoint_binding"]["status"] == "bound"
+    assert (
+        payload["model"]["provenance"]["model_format"]
+        == (result["model"]["provenance"]["model_format"])
+    )
     # No endpoint host/IP/port, no checkpoint absolute path.
     blob = json.dumps(payload)
     assert str(tmp_path / "ckpt") not in blob
@@ -682,7 +687,7 @@ def test_bound_run_emits_v7_and_verifies(tmp_path, server, no_vram_sampler) -> N
     assert "127.0.0.1" not in blob
 
 
-def test_missing_server_version_makes_v7_unavailable(
+def test_missing_server_version_makes_v8_unavailable(
     tmp_path, server, no_vram_sampler
 ) -> None:
     url, state = server
@@ -702,12 +707,12 @@ def test_missing_server_version_makes_v7_unavailable(
     )
     with pytest.raises(FingerprintUnavailable) as exc:
         build_run_fingerprint_payload(
-            out, result, payload_version=RUN_FINGERPRINT_PAYLOAD_VERSION_V7
+            out, result, payload_version=RUN_FINGERPRINT_PAYLOAD_VERSION_V8
         )
     assert "version" in str(exc.value)
 
 
-def test_v6_still_selected_for_non_vllm_checkpoint_result(tmp_path: Path) -> None:
+def test_v8_selected_for_direct_checkpoint_result(tmp_path: Path) -> None:
     from test_checkpoint_run_fingerprint import (
         _directory_provenance,
         _write_directory_run,
@@ -715,15 +720,15 @@ def test_v6_still_selected_for_non_vllm_checkpoint_result(tmp_path: Path) -> Non
 
     provenance = _directory_provenance(tmp_path)
     result_dir, result = _write_directory_run(
-        tmp_path, provenance, run_name="v6-direct-run"
+        tmp_path, provenance, run_name="v8-direct-run"
     )
     fingerprint = attach_run_fingerprint(result_dir, result)
     assert fingerprint is not None
-    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    assert fingerprint["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V8
 
 
-def test_frozen_v0_v5_goldens_and_v6_stability(tmp_path: Path) -> None:
-    # Direct golden proof that adding v7 did not move any frozen version.
+def test_frozen_v0_v5_goldens_and_v8_stability(tmp_path: Path) -> None:
+    # Direct golden proof that adding v7/v8 did not move any frozen version.
     from test_checkpoint_run_fingerprint import (
         FROZEN_V0_VALUE,
         FROZEN_V3_VALUE,
@@ -786,13 +791,13 @@ def test_frozen_v0_v5_goldens_and_v6_stability(tmp_path: Path) -> None:
         build_run_fingerprint_metadata(result_dir, profiled)["value"] == FROZEN_V5_VALUE
     )
 
-    # v6 stability: recomputation is byte-reproducible for a directory result.
+    # v8 stability: recomputation is byte-reproducible for a directory result.
     provenance = _directory_provenance(tmp_path)
-    v6_dir, v6_result = _write_directory_run(tmp_path, provenance, run_name="v6-golden")
-    v6_meta = build_run_fingerprint_metadata(v6_dir, v6_result)
-    assert v6_meta["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V6
+    v8_dir, v8_result = _write_directory_run(tmp_path, provenance, run_name="v8-golden")
+    v8_meta = build_run_fingerprint_metadata(v8_dir, v8_result)
+    assert v8_meta["schema_version"] == RUN_FINGERPRINT_SCHEMA_VERSION_V8
     assert (
-        build_run_fingerprint_metadata(v6_dir, v6_result)["value"] == v6_meta["value"]
+        build_run_fingerprint_metadata(v8_dir, v8_result)["value"] == v8_meta["value"]
     )
 
 
@@ -804,7 +809,7 @@ def test_vllm_result_with_wrong_fingerprint_version_rejected(
     result[RUN_FINGERPRINT_FIELD]["schema_version"] = RUN_FINGERPRINT_SCHEMA_VERSION_V6
     write_json(path, result)
     errors = validate_result_dir(out)
-    assert any("v7 run_fingerprint" in error for error in errors)
+    assert any("v8 run_fingerprint" in error for error in errors)
 
 
 def test_direct_checkpoint_result_cannot_claim_v7(tmp_path: Path) -> None:
@@ -815,7 +820,7 @@ def test_direct_checkpoint_result_cannot_claim_v7(tmp_path: Path) -> None:
 
     provenance = _directory_provenance(tmp_path)
     result_dir, result = _write_directory_run(
-        tmp_path, provenance, run_name="v6-not-v7-run"
+        tmp_path, provenance, run_name="v8-not-v7-run"
     )
     fingerprint = attach_run_fingerprint(result_dir, result)
     assert fingerprint is not None
@@ -823,6 +828,31 @@ def test_direct_checkpoint_result_cannot_claim_v7(tmp_path: Path) -> None:
     write_json(result_dir / "llmgauge-result.json", result)
     errors = verify_run_fingerprint(result_dir, result)
     assert errors
+
+
+def test_legacy_v0_manifest_bound_run_still_fingerprints_as_v7(
+    tmp_path, server, no_vram_sampler
+) -> None:
+    # M8 compatibility: a pre-M8 result (v0 manifest schema, no model_format
+    # fields) bound to a vLLM server must still select and verify as v7.
+    from test_checkpoint_run_fingerprint import _legacy_v0_provenance
+
+    out = _bound_run(tmp_path, server, name="legacy-v7-run")
+    path, result = _load(out)
+    legacy = _legacy_v0_provenance(result["model"]["provenance"])
+    result["model"]["provenance"] = legacy
+    # A pre-M8 collection persisted the v0 public fingerprint in the binding.
+    result["runtime"]["checkpoint_binding"]["checkpoint_public_fingerprint"] = legacy[
+        "public_fingerprint"
+    ]
+    result.pop(RUN_FINGERPRINT_FIELD, None)
+    attach_run_fingerprint(out, result)
+    assert result[RUN_FINGERPRINT_FIELD]["schema_version"] == (
+        RUN_FINGERPRINT_SCHEMA_VERSION_V7
+    )
+    write_json(path, result)
+    assert verify_run_fingerprint(out, result) == []
+    assert validate_result_dir(out) == []
 
 
 # ---------------------------------------------------------------------------
