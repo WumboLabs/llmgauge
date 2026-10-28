@@ -253,11 +253,16 @@ The EXL qualification audit ([EXL_RUNTIME_QUALIFICATION.md](EXL_RUNTIME_QUALIFIC
 §6) verdicts this v0 selection rule `COMPLETE` for EXL2 and `PARTIAL` for
 sharded EXL3 checkpoints: a root-level `ngram_embedding.safetensors` that the
 runtime consumes by directory glob is excluded when an index is present. The
-accepted remedy is a future versioned
+accepted remedy is the versioned
 `llmgauge.checkpoint_directory_manifest.v1` whose weight-file selection is
 the union of index-referenced shards and root-level `*.safetensors`
 (non-recursive). v0 remains frozen; previously valid results stay valid under
-v0 rules; no silent allowlist expansion is admitted.
+v0 rules; no silent allowlist expansion is admitted. The union is
+byte-identity, not an inference-material view: root-level conversion
+artifacts such as `cal_trace.safetensors` therefore enter v1 identity, and
+their inclusion never claims inference-time consumption (see
+[EXL_RUNTIME_QUALIFICATION.md](EXL_RUNTIME_QUALIFICATION.md) §6
+implementation clarification).
 
 The existing single-file cache/identity machinery (`core/identity.py`
 `hash_file` with path/size/mtime/inode validation) is a `gguf_file` mechanism.

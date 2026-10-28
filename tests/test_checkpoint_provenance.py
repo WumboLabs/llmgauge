@@ -10,6 +10,7 @@ import pytest
 
 import llmgauge.core.checkpoint_provenance as checkpoint_module
 from llmgauge.core.checkpoint_provenance import (
+    CHECKPOINT_MANIFEST_SCHEMA_VERSION,
     CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1,
     CHECKPOINT_PROVENANCE_KIND,
     checkpoint_manifest_fingerprint,
@@ -571,6 +572,76 @@ def test_v1_union_includes_index_shards_and_root_safetensors(
     assert record["model_format_evidence"]["tensor_signatures"] == []
     assert record["checkpoint_quantization"]["status"] == "absent"
     assert record["checkpoint_quantization"]["bits_semantics"] is None
+
+
+def test_v1_identity_is_sensitive_to_conversion_artifact_bytes(
+    tmp_path: Path,
+) -> None:
+    # Accepted M8 policy: manifest v1 is conservative checkpoint-byte
+    # identity, not the minimal inference-material set. A root-level
+    # conversion artifact (cal_trace.safetensors) enters v1 identity, and
+    # changing its bytes changes the v1 manifest fingerprint even though
+    # the inference shards are untouched. v1 inclusion never claims
+    # inference-time consumption. Historical v0 records keep their
+    # original payload-binding semantics.
+    weights = {
+        "model-00001-of-00002.safetensors": _safetensors_bytes(
+            ["model.layers.0.mlp_gate.up.weight"]
+        ),
+        "model-00002-of-00002.safetensors": _safetensors_bytes(
+            ["model.layers.1.mlp_gate.up.weight"]
+        ),
+        "cal_trace.safetensors": _safetensors_bytes(["calibration.trace.weight"]),
+    }
+    root = _write_checkpoint(
+        tmp_path / "ckpt",
+        weights=weights,
+        index={
+            "metadata": {"total_size": 2},
+            "weight_map": {
+                "model.layers.0.mlp_gate.up.weight": "model-00001-of-00002.safetensors",
+                "model.layers.1.mlp_gate.up.weight": "model-00002-of-00002.safetensors",
+            },
+        },
+    )
+    record = _collect(root, tmp_path / "cache.json")
+    assert "cal_trace.safetensors" in _paths(record)
+    v1_sha = record["manifest_sha256"]
+
+    # Mutate only the conversion artifact.
+    (root / "cal_trace.safetensors").write_bytes(
+        _safetensors_bytes(["calibration.trace.weight", "calibration.extra.weight"])
+    )
+    changed = _collect(root, tmp_path / "cache2.json")
+    assert changed["manifest_sha256"] != v1_sha
+    original = {entry["path"]: entry for entry in record["manifest"]}
+    updated = {entry["path"]: entry for entry in changed["manifest"]}
+    for shard in (
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors",
+    ):
+        assert updated[shard]["sha256"] == original[shard]["sha256"]
+
+    # v0 retention: the historical payload binding (index-only entries,
+    # v0 schema identifier) is unchanged by M8 and differs from the v1
+    # binding over the same entries.
+    index_only = [
+        entry
+        for entry in record["manifest"]
+        if entry["path"] != "cal_trace.safetensors"
+    ]
+    v0_index_only = checkpoint_manifest_fingerprint(
+        index_only, schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION
+    )
+    v0_full = checkpoint_manifest_fingerprint(
+        record["manifest"], schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION
+    )
+    v1_full = checkpoint_manifest_fingerprint(
+        record["manifest"], schema_version=CHECKPOINT_MANIFEST_SCHEMA_VERSION_V1
+    )
+    assert v0_index_only != v0_full
+    assert v0_full != v1_full
+    assert v1_sha == v1_full
 
 
 def test_exl2_detected_from_declaration_and_q_weight_signature(

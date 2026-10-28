@@ -98,7 +98,11 @@
   (non-recursive, deduplicated, sorted). Root-level safetensors that exist
   alongside an index — for example EXL3 `ngram_embedding.safetensors` —
   enter the cryptographic identity, closing qualification finding E2; the
-  schema identifier is bound into the canonical manifest fingerprint, so v0
+  union is byte-identity, not an inference-material view, so root-level
+  conversion artifacts such as `cal_trace.safetensors` are intentionally
+  included and changing their bytes can change the v1 fingerprint even when
+  inference weights are unchanged; the schema identifier is bound into the
+  canonical manifest fingerprint, so v0
   and v1 records over identical bytes hash differently and v0 records remain
   verifiable unchanged. v1 records additionally observe `model_format`
   (`exl2` / `exl3` / `hf_transformers` / `unknown`) from the hashed

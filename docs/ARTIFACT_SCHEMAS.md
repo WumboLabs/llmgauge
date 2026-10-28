@@ -498,6 +498,11 @@ Semantics:
   deduplicated, sorted), closing the qualification finding that root-level
   safetensors such as EXL3 `ngram_embedding.safetensors` sat outside the
   identity ([EXL runtime qualification §6](EXL_RUNTIME_QUALIFICATION.md)).
+  The union is deliberately byte-identity, not an inference-material view:
+  a root-level conversion artifact such as `cal_trace.safetensors` is
+  included in v1, so changing its bytes can change the v1 manifest
+  fingerprint even when inference weights are unchanged, and inclusion
+  never claims inference-time consumption.
 - For v1 records, `model_format` is observed, never inferred from names,
   sizes, or publication receipts: the hashed `config.json`
   `quantization_config.quant_method` declaration must be corroborated by
