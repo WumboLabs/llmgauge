@@ -1257,13 +1257,25 @@ fingerprinted by the new `llmgauge.run_fingerprint.v7` payload (v6's
 direct-process executable-SHA requirement cannot honestly represent an
 external server). This completes the model-identity portion of the
 first-class acceptance contract for vLLM only; lifecycle and workflow parity
-remain open. The selected next implementation milestone is **M8 — EXL
-checkpoint-manifest v1 plus `model_format` identity** (see the
-[EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17): it is
-provenance-only, format-neutral, consumes only the implemented M2, and is the
-prerequisite for the whole ExLlama line. **M4 — vLLM managed-local lifecycle
-— remains the next vLLM-block milestone** with its accepted obligations
-unchanged, queued immediately after M8.
+remain open. **M8 — EXL checkpoint-manifest v1 plus `model_format` identity**
+(see the [EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17)
+is implemented and merged: the versioned manifest v1 union rule,
+`model_format` identity, and the frozen `llmgauge.run_fingerprint.v8`
+payload. **M4 — vLLM managed-local lifecycle — is implemented** on
+`feat/vllm-managed-local-lifecycle`, pending integration: explicit
+`--vllm-managed` opt-in launches an operator-installed `vllm` command for
+the profile's checkpoint root with structured argv and a bounded option
+surface, verifies model admission before any evaluation request, owns only
+its own process group with bounded shutdown, writes the separate
+`vllm-startup-evidence.json` startup-scope artifact, and records the
+`llmgauge_observed` binding class. Managed runs are
+fingerprint-ineligible under the frozen v7/v8 payloads — the precise reason
+is recorded in `runtime.run_fingerprint_eligibility`, and a managed
+fingerprint payload version remains an open human decision recorded as a
+separate future first-class-runtime acceptance requirement. The
+external-server mode and its `operator_declared` evidence shape are
+unchanged. **M5 — vLLM workflow parity is the next accepted vLLM-block
+milestone** after M4 integration.
 
 EXL support is a real product target with two distinct lanes: **EXL3 /
 ExLlamaV3 is the strategic current path** (principal runtime family, full
