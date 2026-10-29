@@ -125,6 +125,34 @@
   execution remains unqualified and unimplemented: M8 is identity and
   evidence only.
 
+- Managed-local vLLM lifecycle (M4): `--vllm-managed` (or `vllm_managed:
+  true`) runs vLLM against a `checkpoint_directory` profile by launching an
+  operator-installed `vllm` command (`--vllm-executable`, required; LLMGauge
+  never installs vLLM or downloads models) with structured argv and a
+  bounded option surface (`--vllm-startup-timeout`, `--vllm-shutdown-timeout`,
+  `--vllm-max-model-len`, `--vllm-gpu-memory-utilization`, `--vllm-dtype`).
+  The server starts in its own process group on the configured loopback
+  endpoint; a foreign port occupant fails closed without being signaled.
+  Bounded readiness polling verifies the requested served model in the
+  server listing before any evaluation request, and a failed or cancelled
+  startup fails every prompt deterministically without restarting the
+  server. Shutdown terminates only the owned process group with bounded
+  SIGTERM→SIGKILL escalation, and server stdout/stderr are preserved under
+  `logs/`. The new separate startup-scope artifact
+  `vllm-startup-evidence.json` (`llmgauge.vllm_startup_evidence.v0`) records
+  launch argv, executable SHA-256, readiness/admission/shutdown status, and
+  an explicit unobserved-facts list; request evidence keeps its own scope.
+  Managed results carry `runtime.lifecycle_ownership: llmgauge_managed` and
+  the `llmgauge_observed` checkpoint-binding class with a class-specific
+  evidence ceiling; the external-server mode remains the default and its
+  `external_operator`/`operator_declared` evidence shape is unchanged.
+  Managed runs are fingerprint-ineligible under the frozen v7/v8 payload
+  (the reason is recorded in `runtime.run_fingerprint_eligibility`; a
+  managed fingerprint payload version is a deferred human decision), and
+  multi-turn against a managed server fails closed pending M5 workflow
+  parity. Public export redacts the startup artifact's absolute paths,
+  executable hash, and bound listen host/port.
+
 ## v0.78.0 - 2026-09-02
 
 LLMGauge v0.78 is the Area 4 evidence-integrity and qualification hardening

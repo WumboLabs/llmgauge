@@ -133,11 +133,15 @@ protocol and are not interchangeable with official lm-eval metrics.
 
 ## vLLM evidence track
 
-The vLLM work is intentionally bounded to an externally managed local
-integration and evidence collection. The accepted [runtime contract](VLLM_RUNTIME_CONTRACT.md)
+The vLLM work is intentionally bounded to local integration and evidence
+collection. The accepted [runtime contract](VLLM_RUNTIME_CONTRACT.md)
 and [HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) define a
-loopback-only, text-only backend using the Python standard library. LLMGauge
-does not install, start, supervise, or otherwise own the vLLM server lifecycle;
+loopback-only, text-only backend using the Python standard library. The
+default mode talks to an operator-managed server: LLMGauge does not
+install, start, supervise, or otherwise own that server's lifecycle. The
+explicit opt-in managed-local mode (`--vllm-managed`, M4) launches and
+shuts down an operator-installed vLLM command for one local checkpoint
+root; LLMGauge still never installs vLLM or downloads models.
 `llama.cpp`/GGUF remains the default runtime.
 
 This bounded external-server integration is the current state, not the target:
@@ -169,6 +173,19 @@ managed-local server lifecycle.
   the checkpoint identity, an `operator_declared` binding record (a server
   listing never attests checkpoint bytes), and persisted sampling-profile
   identity; eligible runs fingerprint under `llmgauge.run_fingerprint.v7`.
+- Managed-local vLLM lifecycle (M4): `--vllm-managed` launches an
+  operator-installed `vllm` command for a `checkpoint_directory` profile
+  root with structured argv and a bounded option surface, verifies model
+  admission from the server listing before any evaluation request, never
+  restarts a failed server, never signals a foreign port occupant,
+  terminates only its owned process group with bounded SIGTERM→SIGKILL
+  escalation, preserves server logs, and writes the separate
+  `vllm-startup-evidence.json` startup-scope artifact. Managed results
+  carry the `llmgauge_observed` binding class; the external mode's
+  `operator_declared` shape is unchanged. Managed runs are
+  fingerprint-ineligible under the frozen v7/v8 payload with the precise
+  reason recorded (a managed payload version is a deferred human
+  decision).
 - Area 4 runtime-neutral TTFT for streaming evidence mode:
   `llmgauge.metric.v1.time_to_first_token` measured from the same request
   start boundary to the first backend-generated token ID exposed in an
@@ -192,8 +209,11 @@ preserved in the changelog. Durable claim boundaries live in
 
 ### Active limitations
 
-- No remote, authentication, or concurrency support; no LLMGauge-owned vLLM
-  lifecycle. Streaming is an explicit opt-in evidence mode, never the default.
+- No remote, authentication, or concurrency support. The managed-local
+  lifecycle (M4) is single-server and single-prompt-run only: multi-turn
+  against a managed server fails closed (parity is M5), and managed runs
+  are not yet fingerprint-eligible. Streaming is an explicit opt-in
+  evidence mode, never the default.
 - vLLM request-window peak VRAM is captured via a bounded concurrent NVIDIA
   telemetry sampler; the value is absolute device-used memory, not server or
   model footprint, and the observation boundary is distinct from the native
@@ -1237,13 +1257,25 @@ fingerprinted by the new `llmgauge.run_fingerprint.v7` payload (v6's
 direct-process executable-SHA requirement cannot honestly represent an
 external server). This completes the model-identity portion of the
 first-class acceptance contract for vLLM only; lifecycle and workflow parity
-remain open. The selected next implementation milestone is **M8 — EXL
-checkpoint-manifest v1 plus `model_format` identity** (see the
-[EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17): it is
-provenance-only, format-neutral, consumes only the implemented M2, and is the
-prerequisite for the whole ExLlama line. **M4 — vLLM managed-local lifecycle
-— remains the next vLLM-block milestone** with its accepted obligations
-unchanged, queued immediately after M8.
+remain open. **M8 — EXL checkpoint-manifest v1 plus `model_format` identity**
+(see the [EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17)
+is implemented and merged: the versioned manifest v1 union rule,
+`model_format` identity, and the frozen `llmgauge.run_fingerprint.v8`
+payload. **M4 — vLLM managed-local lifecycle — is implemented** on
+`feat/vllm-managed-local-lifecycle`, pending integration: explicit
+`--vllm-managed` opt-in launches an operator-installed `vllm` command for
+the profile's checkpoint root with structured argv and a bounded option
+surface, verifies model admission before any evaluation request, owns only
+its own process group with bounded shutdown, writes the separate
+`vllm-startup-evidence.json` startup-scope artifact, and records the
+`llmgauge_observed` binding class. Managed runs are
+fingerprint-ineligible under the frozen v7/v8 payloads — the precise reason
+is recorded in `runtime.run_fingerprint_eligibility`, and a managed
+fingerprint payload version remains an open human decision recorded as a
+separate future first-class-runtime acceptance requirement. The
+external-server mode and its `operator_declared` evidence shape are
+unchanged. **M5 — vLLM workflow parity is the next accepted vLLM-block
+milestone** after M4 integration.
 
 EXL support is a real product target with two distinct lanes: **EXL3 /
 ExLlamaV3 is the strategic current path** (principal runtime family, full

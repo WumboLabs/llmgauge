@@ -674,6 +674,22 @@ mergeable; none may weaken §12's protected semantics.
 
 ### M4 — vLLM managed-local lifecycle
 
+- **Status:** Implemented on `feat/vllm-managed-local-lifecycle`
+  (2026-10-29, post-M8); awaiting human integration. Managed mode is
+  explicit (`--vllm-managed` / `vllm_managed`), requires a
+  `checkpoint_directory` profile plus an operator-installed
+  `--vllm-executable`, launches with structured argv in an owned process
+  group, verifies admission from `/v1/models` before any evaluation
+  request, preserves server logs, terminates only the owned group with
+  bounded SIGTERM→SIGKILL escalation, and writes the separate
+  `vllm-startup-evidence.json` artifact
+  (`llmgauge.vllm_startup_evidence.v0`). Managed results use the
+  `llmgauge_observed` binding class; external mode stays
+  `operator_declared`/`external_operator` byte-for-byte. Managed runs are
+  fingerprint-ineligible under the frozen v7/v8 gates with the precise
+  reason recorded in `runtime.run_fingerprint_eligibility` (a managed
+  fingerprint payload version is a deferred human decision); multi-turn
+  against a managed server fails closed (parity is M5).
 - **Goal:** §5.2 launch/readiness/admission/shutdown for an operator-configured
   vLLM server, with the startup-scope artifact and §5.3 evidence separation;
   external mode retained and labeled.
@@ -823,6 +839,16 @@ have accepted contracts; the model-identity generalization does not.
 > TabbyAPI server exists locally, and the operator's current ExLlamaV3
 > serving path is a custom `launch.py` server, so no M9 transport may be
 > inferred from it.
+
+> Update (2026-10-29): M8 is merged. **M4 — vLLM managed-local lifecycle
+> (§13 M4) is implemented** on `feat/vllm-managed-local-lifecycle` with the
+> startup-scope artifact, `llmgauge_observed` managed binding class, bounded
+> launch option surface, owned-process-group shutdown, and fail-closed
+> gates; the frozen v7/v8 fingerprint payload is deliberately unchanged
+> (managed runs record a precise ineligibility reason; a managed payload
+> version is a separate human decision). The selected next vLLM-block
+> milestone is M5 — vLLM workflow parity (§13 M5), which also absorbs
+> managed-mode multi-turn parity.
 
 ## 15. Consequences
 

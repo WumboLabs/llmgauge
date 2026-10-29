@@ -587,6 +587,19 @@ def _sanitize_json_artifact(
                 sanitized.pop(key, None)
                 categories.add("vllm_sensitive_evidence_field")
 
+    if path.name == "vllm-startup-evidence.json" and isinstance(sanitized, dict):
+        # Launch argv/executable absolute paths are redacted by the generic
+        # text pass; executable_sha256 is dropped by the full-hash pass. The
+        # bound listen endpoint is treated like every other endpoint identity.
+        launch = sanitized.get("launch")
+        if isinstance(launch, dict):
+            launch_config = launch.get("launch_config")
+            if isinstance(launch_config, dict):
+                for key in ("host", "port"):
+                    if key in launch_config:
+                        launch_config.pop(key, None)
+                        categories.add("vllm_sensitive_evidence_field")
+
     if (
         path.parent.name == "request"
         and path.suffix.lower() == ".json"
@@ -713,6 +726,7 @@ def _is_known_artifact(relative_path: Path) -> bool:
         "llmgauge-result.json",
         "runtime-command.json",
         "vllm-runtime-evidence.json",
+        "vllm-startup-evidence.json",
         "report.md",
         "scores.yaml",
     }:

@@ -24,7 +24,8 @@ It can:
 
 - run built-in or custom prompt suites against local `llama.cpp` / GGUF models by default
 - run the built-in `generic-core-v1` general-purpose suite (`smoke` and `core` profiles) with deterministic evidence checks, manual review, and side-by-side hybrid scoring
-- optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming by default, with opt-in streaming SSE evidence; no remote, auth, concurrency, or lifecycle management; runtime-native metrics are not equivalent to llama.cpp)
+- optionally evaluate against an operator-managed local vLLM OpenAI-compatible server (`--backend vllm`; loopback-only, sequential, non-streaming by default, with opt-in streaming SSE evidence; no remote, auth, or concurrency; runtime-native metrics are not equivalent to llama.cpp)
+- optionally run a managed-local vLLM lifecycle (`--vllm-managed` with `--vllm-executable`): LLMGauge launches and shuts down an operator-installed `vllm` command for a `checkpoint_directory` profile, verifies model admission before any evaluation request, and records separate startup-scope evidence; LLMGauge never installs vLLM or downloads models, and the external-server mode remains the default
 - preview run plans before launching a model
 - preserve raw prompts, raw outputs, cleaned review outputs, and stderr logs
 - capture runtime metadata such as context size, batch settings, flash-attention mode, and runtime methodology labels

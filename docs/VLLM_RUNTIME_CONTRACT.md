@@ -196,6 +196,65 @@ Older artifacts without these fields remain valid. Server lifecycle remains
 operator-owned; version and fingerprint capture do not start, stop, or supervise
 the server.
 
+## Managed-local server lifecycle (M4)
+
+The managed-local mode is an explicit opt-in (`--vllm-managed`, or
+`vllm_managed: true` in the profile/config) in which LLMGauge launches and
+shuts down an operator-installed vLLM API server for the profile's
+`checkpoint_directory` model root. The default external mode
+(`lifecycle_ownership: external_operator`) is unchanged: LLMGauge never
+starts, stops, or supervises an operator-managed server unless this mode is
+explicitly selected.
+
+Admission boundaries:
+
+- the profile must be a `checkpoint_directory` profile whose path names an
+  existing local model root; managed mode never downloads models and never
+  infers the served name;
+- the vLLM command must already be installed by the operator and is named
+  explicitly (`--vllm-executable` / `vllm_executable`); LLMGauge never
+  installs vLLM, resolves packages, or activates environments;
+- launch arguments come only from the bounded validated option surface
+  (`--vllm-max-model-len`, `--vllm-gpu-memory-utilization` with `(0, 1]`,
+  `--vllm-dtype` from `auto|half|float16|bfloat16|float32`, startup timeout
+  5–7200 s default 600, shutdown timeout 1–300 s default 30). There is no
+  arbitrary argument passthrough and no shell command string; the server is
+  launched with structured `execve` argv in its own process group;
+- the endpoint must use the standard root-served API path (`/` or `/v1`)
+  because the launched server does not serve custom path prefixes;
+- if the endpoint port is already occupied, startup fails closed
+  (`endpoint_port_in_use`); the foreign process is never signaled or
+  terminated;
+- readiness polling is bounded per-poll HTTP budget inside the startup
+  deadline and never reaches the chat-completions path; model admission is
+  verified from the server `/v1/models` listing before any evaluation
+  request; a failed or prematurely-exited server is never restarted.
+
+Shutdown terminates only the LLMGauge-owned process group: SIGTERM first,
+escalating to SIGKILL after the bounded shutdown timeout. The server's stdout
+and stderr are preserved as `logs/vllm-server.stdout.log` and
+`logs/vllm-server.stderr.log`.
+
+Managed results carry `runtime.lifecycle_ownership: llmgauge_managed`, the
+`llmgauge_observed` checkpoint-binding class (LLMGauge launched this server
+with the local checkpoint root and observed the admission path; the server
+still does not attest the bytes it read), and the additive
+`vllm-startup-evidence.json` artifact (schema
+`llmgauge.vllm_startup_evidence.v0`, documented in
+`docs/ARTIFACT_SCHEMAS.md`). Startup evidence is a separate scope: it records
+launch, readiness, admission, and shutdown observations and never carries
+request metrics; request evidence keeps `llmgauge.vllm_request_evidence.v0`
+semantics with the managed lifecycle label.
+
+Managed runs are not eligible for the v7/v8 run fingerprint in this
+milestone: payload v7 encodes the external-operator server lifecycle, and
+managed-lifecycle fingerprint identity requires a human decision on a new
+payload version. The result records the precise reason in
+`runtime.run_fingerprint_eligibility` instead of silently changing a frozen
+payload version. Multi-turn conversation runs against a managed server fail
+closed (workflow parity is deferred); external-mode multi-turn behavior is
+unchanged.
+
 ## Directory-model provenance
 
 Transformers or safetensors checkpoints require a directory identity rather

@@ -31,7 +31,11 @@ from llmgauge.core.config import (
     load_model_profiles,
     resolve_model_profile,
 )
-from llmgauge.core.checkpoint_binding import build_checkpoint_binding_record
+from llmgauge.core.checkpoint_binding import (
+    BINDING_CLASS_LLMGAUGE_OBSERVED,
+    BINDING_CLASS_OPERATOR_DECLARED,
+    build_checkpoint_binding_record,
+)
 from llmgauge.core.checkpoint_provenance import collect_checkpoint_provenance
 from llmgauge.core.schemas import effective_source_kind
 from llmgauge.core.sampling_profiles import (
@@ -93,7 +97,9 @@ from llmgauge.runners.vllm_external import (
     DEFAULT_REQUEST_TIMEOUT,
     VLLM_RUNTIME_EVIDENCE_FILENAME,
     VllmExternalConfig,
+    VllmReadinessResult,
     VllmRequestResult,
+    build_endpoint_identity,
     build_runtime_evidence_document,
     build_vllm_metrics,
     check_readiness_and_model,
@@ -103,6 +109,19 @@ from llmgauge.runners.vllm_external import (
     streaming_ttft_version_admitted,
 )
 from llmgauge.runners.vllm_http import VllmTransportError, validate_vllm_endpoint
+from llmgauge.runners.vllm_managed import (
+    DEFAULT_SHUTDOWN_TIMEOUT_SECONDS,
+    DEFAULT_STARTUP_TIMEOUT_SECONDS,
+    LIFECYCLE_OWNERSHIP_MANAGED,
+    VLLM_STARTUP_EVIDENCE_FILENAME,
+    VllmManagedLaunchConfig,
+    VllmManagedLaunchError,
+    VllmManagedServer,
+    VllmStartupResult,
+    managed_readiness_config,
+    resolve_vllm_executable,
+    validate_managed_launch_config,
+)
 
 
 def find_prompt(suite: dict, prompt_id: str) -> dict:
@@ -509,6 +528,13 @@ def resolve_run_options(
     request_timeout: float | None = None,
     max_response_bytes: int | None = None,
     vllm_streaming_evidence: bool | None = None,
+    vllm_managed: bool | None = None,
+    vllm_executable: str | None = None,
+    vllm_startup_timeout: float | None = None,
+    vllm_shutdown_timeout: float | None = None,
+    vllm_max_model_len: int | None = None,
+    vllm_gpu_memory_utilization: float | None = None,
+    vllm_dtype: str | None = None,
 ) -> dict[str, Any]:
     resolved_config_path = config_path or default_existing_path(
         DEFAULT_LOCAL_CONFIG,
@@ -563,6 +589,9 @@ def resolve_run_options(
             "llama.cpp",
         )
     )
+
+    if vllm_managed is True and resolved_backend != "vllm":
+        raise typer.BadParameter("--vllm-managed is supported only by backend=vllm")
 
     # Runtime-neutral model source contract (M1): representation is separate
     # from execution capability. Resolve one canonical effective source kind
@@ -961,6 +990,148 @@ def resolve_run_options(
             field_name="vllm_streaming_evidence",
         )
 
+        resolved_vllm_managed = optional_bool(
+            coalesce(
+                vllm_managed,
+                profile.get("vllm_managed"),
+                get_config_value(config_data, "runtime.vllm_managed"),
+            ),
+            field_name="vllm_managed",
+        )
+        vllm_launch: dict[str, Any] | None = None
+        if resolved_vllm_managed:
+            # M4 managed-local lifecycle: LLMGauge launches an
+            # operator-installed vLLM server against the profile's local
+            # checkpoint root. The model is never downloaded and the served
+            # name is never inferred.
+            if resolved_source_kind != "checkpoint_directory":
+                raise typer.BadParameter(
+                    "managed-local vLLM mode (--vllm-managed) requires a "
+                    "checkpoint_directory profile whose path names the local "
+                    "model root; LLMGauge never downloads models. For an "
+                    "operator-managed server, omit --vllm-managed (the default "
+                    "external mode)."
+                )
+            executable_value = coalesce(
+                vllm_executable,
+                profile.get("vllm_executable"),
+                get_config_value(config_data, "runtime.vllm_executable"),
+            )
+            if executable_value is None or not str(executable_value).strip():
+                raise typer.BadParameter(
+                    "managed-local vLLM mode requires --vllm-executable (or "
+                    "runtime.vllm_executable / profile vllm_executable) naming "
+                    "the operator-installed vllm command; LLMGauge never "
+                    "installs vLLM"
+                )
+            try:
+                resolved_vllm_executable = resolve_vllm_executable(
+                    str(executable_value)
+                )
+            except VllmManagedLaunchError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+
+            endpoint_obj = validate_vllm_endpoint(resolved_endpoint)
+            if endpoint_obj.path.rstrip("/") not in {"", "/v1"}:
+                raise typer.BadParameter(
+                    "managed-local vLLM mode requires the standard root-served "
+                    "vLLM API path (endpoint path / or /v1); the launched "
+                    "server does not serve custom path prefixes"
+                )
+            launch_host = (
+                endpoint_obj.host
+                if endpoint_obj.host in {"127.0.0.1", "::1"}
+                else "127.0.0.1"
+            )
+            resolved_startup_timeout = float(
+                coalesce(
+                    _optional_positive_float(
+                        vllm_startup_timeout, field_name="vllm_startup_timeout"
+                    ),
+                    _optional_positive_float(
+                        profile.get("vllm_startup_timeout"),
+                        field_name="vllm_startup_timeout",
+                    ),
+                    _optional_positive_float(
+                        get_config_value(config_data, "runtime.vllm_startup_timeout"),
+                        field_name="runtime.vllm_startup_timeout",
+                    ),
+                    DEFAULT_STARTUP_TIMEOUT_SECONDS,
+                )
+            )
+            resolved_shutdown_timeout = float(
+                coalesce(
+                    _optional_positive_float(
+                        vllm_shutdown_timeout, field_name="vllm_shutdown_timeout"
+                    ),
+                    _optional_positive_float(
+                        profile.get("vllm_shutdown_timeout"),
+                        field_name="vllm_shutdown_timeout",
+                    ),
+                    _optional_positive_float(
+                        get_config_value(config_data, "runtime.vllm_shutdown_timeout"),
+                        field_name="runtime.vllm_shutdown_timeout",
+                    ),
+                    DEFAULT_SHUTDOWN_TIMEOUT_SECONDS,
+                )
+            )
+            resolved_vllm_max_model_len = optional_int(
+                coalesce(
+                    vllm_max_model_len,
+                    profile.get("vllm_max_model_len"),
+                    get_config_value(config_data, "runtime.vllm_max_model_len"),
+                ),
+                field_name="vllm_max_model_len",
+                minimum=1,
+            )
+            resolved_vllm_gpu_memory_utilization = optional_float(
+                coalesce(
+                    vllm_gpu_memory_utilization,
+                    profile.get("vllm_gpu_memory_utilization"),
+                    get_config_value(
+                        config_data, "runtime.vllm_gpu_memory_utilization"
+                    ),
+                ),
+                field_name="vllm_gpu_memory_utilization",
+                minimum=0.0,
+            )
+            dtype_value = coalesce(
+                vllm_dtype,
+                profile.get("vllm_dtype"),
+                get_config_value(config_data, "runtime.vllm_dtype"),
+            )
+            resolved_vllm_dtype = (
+                str(dtype_value).strip().lower() if dtype_value is not None else None
+            )
+            launch_config = VllmManagedLaunchConfig(
+                executable=resolved_vllm_executable,
+                model_path=str(checkpoint_root),
+                served_model_name=resolved_served_model,
+                host=launch_host,
+                port=int(endpoint_obj.port),
+                max_model_len=resolved_vllm_max_model_len,
+                gpu_memory_utilization=resolved_vllm_gpu_memory_utilization,
+                dtype=resolved_vllm_dtype,
+                startup_timeout_seconds=resolved_startup_timeout,
+                shutdown_timeout_seconds=resolved_shutdown_timeout,
+            )
+            try:
+                validate_managed_launch_config(launch_config)
+            except VllmManagedLaunchError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+            vllm_launch = {
+                "executable": launch_config.executable,
+                "model_path": launch_config.model_path,
+                "served_model_name": launch_config.served_model_name,
+                "host": launch_config.host,
+                "port": launch_config.port,
+                "max_model_len": launch_config.max_model_len,
+                "gpu_memory_utilization": launch_config.gpu_memory_utilization,
+                "dtype": launch_config.dtype,
+                "startup_timeout_seconds": launch_config.startup_timeout_seconds,
+                "shutdown_timeout_seconds": launch_config.shutdown_timeout_seconds,
+            }
+
         # served_model_reference keeps the historical boundary: no local path
         # may enter GGUF/directory provenance for a served-only run. The
         # checkpoint_directory shape was validated and hashed above.
@@ -993,6 +1164,8 @@ def resolve_run_options(
             "request_timeout": resolved_request_timeout,
             "max_response_bytes": resolved_max_response_bytes,
             "vllm_streaming_evidence": resolved_vllm_streaming_evidence,
+            "vllm_managed": resolved_vllm_managed,
+            "vllm_launch": vllm_launch,
             "ctx": resolved_ctx,
             "max_tokens": resolved_max_tokens,
             "temp": resolved_temp,
@@ -1056,6 +1229,8 @@ def resolve_run_options(
         "request_timeout": None,
         "max_response_bytes": None,
         "vllm_streaming_evidence": None,
+        "vllm_managed": None,
+        "vllm_launch": None,
         "ctx": resolved_ctx,
         "max_tokens": resolved_max_tokens,
         "temp": resolved_temp,
@@ -1182,16 +1357,44 @@ def print_run_preflight(
                     f"fingerprint={checkpoint_prov.get('public_fingerprint')})"
                 ),
             )
-            table.add_row(
-                "Checkpoint binding",
-                "operator_declared (server listing confirms the served name "
-                "only; it does not attest the local checkpoint bytes)",
-            )
+            if resolved.get("vllm_managed"):
+                table.add_row(
+                    "Checkpoint binding",
+                    "llmgauge_observed (LLMGauge launches this server with the "
+                    "local checkpoint root; the server listing confirms the "
+                    "served name but does not attest the bytes it read)",
+                )
+            else:
+                table.add_row(
+                    "Checkpoint binding",
+                    "operator_declared (server listing confirms the served name "
+                    "only; it does not attest the local checkpoint bytes)",
+                )
         else:
             table.add_row(
                 "Model path",
                 "not used (served-model identity only; local provenance deferred)",
             )
+        if resolved.get("vllm_managed"):
+            launch = resolved["vllm_launch"]
+            table.add_row(
+                "Lifecycle ownership",
+                "llmgauge_managed (LLMGauge launches and shuts down the server)",
+            )
+            table.add_row("vLLM executable", str(launch["executable"]))
+            table.add_row("Launch model path", str(launch["model_path"]))
+            table.add_row(
+                "Launch host:port",
+                f"{launch['host']}:{launch['port']}",
+            )
+            table.add_row("Startup timeout s", str(launch["startup_timeout_seconds"]))
+            table.add_row("Shutdown timeout s", str(launch["shutdown_timeout_seconds"]))
+            table.add_row("Launch max_model_len", str(launch["max_model_len"]))
+            table.add_row(
+                "Launch gpu_memory_utilization",
+                str(launch["gpu_memory_utilization"]),
+            )
+            table.add_row("Launch dtype", str(launch["dtype"]))
     else:
         table.add_row("Model path", str(resolved["model_path"]))
         table.add_row("llama-cli", str(resolved["llama_cli"]))
@@ -1247,6 +1450,11 @@ def print_run_preflight(
                 "with --out or --auto-name"
             )
         table.add_row("Runtime evidence artifact", evidence_path)
+        if resolved.get("vllm_managed"):
+            table.add_row(
+                "Startup evidence artifact",
+                f"<result-dir>/{VLLM_STARTUP_EVIDENCE_FILENAME}",
+            )
         table.add_row("Runtime command artifact", "not used for vLLM")
     else:
         preview_config = LlamaCppRunConfig(
@@ -1563,6 +1771,18 @@ def execute_multi_turn_run(
     conversation_id: str | None,
     max_turns: int | None,
 ) -> dict[str, Any]:
+    if str(resolved.get("backend") or "llama.cpp") == "vllm" and resolved.get(
+        "vllm_managed"
+    ):
+        # Fail closed: the M4 managed lifecycle is wired for single-prompt
+        # runs only. Multi-turn workflow parity for managed servers is
+        # deferred; external mode keeps its existing multi-turn support.
+        raise typer.Exit(
+            "managed-local vLLM mode (--vllm-managed) does not support "
+            "multi-turn conversation runs in this milestone. Use the default "
+            "external mode for multi-turn runs against an operator-managed "
+            "server."
+        )
     (
         resolved_suite,
         loaded_suite,
@@ -2470,7 +2690,141 @@ def execute_vllm_run(
     out: Path,
     fail_on_failed_prompts: bool,
 ) -> dict[str, Any]:
-    """Execute prompts against an operator-managed local vLLM server."""
+    """Execute prompts against a vLLM server.
+
+    External mode (the default) talks to an operator-managed server exactly
+    as before. Managed-local mode (M4) launches an operator-installed vLLM
+    server against the profile's checkpoint root, runs the prompts against
+    it, and always shuts the owned process down afterwards — including the
+    startup-failure and prompt-loop-exception paths. The startup evidence
+    artifact is written after the server reaches terminal state so it
+    carries the terminal shutdown record.
+    """
+
+    if resolved.get("vllm_managed") is not True:
+        return _execute_vllm_run_body(
+            suite=suite,
+            only=only,
+            include=include,
+            profile=profile,
+            resolved=resolved,
+            out=out,
+            fail_on_failed_prompts=fail_on_failed_prompts,
+        )
+
+    launch = resolved["vllm_launch"]
+    launch_config = VllmManagedLaunchConfig(
+        executable=str(launch["executable"]),
+        model_path=str(launch["model_path"]),
+        served_model_name=str(launch["served_model_name"]),
+        host=str(launch["host"]),
+        port=int(launch["port"]),
+        max_model_len=launch["max_model_len"],
+        gpu_memory_utilization=launch["gpu_memory_utilization"],
+        dtype=launch["dtype"],
+        startup_timeout_seconds=float(launch["startup_timeout_seconds"]),
+        shutdown_timeout_seconds=float(launch["shutdown_timeout_seconds"]),
+    )
+    prepare_result_dir(out)
+    base_config = VllmExternalConfig(
+        endpoint_url=str(resolved["vllm_endpoint"]),
+        served_model=str(resolved["served_model"]),
+        max_tokens=int(resolved["max_tokens"]),
+        temperature=float(resolved["temp"]),
+        top_p=float(resolved["top_p"]),
+        connect_timeout=float(resolved["connect_timeout"]),
+        request_timeout=float(resolved["request_timeout"]),
+        max_response_bytes=int(resolved["max_response_bytes"]),
+        ctx_size=int(resolved["ctx"]),
+        lifecycle_ownership=LIFECYCLE_OWNERSHIP_MANAGED,
+    )
+    server = VllmManagedServer(
+        launch_config=launch_config,
+        endpoint=validate_vllm_endpoint(str(resolved["vllm_endpoint"])),
+        stdout_log_path=out / "logs" / "vllm-server.stdout.log",
+        stderr_log_path=out / "logs" / "vllm-server.stderr.log",
+        readiness_config=managed_readiness_config(base_config, launch_config),
+    )
+
+    console.print(
+        f"Launching managed-local vLLM server "
+        f"[bold]{launch_config.executable}[/bold] on "
+        f"[bold]{launch_config.host}:{launch_config.port}[/bold] "
+        f"(startup timeout {launch_config.startup_timeout_seconds:g}s)"
+    )
+    try:
+        startup_result = server.start()
+    except Exception:
+        # Defense in depth: start() is total, but the owned process must be
+        # terminated and the startup evidence written on any path.
+        record = server.shutdown()
+        write_json(out / VLLM_STARTUP_EVIDENCE_FILENAME, server.startup_evidence_document())
+        console.print(f"Managed vLLM server shutdown: {record.status}")
+        raise
+    if startup_result.status == "ready":
+        console.print(
+            f"Managed vLLM server ready (pid {startup_result.pid}, "
+            f"{startup_result.readiness_attempts} readiness poll(s), "
+            f"{startup_result.startup_duration_seconds:.1f}s)"
+        )
+    else:
+        console.print(
+            "[yellow]Managed vLLM startup failed: "
+            f"{startup_result.failure_class}: "
+            f"{startup_result.failure_detail}[/yellow]"
+        )
+
+    try:
+        return _execute_vllm_run_body(
+            suite=suite,
+            only=only,
+            include=include,
+            profile=profile,
+            resolved=resolved,
+            out=out,
+            fail_on_failed_prompts=fail_on_failed_prompts,
+            server=server,
+            startup_result=startup_result,
+        )
+    finally:
+        shutdown_record = server.shutdown()
+        escalation = (
+            " (SIGTERM escalated to SIGKILL)"
+            if (shutdown_record.escalation_used)
+            else ""
+        )
+        console.print(
+            f"Managed vLLM server shutdown: {shutdown_record.status}{escalation}"
+        )
+        write_json(
+            out / VLLM_STARTUP_EVIDENCE_FILENAME,
+            server.startup_evidence_document(),
+        )
+
+
+def _execute_vllm_run_body(
+    *,
+    suite: Path,
+    only: str | None,
+    include: str,
+    profile: str | None = None,
+    resolved: dict[str, Any],
+    out: Path,
+    fail_on_failed_prompts: bool,
+    server: VllmManagedServer | None = None,
+    startup_result: VllmStartupResult | None = None,
+) -> dict[str, Any]:
+    """Execute prompts against a vLLM server (external or managed-local).
+
+    For managed-local runs the caller owns the ``VllmManagedServer`` lifecycle:
+    it starts the server before calling this body and shuts it down (and
+    writes the startup evidence artifact) afterwards, so the server is
+    terminated even if prompt execution raises.
+    """
+    managed = server is not None
+    lifecycle_ownership = (
+        LIFECYCLE_OWNERSHIP_MANAGED if managed else "external_operator"
+    )
     resolved_suite = resolve_suite_path(suite)
     suite = resolved_suite
     loaded_suite, selected_prompts, normalized_suite = load_run_suite(
@@ -2501,15 +2855,31 @@ def execute_vllm_run(
         max_response_bytes=int(resolved["max_response_bytes"]),
         streaming_evidence=streaming_evidence,
         ctx_size=int(resolved["ctx"]),
+        lifecycle_ownership=lifecycle_ownership,
     )
 
     console.print(
         f"Running [bold]{len(selected_prompts)}[/bold] prompt(s) "
-        f"via external vLLM model [bold]{resolved['served_model']}[/bold] "
-        f"(backend=vllm, operator-managed server)"
+        f"via {'managed-local' if managed else 'external'} vLLM model "
+        f"[bold]{resolved['served_model']}[/bold] "
+        f"(backend=vllm, "
+        f"{'LLMGauge-managed server' if managed else 'operator-managed server'})"
     )
 
-    readiness = check_readiness_and_model(vllm_config)
+    if server is not None:
+        # Startup-scope readiness already polled /v1/models and /version while
+        # the owned process was alive; a startup failure before the first poll
+        # becomes a deterministic readiness failure, never an evaluation
+        # request against a dead server.
+        assert startup_result is not None
+        readiness = startup_result.readiness or VllmReadinessResult(
+            success=False,
+            endpoint_identity=build_endpoint_identity(str(resolved["vllm_endpoint"])),
+            failure_class=startup_result.failure_class or "startup_failure",
+            failure_detail=startup_result.failure_detail or "managed_startup_failed",
+        )
+    else:
+        readiness = check_readiness_and_model(vllm_config)
     endpoint_identity = readiness.endpoint_identity or {}
     observed_fingerprints: list[str] = []
     runtime_evidence = build_runtime_evidence_document(
@@ -2568,7 +2938,7 @@ def execute_vllm_run(
             write_text(stderr_log_path, skip_log_text)
             request_evidence = {
                 "schema_version": "llmgauge.vllm_request_evidence.v0",
-                "lifecycle_ownership": "external_operator",
+                "lifecycle_ownership": lifecycle_ownership,
                 "skipped": True,
                 "skip_reason": skip_reason,
                 "failure_class": skip_failure_class,
@@ -2683,7 +3053,7 @@ def execute_vllm_run(
 
             request_evidence = request_result.request_evidence or {
                 "schema_version": "llmgauge.vllm_request_evidence.v0",
-                "lifecycle_ownership": "external_operator",
+                "lifecycle_ownership": lifecycle_ownership,
                 "failure_class": request_result.failure_class,
                 "failure_detail": request_result.failure_detail,
                 "endpoint_identity": request_result.endpoint_identity,
@@ -2834,6 +3204,12 @@ def execute_vllm_run(
                 "public_fingerprint"
             ),
             observed_vllm_version=observed_vllm_version,
+            lifecycle_ownership=lifecycle_ownership,
+            binding_provenance_class=(
+                BINDING_CLASS_LLMGAUGE_OBSERVED
+                if managed
+                else BINDING_CLASS_OPERATOR_DECLARED
+            ),
         )
     else:
         # Never feed a local path into GGUF provenance for a served-only run;
@@ -2872,7 +3248,7 @@ def execute_vllm_run(
 
     backend_provenance = {
         "backend_name": "vllm",
-        "lifecycle_ownership": "external_operator",
+        "lifecycle_ownership": lifecycle_ownership,
         "endpoint_identity": endpoint_identity,
         "requested_served_model": resolved["served_model"],
         "observed_served_model": readiness.observed_model,
@@ -2914,7 +3290,7 @@ def execute_vllm_run(
         },
         "runtime": {
             "backend": "vllm",
-            "lifecycle_ownership": "external_operator",
+            "lifecycle_ownership": lifecycle_ownership,
             "endpoint_identity": endpoint_identity,
             "requested_served_model": resolved["served_model"],
             "observed_served_model": readiness.observed_model,
@@ -2983,6 +3359,22 @@ def execute_vllm_run(
         result["runtime"]["profile"] = vllm_profile_evidence
     if checkpoint_binding is not None:
         result["runtime"]["checkpoint_binding"] = checkpoint_binding
+    if managed:
+        # Additive M4 managed-lifecycle keys; external result shapes stay
+        # byte-identical. The startup evidence artifact is written by the
+        # lifecycle wrapper after the owned server reaches terminal state, so
+        # it carries the shutdown record.
+        result["runtime"]["vllm_startup_evidence_captured"] = True
+        result["runtime"]["vllm_startup_evidence_path"] = VLLM_STARTUP_EVIDENCE_FILENAME
+        result["runtime"]["run_fingerprint_eligibility"] = {
+            "eligible": False,
+            "reason": (
+                "run fingerprint payload v7 represents the external-operator "
+                "server lifecycle only; managed-lifecycle fingerprint identity "
+                "requires a human decision on a new payload version (M4 keeps "
+                "the v7/v8 gates unchanged)"
+            ),
+        }
 
     runtime_neutral_metrics, failure_taxonomy = build_vllm_area4_evidence(
         prompt_results=prompt_results,

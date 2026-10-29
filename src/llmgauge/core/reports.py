@@ -145,6 +145,24 @@ def _runtime_section_lines(runtime: dict[str, Any]) -> list[str]:
                 "identical runtime state; inequality must not be overinterpreted.",
             ]
         )
+        if runtime.get("vllm_startup_evidence_captured"):
+            lines.append(
+                "- vLLM startup evidence: captured (startup scope only; it does "
+                "not attest request behavior)"
+            )
+            if runtime.get("vllm_startup_evidence_path"):
+                lines.append(
+                    "- vLLM startup evidence artifact: "
+                    f"`{runtime['vllm_startup_evidence_path']}`"
+                )
+        elif runtime.get("lifecycle_ownership") == "llmgauge_managed":
+            lines.append("- vLLM startup evidence: missing")
+        eligibility = runtime.get("run_fingerprint_eligibility")
+        if isinstance(eligibility, Mapping):
+            lines.append(
+                "- Run fingerprint: not eligible "
+                f"({eligibility.get('reason') or 'reason not recorded'})"
+            )
         return lines
 
     lines.extend(

@@ -198,6 +198,10 @@ class VllmExternalConfig:
     # Requested context is recorded for evidence only; not sent as a vLLM field
     # unless a later contract admits it.
     ctx_size: int | None = None
+    # Lifecycle ownership label recorded in evidence. External mode (the
+    # default and historical value) never claims process ownership; managed
+    # mode sets "llmgauge_managed" only when LLMGauge launched the server.
+    lifecycle_ownership: str = "external_operator"
 
 
 @dataclass
@@ -262,10 +266,11 @@ def _error_result(
     streaming: bool = False,
     transport_mode: str | None = None,
     vllm_version: str | None = None,
+    lifecycle_ownership: str = "external_operator",
 ) -> VllmRequestResult:
     evidence: dict[str, Any] = {
         "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
-        "lifecycle_ownership": "external_operator",
+        "lifecycle_ownership": lifecycle_ownership,
         "streaming": streaming,
         "failure_class": failure_class,
         "failure_detail": detail,
@@ -297,6 +302,7 @@ def _map_transport_error(
     wall_time: float | None = None,
     readiness: bool = False,
     request_transmitted: bool = True,
+    lifecycle_ownership: str = "external_operator",
 ) -> VllmRequestResult | VllmReadinessResult:
     failure_class = exc.failure_class
     if readiness and failure_class in {
@@ -325,7 +331,7 @@ def _map_transport_error(
             wall_time_seconds=wall_time,
             evidence={
                 "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
-                "lifecycle_ownership": "external_operator",
+                "lifecycle_ownership": lifecycle_ownership,
                 "proxy_bypass_policy": PROXY_BYPASS_POLICY,
                 "failure_class": mapped,
                 "failure_detail": exc.detail,
@@ -341,6 +347,7 @@ def _map_transport_error(
         http_status=exc.http_status,
         wall_time=wall_time,
         request_transmitted=request_transmitted,
+        lifecycle_ownership=lifecycle_ownership,
     )
 
 
@@ -409,7 +416,12 @@ def check_readiness_and_model(
     try:
         endpoint = validate_vllm_endpoint(config.endpoint_url)
     except VllmTransportError as exc:
-        return _map_transport_error(exc, wall_time=time.monotonic() - started, readiness=True)  # type: ignore[return-value]
+        return _map_transport_error(
+            exc,
+            wall_time=time.monotonic() - started,
+            readiness=True,
+            lifecycle_ownership=config.lifecycle_ownership,
+        )  # type: ignore[return-value]
 
     identity = sanitize_endpoint_identity(endpoint)
     base_path = endpoint.path.rstrip("/")
@@ -438,6 +450,7 @@ def check_readiness_and_model(
             exc,
             wall_time=time.monotonic() - started,
             readiness=True,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
     except KeyboardInterrupt:
         return VllmReadinessResult(
@@ -459,7 +472,7 @@ def check_readiness_and_model(
             wall_time_seconds=wall,
             evidence={
                 "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
-                "lifecycle_ownership": "external_operator",
+                "lifecycle_ownership": config.lifecycle_ownership,
                 "proxy_bypass_policy": PROXY_BYPASS_POLICY,
                 "failure_class": "readiness_failure",
                 "failure_detail": f"models_http_{response.status}",
@@ -508,7 +521,7 @@ def check_readiness_and_model(
             wall_time_seconds=wall,
             evidence={
                 "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
-                "lifecycle_ownership": "external_operator",
+                "lifecycle_ownership": config.lifecycle_ownership,
                 "proxy_bypass_policy": PROXY_BYPASS_POLICY,
                 "requested_served_model": requested,
                 "observed_served_models": served,
@@ -535,7 +548,7 @@ def check_readiness_and_model(
         server_state=SERVER_STATE_READY,
         evidence={
             "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
-            "lifecycle_ownership": "external_operator",
+            "lifecycle_ownership": config.lifecycle_ownership,
             "proxy_bypass_policy": PROXY_BYPASS_POLICY,
             "requested_served_model": requested,
             "observed_served_models": served,
@@ -612,6 +625,7 @@ def run_chat_completion(
             failure_class="unsupported_capability",
             detail="empty_prompt",
             request_transmitted=False,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     started = time.monotonic()
@@ -622,6 +636,7 @@ def run_chat_completion(
             exc,
             wall_time=time.monotonic() - started,
             request_transmitted=False,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     identity = sanitize_endpoint_identity(endpoint)
@@ -672,6 +687,7 @@ def run_chat_completion(
         return _map_transport_error(  # type: ignore[return-value]
             exc,
             wall_time=time.monotonic() - transmit_start,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
     except KeyboardInterrupt:
         return _error_result(
@@ -679,6 +695,7 @@ def run_chat_completion(
             detail="keyboard_interrupt",
             endpoint_identity=identity,
             wall_time=time.monotonic() - transmit_start,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     identity = response.endpoint_identity or identity
@@ -691,6 +708,7 @@ def run_chat_completion(
             endpoint_identity=identity,
             http_status=response.status,
             wall_time=time.monotonic() - transmit_start,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     if response.status != 200:
@@ -700,6 +718,7 @@ def run_chat_completion(
             endpoint_identity=identity,
             http_status=response.status,
             wall_time=time.monotonic() - transmit_start,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     try:
@@ -713,6 +732,7 @@ def run_chat_completion(
             endpoint_identity=identity,
             http_status=response.status,
             wall_time=time.monotonic() - transmit_start,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     # Optional opaque backend metadata; invalid values never discard the answer.
@@ -729,6 +749,7 @@ def run_chat_completion(
             http_status=response.status,
             wall_time=time.monotonic() - transmit_start,
             observed_model=observed_model,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     # Validation completed: wall time now spans serialization through the
@@ -749,7 +770,7 @@ def run_chat_completion(
     )
     evidence: dict[str, Any] = {
         "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
-        "lifecycle_ownership": "external_operator",
+        "lifecycle_ownership": config.lifecycle_ownership,
         "streaming": False,
         "input_form": "chat_messages",
         "system_text": system_text,
@@ -863,7 +884,7 @@ def _stream_result(
 
     evidence: dict[str, Any] = {
         "schema_version": VLLM_REQUEST_EVIDENCE_SCHEMA,
-        "lifecycle_ownership": "external_operator",
+        "lifecycle_ownership": config.lifecycle_ownership,
         "streaming": True,
         "transport_mode": STREAM_TRANSPORT_MODE,
         "observation_method": OBSERVATION_METHOD,
@@ -989,6 +1010,7 @@ def run_chat_completion_stream(
             request_transmitted=False,
             streaming=True,
             transport_mode=STREAM_TRANSPORT_MODE,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     started = time.monotonic()
@@ -999,6 +1021,7 @@ def run_chat_completion_stream(
             exc,
             wall_time=time.monotonic() - started,
             request_transmitted=False,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     identity = sanitize_endpoint_identity(endpoint)
@@ -1324,6 +1347,7 @@ def run_chat_completion_stream(
             streaming=True,
             transport_mode=STREAM_TRANSPORT_MODE,
             vllm_version=vllm_version,
+            lifecycle_ownership=config.lifecycle_ownership,
         )
 
     result = _stream_result(
@@ -1383,7 +1407,7 @@ def build_runtime_evidence_document(
     fingerprints = ordered_unique_fingerprints(observed_system_fingerprints or [])
     doc: dict[str, Any] = {
         "schema_version": VLLM_RUNTIME_EVIDENCE_SCHEMA,
-        "lifecycle_ownership": "external_operator",
+        "lifecycle_ownership": config.lifecycle_ownership,
         "backend": "vllm",
         "proxy_bypass_policy": PROXY_BYPASS_POLICY,
         "endpoint_identity": endpoint_identity,
