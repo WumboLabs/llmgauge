@@ -635,6 +635,12 @@ Notes:
 - `runtime_command_path` points to `runtime-command.json` when captured.
 - For `backend=vllm`, command metadata is not captured; use
   `vllm-runtime-evidence.json` and per-prompt `request/*.json` instead.
+- For managed-local vLLM runs (`lifecycle_ownership: llmgauge_managed`),
+  `vllm_startup_evidence_captured`/`vllm_startup_evidence_path` reference the
+  startup-scope artifact, and `run_fingerprint_eligibility` records the
+  precise reason the run is not fingerprint-eligible under the frozen v7/v8
+  payload gates. External-operator results omit both keys and remain
+  byte-identical.
 - `config_path` and `model_profiles_path` may be local-machine specific.
 - All fields above are additive. Historical v0 artifacts without them remain
   readable and validate under their original evidence contract.
@@ -764,6 +770,58 @@ When unavailable, executable size, full hash, and public fingerprint are null
 and `warning` explains the collection failure. Discovery fields remain null or
 absent when the bounded version probe is unavailable or unparseable. The full
 executable path and unrestricted probe output are not stored.
+
+## Schema: llmgauge.vllm_startup_evidence.v0
+
+Primary file:
+
+    vllm-startup-evidence.json
+
+Startup-scope artifact for managed-local vLLM runs (M4). Written only when
+LLMGauge itself launched the server (`lifecycle_ownership:
+llmgauge_managed`); external-operator results never carry it and remain
+valid. It records launch, readiness, model-admission, and shutdown
+observations for the LLMGauge-owned process and never carries request
+metrics; per-request evidence keeps `llmgauge.vllm_request_evidence.v0`.
+
+Expected top-level keys:
+
+    schema_version
+    lifecycle_ownership
+    backend
+    launch
+    process
+    startup
+    model_admission
+    shutdown
+    logs
+    unobserved
+    claim_boundary
+
+- `launch.argv` is the exact structured `execve` argv (never a shell string);
+  `launch.shell` is `false`; `launch.executable_sha256` is the full local
+  SHA-256 of the resolved operator-installed executable, or null when
+  unreadable. `launch.launch_config` records only the bounded admitted launch
+  options.
+- `process.owned_by_llmgauge` is `true`; the PID and process group belong to
+  the process LLMGauge launched. No foreign process is ever signaled.
+- `startup.status` is `ready`, `failed`, or `cancelled`, with bounded
+  readiness attempt counts, duration, and (on failure) the exit code or
+  signal and `premature_exit`.
+- `model_admission.status` is `admitted`, `failed`, or `not_observed`, from
+  the server `/v1/models` listing observed during bounded readiness polling.
+- `shutdown.status` is `graceful`, `forced`, `already_exited`, `failed`, or
+  `not_started`, with escalation disclosure.
+- `logs` references the preserved server stdout/stderr log file names and
+  byte sizes.
+- `unobserved` lists the facts this artifact explicitly does not observe
+  (model load seconds, GPU allocation, cache warmth, effective template,
+  effective quantization); `claim_boundary` states the evidence ceiling.
+
+`validate-result` checks the artifact's schema, enum statuses, ownership
+flag, non-empty argv, and lifecycle consistency with the result runtime.
+Public export redacts absolute paths, drops `executable_sha256`, and omits
+the bound listen host/port from the launch config.
 
 ## Schema: llmgauge.runtime_command.v0
 
@@ -1262,11 +1320,16 @@ Top-level expected keys:
 
 Semantics: `status` is `bound` when the requested served model was observed
 in the server listing and `unbound` otherwise. `binding_provenance_class` is
-`operator_declared` for external-server results; the vocabulary also names
-`server_reported` and `llmgauge_observed`, but validators reject any class
-other than `operator_declared` while `lifecycle_ownership` is
-`external_operator`, because a server listing attests only the server's own
-served identity, never the local checkpoint bytes behind it.
+`operator_declared` for external-server results and `llmgauge_observed` for
+managed-local lifecycle results (M4), where LLMGauge launched the server
+itself with the local checkpoint root and observed the admission path. The
+vocabulary also names `server_reported`, which validators reject for the
+checkpoint association in every lifecycle: a server listing attests only the
+server's own served identity, never the local checkpoint bytes behind it.
+While `lifecycle_ownership` is `external_operator`, only
+`operator_declared` is admitted; while it is `llmgauge_managed`, only
+`llmgauge_observed` is admitted, and the `evidence_ceiling` text follows the
+class.
 `checkpoint_public_fingerprint` is the shortened `sha256:`+16 display
 fingerprint linking to `model.provenance`; the full manifest, full hashes,
 and the absolute checkpoint root are never recorded here (validators reject

@@ -133,11 +133,15 @@ protocol and are not interchangeable with official lm-eval metrics.
 
 ## vLLM evidence track
 
-The vLLM work is intentionally bounded to an externally managed local
-integration and evidence collection. The accepted [runtime contract](VLLM_RUNTIME_CONTRACT.md)
+The vLLM work is intentionally bounded to local integration and evidence
+collection. The accepted [runtime contract](VLLM_RUNTIME_CONTRACT.md)
 and [HTTP transport assessment](VLLM_HTTP_TRANSPORT_ASSESSMENT.md) define a
-loopback-only, text-only backend using the Python standard library. LLMGauge
-does not install, start, supervise, or otherwise own the vLLM server lifecycle;
+loopback-only, text-only backend using the Python standard library. The
+default mode talks to an operator-managed server: LLMGauge does not
+install, start, supervise, or otherwise own that server's lifecycle. The
+explicit opt-in managed-local mode (`--vllm-managed`, M4) launches and
+shuts down an operator-installed vLLM command for one local checkpoint
+root; LLMGauge still never installs vLLM or downloads models.
 `llama.cpp`/GGUF remains the default runtime.
 
 This bounded external-server integration is the current state, not the target:
@@ -169,6 +173,19 @@ managed-local server lifecycle.
   the checkpoint identity, an `operator_declared` binding record (a server
   listing never attests checkpoint bytes), and persisted sampling-profile
   identity; eligible runs fingerprint under `llmgauge.run_fingerprint.v7`.
+- Managed-local vLLM lifecycle (M4): `--vllm-managed` launches an
+  operator-installed `vllm` command for a `checkpoint_directory` profile
+  root with structured argv and a bounded option surface, verifies model
+  admission from the server listing before any evaluation request, never
+  restarts a failed server, never signals a foreign port occupant,
+  terminates only its owned process group with bounded SIGTERM→SIGKILL
+  escalation, preserves server logs, and writes the separate
+  `vllm-startup-evidence.json` startup-scope artifact. Managed results
+  carry the `llmgauge_observed` binding class; the external mode's
+  `operator_declared` shape is unchanged. Managed runs are
+  fingerprint-ineligible under the frozen v7/v8 payload with the precise
+  reason recorded (a managed payload version is a deferred human
+  decision).
 - Area 4 runtime-neutral TTFT for streaming evidence mode:
   `llmgauge.metric.v1.time_to_first_token` measured from the same request
   start boundary to the first backend-generated token ID exposed in an
@@ -192,8 +209,11 @@ preserved in the changelog. Durable claim boundaries live in
 
 ### Active limitations
 
-- No remote, authentication, or concurrency support; no LLMGauge-owned vLLM
-  lifecycle. Streaming is an explicit opt-in evidence mode, never the default.
+- No remote, authentication, or concurrency support. The managed-local
+  lifecycle (M4) is single-server and single-prompt-run only: multi-turn
+  against a managed server fails closed (parity is M5), and managed runs
+  are not yet fingerprint-eligible. Streaming is an explicit opt-in
+  evidence mode, never the default.
 - vLLM request-window peak VRAM is captured via a bounded concurrent NVIDIA
   telemetry sampler; the value is absolute device-used memory, not server or
   model footprint, and the observation boundary is distinct from the native
