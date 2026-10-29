@@ -1261,8 +1261,8 @@ remain open. **M8 — EXL checkpoint-manifest v1 plus `model_format` identity**
 (see the [EXL qualification contract](EXL_RUNTIME_QUALIFICATION.md) §16–§17)
 is implemented and merged: the versioned manifest v1 union rule,
 `model_format` identity, and the frozen `llmgauge.run_fingerprint.v8`
-payload. **M4 — vLLM managed-local lifecycle — is implemented** on
-`feat/vllm-managed-local-lifecycle`, pending integration: explicit
+payload. **M4 — vLLM managed-local lifecycle — is implemented and
+merged**: explicit
 `--vllm-managed` opt-in launches an operator-installed `vllm` command for
 the profile's checkpoint root with structured argv and a bounded option
 surface, verifies model admission before any evaluation request, owns only

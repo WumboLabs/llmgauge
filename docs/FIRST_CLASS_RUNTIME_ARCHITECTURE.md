@@ -674,8 +674,8 @@ mergeable; none may weaken §12's protected semantics.
 
 ### M4 — vLLM managed-local lifecycle
 
-- **Status:** Implemented on `feat/vllm-managed-local-lifecycle`
-  (2026-10-29, post-M8); awaiting human integration. Managed mode is
+- **Status:** Implemented and merged on `main` (2026-10-29, post-M8,
+  merge `4a73e43`). Managed mode is
   explicit (`--vllm-managed` / `vllm_managed`), requires a
   `checkpoint_directory` profile plus an operator-installed
   `--vllm-executable`, launches with structured argv in an owned process
@@ -841,7 +841,7 @@ have accepted contracts; the model-identity generalization does not.
 > inferred from it.
 
 > Update (2026-10-29): M8 is merged. **M4 — vLLM managed-local lifecycle
-> (§13 M4) is implemented** on `feat/vllm-managed-local-lifecycle` with the
+> (§13 M4) is implemented and merged on `main`** with the
 > startup-scope artifact, `llmgauge_observed` managed binding class, bounded
 > launch option surface, owned-process-group shutdown, and fail-closed
 > gates; the frozen v7/v8 fingerprint payload is deliberately unchanged
