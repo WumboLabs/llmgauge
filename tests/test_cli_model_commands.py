@@ -12,6 +12,21 @@ def _strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
+def _normalized_output(result) -> str:
+    """Collapse Typer/Rich error rendering so phrase assertions are stable.
+
+    Rich word-wraps error panels at the console width, keeps box-drawing
+    borders between wrapped lines, and may style tokens with ANSI codes, so
+    raw substring checks on ``result.output`` depend on the runner's terminal
+    geometry. Stripping escapes and panel borders and joining the remaining
+    words keeps the semantic contract (the message must contain the phrase)
+    while removing the rendering dependency.
+    """
+    text = _strip_ansi(result.output)
+    text = re.sub(r"[╭╮╰╯─│]", "", text)
+    return " ".join(text.split())
+
+
 def test_model_add_list_remove_flow(tmp_path: Path) -> None:
     profiles_path = tmp_path / "model-profiles.yaml"
     profiles_path.write_text(
@@ -263,7 +278,7 @@ def test_model_add_legacy_shape_still_requires_path(tmp_path: Path) -> None:
     )
 
     assert result.exit_code != 0
-    assert "--path" in result.output
+    assert "--path" in _normalized_output(result)
 
 
 def test_model_add_legacy_shape_rejects_directory(tmp_path: Path) -> None:
@@ -485,7 +500,7 @@ def test_model_add_served_reference_requires_served_model(tmp_path: Path) -> Non
     )
 
     assert result.exit_code != 0
-    assert "requires --served-model" in result.output
+    assert "requires --served-model" in _normalized_output(result)
 
 
 def test_model_add_served_reference_rejects_path(tmp_path: Path) -> None:
@@ -515,7 +530,7 @@ def test_model_add_served_reference_rejects_path(tmp_path: Path) -> None:
     )
 
     assert result.exit_code != 0
-    assert "does not accept --path" in result.output
+    assert "does not accept --path" in _normalized_output(result)
 
 
 def test_model_add_rejects_unknown_source_kind(tmp_path: Path) -> None:
