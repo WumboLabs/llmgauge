@@ -1894,12 +1894,15 @@ def _validate_checkpoint_binding(data: dict[str, Any]) -> list[str]:
     """
 
     from llmgauge.core.checkpoint_binding import (
+        BINDING_CLASS_LLMGAUGE_OBSERVED,
         BINDING_EVIDENCE_CEILING,
+        BINDING_EVIDENCE_CEILING_MANAGED,
         BINDING_PROVENANCE_CLASSES,
         BINDING_STATUS_BOUND,
         BINDING_STATUS_UNBOUND,
         CHECKPOINT_BINDING_SCHEMA_VERSION,
         EXTERNAL_ADMISSIBLE_BINDING_CLASSES,
+        MANAGED_ADMISSIBLE_BINDING_CLASSES,
     )
 
     runtime = data.get("runtime")
@@ -1955,6 +1958,14 @@ def _validate_checkpoint_binding(data: dict[str, Any]) -> list[str]:
             f"{label}.binding_provenance_class must be operator_declared for an "
             "external-operator server; a stronger class requires managed "
             "lifecycle evidence that this result does not carry"
+        )
+    elif runtime.get("lifecycle_ownership") == "llmgauge_managed" and (
+        provenance_class not in MANAGED_ADMISSIBLE_BINDING_CLASSES
+    ):
+        errors.append(
+            f"{label}.binding_provenance_class must be llmgauge_observed for a "
+            "managed-local server; LLMGauge launched this server and observed "
+            "the admission path"
         )
 
     requested = binding.get("requested_served_model")
@@ -2012,7 +2023,12 @@ def _validate_checkpoint_binding(data: dict[str, Any]) -> list[str]:
         errors.append(
             f"{label}.served_model_observation_source must be server_/v1/models_listing"
         )
-    if binding.get("evidence_ceiling") != BINDING_EVIDENCE_CEILING:
+    expected_ceiling = (
+        BINDING_EVIDENCE_CEILING_MANAGED
+        if provenance_class == BINDING_CLASS_LLMGAUGE_OBSERVED
+        else BINDING_EVIDENCE_CEILING
+    )
+    if binding.get("evidence_ceiling") != expected_ceiling:
         errors.append(f"{label}.evidence_ceiling does not match the admitted text")
     if binding.get("effective_runtime_chat_template") != "unobserved":
         errors.append(
@@ -2054,6 +2070,126 @@ def _validate_checkpoint_binding(data: dict[str, Any]) -> list[str]:
     for forbidden in ("checkpoint_path", "path", "manifest", "manifest_sha256"):
         if forbidden in binding:
             errors.append(f"{label} must not record {forbidden}")
+    return errors
+
+
+def _validate_vllm_startup_evidence(
+    result_dir: Path, data: dict[str, Any]
+) -> list[str]:
+    """Validate the additive M4 managed-local startup artifact.
+
+    Historical external-server results carry no startup artifact and are
+    unaffected. A managed-lifecycle result must reference a coherent startup
+    evidence document with bounded, non-claiming fields.
+    """
+
+    from llmgauge.runners.vllm_managed import (
+        ADMISSION_STATUSES,
+        LIFECYCLE_OWNERSHIP_MANAGED,
+        SHUTDOWN_STATUSES,
+        STARTUP_STATUSES,
+        VLLM_STARTUP_EVIDENCE_SCHEMA,
+    )
+
+    runtime = data.get("runtime")
+    if not isinstance(runtime, dict):
+        return []
+    captured = runtime.get("vllm_startup_evidence_captured")
+    errors: list[str] = []
+    if not captured:
+        if runtime.get("lifecycle_ownership") == LIFECYCLE_OWNERSHIP_MANAGED:
+            errors.append(
+                "runtime.vllm_startup_evidence_captured must be true for a "
+                "managed-local vLLM result"
+            )
+        return errors
+
+    if runtime.get("lifecycle_ownership") != LIFECYCLE_OWNERSHIP_MANAGED:
+        errors.append(
+            "runtime.lifecycle_ownership must be llmgauge_managed when vLLM "
+            "startup evidence is captured"
+        )
+    path_value = runtime.get("vllm_startup_evidence_path")
+    if not isinstance(path_value, str) or not path_value:
+        errors.append(
+            "runtime.vllm_startup_evidence_path must be set when vLLM startup "
+            "evidence is captured"
+        )
+        return errors
+    try:
+        artifact_path = resolve_contained_result_artifact(
+            result_dir,
+            path_value,
+            label="runtime.vllm_startup_evidence_path",
+            require_file=True,
+        )
+    except FingerprintUnavailable as exc:
+        errors.append(str(exc))
+        return errors
+    try:
+        doc = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        errors.append(f"vLLM startup evidence artifact is not valid JSON: {path_value}")
+        return errors
+    if not isinstance(doc, dict):
+        errors.append("vLLM startup evidence artifact must be a JSON object")
+        return errors
+
+    label = "vllm startup evidence"
+    if doc.get("schema_version") != VLLM_STARTUP_EVIDENCE_SCHEMA:
+        errors.append(f"{label}.schema_version must be {VLLM_STARTUP_EVIDENCE_SCHEMA}")
+    if doc.get("lifecycle_ownership") != LIFECYCLE_OWNERSHIP_MANAGED:
+        errors.append(
+            f"{label}.lifecycle_ownership must be {LIFECYCLE_OWNERSHIP_MANAGED}"
+        )
+
+    launch = doc.get("launch")
+    if not isinstance(launch, dict):
+        errors.append(f"{label}.launch must be an object")
+    else:
+        argv = launch.get("argv")
+        if (
+            not isinstance(argv, list)
+            or not argv
+            or not all(isinstance(item, str) for item in argv)
+        ):
+            errors.append(f"{label}.launch.argv must be a non-empty string list")
+        if launch.get("shell") is not False:
+            errors.append(f"{label}.launch.shell must be false")
+
+    process = doc.get("process")
+    if not isinstance(process, dict) or process.get("owned_by_llmgauge") is not True:
+        errors.append(f"{label}.process.owned_by_llmgauge must be true")
+
+    startup = doc.get("startup")
+    if not isinstance(startup, dict) or startup.get("status") not in STARTUP_STATUSES:
+        errors.append(
+            f"{label}.startup.status must be one of "
+            f"{', '.join(sorted(STARTUP_STATUSES))}"
+        )
+
+    admission = doc.get("model_admission")
+    if not isinstance(admission, dict) or (
+        admission.get("status") not in ADMISSION_STATUSES
+    ):
+        errors.append(
+            f"{label}.model_admission.status must be one of "
+            f"{', '.join(sorted(ADMISSION_STATUSES))}"
+        )
+
+    shutdown = doc.get("shutdown")
+    if not isinstance(shutdown, dict) or shutdown.get("status") not in (
+        SHUTDOWN_STATUSES
+    ):
+        errors.append(
+            f"{label}.shutdown.status must be one of "
+            f"{', '.join(sorted(SHUTDOWN_STATUSES))}"
+        )
+
+    if not isinstance(doc.get("unobserved"), list):
+        errors.append(f"{label}.unobserved must be a list")
+    if not isinstance(doc.get("claim_boundary"), str) or not doc.get("claim_boundary"):
+        errors.append(f"{label}.claim_boundary must be a non-empty string")
     return errors
 
 
@@ -2407,6 +2543,7 @@ def validate_result_data(result_dir: Path, data: dict[str, Any]) -> list[str]:
     errors.extend(validate_external_benchmark_result(result_dir, data))
     errors.extend(validate_result_transcript(result_dir, data))
     errors.extend(_validate_vllm_transport_consistency(result_dir, data))
+    errors.extend(_validate_vllm_startup_evidence(result_dir, data))
     errors.extend(validate_area4_evidence(result_dir, data))
     errors.extend(_validate_public_export_derivative(result_dir, data))
 

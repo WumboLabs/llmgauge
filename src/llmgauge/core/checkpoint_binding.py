@@ -24,8 +24,13 @@ CHECKPOINT_BINDING_SCHEMA_VERSION = "llmgauge.vllm_checkpoint_binding.v0"
 #: The only binding class an external-server run may record in M3.
 BINDING_CLASS_OPERATOR_DECLARED = "operator_declared"
 
+#: Binding class admitted for the M4 managed-local lifecycle, where LLMGauge
+#: itself launched the server with the local checkpoint root and observed the
+#: served-model listing.
+BINDING_CLASS_LLMGAUGE_OBSERVED = "llmgauge_observed"
+
 #: Closed vocabulary for the binding relation class. ``llmgauge_observed`` is
-#: reserved for the future managed lifecycle (M4) where LLMGauge owns the
+#: reserved for the managed lifecycle (M4) where LLMGauge owns the
 #: server launch/admission path; ``server_reported`` is deliberately NOT
 #: admitted for the checkpoint association because a server listing a
 #: served-model name never attests the local checkpoint bytes behind it.
@@ -33,12 +38,15 @@ BINDING_PROVENANCE_CLASSES = frozenset(
     {
         BINDING_CLASS_OPERATOR_DECLARED,
         "server_reported",
-        "llmgauge_observed",
+        BINDING_CLASS_LLMGAUGE_OBSERVED,
     }
 )
 
 #: Classes admissible for external-operator lifecycle results in this contract.
 EXTERNAL_ADMISSIBLE_BINDING_CLASSES = frozenset({BINDING_CLASS_OPERATOR_DECLARED})
+
+#: Classes admissible for LLMGauge-managed lifecycle results (M4).
+MANAGED_ADMISSIBLE_BINDING_CLASSES = frozenset({BINDING_CLASS_LLMGAUGE_OBSERVED})
 
 BINDING_STATUS_BOUND = "bound"
 BINDING_STATUS_UNBOUND = "unbound"
@@ -49,6 +57,15 @@ BINDING_EVIDENCE_CEILING = (
     "operator-declared, not server-attested."
 )
 
+#: Managed-lifecycle ceiling (M4): LLMGauge launched this exact server process
+#: with the local checkpoint root and observed the served-model listing, but
+#: the server still does not attest the bytes it read.
+BINDING_EVIDENCE_CEILING_MANAGED = (
+    "LLMGauge launched this server process with the local checkpoint root and "
+    "observed the served-model listing; the server does not attest the "
+    "checkpoint bytes it read."
+)
+
 
 def build_checkpoint_binding_record(
     *,
@@ -57,6 +74,7 @@ def build_checkpoint_binding_record(
     checkpoint_public_fingerprint: str | None,
     observed_vllm_version: str | None,
     lifecycle_ownership: str = "external_operator",
+    binding_provenance_class: str = BINDING_CLASS_OPERATOR_DECLARED,
 ) -> dict[str, Any]:
     """Build the additive run-level binding evidence record.
 
@@ -69,6 +87,11 @@ def build_checkpoint_binding_record(
     server-backed run fingerprint requires it; when it is unavailable the
     result stays valid under the external-server evidence ceiling and this
     record carries the precise ineligibility reason.
+
+    ``binding_provenance_class`` is ``operator_declared`` for external-server
+    runs (the default) and ``llmgauge_observed`` only for the M4 managed
+    lifecycle, where LLMGauge launched the server itself. The evidence ceiling
+    text follows the class.
     """
 
     bound = observed_served_model == requested_served_model
@@ -77,17 +100,22 @@ def build_checkpoint_binding_record(
         and bool(observed_vllm_version)
         and observed_vllm_version != "unknown"
     )
+    ceiling = (
+        BINDING_EVIDENCE_CEILING_MANAGED
+        if binding_provenance_class == BINDING_CLASS_LLMGAUGE_OBSERVED
+        else BINDING_EVIDENCE_CEILING
+    )
     record: dict[str, Any] = {
         "schema_version": CHECKPOINT_BINDING_SCHEMA_VERSION,
         "status": BINDING_STATUS_BOUND if bound else BINDING_STATUS_UNBOUND,
-        "binding_provenance_class": BINDING_CLASS_OPERATOR_DECLARED,
+        "binding_provenance_class": binding_provenance_class,
         "lifecycle_ownership": lifecycle_ownership,
         "requested_served_model": requested_served_model,
         "observed_served_model": observed_served_model,
         "served_model_observation_source": "server_/v1/models_listing",
         "checkpoint_public_fingerprint": checkpoint_public_fingerprint,
         "checkpoint_identity_source": "llmgauge_local_file_observation",
-        "evidence_ceiling": BINDING_EVIDENCE_CEILING,
+        "evidence_ceiling": ceiling,
         # Effective-runtime boundaries: the local checkpoint carries the
         # tokenizer/chat-template/quantization identity recorded in
         # model.provenance. What the external server actually used for

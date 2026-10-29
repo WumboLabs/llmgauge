@@ -45,6 +45,14 @@ class ModelProfileEntry(BaseModel):
     request_timeout: float | None = None
     max_response_bytes: int | None = None
     vllm_streaming_evidence: bool | None = None
+    # Additive managed-local lifecycle fields (M4; optional).
+    vllm_managed: bool | None = None
+    vllm_executable: str | None = None
+    vllm_startup_timeout: float | None = None
+    vllm_shutdown_timeout: float | None = None
+    vllm_max_model_len: int | None = None
+    vllm_gpu_memory_utilization: float | None = None
+    vllm_dtype: str | None = None
     # Additive runtime-neutral model source discriminator (M1). Declared last
     # so legacy profile serialization keeps its baseline field order.
     source_kind: str | None = None
@@ -55,6 +63,27 @@ class ModelProfileEntry(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("path must not be empty")
         return value
+
+    @field_validator("vllm_executable")
+    @classmethod
+    def validate_vllm_executable_not_empty(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("vllm_executable must not be empty")
+        return value
+
+    @field_validator("vllm_dtype")
+    @classmethod
+    def validate_vllm_dtype(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from llmgauge.runners.vllm_managed import DTYPE_ALLOWLIST
+
+        normalized = value.strip().lower()
+        if normalized not in DTYPE_ALLOWLIST:
+            raise ValueError(
+                "vllm_dtype must be one of: " + ", ".join(sorted(DTYPE_ALLOWLIST))
+            )
+        return normalized
 
     @field_validator("backend")
     @classmethod
@@ -141,6 +170,14 @@ class RuntimeConfig(BaseModel):
     request_timeout: float | None = None
     max_response_bytes: int | None = None
     vllm_streaming_evidence: bool | None = None
+    # Additive managed-local lifecycle defaults (M4; optional).
+    vllm_managed: bool | None = None
+    vllm_executable: str | None = None
+    vllm_startup_timeout: float | None = None
+    vllm_shutdown_timeout: float | None = None
+    vllm_max_model_len: int | None = None
+    vllm_gpu_memory_utilization: float | None = None
+    vllm_dtype: str | None = None
 
     @field_validator("backend")
     @classmethod
@@ -150,6 +187,20 @@ class RuntimeConfig(BaseModel):
         normalized = value.strip().lower()
         if normalized not in {"llama.cpp", "vllm"}:
             raise ValueError("backend must be one of: llama.cpp, vllm")
+        return normalized
+
+    @field_validator("vllm_dtype")
+    @classmethod
+    def validate_vllm_dtype(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from llmgauge.runners.vllm_managed import DTYPE_ALLOWLIST
+
+        normalized = value.strip().lower()
+        if normalized not in DTYPE_ALLOWLIST:
+            raise ValueError(
+                "vllm_dtype must be one of: " + ", ".join(sorted(DTYPE_ALLOWLIST))
+            )
         return normalized
 
 

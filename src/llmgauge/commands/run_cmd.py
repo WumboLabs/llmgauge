@@ -223,6 +223,46 @@ def run(
         help="Opt-in streaming SSE evidence mode: use vLLM token-ID transport "
         "to measure runtime-neutral TTFT; default remains non-streaming",
     ),
+    vllm_managed: bool = typer.Option(
+        False,
+        "--vllm-managed",
+        help="Managed-local vLLM lifecycle: LLMGauge launches and shuts down "
+        "an operator-installed vllm server for the profile's "
+        "checkpoint_directory; the default remains the external "
+        "operator-managed server",
+    ),
+    vllm_executable: str | None = typer.Option(
+        None,
+        "--vllm-executable",
+        help="Path to the operator-installed vllm command for --vllm-managed "
+        "(LLMGauge never installs vLLM or downloads models)",
+    ),
+    vllm_startup_timeout: float | None = typer.Option(
+        None,
+        "--vllm-startup-timeout",
+        help="Managed vLLM startup/readiness timeout in seconds (5-7200, default 600)",
+    ),
+    vllm_shutdown_timeout: float | None = typer.Option(
+        None,
+        "--vllm-shutdown-timeout",
+        help="Managed vLLM graceful shutdown timeout in seconds (1-300, default 30)",
+    ),
+    vllm_max_model_len: int | None = typer.Option(
+        None,
+        "--vllm-max-model-len",
+        help="Bounded --max-model-len for the managed vLLM launch",
+    ),
+    vllm_gpu_memory_utilization: float | None = typer.Option(
+        None,
+        "--vllm-gpu-memory-utilization",
+        help="Bounded --gpu-memory-utilization for the managed vLLM launch (0-1)",
+    ),
+    vllm_dtype: str | None = typer.Option(
+        None,
+        "--vllm-dtype",
+        help="Bounded --dtype for the managed vLLM launch: "
+        "auto, half, float16, bfloat16, float32",
+    ),
     out: Path | None = typer.Option(None, "--out", help="Output result directory"),
     auto_name: bool = typer.Option(
         False,
@@ -287,6 +327,13 @@ def run(
         request_timeout=request_timeout,
         max_response_bytes=max_response_bytes,
         vllm_streaming_evidence=vllm_streaming_evidence,
+        vllm_managed=vllm_managed,
+        vllm_executable=vllm_executable,
+        vllm_startup_timeout=vllm_startup_timeout,
+        vllm_shutdown_timeout=vllm_shutdown_timeout,
+        vllm_max_model_len=vllm_max_model_len,
+        vllm_gpu_memory_utilization=vllm_gpu_memory_utilization,
+        vllm_dtype=vllm_dtype,
     )
 
     if dry_run:
